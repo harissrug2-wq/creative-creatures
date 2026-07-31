@@ -10,7 +10,7 @@
   }
 }
 
-/* Custom range slider styling matching screenshot */
+/* Custom range slider styling */
 input[type=range] {
   -webkit-appearance: none;
   appearance: none;
