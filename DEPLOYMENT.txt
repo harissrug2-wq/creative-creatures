@@ -1,0 +1,33 @@
+CREATIVE CREATURES COMBINED - DEPLOYMENT
+
+WHAT CHANGED
+- Combined the Agency Diagnostic, Agency Scorecard, Owner Independence Index, and Agency Strength Index into one Vite repository.
+- Replaced external Vercel links with internal routes.
+- Preserved the existing scoring logic and layouts.
+- Added clean directory-based routes that work locally and on Vercel.
+
+ROUTES
+/diagnostic/
+/agency-scorecard/
+/independence-index/
+/agency-strength-index/
+
+GITHUB
+1. Create a new empty GitHub repository, or replace the contents of the repository you want to keep.
+2. Upload every file and folder from this package. Do not upload node_modules or dist.
+3. Commit and push.
+
+VERCEL
+1. Import the GitHub repository into Vercel.
+2. Framework preset: Vite.
+3. Build command: npm run build.
+4. Output directory: dist.
+5. Deploy.
+
+LOCAL TEST
+1. Run: npm install
+2. Run: npm run dev
+3. Open the local URL and test all four navigation links.
+
+EXPECTED RESULT
+One Vercel project and one domain serve all four pages. The diagnostic Start buttons open the internal Strength and Independence pages instead of the old separate deployments.

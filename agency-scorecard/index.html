@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agency Scorecard · Creative Creatures</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #f9fafa;
+            --card-bg: #ffffff;
+            --text-main: #111827;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+            --primary-blue: #2563eb;
+            --primary-blue-bg: #eff6ff;
+            --danger-red: #dc2626;
+            --danger-red-bg: #fef2f2;
+            --warning-orange: #d97706;
+            --warning-orange-bg: #fffbeb;
+            --success-green: #16a34a;
+            --success-green-bg: #f0fdf4;
+            --font-family: 'Inter', sans-serif;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-main); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+
+        /* Top Navigation */
+        .navbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 2rem;
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.875rem;
+        }
+        .nav-logo { font-weight: 700; font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem; color: #111827; }
+        .nav-logo span { color: var(--primary-blue); }
+        .nav-links { display: flex; gap: 1.5rem; align-items: center; }
+        .nav-links a { text-decoration: none; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 0.375rem; }
+        .nav-links a.active { color: var(--primary-blue); border-bottom: 2px solid var(--primary-blue); padding-bottom: 1rem; margin-bottom: -1rem; }
+        .nav-actions { display: flex; gap: 1rem; align-items: center; }
+        .btn-outline { border: 1px solid var(--border-color); padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; background: transparent; display: flex; align-items: center; gap: 0.375rem; color: var(--text-main); }
+        .btn-outline svg { width: 14px; height: 14px; color: var(--text-muted); }
+
+        /* Container */
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        /* Header Area */
+        .page-header { margin-bottom: 3rem; }
+        .header-top { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; }
+        .header-title-area h1 { font-size: 1.875rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .header-title-area .owner-briefing-tag { font-size: 0.65rem; color: var(--warning-orange); background: var(--warning-orange-bg); padding: 0.125rem 0.5rem; border-radius: 9999px; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; letter-spacing: 0.05em; border: 1px solid rgba(217,119,6,0.2); }
+        .header-title-area p { color: var(--text-muted); font-size: 0.95rem; }
+        .header-meta { font-size: 0.875rem; color: var(--text-muted); display: flex; gap: 1.5rem; }
+        .header-meta span strong { color: var(--text-main); font-weight: 600; }
+
+        /* Section Layouts */
+        .section-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; }
+        .section-header h2 { font-size: 1.125rem; font-weight: 600; }
+        .section-label { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.125rem; display: block; font-weight: 600; }
+        .section-header-desc { font-size: 0.875rem; color: var(--text-muted); }
+
+        /* Card Styles */
+        .card { background-color: var(--card-bg); border-radius: 0.75rem; border: 1px solid var(--border-color); padding: 1.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.02); }
+        .badge { padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.65rem; font-weight: 700; display: inline-flex; align-items: center; gap: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .badge.red { background-color: var(--danger-red-bg); color: var(--danger-red); border: 1px solid rgba(220,38,38,0.2); }
+        .badge.green { background-color: var(--success-green-bg); color: var(--success-green); border: 1px solid rgba(22,163,74,0.2); }
+        .badge.blue { background-color: var(--primary-blue-bg); color: var(--primary-blue); border: 1px solid rgba(37,99,235,0.2); }
+        .badge.orange { background-color: var(--warning-orange-bg); color: var(--warning-orange); border: 1px solid rgba(217,119,6,0.2); }
+
+        /* Section 01: Executive Summary */
+        .exec-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-bottom: 4rem; }
+        @media (min-width: 768px) { .exec-grid { grid-template-columns: 1fr 1fr; } }
+        
+        .exec-card-left .title { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 500; }
+        .exec-card-left .score-row { display: flex; align-items: baseline; gap: 1rem; margin-bottom: 1rem; }
+        .exec-card-left .score { font-size: 3.5rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+        .exec-card-left .desc { font-size: 0.95rem; color: var(--text-main); margin-bottom: 2rem; max-width: 90%; }
+        .exec-card-left .desc strong { font-weight: 600; }
+        
+        .mini-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .mini-stat { background: var(--bg-color); padding: 1rem 1.25rem; border-radius: 0.5rem; border: 1px solid var(--border-color); }
+        .mini-stat h4 { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.375rem; font-weight: 500; display: flex; align-items: center; gap: 0.375rem; }
+        .mini-stat h4 svg { width: 14px; height: 14px; }
+        .mini-stat .val { font-size: 1.25rem; font-weight: 600; }
+        .mini-stat .val.green { color: var(--success-green); display: flex; align-items: center; gap: 0.375rem; }
+
+        .exec-card-right .title { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem; font-weight: 500; }
+        .exec-card-right .val-row { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.5rem; }
+        .exec-card-right .val-score { font-size: 3rem; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+        .exec-card-right .val-sub { font-size: 0.875rem; color: var(--text-muted); font-weight: 500; }
+        .exec-card-right .conf { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 2rem; display: flex; align-items: center; gap: 0.375rem; }
+        .exec-card-right .conf svg { width: 14px; height: 14px; }
+        
+        .next-move-box { background-color: var(--primary-blue-bg); border-radius: 0.5rem; padding: 1.5rem; border: 1px solid rgba(37,99,235,0.1); }
+        .next-move-box h4 { color: var(--primary-blue); font-size: 0.75rem; text-transform: uppercase; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; letter-spacing: 0.05em; }
+        .next-move-box h4 svg { width: 14px; height: 14px; }
+        .next-move-box p { font-size: 0.95rem; font-weight: 500; margin-bottom: 1.25rem; color: #1e3a8a; line-height: 1.4; }
+        .btn-blue { background-color: var(--primary-blue); color: white; border: none; padding: 0.625rem 1.25rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
+
+        /* Section 02: Three Index Cards */
+        .index-cards-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-bottom: 4rem; }
+        @media (min-width: 1024px) { .index-cards-grid { grid-template-columns: repeat(3, 1fr); } }
+        
+        .index-card { display: flex; flex-direction: column; gap: 1rem; }
+        .index-card-header { display: flex; gap: 1rem; align-items: flex-start; margin-bottom: 0.5rem; }
+        .circle-score { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.25rem; flex-shrink: 0; }
+        .circle-score.blue { border: 4px solid var(--primary-blue); color: var(--text-main); }
+        .circle-score.red { border: 4px solid var(--danger-red); color: var(--text-main); }
+        .index-card-title h3 { font-size: 1.05rem; font-weight: 600; margin-top: 0.25rem; margin-bottom: 0.25rem; }
+        .index-card > p.desc { font-size: 0.875rem; color: var(--text-muted); min-height: 42px; margin-bottom: 0.5rem; }
+        
+        .index-stats-pills { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+        .stat-pill { font-size: 0.75rem; color: var(--text-muted); background: var(--bg-color); border: 1px solid var(--border-color); padding: 0.125rem 0.5rem; border-radius: 0.25rem; display: flex; align-items: center; gap: 0.25rem; }
+        .stat-pill svg { width: 12px; height: 12px; }
+        
+        .index-card > p.main-stat { font-size: 0.875rem; font-weight: 500; padding-bottom: 1.25rem; border-bottom: 1px solid var(--border-color); margin-bottom: 0.5rem; line-height: 1.4; }
+        
+        .constraint-list { display: flex; flex-direction: column; gap: 1rem; }
+        .constraint-item { display: flex; gap: 0.75rem; font-size: 0.875rem; align-items: flex-start; line-height: 1.4; }
+        .constraint-item svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 2px; }
+        .constraint-item .label { font-weight: 600; color: var(--text-main); }
+        .constraint-item .text { color: var(--text-muted); }
+        .icon-red { color: var(--danger-red); }
+        .icon-gray { color: #9ca3af; }
+        .icon-blue { color: var(--primary-blue); }
+
+        /* Section 03: Issues & Opportunities */
+        .io-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-bottom: 4rem; }
+        @media (min-width: 1024px) { .io-grid { grid-template-columns: 1fr 1fr; } }
+        
+        .io-column > h3 { font-size: 1.125rem; font-weight: 600; margin-bottom: 1.25rem; display: flex; align-items: center; gap: 0.5rem; }
+        .io-list { display: flex; flex-direction: column; gap: 0.75rem; }
+        .io-item { border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1.25rem; background: var(--card-bg); display: flex; justify-content: space-between; align-items: flex-start; }
+        .io-item-left h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.375rem; display: flex; align-items: center; gap: 0.75rem; }
+        .io-item-left p { font-size: 0.875rem; color: var(--text-muted); }
+        
+        .opp-number { width: 24px; height: 24px; background: var(--primary-blue-bg); color: var(--primary-blue); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; }
+
+        /* Section 04: Agency Valuation */
+        .val-grid { display: grid; grid-template-columns: 1fr; gap: 1.5rem; margin-bottom: 4rem; }
+        @media (min-width: 1024px) { .val-grid { grid-template-columns: 2fr 1fr; } }
+        
+        .val-table-card { padding: 0; overflow: hidden; }
+        .val-table { width: 100%; border-collapse: collapse; }
+        .val-table th, .val-table td { padding: 1rem 1.5rem; text-align: left; border-bottom: 1px solid var(--border-color); font-size: 0.875rem; }
+        .val-table th { background: var(--bg-color); font-weight: 600; color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .val-table td.strong { font-weight: 600; color: var(--text-main); }
+        .val-table td.desc { color: var(--text-muted); }
+        .val-table td.right { text-align: right; font-weight: 600; font-size: 0.95rem; }
+        .val-table tr.total td { font-weight: 700; background: var(--bg-color); border-bottom: none; padding-top: 1.25rem; padding-bottom: 1.25rem; }
+        .val-table tr.total td.right { color: var(--primary-blue); font-size: 1.125rem; }
+
+        .val-summary-card { padding: 2rem; display: flex; flex-direction: column; justify-content: center; }
+        .val-summary-card .label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-bottom: 0.5rem; }
+        .val-summary-card .big-val { font-size: 2.75rem; font-weight: 700; margin-bottom: 0.25rem; line-height: 1; letter-spacing: -0.02em; }
+        .val-summary-card .conf { font-size: 0.875rem; color: var(--text-muted); margin-bottom: 2.5rem; display: flex; align-items: center; gap: 0.375rem; }
+        .val-summary-card .conf svg { width: 14px; height: 14px; }
+        .val-summary-card .upside-label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-bottom: 0.25rem; }
+        .val-summary-card .upside-val { font-size: 1.75rem; font-weight: 700; color: var(--success-green); margin-bottom: 0.25rem; }
+        .val-summary-card .upside-sub { font-size: 0.75rem; color: var(--text-muted); }
+
+        /* Bottom Banner */
+        .bottom-banner { background: var(--card-bg); border-top: 1px solid var(--border-color); padding: 1.5rem 0; border-radius: 0.75rem; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; margin-bottom: 4rem; padding-left: 1.5rem; padding-right: 1.5rem;}
+        .bottom-banner-left h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }
+        .bottom-banner-left p { font-size: 0.875rem; color: var(--text-muted); }
+        .btn-orange { background-color: #ea580c; color: white; border: none; padding: 0.625rem 1.25rem; border-radius: 9999px; font-weight: 600; font-size: 0.875rem; cursor: pointer; display: inline-flex; align-items: center; gap: 0.5rem; }
+
+    </style>
+</head>
+<body>
+
+    <!-- Top Navigation -->
+    <nav class="navbar">
+        <div class="nav-logo">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#2563eb"/>
+                <path d="M2 17L12 22L22 17" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M2 12L12 17L22 12" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Creative <span>Creatures</span>
+        </div>
+        <div class="nav-links">
+            <a href="/diagnostic/">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                Diagnostic
+            </a>
+            <a href="/agency-scorecard/" class="active">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                Agency Scorecard
+            </a>
+            <a href="/independence-index/">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M5 7h14"/><path d="M7 7c0 5 2 8 5 10 3-2 5-5 5-10"/></svg>
+                Independence Index
+            </a>
+            <a href="/agency-strength-index/">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12l2 6-8 12L4 9l2-6Z"/><path d="M4 9h16"/></svg>
+                Strength Index
+            </a>
+        </div>
+        <div class="nav-actions">
+            <button class="btn-outline">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                Ask Creature
+            </button>
+            <div style="text-align: right; line-height: 1.2;">
+                <div style="font-weight: 600; font-size: 0.875rem;">Prototype Agency</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">Prototype Reviewer</div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        
+        <!-- Header -->
+        <div class="page-header">
+            <div class="header-top">
+                <div class="header-title-area">
+                    <span class="owner-briefing-tag">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        Owner briefing
+                    </span>
+                    <h1>Agency Scorecard</h1>
+                    <p>Executive view of your Agency Owner Freedom Index, valuation, three index scores, and the highest-return next moves.</p>
+                </div>
+                <div class="header-meta">
+                    <span>Archetype: <strong>The Creative Wizard</strong></span>
+                    <span>Tier: <strong>&lt; $500K</strong></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 01: Executive Summary -->
+        <div class="section-header">
+            <div>
+                <span class="section-label">Section 01</span>
+                <h2>Executive Summary</h2>
+            </div>
+            <div class="section-header-desc">The one-page view your fractional exec will lead the review with.</div>
+        </div>
+        
+        <div class="exec-grid">
+            <!-- Left Card -->
+            <div class="card exec-card-left">
+                <div class="title">Agency Owner Freedom Index</div>
+                <div class="score-row">
+                    <div class="score">49</div>
+                    <div class="badge red">LOW</div>
+                </div>
+                <p class="desc">The composite score of Performance, Strength, and Owner Independence. Your one shift: <strong>move from inspiration to institution.</strong></p>
+                
+                <div class="mini-stats-grid">
+                    <div class="mini-stat">
+                        <h4>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            Overall confidence
+                        </h4>
+                        <div class="val">62%</div>
+                    </div>
+                    <div class="mini-stat">
+                        <h4>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+                            Momentum
+                        </h4>
+                        <div class="val green">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5M5 12l7-7 7 7"/></svg>
+                            Up
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Card -->
+            <div class="card exec-card-right">
+                <div class="title">Estimated agency valuation</div>
+                <div class="val-row">
+                    <div class="val-score">$32,929</div>
+                    <div class="val-sub">(1.90x × adj. SDE)</div>
+                </div>
+                <div class="conf">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    Valuation confidence — N/A
+                </div>
+
+                <div class="next-move-box">
+                    <h4>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                        Highest-value next move
+                    </h4>
+                    <p>Install an operating layer with clear accountability for day-to-day management.</p>
+                    <button class="btn-blue">
+                        Turn into a 90-day rock
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-left:4px"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 02: Three Index Cards -->
+        <div class="section-header">
+            <div>
+                <span class="section-label">Section 02</span>
+                <h2>Three Index Cards</h2>
+            </div>
+            <div class="section-header-desc">Each index scored with confidence, momentum, and the constraint holding it down.</div>
+        </div>
+
+        <div class="index-cards-grid">
+            <!-- Card 1 -->
+            <div class="card index-card">
+                <div class="index-card-header">
+                    <div class="circle-score blue">71</div>
+                    <div class="index-card-title">
+                        <span class="badge blue">STRONG</span>
+                        <h3>Agency Performance Index</h3>
+                    </div>
+                </div>
+                <p class="desc">Financials, SDE, and the valuation ladder inputs.</p>
+                <div class="index-stats-pills">
+                    <div class="stat-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                        TTM rev.
+                    </div>
+                    <div class="stat-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        SDE
+                    </div>
+                    <div class="stat-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                        Valuation
+                    </div>
+                </div>
+                <p class="main-stat">TTM $173,500 at 23.7% margin &rarr; $41,161 adjusted SDE.</p>
+                
+                <div class="constraint-list">
+                    <div class="constraint-item">
+                        <svg class="icon-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                        <div>
+                            <div class="label">Top constraint</div>
+                            <div class="text">Revenue quality — remaining share below 40%.</div>
+                        </div>
+                    </div>
+                    <div class="constraint-item">
+                        <svg class="icon-gray" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <div>
+                            <div class="label">Missing evidence</div>
+                            <div class="text">Add back schedule and TTM P&L report.</div>
+                        </div>
+                    </div>
+                    <div class="constraint-item">
+                        <svg class="icon-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                        <div>
+                            <div class="label">Recommendation</div>
+                            <div class="text">Formalize retainer packaging on top 3 offers.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="card index-card">
+                <div class="index-card-header">
+                    <div class="circle-score red">41</div>
+                    <div class="index-card-title">
+                        <span class="badge red">LOW</span>
+                        <h3>Agency Strength Index</h3>
+                    </div>
+                </div>
+                <p class="desc">Structural health across the 14 valuation drivers.</p>
+                <div class="index-stats-pills">
+                    <div class="stat-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        88% conf.
+                    </div>
+                    <div class="stat-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        N/A
+                    </div>
+                    <div class="stat-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                        Retain
+                    </div>
+                </div>
+                <p class="main-stat">Under-built for revenue. Operations and brand dependency are the two lowest-scoring drivers.</p>
+                
+                <div class="constraint-list">
+                    <div class="constraint-item">
+                        <svg class="icon-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                        <div>
+                            <div class="label">Top constraint</div>
+                            <div class="text">Delivery dependent on founder. Clients ask for you by name.</div>
+                        </div>
+                    </div>
+                    <div class="constraint-item">
+                        <svg class="icon-gray" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <div>
+                            <div class="label">Missing evidence</div>
+                            <div class="text">SOP coverage map and delivery org chart.</div>
+                        </div>
+                    </div>
+                    <div class="constraint-item">
+                        <svg class="icon-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                        <div>
+                            <div class="label">Recommendation</div>
+                            <div class="text">Install an operating layer with clear accountability.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="card index-card">
+                <div class="index-card-header">
+                    <div class="circle-score red">29</div>
+                    <div class="index-card-title">
+                        <span class="badge red">LOW</span>
+                        <h3>Owner Independence Index</h3>
+                    </div>
+                </div>
+                <p class="desc">How much of the business runs without you.</p>
+                <div class="index-stats-pills">
+                    <div class="stat-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                        88% conf.
+                    </div>
+                    <div class="stat-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        N/A
+                    </div>
+                    <div class="stat-pill">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
+                        Retain
+                    </div>
+                </div>
+                <p class="main-stat">Most day-to-day decisions still route through the founder. Delivery independence is the fastest lever.</p>
+                
+                <div class="constraint-list">
+                    <div class="constraint-item">
+                        <svg class="icon-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
+                        <div>
+                            <div class="label">Top constraint</div>
+                            <div class="text">Founder is primary account manager for key clients.</div>
+                        </div>
+                    </div>
+                    <div class="constraint-item">
+                        <svg class="icon-gray" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                        <div>
+                            <div class="label">Missing evidence</div>
+                            <div class="text">Owner time-tracking sample (2 weeks).</div>
+                        </div>
+                    </div>
+                    <div class="constraint-item">
+                        <svg class="icon-blue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                        <div>
+                            <div class="label">Recommendation</div>
+                            <div class="text">Detach the founder from at least one delivery lane.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 03: Issues & Opportunities -->
+        <div class="section-header">
+            <div>
+                <span class="section-label">Section 03</span>
+                <h2>Issues & Opportunities</h2>
+            </div>
+            <div class="section-header-desc">Generated from index gaps, missing evidence, integrations, and owner involvement signals.</div>
+        </div>
+
+        <div class="io-grid">
+            <!-- Key Issues -->
+            <div class="io-column">
+                <h3>
+                    <svg style="color:var(--danger-red)" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    Key issues
+                </h3>
+                <div class="io-list">
+                    <div class="io-item">
+                        <div class="io-item-left">
+                            <h4>Operations</h4>
+                            <p>Scoring 0.0 / 15 — high risk band.<br>Signal: Integration data</p>
+                        </div>
+                        <span class="badge red">HIGH</span>
+                    </div>
+                    <div class="io-item">
+                        <div class="io-item-left">
+                            <h4>Brand Dependency</h4>
+                            <p>Scoring 0.0 / 10 — high risk band.<br>Signal: Owner involvement</p>
+                        </div>
+                        <span class="badge red">HIGH</span>
+                    </div>
+                    <div class="io-item">
+                        <div class="io-item-left">
+                            <h4>Growth Ownership</h4>
+                            <p>Scoring 0.0 / 7 — medium risk band.<br>Signal: Integration data</p>
+                        </div>
+                        <span class="badge orange">MEDIUM</span>
+                    </div>
+                    <div class="io-item">
+                        <div class="io-item-left">
+                            <h4>Sales Dependency</h4>
+                            <p>Scoring 0.0 / 7 — medium risk band.<br>Signal: Integration data</p>
+                        </div>
+                        <span class="badge orange">MEDIUM</span>
+                    </div>
+                    <div class="io-item">
+                        <div class="io-item-left">
+                            <h4>Pipeline Strength</h4>
+                            <p>Scoring 0.0 / 7 — medium risk band.<br>Signal: Integration data</p>
+                        </div>
+                        <span class="badge orange">MEDIUM</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Biggest Opportunities -->
+            <div class="io-column">
+                <h3>
+                    <svg style="color:var(--success-green)" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+                    Biggest opportunities
+                </h3>
+                <div class="io-list">
+                    <div class="io-item">
+                        <div class="io-item-left">
+                            <h4><span class="opp-number">1</span> Operations</h4>
+                            <p>Install an operating layer with clear accountability for day-to-day management.</p>
+                        </div>
+                        <span class="badge green" style="background:transparent; border:none; padding:0;">+15.0 pts</span>
+                    </div>
+                    <div class="io-item">
+                        <div class="io-item-left">
+                            <h4><span class="opp-number">2</span> Brand Dependency</h4>
+                            <p>Detach the brand from the founder — productize the offer under a company identity.</p>
+                        </div>
+                        <span class="badge green" style="background:transparent; border:none; padding:0;">+10.0 pts</span>
+                    </div>
+                    <div class="io-item">
+                        <div class="io-item-left">
+                            <h4><span class="opp-number">3</span> Growth Ownership</h4>
+                            <p>Build a measurable pipeline owned by someone other than you.</p>
+                        </div>
+                        <span class="badge green" style="background:transparent; border:none; padding:0;">+7.0 pts</span>
+                    </div>
+                    <div class="io-item">
+                        <div class="io-item-left">
+                            <h4><span class="opp-number">4</span> Sales Dependency</h4>
+                            <p>Install an operating layer with clear accountability for day-to-day management.</p>
+                        </div>
+                        <span class="badge green" style="background:transparent; border:none; padding:0;">+7.0 pts</span>
+                    </div>
+                    <div class="io-item">
+                        <div class="io-item-left">
+                            <h4><span class="opp-number">5</span> Pipeline Strength</h4>
+                            <p>Detach the brand from the founder — productize the offer under a company identity.</p>
+                        </div>
+                        <span class="badge green" style="background:transparent; border:none; padding:0;">+7.0 pts</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 04: Agency Valuation -->
+        <div class="section-header">
+            <div>
+                <span class="section-label">Section 04</span>
+                <h2>Agency Valuation</h2>
+            </div>
+            <div class="section-header-desc">Adjusted SDE × framework-driven multiple. Each adjustment is traceable back to an index.</div>
+        </div>
+
+        <div class="val-grid">
+            <div class="card val-table-card">
+                <table class="val-table">
+                    <thead>
+                        <tr>
+                            <th>Valuation build up</th>
+                            <th></th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="strong">Adjusted SDE<br><span class="desc" style="font-weight:400; font-size:0.75rem;">TTM financials applied</span></td>
+                            <td></td>
+                            <td class="right">$41,161</td>
+                        </tr>
+                        <tr>
+                            <td class="strong">Base multiple (Performance)<br><span class="desc" style="font-weight:400; font-size:0.75rem;">Base performance index</span></td>
+                            <td></td>
+                            <td class="right">1.90x</td>
+                        </tr>
+                        <tr>
+                            <td class="strong">Strength adjustment<br><span class="desc" style="font-weight:400; font-size:0.75rem;">Under-built structure</span></td>
+                            <td></td>
+                            <td class="right" style="color:var(--danger-red)">-0.40x</td>
+                        </tr>
+                        <tr>
+                            <td class="strong">Owner independence adjustment<br><span class="desc" style="font-weight:400; font-size:0.75rem;">Founder dependent delivery</span></td>
+                            <td></td>
+                            <td class="right" style="color:var(--danger-red)">-0.40x</td>
+                        </tr>
+                        <tr>
+                            <td class="strong">CAC / LTV adjustment<br><span class="desc" style="font-weight:400; font-size:0.75rem;">Capital efficiency upside</span></td>
+                            <td></td>
+                            <td class="right" style="color:var(--success-green)">+0.10x</td>
+                        </tr>
+                        <tr>
+                            <td class="strong">Revenue Quality adjustment<br><span class="desc" style="font-weight:400; font-size:0.75rem;">Low recurring share</span></td>
+                            <td></td>
+                            <td class="right" style="color:var(--danger-red)">-0.20x</td>
+                        </tr>
+                        <tr class="total">
+                            <td colspan="2">Adjusted multiple</td>
+                            <td class="right">0.80x</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card val-summary-card">
+                <div class="label">Estimated enterprise value</div>
+                <div class="big-val">$32,929</div>
+                <div class="conf">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    Confidence — 79%
+                </div>
+                
+                <div class="upside-label">Asset stage upside</div>
+                <div class="upside-val">$164,644</div>
+                <div class="upside-sub">At 4x SDE · max $205,712</div>
+            </div>
+        </div>
+
+        <!-- Bottom Banner -->
+        <div class="bottom-banner">
+            <div class="bottom-banner-left">
+                <h3>Ready to turn this into an operating plan?</h3>
+                <p>Move to Agency Goals to set the annual targets, departmental owners, and 90-day rocks.</p>
+            </div>
+            <button class="btn-orange">
+                Go to Agency Goals
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </button>
+        </div>
+
+    </div>
+
+</body>
+</html>
