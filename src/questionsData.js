@@ -15,237 +15,298 @@ export const STANDARD_5_OPTIONS = [
 ];
 
 export const QUESTIONS = [
-  // Category 1: Decision Independence (6 questions)
+  // ── Category 1: Decision Independence (6 questions) ──────────────────────
   {
     id: 1,
     category: 'decision',
     categoryName: 'Decisions',
-    text: 'Who has final authority over pricing and service packaging?',
+    text: 'Who has final authority over pricing?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 2,
     category: 'decision',
     categoryName: 'Decisions',
-    text: 'Who approves team hiring and staffing decisions?',
+    text: 'Who approves hiring?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 3,
     category: 'decision',
     categoryName: 'Decisions',
-    text: 'Who approves terminating underperforming employees or contractors?',
+    text: 'Who approves terminating employees?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 4,
     category: 'decision',
     categoryName: 'Decisions',
-    text: 'Who resolves major client escalations and critical disputes?',
+    text: 'Who resolves major client escalations?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 5,
     category: 'decision',
     categoryName: 'Decisions',
-    text: 'Who makes day-to-day operational decisions for the agency?',
+    text: 'Who makes day-to-day operational decisions?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 6,
     category: 'decision',
     categoryName: 'Decisions',
-    text: 'Who handles emergency operational and strategic decisions during owner absences?',
+    text: 'If you took a four-week vacation tomorrow, how many of these decisions would require you?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: [
+      { label: 'Nearly all', score: 0 },
+      { label: 'Most', score: 1 },
+      { label: 'About half', score: 2 },
+      { label: 'Very few', score: 3 },
+      { label: 'None', score: 4 },
+    ],
   },
 
-  // Category 2: Revenue Independence (5 questions)
+  // ── Category 2: Revenue Independence (5 questions) ───────────────────────
   {
     id: 7,
     category: 'revenue',
     categoryName: 'Revenue',
-    text: 'Who drives and executes new client sales & business development?',
+    text: 'If you disappeared for 90 days, would new sales continue?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: [
+      { label: 'No', score: 0 },
+      { label: 'Significantly reduced', score: 1 },
+      { label: 'Somewhat reduced', score: 2 },
+      { label: 'Mostly unaffected', score: 3 },
+      { label: 'Completely unaffected', score: 4 },
+    ],
   },
   {
     id: 8,
     category: 'revenue',
     categoryName: 'Revenue',
-    text: 'Who generates and nurtures client referrals and strategic partnership growth?',
+    text: 'Would referrals continue?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: [
+      { label: 'No', score: 0 },
+      { label: 'Significantly reduced', score: 1 },
+      { label: 'Somewhat reduced', score: 2 },
+      { label: 'Mostly unaffected', score: 3 },
+      { label: 'Completely unaffected', score: 4 },
+    ],
   },
   {
     id: 9,
     category: 'revenue',
     categoryName: 'Revenue',
-    text: 'Who manages marketing strategy, campaign execution, and lead generation?',
+    text: 'Would marketing continue?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: [
+      { label: 'No', score: 0 },
+      { label: 'Significantly reduced', score: 1 },
+      { label: 'Somewhat reduced', score: 2 },
+      { label: 'Mostly unaffected', score: 3 },
+      { label: 'Completely unaffected', score: 4 },
+    ],
   },
   {
     id: 10,
     category: 'revenue',
     categoryName: 'Revenue',
-    text: 'Who owns the overall sales pipeline, deal negotiation, and closing?',
+    text: 'Who owns the sales pipeline?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: [
+      { label: 'Owner', score: 0 },
+      { label: 'Mostly Owner', score: 1 },
+      { label: 'Shared', score: 2 },
+      { label: 'Sales Leader', score: 3 },
+      { label: 'Sales Team', score: 4 },
+    ],
   },
   {
     id: 11,
     category: 'revenue',
     categoryName: 'Revenue',
-    text: 'Who manages account expansions, renewals, and upsell opportunities?',
+    text: 'What percentage of new revenue personally involves the owner?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: [
+      { label: '90–100%', score: 0 },
+      { label: '70–89%', score: 1 },
+      { label: '40–69%', score: 2 },
+      { label: '10–39%', score: 3 },
+      { label: 'Less than 10%', score: 4 },
+    ],
   },
 
-  // Category 3: Delivery Independence (6 questions)
+  // ── Category 3: Delivery Independence (6 questions) ──────────────────────
   {
     id: 12,
     category: 'delivery',
     categoryName: 'Delivery',
-    text: 'Who owns project delivery and day-to-day execution for clients?',
+    text: 'Who owns project delivery?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 13,
     category: 'delivery',
     categoryName: 'Delivery',
-    text: 'Who manages primary client communication and account management?',
+    text: 'Who owns client communication?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 14,
     category: 'delivery',
     categoryName: 'Delivery',
-    text: 'Who approves work quality before final delivery to clients?',
+    text: 'Who approves work before delivery?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 15,
     category: 'delivery',
     categoryName: 'Delivery',
-    text: 'Who owns overall service fulfillment quality standards and processes?',
+    text: 'Who owns fulfillment quality?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 16,
     category: 'delivery',
     categoryName: 'Delivery',
-    text: 'Who manages delivery team workflow, capacity, and resource allocation?',
+    text: 'If you left for 90 days, how many clients would notice?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: [
+      { label: 'Nearly all', score: 0 },
+      { label: 'Most', score: 1 },
+      { label: 'About half', score: 2 },
+      { label: 'Very few', score: 3 },
+      { label: 'None', score: 4 },
+    ],
   },
   {
     id: 17,
     category: 'delivery',
     categoryName: 'Delivery',
-    text: 'Who handles service recovery and troubleshooting when client issues occur?',
+    text: 'Could every current client continue receiving service without you?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: [
+      { label: 'No', score: 0 },
+      { label: 'Very few', score: 1 },
+      { label: 'About half', score: 2 },
+      { label: 'Most', score: 3 },
+      { label: 'Yes', score: 4 },
+    ],
   },
 
-  // Category 4: Leadership Independence (6 questions)
+  // ── Category 4: Leadership Independence (6 questions) ────────────────────
   {
     id: 18,
     category: 'leadership',
     categoryName: 'Leadership',
-    text: 'Who runs regular Leadership Team meetings?',
+    text: 'Who runs the Leadership Team meeting?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 19,
     category: 'leadership',
     categoryName: 'Leadership',
-    text: 'Who facilitates Quarterly and Annual Strategic Planning sessions?',
+    text: 'Who facilitates Quarterly Planning?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 20,
     category: 'leadership',
     categoryName: 'Leadership',
-    text: 'Who manages, mentors, and coaches department leaders?',
+    text: 'Who manages department leaders?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 21,
     category: 'leadership',
     categoryName: 'Leadership',
-    text: 'Who holds department leaders accountable to key performance metrics?',
+    text: 'Who holds leaders accountable?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: STANDARD_5_OPTIONS,
   },
   {
     id: 22,
     category: 'leadership',
     categoryName: 'Leadership',
-    text: 'Who sets department goals and tracks execution progress independently?',
+    text: 'If the owner disappeared, would leadership meetings continue?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: [
+      { label: 'Definitely not', score: 0 },
+      { label: 'Probably not', score: 1 },
+      { label: 'Unsure', score: 2 },
+      { label: 'Probably yes', score: 3 },
+      { label: 'Definitely yes', score: 4 },
+    ],
   },
   {
     id: 23,
     category: 'leadership',
     categoryName: 'Leadership',
-    text: 'Who resolves cross-departmental conflicts and operational bottlenecks?',
+    text: 'Can department leaders solve problems without owner involvement?',
     type: 'choice',
-    options: STANDARD_5_OPTIONS
+    options: [
+      { label: 'No', score: 0 },
+      { label: 'Very few', score: 1 },
+      { label: 'About half', score: 2 },
+      { label: 'Most', score: 3 },
+      { label: 'Yes', score: 4 },
+    ],
   },
 
-  // Category 5: Strategic Independence (5 questions)
+  // ── Category 5: Strategic Independence (2 parts) ─────────────────────────
+  // Part A — Time allocation slider
   {
     id: 24,
     category: 'strategic',
     categoryName: 'Strategic',
-    text: 'Who defines long-term vision, company strategy, and growth roadmap?',
-    type: 'choice',
-    options: STANDARD_5_OPTIONS
+    text: 'Over the last 30 days, how much time did you spend?',
+    subtitle: 'Percentages totaling across both categories need to = 100%',
+    type: 'strategic-sliders',
+    strategicItems: [
+      'Vision',
+      'Strategy',
+      'Leadership Coaching',
+      'Capital Allocation',
+      'Relationships',
+      'Recruiting Executives',
+    ],
+    operationalItems: [
+      'Sales',
+      'Delivery',
+      'Client Management',
+      'Firefighting',
+      'Internal Operations',
+      'HR',
+      'Finance',
+      'Approvals',
+    ],
   },
+  // Part B — Activity matrix
   {
     id: 25,
     category: 'strategic',
     categoryName: 'Strategic',
-    text: 'Who manages capital allocation, budgeting, and financial planning?',
-    type: 'choice',
-    options: STANDARD_5_OPTIONS
+    text: 'What happens if you stop doing each activity?',
+    type: 'activity-matrix',
+    activities: ['Sales', 'Client Delivery', 'Leadership', 'Marketing', 'Hiring', 'Finance'],
+    matrixOptions: [
+      { label: 'Business continues', score: 100 },
+      { label: 'Slows down', score: 50 },
+      { label: 'Stops completely', score: 0 },
+    ],
   },
-  {
-    id: 26,
-    category: 'strategic',
-    categoryName: 'Strategic',
-    text: 'Who leads executive recruitment and organizational structure design?',
-    type: 'choice',
-    options: STANDARD_5_OPTIONS
-  },
-  {
-    id: 27,
-    category: 'strategic',
-    categoryName: 'Strategic',
-    text: 'Who manages strategic partnerships, acquisitions, and key vendor relationships?',
-    type: 'choice',
-    options: STANDARD_5_OPTIONS
-  },
-  {
-    id: 28,
-    category: 'strategic',
-    categoryName: 'Strategic',
-    text: 'Who drives operational innovation, systems architecture, and process improvements?',
-    type: 'choice',
-    options: STANDARD_5_OPTIONS
-  }
 ];
