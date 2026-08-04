@@ -3,309 +3,720 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Diagnostic · Creative Creatures</title>
+    <title>Monitor · Creative Creatures</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-color: #f9fafa;
+            --bg: #f4f5f7;
+            --sidebar-bg: #ffffff;
             --card-bg: #ffffff;
             --text-main: #111827;
             --text-muted: #6b7280;
-            --border-color: #e5e7eb;
-            --primary-blue: #2563eb;
-            --primary-blue-bg: #eff6ff;
-            --danger-red: #dc2626;
-            --danger-red-bg: #fef2f2;
-            --warning-orange: #d97706;
-            --warning-orange-bg: #fffbeb;
-            --success-green: #16a34a;
-            --success-green-bg: #f0fdf4;
-            --purple: #8b5cf6;
-            --purple-bg: #f5f3ff;
-            --font-family: 'Inter', sans-serif;
+            --text-xs: #9ca3af;
+            --border: #e5e7eb;
+            --blue: #2563eb;
+            --blue-light: #eff6ff;
+            --green: #16a34a;
+            --green-light: #f0fdf4;
+            --orange: #d97706;
+            --orange-light: #fffbeb;
+            --red: #dc2626;
+            --red-light: #fef2f2;
+            --font: 'Inter', sans-serif;
+            --sidebar-w: 220px;
+            --topbar-h: 44px;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: var(--font-family); background-color: var(--bg-color); color: var(--text-main); line-height: 1.5; -webkit-font-smoothing: antialiased; }
+        body { font-family: var(--font); background: var(--bg); color: var(--text-main); line-height: 1.5; -webkit-font-smoothing: antialiased; display: flex; min-height: 100vh; }
 
-        /* Top Navigation */
-        .navbar {
+        /* ── Sidebar ── */
+        .sidebar {
+            width: var(--sidebar-w);
+            min-height: 100vh;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            z-index: 40;
+            overflow-y: auto;
+        }
+
+        .sidebar-logo {
+            padding: 1rem 1rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .sidebar-logo-inner {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        .sidebar-logo-icon {
+            width: 28px;
+            height: 28px;
+            background: var(--blue);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .sidebar-logo-text { font-weight: 700; font-size: 0.9rem; line-height: 1.2; color: var(--text-main); }
+        .sidebar-logo-text span { font-weight: 400; color: var(--text-muted); font-size: 0.75rem; }
+        .sidebar-workspace { font-size: 0.75rem; color: var(--text-muted); padding: 0.5rem 0 0; font-weight: 500; }
+
+        .sidebar-nav { padding: 0.75rem 0.625rem; flex: 1; }
+        .sidebar-nav-item {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0.75rem 2rem;
-            background-color: var(--card-bg);
-            border-bottom: 1px solid var(--border-color);
-            font-size: 0.875rem;
+            padding: 0.4rem 0.6rem;
+            border-radius: 0.375rem;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            cursor: pointer;
+            text-decoration: none;
+            gap: 0.5rem;
+            margin-bottom: 0.125rem;
         }
-        .nav-logo { font-weight: 700; font-size: 1.125rem; display: flex; align-items: center; gap: 0.5rem; color: #111827; }
-        .nav-logo span { color: var(--primary-blue); }
-        .nav-links { display: flex; gap: 1.5rem; align-items: center; }
-        .nav-links a { text-decoration: none; color: var(--text-muted); font-weight: 500; display: flex; align-items: center; gap: 0.375rem; }
-        .nav-links a.active { color: var(--primary-blue); border-bottom: 2px solid var(--primary-blue); padding-bottom: 1rem; margin-bottom: -1rem; }
-        .nav-actions { display: flex; gap: 1rem; align-items: center; }
-        .btn-outline { border: 1px solid var(--border-color); padding: 0.375rem 0.75rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; background: transparent; display: flex; align-items: center; gap: 0.375rem; color: var(--text-main); }
-        .btn-outline svg { width: 14px; height: 14px; color: var(--text-muted); }
+        .sidebar-nav-item:hover { background: var(--bg); color: var(--text-main); }
+        .sidebar-nav-item.active { background: #eef2ff; color: var(--blue); }
+        .sidebar-nav-item-left { display: flex; align-items: center; gap: 0.5rem; }
+        .sidebar-nav-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+        .sidebar-tag { font-size: 0.6rem; font-weight: 700; color: var(--text-xs); background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 0.05rem 0.3rem; letter-spacing: 0.03em; }
+        .sidebar-ai-tag { font-size: 0.6rem; font-weight: 700; color: #7c3aed; background: #f5f3ff; border: 1px solid #ede9fe; border-radius: 3px; padding: 0.05rem 0.3rem; letter-spacing: 0.03em; }
 
-        /* Container */
-        .container { max-width: 900px; margin: 0 auto; padding: 2rem; }
+        .sidebar-section-label { font-size: 0.65rem; font-weight: 700; color: var(--text-xs); text-transform: uppercase; letter-spacing: 0.07em; padding: 0.75rem 0.6rem 0.25rem; }
 
-        /* Header Area */
-        .page-header { margin-bottom: 2rem; display: flex; justify-content: space-between; align-items: flex-start; gap: 2rem; }
-        .header-title-area { max-width: 60%; }
-        .header-title-area h1 { font-size: 1.875rem; font-weight: 700; margin-bottom: 0.25rem; }
-        .header-title-area .small-tag { font-size: 0.65rem; color: var(--text-muted); background: var(--card-bg); padding: 0.125rem 0.5rem; border-radius: 9999px; font-weight: 700; text-transform: uppercase; margin-bottom: 0.5rem; display: inline-flex; align-items: center; gap: 0.25rem; letter-spacing: 0.05em; border: 1px solid var(--border-color); }
-        .header-title-area p { color: var(--text-muted); font-size: 0.95rem; line-height: 1.4; }
-        
-        .progress-box { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1rem; width: 250px; flex-shrink: 0; }
-        .progress-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); font-weight: 500; margin-bottom: 0.5rem; }
-        .progress-bar-bg { width: 100%; height: 6px; background: #f3f4f6; border-radius: 9999px; margin-bottom: 0.75rem; overflow: hidden; }
-        .progress-bar-fill { height: 100%; background: var(--primary-blue); width: 0%; border-radius: 9999px; }
-        .progress-box p { font-size: 0.7rem; color: var(--text-muted); font-family: monospace; }
+        .sidebar-footer {
+            padding: 0.75rem 0.875rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.625rem;
+        }
+        .sidebar-avatar {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #1e40af;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: white;
+            flex-shrink: 0;
+        }
+        .sidebar-footer-info { min-width: 0; }
+        .sidebar-footer-name { font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .sidebar-footer-email { font-size: 0.65rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-        /* Report Section */
-        .report-section { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 3rem; position: relative; overflow: hidden; display: flex; justify-content: space-between; align-items: center; }
-        .report-top-border { position: absolute; top: 0; left: 0; right: 0; height: 4px; background: var(--purple); }
-        .report-info-tags { display: flex; gap: 0.5rem; align-items: center; margin-bottom: 0.5rem; }
-        .report-tag-green { font-size: 0.65rem; color: var(--success-green); background: var(--success-green-bg); padding: 0.125rem 0.5rem; border-radius: 9999px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; border: 1px solid rgba(22,163,74,0.2); display: flex; align-items: center; gap: 0.25rem;}
-        .report-tag-text { font-size: 0.65rem; color: var(--purple); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-        .report-section h3 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.25rem; }
-        .report-section p { font-size: 0.875rem; color: var(--text-muted); max-width: 500px; }
-        
-        .report-actions { display: flex; gap: 0.75rem; align-items: center; }
-        .btn-blue { background-color: var(--primary-blue); color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 0.375rem; }
-        .btn-blue svg { width: 14px; height: 14px; }
-        .btn-outline-small { background: transparent; color: var(--text-muted); border: 1px solid var(--border-color); padding: 0.5rem 1rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; cursor: pointer; display: inline-flex; align-items: center; gap: 0.375rem; }
+        /* ── Right column (topbar + content) ── */
+        .main-col {
+            margin-left: var(--sidebar-w);
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-width: 0;
+        }
 
-        /* Timeline Section */
-        .timeline-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem; }
-        .timeline-header h2 { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.125rem; }
-        .timeline-header p { font-size: 0.75rem; color: var(--text-muted); }
-        .step-count { font-size: 0.75rem; color: var(--text-muted); }
+        /* ── Top nav ── */
+        .topbar {
+            height: var(--topbar-h);
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            gap: 1rem;
+        }
+        .topbar-nav { display: flex; align-items: center; gap: 0; height: 100%; }
+        .topbar-link {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0 0.75rem;
+            height: 100%;
+            font-size: 0.8125rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-decoration: none;
+            border-bottom: 2px solid transparent;
+            white-space: nowrap;
+        }
+        .topbar-link:hover { color: var(--text-main); }
+        .topbar-link.active { color: var(--blue); border-bottom-color: var(--blue); }
+        .topbar-link svg { width: 13px; height: 13px; flex-shrink: 0; }
+        .topbar-link .coming-soon {
+            font-size: 0.55rem;
+            font-weight: 700;
+            background: #f3f4f6;
+            color: var(--text-xs);
+            border-radius: 3px;
+            padding: 0.05rem 0.3rem;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .topbar-right { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
+        .btn-ask {
+            display: flex;
+            align-items: center;
+            gap: 0.375rem;
+            padding: 0.375rem 0.875rem;
+            border: 1px solid var(--border);
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-main);
+            background: var(--card-bg);
+            cursor: pointer;
+        }
+        .btn-ask:hover { background: var(--bg); }
+        .btn-ask svg { width: 13px; height: 13px; color: var(--text-muted); }
 
-        .timeline-list { display: flex; flex-direction: column; gap: 1rem; position: relative; }
-        .timeline-list::before { content: ''; position: absolute; left: 19px; top: 1rem; bottom: 1rem; width: 1px; background: var(--border-color); z-index: 0; }
+        /* ── Content ── */
+        .content { padding: 1.75rem 2rem; flex: 1; }
 
-        .timeline-item { display: flex; gap: 1rem; position: relative; z-index: 1; }
-        .timeline-number { width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; flex-shrink: 0; background: var(--bg-color); border: 1px solid var(--border-color); color: var(--text-muted); }
-        .timeline-item.active .timeline-number { background: var(--primary-blue); border-color: var(--primary-blue); color: white; box-shadow: 0 0 0 4px var(--bg-color); }
-        .timeline-item.inactive { opacity: 0.6; }
+        .page-title { font-size: 1.375rem; font-weight: 700; margin-bottom: 0.25rem; }
+        .page-subtitle { font-size: 0.8125rem; color: var(--text-muted); max-width: 520px; line-height: 1.5; margin-bottom: 1.5rem; }
 
-        .timeline-card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 0.75rem; padding: 1.25rem; flex-grow: 1; display: flex; justify-content: space-between; align-items: center; position: relative; overflow: hidden; transition: border-color 0.2s; }
-        .timeline-item.active .timeline-card { border-color: rgba(37,99,235,0.4); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
-        .timeline-card-left { display: flex; flex-direction: column; gap: 0.25rem; }
-        
-        .border-left-indicator { position: absolute; top: 0; bottom: 0; left: 0; width: 4px; }
-        .border-green { background: var(--success-green); }
-        .border-blue { background: #0ea5e9; opacity: 0.3; }
-        .border-orange { background: var(--warning-orange); opacity: 0.3; }
+        /* ── All Accounts card ── */
+        .accounts-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 0.625rem;
+            padding: 1.125rem 1.375rem;
+            margin-bottom: 1.5rem;
+        }
+        .accounts-card-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.5rem;
+        }
+        .accounts-card-head-left { display: flex; align-items: center; gap: 0.625rem; }
+        .accounts-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 0.375rem;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .accounts-icon svg { width: 16px; height: 16px; color: #0284c7; }
+        .accounts-title { font-size: 0.9375rem; font-weight: 600; }
+        .accounts-link { font-size: 0.75rem; color: var(--blue); text-decoration: none; font-weight: 500; display: flex; align-items: center; gap: 0.25rem; }
+        .accounts-link:hover { text-decoration: underline; }
+        .accounts-desc { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.875rem; line-height: 1.4; }
+        .accounts-desc a { color: var(--blue); text-decoration: none; }
 
-        .timeline-meta { display: flex; align-items: center; gap: 0.5rem; }
-        .timeline-tag { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-        .tag-green { color: var(--success-green); }
-        .tag-blue { color: #0ea5e9; }
-        .tag-orange { color: var(--warning-orange); }
-        .time-est { font-size: 0.65rem; color: var(--text-muted); }
-        .up-next-pill { font-size: 0.6rem; color: var(--primary-blue); background: var(--primary-blue-bg); padding: 0.125rem 0.5rem; border-radius: 9999px; font-weight: 700; text-transform: uppercase; border: 1px solid rgba(37,99,235,0.2); }
+        .accounts-stats { display: flex; gap: 0; }
+        .accounts-stat {
+            flex: 1;
+            padding: 0.625rem 1rem 0.625rem 0;
+            border-right: 1px solid var(--border);
+        }
+        .accounts-stat:last-child { border-right: none; }
+        .accounts-stat-label { font-size: 0.6rem; font-weight: 700; color: var(--text-xs); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.25rem; display: flex; align-items: center; gap: 0.25rem; }
+        .accounts-stat-label svg { width: 10px; height: 10px; }
+        .accounts-stat-val { font-size: 1.25rem; font-weight: 700; color: var(--text-main); }
+        .accounts-stat-val.healthy { color: var(--green); }
+        .accounts-stat-val.watch { color: var(--orange); }
 
-        .timeline-card h3 { font-size: 1.05rem; font-weight: 600; color: var(--text-main); }
-        .timeline-card p { font-size: 0.875rem; color: var(--text-muted); }
+        /* ── KPIs section ── */
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.875rem;
+        }
+        .section-title { font-size: 0.9375rem; font-weight: 600; }
+        .section-sub { font-size: 0.73rem; color: var(--text-muted); }
 
-        .btn-locked { background: #f3f4f6; color: var(--text-muted); border: 1px solid var(--border-color); padding: 0.5rem 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; display: inline-flex; align-items: center; gap: 0.375rem; cursor: not-allowed; }
-        .btn-locked svg { width: 14px; height: 14px; }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.875rem;
+            margin-bottom: 1.75rem;
+        }
 
-        /* Integrations Banner */
-        .integrations-banner { margin-top: 3rem; background: var(--card-bg); border: 1px dashed var(--border-color); border-radius: 0.75rem; padding: 1.25rem; display: flex; justify-content: space-between; align-items: center; }
-        .integrations-banner h4 { font-size: 0.875rem; font-weight: 600; margin-bottom: 0.125rem; }
-        .integrations-banner p { font-size: 0.75rem; color: var(--text-muted); }
+        .kpi-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 0.625rem;
+            padding: 0.875rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.125rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .kpi-label {
+            font-size: 0.6rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            color: var(--text-xs);
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            margin-bottom: 0.25rem;
+        }
+        .kpi-label .dot { width: 6px; height: 6px; border-radius: 50%; }
+        .kpi-label .dot.red { background: var(--red); }
+        .kpi-label .dot.blue { background: var(--blue); }
 
+        .kpi-val { font-size: 1.5rem; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; color: var(--text-main); }
+        .kpi-val.text-lg { font-size: 1.375rem; }
+
+        .kpi-delta {
+            font-size: 0.65rem;
+            font-weight: 600;
+            margin-top: 0.25rem;
+        }
+        .kpi-delta.up { color: var(--green); }
+        .kpi-delta.down { color: var(--red); }
+        .kpi-delta.neutral { color: var(--text-muted); }
+
+        .kpi-sparkline {
+            position: absolute;
+            top: 0.625rem;
+            right: 0.75rem;
+            width: 72px;
+            height: 32px;
+            opacity: 0.7;
+        }
+
+        /* ── Departmental roll-up ── */
+        .dept-table-wrap {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 0.625rem;
+            overflow: hidden;
+        }
+        .dept-table { width: 100%; border-collapse: collapse; }
+        .dept-table thead tr { background: var(--bg); border-bottom: 1px solid var(--border); }
+        .dept-table th {
+            padding: 0.625rem 1.25rem;
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--text-xs);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            text-align: left;
+        }
+        .dept-table td {
+            padding: 0.7rem 1.25rem;
+            font-size: 0.8125rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-main);
+        }
+        .dept-table tr:last-child td { border-bottom: none; }
+        .dept-table tr:hover td { background: #fafafa; }
+        .dept-name { font-weight: 600; font-size: 0.8125rem; }
+        .dept-metric { font-family: 'Courier New', monospace; font-size: 0.75rem; color: var(--text-muted); }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.68rem;
+            font-weight: 600;
+            padding: 0.2rem 0.5rem;
+            border-radius: 9999px;
+        }
+        .status-pill.on-track { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
+        .status-pill.watch { background: #fffbeb; color: #b45309; border: 1px solid #fde68a; }
+        .status-pill.off-track { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+        .status-pill::before {
+            content: '';
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: currentColor;
+        }
     </style>
 </head>
 <body>
 
-    <!-- Top Navigation -->
-    <nav class="navbar">
-        <div class="nav-logo">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="#2563eb"/>
-                <path d="M2 17L12 22L22 17" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            Creative <span>Creatures</span>
-        </div>
-        <div class="nav-links">
-            <a href="/diagnostic/" class="active">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                Diagnostic
-            </a>
-            <a href="/agency-scorecard/">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-                Agency Scorecard
-            </a>
-            <a href="/independence-index/">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M5 7h14"/><path d="M7 7c0 5 2 8 5 10 3-2 5-5 5-10"/></svg>
-                Independence Index
-            </a>
-            <a href="/agency-strength-index/">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 3h12l2 6-8 12L4 9l2-6Z"/><path d="M4 9h16"/></svg>
-                Strength Index
-            </a>
-        </div>
-        <div class="nav-actions">
-            <button class="btn-outline">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                Ask Creature
-            </button>
-            <div style="text-align: right; line-height: 1.2;">
-                <div style="font-weight: 600; font-size: 0.875rem;">Prototype Agency</div>
-                <div style="font-size: 0.75rem; color: var(--text-muted);">Prototype Reviewer</div>
-            </div>
-        </div>
-    </nav>
-
-    <div class="container">
-        <!-- Header -->
-        <div class="page-header">
-            <div class="header-title-area">
-                <span class="small-tag">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path></svg>
-                    Agency Diagnostic
-                </span>
-                <h1>Welcome back, there.</h1>
-                <p>Your Owner Archetype is already in. Three short questionnaires to go — we'll take them one at a time so nothing feels heavy.</p>
-            </div>
-            <div class="progress-box">
-                <div class="progress-header">
-                    <span>Questionnaires</span>
-                    <span>0 / 3</span>
+    <!-- ── Sidebar ── -->
+    <aside class="sidebar">
+        <div class="sidebar-logo">
+            <div class="sidebar-logo-inner">
+                <div class="sidebar-logo-icon">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="white"/>
+                        <path d="M2 17L12 22L22 17" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        <path d="M2 12L12 17L22 12" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
                 </div>
-                <div class="progress-bar-bg">
-                    <div class="progress-bar-fill"></div>
-                </div>
-                <p>Finish all three to unlock your report.</p>
+                <div class="sidebar-logo-text">Creative<br><span>Creatures</span></div>
             </div>
+            <div class="sidebar-workspace">Directing Design</div>
         </div>
 
-        <!-- Report Section -->
-        <div class="report-section">
-            <div class="report-top-border"></div>
-            <div>
-                <div class="report-info-tags">
-                    <span class="report-tag-green">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="m9 12 2 2 4-4"></path></svg>
-                        Delivered
-                    </span>
-                    <span class="report-tag-text">archetype</span>
+        <div class="sidebar-nav">
+            <a href="/" class="sidebar-nav-item active">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+                    Dashboard
                 </div>
-                <h3>Owner Archetype Report</h3>
-                <p>Based on the quiz you completed at signup. It sets the frame for the three questionnaires below — how you lead shapes what the agency needs next.</p>
+                <span class="sidebar-ai-tag">AI</span>
+            </a>
+
+            <div class="sidebar-section-label">Departments</div>
+
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M6 20v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>
+                    Leadership
+                </div>
+                <span class="sidebar-tag">625</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    Marketing
+                </div>
+                <span class="sidebar-tag">CRM</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                    Sales
+                </div>
+                <span class="sidebar-tag">CRM</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                    Billing
+                </div>
+                <span class="sidebar-tag">Accounting</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                    Onboarding
+                </div>
+                <span class="sidebar-tag">PM</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Service Delivery
+                </div>
+                <span class="sidebar-tag">PM</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+                    Client Success
+                </div>
+                <span class="sidebar-tag">PM</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                    Talent Acquisition
+                </div>
+                <span class="sidebar-tag">Payroll</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    Finance
+                </div>
+                <span class="sidebar-tag">Accounting</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Communication
+                </div>
+                <span class="sidebar-tag">Comms</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    Systems / IT
+                </div>
+                <span class="sidebar-tag">IT</span>
+            </a>
+            <a href="#" class="sidebar-nav-item">
+                <div class="sidebar-nav-item-left">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                    SOPs
+                </div>
+                <span class="sidebar-tag">Drive</span>
+            </a>
+        </div>
+
+        <div class="sidebar-footer">
+            <div class="sidebar-avatar">DD</div>
+            <div class="sidebar-footer-info">
+                <div class="sidebar-footer-name">Directing Design O...</div>
+                <div class="sidebar-footer-email">owner@directingdesig...</div>
             </div>
-            <div class="report-actions">
-                <button class="btn-blue">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"></path><path d="M14 2v5a1 1 0 0 0 1 1h5"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
-                    View report
+        </div>
+    </aside>
+
+    <!-- ── Right column ── -->
+    <div class="main-col">
+
+        <!-- Top nav -->
+        <nav class="topbar">
+            <div class="topbar-nav">
+                <a href="/" class="topbar-link active">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    Monitor
+                </a>
+                <a href="/diagnostic/" class="topbar-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                    Diagnostic
+                </a>
+                <a href="/agency-scorecard/" class="topbar-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                    Agency Scorecard
+                </a>
+                <a href="#" class="topbar-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    Agency Goals
+                </a>
+                <a href="#" class="topbar-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                    Integrations
+                </a>
+                <a href="#" class="topbar-link">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+                    Portal
+                    <span class="coming-soon">coming soon</span>
+                </a>
+            </div>
+            <div class="topbar-right">
+                <button class="btn-ask">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Ask Creature
                 </button>
-                <button class="btn-outline-small">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>
-                    Retake quiz
-                </button>
             </div>
-        </div>
+        </nav>
 
-        <!-- Timeline Section -->
-        <div class="timeline-header">
-            <div>
-                <h2>What's next</h2>
-                <p>We'll walk you through these in order. Each one unlocks the next.</p>
-            </div>
-            <div class="step-count">Step 1 of 3</div>
-        </div>
+        <!-- Content -->
+        <div class="content">
+            <h1 class="page-title">Welcome to your agency workspace</h1>
+            <p class="page-subtitle">A live view of how the agency is performing this month — KPIs, accounts, and department roll-up in one place.</p>
 
-        <div class="timeline-list">
-            
-            <!-- Item 1 -->
-            <div class="timeline-item active">
-                <div class="timeline-number">01</div>
-                <div class="timeline-card">
-                    <div class="border-left-indicator border-green"></div>
-                    <div class="timeline-card-left">
-                        <div class="timeline-meta">
-                            <span class="timeline-tag tag-green">strength</span>
-                            <span class="time-est">· ~8 min</span>
-                            <span class="up-next-pill">Up next</span>
+            <!-- All Accounts -->
+            <div class="accounts-card">
+                <div class="accounts-card-head">
+                    <div class="accounts-card-head-left">
+                        <div class="accounts-icon">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                         </div>
-                        <h3>Agency Strength Index</h3>
-                        <p>Structural health across the 14 valuation drivers — team, delivery, and offer.</p>
+                        <span class="accounts-title">All Accounts</span>
                     </div>
-                    <div>
-                        <a href="/agency-strength-index/" class="btn-blue" style="text-decoration:none;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z"></path><circle cx="12" cy="12" r="10"></circle></svg>
-                            Start
-                        </a>
+                    <a href="#" class="accounts-link">Open accounts →</a>
+                </div>
+                <p class="accounts-desc">Full roster of agency clients — <a href="#">health, ownership, MRR, and services</a> in one view.</p>
+                <div class="accounts-stats">
+                    <div class="accounts-stat">
+                        <div class="accounts-stat-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                            Total Accounts
+                        </div>
+                        <div class="accounts-stat-val">8</div>
+                    </div>
+                    <div class="accounts-stat" style="padding-left:1rem;">
+                        <div class="accounts-stat-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+                            MRR
+                        </div>
+                        <div class="accounts-stat-val">$10,040</div>
+                    </div>
+                    <div class="accounts-stat" style="padding-left:1rem;">
+                        <div class="accounts-stat-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                            Healthy
+                        </div>
+                        <div class="accounts-stat-val healthy">5</div>
+                    </div>
+                    <div class="accounts-stat" style="padding-left:1rem;">
+                        <div class="accounts-stat-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                            Watch / At Risk
+                        </div>
+                        <div class="accounts-stat-val watch">3</div>
+                    </div>
+                    <div class="accounts-stat" style="padding-left:1rem;">
+                        <div class="accounts-stat-label">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/></svg>
+                            Churned
+                        </div>
+                        <div class="accounts-stat-val">0</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Item 2 -->
-            <!-- Item 2 -->
-            <div class="timeline-item active">
-                <div class="timeline-number">02</div>
-                <div class="timeline-card">
-                    <div class="border-left-indicator border-blue"></div>
-                    <div class="timeline-card-left">
-                        <div class="timeline-meta">
-                            <span class="timeline-tag tag-blue">independence</span>
-                            <span class="time-est">· ~6 min</span>
-                        </div>
-                        <h3>Owner Independence Index</h3>
-                        <p>How much of the business runs without you — decisions, delivery, and revenue.</p>
-                    </div>
-                    <div>
-                        <a href="/independence-index/" class="btn-blue" style="text-decoration:none;">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 9.003a1 1 0 0 1 1.517-.859l4.997 2.997a1 1 0 0 1 0 1.718l-4.997 2.997A1 1 0 0 1 9 14.996z"></path><circle cx="12" cy="12" r="10"></circle></svg>
-                            Start
-                        </a>
-                    </div>
+            <!-- KPIs -->
+            <div class="section-header">
+                <span class="section-title">This month's KPIs</span>
+                <span class="section-sub">Rolling 7-period trend</span>
+            </div>
+
+            <div class="kpi-grid">
+                <!-- Revenue -->
+                <div class="kpi-card">
+                    <div class="kpi-label">Revenue (MRR)</div>
+                    <svg class="kpi-sparkline" viewBox="0 0 72 32" fill="none"><polyline points="0,24 12,20 24,18 36,14 48,10 60,8 72,5" stroke="#2563eb" stroke-width="1.5" fill="none"/></svg>
+                    <div class="kpi-val">$94.2k</div>
+                    <div class="kpi-delta up">▲ +6.1%</div>
+                </div>
+                <!-- Net Profit Margin -->
+                <div class="kpi-card">
+                    <div class="kpi-label">Net Profit Margin</div>
+                    <svg class="kpi-sparkline" viewBox="0 0 72 32" fill="none"><polyline points="0,20 12,18 24,22 36,16 48,14 60,15 72,12" stroke="#2563eb" stroke-width="1.5" fill="none"/></svg>
+                    <div class="kpi-val">21%</div>
+                    <div class="kpi-delta up">▲ +1.4pt</div>
+                </div>
+                <!-- Active Accounts -->
+                <div class="kpi-card">
+                    <div class="kpi-label">Active Accounts</div>
+                    <svg class="kpi-sparkline" viewBox="0 0 72 32" fill="none"><polyline points="0,22 12,20 24,19 36,18 48,16 60,14 72,12" stroke="#2563eb" stroke-width="1.5" fill="none"/></svg>
+                    <div class="kpi-val">58</div>
+                    <div class="kpi-delta up">▲ +3</div>
+                </div>
+                <!-- New MRR -->
+                <div class="kpi-card">
+                    <div class="kpi-label">New MRR</div>
+                    <svg class="kpi-sparkline" viewBox="0 0 72 32" fill="none"><polyline points="0,26 12,22 24,20 36,18 48,12 60,8 72,4" stroke="#2563eb" stroke-width="1.5" fill="none"/></svg>
+                    <div class="kpi-val">$8.4k</div>
+                    <div class="kpi-delta up">▲ +18%</div>
+                </div>
+                <!-- Lead → Close Rate -->
+                <div class="kpi-card">
+                    <div class="kpi-label"><span class="dot red"></span>Lead → Close Rate</div>
+                    <svg class="kpi-sparkline" viewBox="0 0 72 32" fill="none"><polyline points="0,28 12,22 24,18 36,12 48,10 60,6 72,5" stroke="#2563eb" stroke-width="1.5" fill="none"/></svg>
+                    <div class="kpi-val">3.8%</div>
+                    <div class="kpi-delta up">▲ +8.4pt</div>
+                </div>
+                <!-- Cash on Hand -->
+                <div class="kpi-card">
+                    <div class="kpi-label">Cash on Hand</div>
+                    <svg class="kpi-sparkline" viewBox="0 0 72 32" fill="none"><polyline points="0,8 12,10 24,9 36,12 48,14 60,16 72,20" stroke="#2563eb" stroke-width="1.5" fill="none"/></svg>
+                    <div class="kpi-val">$212k</div>
+                    <div class="kpi-delta down">▼ -4%</div>
+                </div>
+                <!-- Team Utilization -->
+                <div class="kpi-card">
+                    <div class="kpi-label"><span class="dot blue"></span>Team Utilization</div>
+                    <svg class="kpi-sparkline" viewBox="0 0 72 32" fill="none"><polyline points="0,18 12,16 24,14 36,12 48,14 60,13 72,11" stroke="#2563eb" stroke-width="1.5" fill="none"/></svg>
+                    <div class="kpi-val">74%</div>
+                    <div class="kpi-delta up">▲ +2pt</div>
+                </div>
+                <!-- Client Sentiment -->
+                <div class="kpi-card">
+                    <div class="kpi-label">Client Sentiment</div>
+                    <div class="kpi-val text-lg" style="margin-top:0.25rem;">Good</div>
+                    <div class="kpi-delta neutral">~ stable</div>
                 </div>
             </div>
 
-            <!-- Item 3 -->
-            <div class="timeline-item inactive">
-                <div class="timeline-number">03</div>
-                <div class="timeline-card">
-                    <div class="border-left-indicator border-orange"></div>
-                    <div class="timeline-card-left">
-                        <div class="timeline-meta">
-                            <span class="timeline-tag tag-orange">performance</span>
-                            <span class="time-est">· ~10 min</span>
-                        </div>
-                        <h3>Agency Performance Index</h3>
-                        <p>Financials, SDE add-backs, and the inputs behind your valuation ladder.</p>
-                    </div>
-                    <div>
-                        <button class="btn-locked">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                            Locked
-                        </button>
-                    </div>
-                </div>
+            <!-- Departmental roll-up -->
+            <div class="section-header">
+                <span class="section-title">Departmental roll-up</span>
+                <span class="section-sub">One headline metric per department</span>
+            </div>
+            <div class="dept-table-wrap">
+                <table class="dept-table">
+                    <thead>
+                        <tr>
+                            <th>Department</th>
+                            <th>Measure Metric</th>
+                            <th style="text-align:right;">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="dept-name">Marketing</span></td>
+                            <td><span class="dept-metric">SQLs 42</span></td>
+                            <td style="text-align:right;"><span class="status-pill on-track">On track</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">Sales</span></td>
+                            <td><span class="dept-metric">New MRR $8.4k</span></td>
+                            <td style="text-align:right;"><span class="status-pill on-track">On track</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">Billing</span></td>
+                            <td><span class="dept-metric">A/R 30+ $14k</span></td>
+                            <td style="text-align:right;"><span class="status-pill watch">Watch</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">Onboarding</span></td>
+                            <td><span class="dept-metric">9 in pipeline</span></td>
+                            <td style="text-align:right;"><span class="status-pill on-track">On track</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">Service Delivery</span></td>
+                            <td><span class="dept-metric">Late tasks 11</span></td>
+                            <td style="text-align:right;"><span class="status-pill watch">Watch</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">Client Success</span></td>
+                            <td><span class="dept-metric">Sentiment Good</span></td>
+                            <td style="text-align:right;"><span class="status-pill on-track">On track</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">Talent Acquisition</span></td>
+                            <td><span class="dept-metric">POPs 82%</span></td>
+                            <td style="text-align:right;"><span class="status-pill on-track">On track</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">Finance</span></td>
+                            <td><span class="dept-metric">Cash $212k</span></td>
+                            <td style="text-align:right;"><span class="status-pill watch">Watch</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">Communication</span></td>
+                            <td><span class="dept-metric">Sentiment Positive</span></td>
+                            <td style="text-align:right;"><span class="status-pill on-track">On track</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">Systems / IT</span></td>
+                            <td><span class="dept-metric">Outages (90d) 1</span></td>
+                            <td style="text-align:right;"><span class="status-pill on-track">On track</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">SOPs</span></td>
+                            <td><span class="dept-metric">State 9</span></td>
+                            <td style="text-align:right;"><span class="status-pill watch">Watch</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="dept-name">Leadership</span></td>
+                            <td><span class="dept-metric">Rocks 5/10 on track</span></td>
+                            <td style="text-align:right;"><span class="status-pill off-track">Off track</span></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
 
         </div>
-
-        <!-- Integrations Banner -->
-        <div class="integrations-banner">
-            <div>
-                <h4>Integrations feed your scoring</h4>
-                <p>Connect the tools you declared during onboarding so the diagnostic can pull real numbers.</p>
-            </div>
-            <div>
-                <button class="btn-outline-small" style="color:var(--text-main)">Go to Integrations &rarr;</button>
-            </div>
-        </div>
-
     </div>
 
 </body>
