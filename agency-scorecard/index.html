@@ -649,8 +649,55 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </button>
         </div>
-
     </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            function getLabel(score) {
+                if (score >= 75) return { text: 'STRONG', cls: 'blue' };
+                if (score >= 50) return { text: 'GOOD', cls: 'blue' };
+                if (score >= 25) return { text: 'LOW', cls: 'orange' };
+                return { text: 'LOW', cls: 'red' };
+            }
+
+            function updateCard(card, score) {
+                const circle = card.querySelector('.circle-score');
+                const badge = card.querySelector('.index-card-title .badge');
+                if (!circle || !badge) return;
+
+                // Update score number
+                circle.textContent = score;
+
+                // Update color theme
+                const { text, cls } = getLabel(score);
+                circle.className = `circle-score ${cls === 'orange' ? 'red' : cls}`;
+                badge.className = `badge ${cls}`;
+                badge.textContent = text;
+
+                // Update the confidence pill (first stat-pill)
+                const pills = card.querySelectorAll('.stat-pill');
+                if (pills[0]) {
+                    const svg = pills[0].querySelector('svg');
+                    pills[0].textContent = '';
+                    if (svg) pills[0].appendChild(svg);
+                    pills[0].appendChild(document.createTextNode(' Completed'));
+                }
+            }
+
+            const cards = document.querySelectorAll('.index-card');
+            // Card index 1 = Agency Strength Index
+            const strengthScore = localStorage.getItem('agencyStrengthScore');
+            if (strengthScore !== null && cards[1]) {
+                updateCard(cards[1], parseInt(strengthScore, 10));
+            }
+
+            // Card index 2 = Owner Independence Index
+            const independenceScore = localStorage.getItem('ownerIndependenceScore');
+            if (independenceScore !== null && cards[2]) {
+                updateCard(cards[2], parseInt(independenceScore, 10));
+            }
+        });
+    </script>
 
 </body>
 </html>

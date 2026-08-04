@@ -48,7 +48,7 @@ export default function DiagnosticTool() {
     else {
       const results = computeResults(answers, scaleAnswer);
       localStorage.setItem('agencyStrengthScore', results.overallScore);
-      window.location.href = '../agency-scorecard.html';
+      window.location.href = '/agency-scorecard/';
     }
   };
 

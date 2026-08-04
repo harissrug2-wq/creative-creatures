@@ -135,7 +135,7 @@ export default function App() {
     e.preventDefault();
     const { overallIndexScore } = calculateScores(answers);
     localStorage.setItem('ownerIndependenceScore', overallIndexScore);
-    window.location.href = '../agency-scorecard.html';
+    window.location.href = '/agency-scorecard/';
   };
 
   const handleRestart = () => {
