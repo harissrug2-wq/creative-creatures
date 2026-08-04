@@ -45,7 +45,11 @@ export default function DiagnosticTool() {
 
   const handleNext = () => {
     if (currentQ < 31) setCurrentQ((q) => q + 1);
-    else setShowResults(true);
+    else {
+      const results = computeResults(answers, scaleAnswer);
+      localStorage.setItem('agencyStrengthScore', results.overallScore);
+      window.location.href = '../agency-scorecard.html';
+    }
   };
 
   const handleBack = () => {

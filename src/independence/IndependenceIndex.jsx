@@ -133,9 +133,9 @@ export default function App() {
 
   const handleFinish = e => {
     e.preventDefault();
-    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch { }
-    setShowEmailModal(false);
-    setIsFinished(true);
+    const { overallIndexScore } = calculateScores(answers);
+    localStorage.setItem('ownerIndependenceScore', overallIndexScore);
+    window.location.href = '../agency-scorecard.html';
   };
 
   const handleRestart = () => {
