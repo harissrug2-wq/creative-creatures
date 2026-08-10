@@ -43,3 +43,5 @@
   .start-strip { padding:17px; align-items:flex-start; flex-direction:column; }
   .start-strip .cc-btn { margin:0; width:100%; }
 }
+
+.start-strip-actions{margin-left:auto;display:flex;align-items:center;gap:16px}.start-signin{font-size:13px;font-weight:650;color:#2d31ef;text-decoration:none}.start-signin:hover{text-decoration:underline}@media(max-width:800px){.start-strip-actions{width:100%;margin:0;display:grid;grid-template-columns:auto 1fr}.start-strip-actions .cc-btn{margin:0;width:100%}}@media(max-width:480px){.start-strip-actions{grid-template-columns:1fr}.start-signin{text-align:center;padding:6px 0}}

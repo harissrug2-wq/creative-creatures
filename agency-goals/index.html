@@ -10,9 +10,10 @@
   <style>
     :root{--bg:#fafaf8;--card:#fff;--text:#101217;--muted:#5e6878;--line:#e4e4df;--blue:#272cf3;--blue-soft:#eef0ff;--green:#109b4b;--green-soft:#eaf8ef;--amber:#a86f00;--amber-soft:#fff6df;--red:#d83b3b;--red-soft:#ffeded}
     *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}button,input,select,textarea{font:inherit}
-    .wrap{width:calc(100% - 40px);margin:0 auto;padding:40px 0 78px}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:28px;margin-bottom:30px}.head h1{font-size:38px;line-height:1.08;letter-spacing:-.045em;margin:0 0 9px}.head p{font-size:16px;line-height:1.55;color:var(--muted);margin:0;max-width:760px}.status-pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-size:12px;color:var(--muted)}.section-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);padding-bottom:10px;margin:35px 0 15px}.section-head h2{font-size:23px;margin:0 0 4px}.section-head p{font-size:12px;color:var(--muted);margin:0}.section-head span{font-size:12px;color:#8792a3}.goal-groups{display:grid;gap:18px}.group h3{font-size:14px;text-transform:uppercase;letter-spacing:.07em;color:#6f7988;margin:0 0 10px}.goals-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.goal-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;min-height:150px;display:flex;flex-direction:column;cursor:pointer;transition:.15s;box-shadow:0 2px 8px rgba(0,0,0,.02)}.goal-card:hover{border-color:#afb1ff;transform:translateY(-2px);box-shadow:0 6px 18px rgba(39,44,243,.08)}.goal-label{display:flex;align-items:center;gap:7px;font-size:13px;color:#556172;font-weight:600}.info{width:18px;height:18px;border-radius:50%;border:1px solid #b9c0ca;display:grid;place-items:center;font-size:10px}.actual{font-size:28px;font-weight:700;letter-spacing:-.035em;margin:14px 0 5px}.actual small{font-size:11px;font-weight:500;color:#8b95a4}.target{margin-top:auto;border-top:1px solid var(--line);padding-top:11px;display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#8a94a3}.target strong{font-size:14px;color:#2529df}.target.empty strong{color:#8a94a3}.card{background:#fff;border:1px solid var(--line);border-radius:16px}.table-wrap{overflow-x:auto}.goals-table{width:100%;border-collapse:collapse;min-width:1050px}.goals-table th,.goals-table td{border-bottom:1px solid var(--line);padding:13px 14px;text-align:left;font-size:13px;vertical-align:middle}.goals-table th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#929baa;background:#fbfbfa}.goals-table tr:last-child td{border-bottom:0}.goals-table input,.goals-table select{width:100%;min-width:110px;border:1px solid transparent;background:transparent;border-radius:7px;padding:7px 8px;font-size:13px}.goals-table input:hover,.goals-table select:hover,.goals-table input:focus,.goals-table select:focus{border-color:var(--line);background:#fff;outline:none}.status-select.needs{color:#7d8795}.status-select.track{color:var(--green)}.status-select.watch{color:var(--amber)}.status-select.off{color:var(--red)}.rocks{overflow:hidden}.rocks-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}.rocks-head h3{font-size:17px;margin:0}.button{min-height:46px;border:1px solid var(--line);background:#fff;color:#4e5868;border-radius:10px;padding:0 18px;font-size:14px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s ease}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.button.grayed-out{background:#ecece8;border-color:#e0e0dc;color:#9aa2ae;cursor:pointer}.rock-row{display:grid;grid-template-columns:minmax(0,1fr) 180px 160px 120px;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}.rock-row:last-child{border-bottom:0}.rock-title strong{font-size:14px;display:block}.rock-title span{font-size:12px;color:var(--muted);display:block;margin-top:3px}.rock-row input,.rock-row select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:#fff;font-size:12px}.empty-rocks{padding:26px;text-align:center;color:var(--muted);font-size:13px}.finish{margin-top:40px;display:flex;justify-content:center}.finish-complete-btn{min-height:60px;padding:0 40px;font-size:17px;font-weight:700;background:var(--blue);color:#fff;border:1px solid var(--blue);border-radius:14px;cursor:pointer;box-shadow:0 8px 24px rgba(39,44,243,.25);display:inline-flex;align-items:center;gap:12px;transition:all .2s ease}.finish-complete-btn:hover{background:#1d21d4;transform:translateY(-1px);box-shadow:0 12px 28px rgba(39,44,243,.32)}.locked{min-height:calc(100vh - 60px);display:grid;place-items:center;padding:30px}.locked-card{width:min(560px,100%);background:#fff;border:1px solid var(--line);border-radius:16px;padding:31px;text-align:center}.locked-card h1{font-size:27px;margin:0 0 9px}.locked-card p{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 20px}.modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.45);backdrop-filter:blur(3px);z-index:200;display:none;place-items:center;padding:20px}.modal-backdrop.show{display:grid}.modal{width:min(620px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:32px;box-shadow:0 24px 70px rgba(0,0,0,.18)}.modal h2{font-size:26px;margin:0 0 8px;letter-spacing:-.03em}.modal p{font-size:14px;line-height:1.6;color:var(--muted);margin:0 0 20px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:11px;font-weight:600}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:#fff;font-size:13px;outline:none}.field textarea{min-height:80px}.modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}.complete-box{border:1px solid #b8dfc6;background:#f8fdf9;border-radius:14px;padding:18px;margin:20px 0}.complete-box strong{display:block;font-size:15px;color:#109b4b;margin-bottom:4px}.complete-box span{font-size:13px;color:var(--muted)}.fractional{border-top:1px solid var(--line);margin-top:24px;padding-top:24px}.fractional h3{font-size:18px;margin:0 0 8px;color:#111318}.fractional p{font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.5}.toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,20px);background:#111827;color:#fff;border-radius:12px;padding:13px 20px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:.2s ease;z-index:300;box-shadow:0 10px 30px rgba(0,0,0,.2)}.toast.show{opacity:1;transform:translate(-50%,0)}
+    .wrap{width:calc(100% - 40px);margin:0 auto;padding:40px 0 78px}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:28px;margin-bottom:30px}.head h1{font-size:38px;line-height:1.08;letter-spacing:-.045em;margin:0 0 9px}.head p{font-size:16px;line-height:1.55;color:var(--muted);margin:0;max-width:760px}.status-pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-size:12px;color:var(--muted)}.section-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);padding-bottom:10px;margin:35px 0 15px}.section-head h2{font-size:23px;margin:0 0 4px}.section-head p{font-size:12px;color:var(--muted);margin:0}.section-head span{font-size:12px;color:#8792a3}.goal-groups{display:grid;gap:18px}.group h3{font-size:14px;text-transform:uppercase;letter-spacing:.07em;color:#6f7988;margin:0 0 10px}.goals-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.goal-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;min-height:150px;display:flex;flex-direction:column;cursor:pointer;transition:.15s;box-shadow:0 2px 8px rgba(0,0,0,.02)}.goal-card:hover{border-color:#afb1ff;transform:translateY(-2px);box-shadow:0 6px 18px rgba(39,44,243,.08)}.goal-label{display:flex;align-items:center;gap:7px;font-size:13px;color:#556172;font-weight:600}.info{width:18px;height:18px;border-radius:50%;border:1px solid #b9c0ca;display:grid;place-items:center;font-size:10px}.actual{font-size:28px;font-weight:700;letter-spacing:-.035em;margin:14px 0 5px}.actual small{font-size:11px;font-weight:500;color:#8b95a4}.target{margin-top:auto;border-top:1px solid var(--line);padding-top:11px;display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#8a94a3}.target strong{font-size:14px;color:#2529df}.target.empty strong{color:#8a94a3}.card{background:#fff;border:1px solid var(--line);border-radius:16px}.table-wrap{overflow-x:auto}.goals-table{width:100%;border-collapse:collapse;min-width:1050px}.goals-table th,.goals-table td{border-bottom:1px solid var(--line);padding:13px 14px;text-align:left;font-size:13px;vertical-align:middle}.goals-table th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#929baa;background:#fbfbfa}.goals-table tr:last-child td{border-bottom:0}.goals-table input,.goals-table select{width:100%;min-width:110px;border:1px solid transparent;background:transparent;border-radius:7px;padding:7px 8px;font-size:13px}.goals-table input:hover,.goals-table select:hover,.goals-table input:focus,.goals-table select:focus{border-color:var(--line);background:#fff;outline:none}.status-select.needs{color:#7d8795}.status-select.track{color:var(--green)}.status-select.watch{color:var(--amber)}.status-select.off{color:var(--red)}.rocks{overflow:hidden}.rocks-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}.rocks-head h3{font-size:17px;margin:0}.button{min-height:46px;border:1px solid var(--line);background:#fff;color:#4e5868;border-radius:10px;padding:0 18px;font-size:14px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s ease}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.button.grayed-out{background:#ecece8;border-color:#e0e0dc;color:#9aa2ae;cursor:pointer}.rock-row{display:grid;grid-template-columns:minmax(0,1fr) 180px 160px 120px;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}.rock-row:last-child{border-bottom:0}.rock-title strong{font-size:14px;display:block}.rock-title span{font-size:12px;color:var(--muted);display:block;margin-top:3px}.rock-row input,.rock-row select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:#fff;font-size:12px}.empty-rocks{padding:26px;text-align:center;color:var(--muted);font-size:13px}.finish{margin-top:40px;display:flex;justify-content:flex-end}.finish-complete-btn{min-height:68px;padding:0 48px;font-size:18px;font-weight:700;background:var(--blue);color:#fff;border:1px solid var(--blue);border-radius:14px;cursor:pointer;box-shadow:0 8px 24px rgba(39,44,243,.25);display:inline-flex;align-items:center;gap:12px;transition:all .2s ease}.finish-complete-btn:hover{background:#1d21d4;transform:translateY(-1px);box-shadow:0 12px 28px rgba(39,44,243,.32)}.locked{min-height:calc(100vh - 60px);display:grid;place-items:center;padding:30px}.locked-card{width:min(560px,100%);background:#fff;border:1px solid var(--line);border-radius:16px;padding:31px;text-align:center}.locked-card h1{font-size:27px;margin:0 0 9px}.locked-card p{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 20px}.modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.45);backdrop-filter:blur(3px);z-index:200;display:none;place-items:center;padding:20px}.modal-backdrop.show{display:grid}.modal{width:min(620px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:32px;box-shadow:0 24px 70px rgba(0,0,0,.18)}.modal h2{font-size:26px;margin:0 0 8px;letter-spacing:-.03em}.modal p{font-size:14px;line-height:1.6;color:var(--muted);margin:0 0 20px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:11px;font-weight:600}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:#fff;font-size:13px;outline:none}.field textarea{min-height:80px}.modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}.complete-box{border:1px solid #b8dfc6;background:#f8fdf9;border-radius:14px;padding:18px;margin:20px 0}.complete-box strong{display:block;font-size:15px;color:#109b4b;margin-bottom:4px}.complete-box span{font-size:13px;color:var(--muted)}.fractional{border-top:1px solid var(--line);margin-top:24px;padding-top:24px}.fractional h3{font-size:18px;margin:0 0 8px;color:#111318}.fractional p{font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.5}.toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,20px);background:#111827;color:#fff;border-radius:12px;padding:13px 20px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:.2s ease;z-index:300;box-shadow:0 10px 30px rgba(0,0,0,.2)}.toast.show{opacity:1;transform:translate(-50%,0)}
     @media(max-width:900px){.wrap{width:calc(100% - 28px);padding-top:28px}.head{align-items:flex-start;flex-direction:column}.goals-grid{grid-template-columns:repeat(2,1fr)}.rock-row{grid-template-columns:1fr 1fr}.rock-title{grid-column:1/-1}}
     @media(max-width:580px){.head h1{font-size:31px}.goals-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column;gap:6px}.finish-complete-btn{width:100%;justify-content:center}.rock-row{grid-template-columns:1fr}.rock-title{grid-column:auto}.modal{padding:24px 20px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions{flex-direction:column-reverse}.modal-actions .button{width:100%}}
+.goals-update-actions{align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:16px}.goals-update-actions>span{font-size:12px;color:var(--muted)}
   </style>
 </head>
 <body>
@@ -49,20 +50,19 @@
 
   <div class="modal-backdrop" id="finishModal">
     <section class="modal">
-      <h2>Nice work!</h2>
-      <p id="completionSummaryCopy">Your agency and departmental goals are complete. You also have 90-day priorities locked in.</p>
-      
+      <h2>Nice Work!</h2>
+      <p id="completionSummaryCopy">Your agency and departmental goals are complete! You also have 90 day priorities locked in!</p>
       <div class="complete-box">
-        <strong id="completeTitle">Diagnostic Complete</strong>
-        <span id="completeDate">You can sign in for up to 30 days from today.</span>
+        <strong id="completeTitle">Goals &amp; Priorities Finished!</strong>
+        <span id="completeDate">You can Sign In for up to 30 Days from today.</span>
       </div>
-
+      <div class="modal-actions goals-update-actions"><span>Want to make changes to Goals or 90 Day Priorities?</span><button class="button" id="updateGoals">Update Goals</button></div>
       <div class="fractional">
-        <h3>Would you like to talk with a fractional agency executive?</h3>
-        <p>A fractional executive serves as your strategic partner to help execute your 90-day priorities and departmental goals.</p>
+        <h3>Would You Like to Talk With a Fractional Agency Executive?</h3>
+        <p>We can provide you with a Fractional Agency Executive who can serve as your accountability partner along with the implementation of our agency back office platform for you and your department leaders.</p>
         <div class="modal-actions" style="margin-top:16px">
           <button class="button" id="notNow">Not Right Now</button>
-          <button class="button primary large" id="talkExecutive">Yes, I'd like to talk with a fractional executive.</button>
+          <button class="button primary large" id="talkExecutive">Yes, I’d Like to Talk With a Fractional Executive</button>
         </div>
       </div>
     </section>
@@ -102,17 +102,18 @@
     const valuation = Math.round(sde * multiple);
     const money = n => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0);
 
+    const cogsActual = pd.cogsPercent ?? pd.cogs_percent ?? '—';
     const goalDefs = [
-      { id: 'revenue', group: 'Revenue & Profit', label: 'Revenue (TTM)', actual: money(1950000), unit: '$' },
-      { id: 'margin', group: 'Revenue & Profit', label: 'Net Profit Margin', actual: '24%', unit: '%' },
-      { id: 'sde', group: 'Revenue & Profit', label: 'Adjusted SDE', actual: money(sde), unit: '$' },
       { id: 'ownerDelivery', group: 'Owner Dependency', label: 'Owner Time in Delivery (%)', actual: '38%', unit: '%' },
       { id: 'ownerSales', group: 'Owner Dependency', label: 'Owner Time in Sales (%)', actual: '32%', unit: '%' },
-      { id: 'leadership', group: 'Leadership Maturity', label: 'Leadership Maturity Index', actual: String(Math.round(s / 20)) + ' / 5', unit: '' },
-      { id: 'aofi', group: 'Agency Freedom Index', label: 'Agency Owner Freedom Index (AOFI)', actual: String(aofi), unit: '', info: 'Combines Performance at 40%, Strength at 40%, and Owner Independence at 20%.' },
+      { id: 'revenue', group: 'Financial', label: 'Revenue (TTM)', actual: money(1950000), unit: '$' },
+      { id: 'cogs', group: 'Financial', label: 'COGS % of Revenue', actual: typeof cogsActual === 'number' ? `${cogsActual}%` : String(cogsActual), unit: '%' },
+      { id: 'margin', group: 'Financial', label: 'Net (Profit) Margin', actual: '24%', unit: '%' },
+      { id: 'sde', group: 'Financial', label: 'SDE', actual: money(sde), unit: '$' },
+      { id: 'leadership', group: 'Operational', label: 'Leadership Maturity Level', actual: String(Math.round(s / 20)) + ' / 5', unit: '' },
+      { id: 'aofi', group: 'Operational', label: 'Agency Owner Freedom Index (AOFI) Score', actual: String(aofi), unit: '', info: 'The Agency Owner Freedom Index combines Performance at 40%, Strength at 40%, and Owner Independence at 20% to show how far the agency has progressed toward long-term owner freedom and optionality.' },
       { id: 'valuation', group: 'Agency Value', label: 'Enterprise Valuation', actual: money(valuation), unit: '$' }
     ];
-
     const targets = JSON.parse(localStorage.getItem('agencyGoalTargets') || '{}');
     const departments = ['Leadership', 'Marketing', 'Sales', 'Onboarding', 'Billing', 'Service Delivery', 'Client Success'];
     const savedDepartments = JSON.parse(localStorage.getItem('agencyDepartmentGoals') || '{}');
@@ -130,7 +131,7 @@
         </header>
 
         <div class="section-head">
-          <div><h2>Agency Goal Cards</h2><p>Click any card to set a specific target number or percentage increase.</p></div>
+          <div><h2>Agency Goals</h2><p>Last year’s actual performance is shown below. Click any card to set a target number or percentage increase.</p></div>
           <span>Category Goals</span>
         </div>
 
@@ -167,7 +168,7 @@
         <section class="card rocks">
           <div class="rocks-head">
             <h3>90-Day Priorities</h3>
-            <button class="button grayed-out" id="addPriority" type="button">＋ Add New Priority</button>
+            <button class="button grayed-out" id="addPriority" type="button">＋ Add a New Priority</button>
           </div>
           <div id="rockList">
             ${rocks.length ? rocks.map(rockRow).join('') : '<div class="empty-rocks">Select key issues from the Agency Scorecard to populate 90-day priorities, or request executive support.</div>'}
@@ -176,7 +177,7 @@
 
         <div class="finish">
           <button class="finish-complete-btn" id="finishGoals">
-            Diagnostic Complete
+            Goals &amp; Priorities Finished!
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="20" height="20"><path d="M5 12h14M14 7l5 5-5 5"/></svg>
           </button>
         </div>
@@ -190,7 +191,7 @@
             <span>${goal.label}</span>
             ${goal.info ? `<span class="info" title="${goal.info}">i</span>` : ''}
           </div>
-          <div class="actual">${goal.actual} <small>current</small></div>
+          <div class="actual">${goal.actual} <small>last year actual</small></div>
           <div class="target ${target ? '' : 'empty'}">
             <span>Target</span>
             <strong>${target ? `${target.type === 'percent' ? '+' + target.value + '%' : target.value}` : 'Set target →'}</strong>
@@ -216,6 +217,7 @@
           <td><input data-field="done" value="${esc(d.done)}" placeholder="Completion outcome"></td>
           <td>
             <select data-field="completion">
+              <option ${d.completion === 'This month' ? 'selected' : ''}>This month</option>
               <option ${d.completion === 'This quarter' ? 'selected' : ''}>This quarter</option>
               <option ${d.completion === 'Next quarter' ? 'selected' : ''}>Next quarter</option>
               <option ${d.completion === 'This year' ? 'selected' : ''}>This year</option>
@@ -290,7 +292,7 @@
 
     // Phase 6: Add New Priority grayed out button click event
     document.querySelector('#addPriority').onclick = () => {
-      showToast('You need a fractional executive to unlock this feature.');
+      showToast('You need a Fractional Executive to unlock this feature');
     };
 
     // Phase 7: Diagnostic Complete button & pop-up modal
@@ -300,20 +302,22 @@
       localStorage.setItem('agencyGoalsComplete', 'true');
       localStorage.setItem('diagnosticComplete', 'true');
       localStorage.setItem('agencyGoalsCompletedAt', date.toISOString());
+      Promise.resolve(window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.())).catch(()=>null);
       
       const summaryCopy = document.querySelector('#completionSummaryCopy');
       if (summaryCopy) {
-        summaryCopy.textContent = `Nice work! Your agency and departmental goals are complete. You also have 90-day priorities locked in. You can sign in for up to 30 days from ${dateStr}.`;
+        summaryCopy.textContent = 'Your agency and departmental goals are complete! You also have 90 day priorities locked in!';
       }
       
       const dateSpan = document.querySelector('#completeDate');
       if (dateSpan) {
-        dateSpan.textContent = `You can sign in for up to 30 days from ${dateStr}.`;
+        dateSpan.textContent = `You can Sign In for up to 30 Days from ${dateStr}.`;
       }
 
       show('#finishModal');
     };
 
+    document.querySelector('#updateGoals').onclick = () => hide('#finishModal');
     document.querySelector('#notNow').onclick = () => location.href = '/platform/';
 
     document.querySelector('#talkExecutive').onclick = () => {

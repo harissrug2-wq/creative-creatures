@@ -176,13 +176,14 @@
   }
 
   function landing() {
+    document.onkeydown = null;
     app.innerHTML = `
-      <header class="archetype-header">${logo()}<a class="back-link" href="/">Back to sign in</a></header>
-      <section class="hero">
+      <header class="archetype-header">${logo()}<a class="back-link" href="/login/">Back to sign in</a></header>
+      <section class="hero identity-hero">
         <div class="hero-inner">
-          <span class="pill">Owner Identity · Free</span>
-          <h1>Learn how owner identity impacts the agency you are trying to build and its value.</h1>
-          <p>The agency you are building is shaped by your patterns as an owner: how you decide, how you lead, and what your team still needs from you.</p>
+          <h1>Learn How Owner Identity<br>Impacts the Agency You Are Trying to Build &amp; Its Value</h1>
+          <p>The marketing agency you are building is heavily influenced by the patterns of your identity. Think of the decision making, actions you need your team to take or the culture you’ve built; all influenced by your identity.</p>
+          <p class="identity-ceiling">You are either your agency’s ceiling holding it back OR the foundation supporting as others build it with you.</p>
           <button class="cta" id="startArchetype">Get My Owner Identity Report →</button>
           <div class="meta">About 3 minutes · 12 questions</div>
         </div>
@@ -227,8 +228,9 @@
             <div class="inline-error" id="questionError" hidden></div>
             <div class="assessment-actions">
               <button class="nav-btn" id="backQuestion" type="button" ${index === 0 ? 'disabled' : ''}>← Back</button>
-              <button class="nav-btn primary" id="nextQuestion" type="button" ${String(value).trim() ? '' : 'disabled'}>${isLast ? 'Reveal my archetype →' : 'Continue →'}</button>
+              <button class="nav-btn primary" id="nextQuestion" type="button" ${String(value).trim() ? '' : 'disabled'}>${isLast ? 'Next →' : 'Next →'}</button>
             </div>
+            <div class="enter-hint">Press Enter ↵ to Continue</div>
           </section>
         </main>`;
 
@@ -239,6 +241,14 @@
           draw();
         });
       });
+
+      const enterHandler = event => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          const next = document.querySelector('#nextQuestion');
+          if (next && !next.disabled) { event.preventDefault(); next.click(); }
+        }
+      };
+      document.onkeydown = enterHandler;
 
       const textAnswer = document.querySelector('#textAnswer');
       if (textAnswer) {
@@ -290,15 +300,16 @@
         <div class="assessment-progress" aria-label="Assessment progress"><span style="width:100%"></span></div>
         <section class="assessment-main account-capture-main">
           <div class="question-count">Your account</div>
-          <h1>Where should we save your Owner Archetype Report?</h1>
+          <h1>Where should we Send your Owner Identity Report?</h1>
           <p class="account-capture-copy">Use the email you will use when you return. Your agency URL and this email can both find the same account later.</p>
           <label class="account-email-label" for="ownerEmail">Email address</label>
           <input class="text-answer account-email-input" id="ownerEmail" type="email" value="${escapeHtml(existingEmail)}" placeholder="you@youragency.com" autocomplete="email">
           <div class="inline-error" id="questionError" hidden></div>
           <div class="assessment-actions">
             <button class="nav-btn" id="backToLastQuestion" type="button">← Back</button>
-            <button class="nav-btn primary" id="saveOwnerReport" type="button" ${existingEmail ? '' : 'disabled'}>Reveal my archetype →</button>
+            <button class="nav-btn primary" id="saveOwnerReport" type="button" ${existingEmail ? '' : 'disabled'}>Send My Owner Identity Report →</button>
           </div>
+          <div class="enter-hint">Press Enter ↵ to Continue</div>
           <div class="account-privacy">Your report and questionnaire answers are saved to your Creative Creatures account.</div>
         </section>
       </main>`;
@@ -408,8 +419,8 @@
         ${logo()}
         <section class="processing-card">
           <div class="spinner"></div>
-          <h1>Creating your account and report…</h1>
-          <p>We are saving your Owner Archetype result and preparing your Agency Diagnostic workspace.</p>
+          <h1>Creating your account and Owner Identity Report…</h1>
+          <p>We are saving your Owner Identity result and preparing your Agency Diagnostic workspace.</p>
         </section>
       </main>`;
     const syncPayload = {
@@ -431,9 +442,11 @@
       reportData: report,
       diagnosticState: { indexes: {}, count: 0, allComplete: false, reportReady: false }
     };
-    const destinationPath = window.CCAccount?.destinationPath
-      ? window.CCAccount.destinationPath(destination)
-      : (destination === 'platform' ? '/platform/' : destination === 'accelerator' ? '/accelerator/' : '/diagnostic/');
+    const destinationPath = destination === 'diagnostic'
+      ? `/owner-archetype/report/${encodeURIComponent(reportToken)}/`
+      : (window.CCAccount?.destinationPath
+        ? window.CCAccount.destinationPath(destination)
+        : (destination === 'platform' ? '/platform/' : '/accelerator/'));
     const sync = window.CCAccount?.createAccount
       ? window.CCAccount.createAccount(syncPayload).catch(() => null)
       : Promise.resolve(null);
@@ -449,6 +462,8 @@
         token: token || localStorage.getItem('ownerArchetypeReportToken') || makeId('local-report'),
         reportId: 'CC-ARCH-' + Math.random().toString(36).slice(2, 6).toUpperCase(),
         firstName: localStorage.getItem('ccOwnerFirstName') || 'Owner',
+        agencyWebsite: localStorage.getItem('ccAgencyWebsite') || '',
+        email: localStorage.getItem('ccOwnerEmail') || '',
         archetypeKey: 'B', archetypeTitle: fallback.title,
         primaryConstraint: fallback.constraint, primaryConstraintCopy: fallback.constraintCopy,
         desiredPath: fallback.desired, desiredPathCopy: fallback.desiredCopy
@@ -456,55 +471,69 @@
       STORE.set('ownerArchetypeReportData', data);
     }
     if (!data) {
-      app.innerHTML = `
-        <main class="report-page">
-          ${logo()}
-          <section class="missing-report">
-            <h1>Your report is not available in this browser.</h1>
-            <p>Retake the questionnaire to create a new Owner Archetype Report.</p>
-            <a class="nav-btn primary" href="/owner-archetype/assessment?retake=1">Retake quiz</a>
-          </section>
-        </main>`;
+      app.innerHTML = `<main class="report-page">${logo()}<section class="missing-report"><h1>Your report is not available in this browser.</h1><p>Retake the questionnaire to create a new Owner Identity Report.</p><a class="nav-btn primary" href="/owner-archetype/assessment?retake=1">Retake quiz</a></section></main>`;
       return;
     }
-
+    const firstName = data.firstName || localStorage.getItem('ccOwnerFirstName') || 'there';
+    const agencyUrl = data.agencyWebsite || localStorage.getItem('ccAgencyWebsite') || 'your agency';
+    const email = data.email || localStorage.getItem('ccOwnerEmail') || 'your email address';
     app.innerHTML = `
-      <main class="report-page">
+      <main class="report-page identity-report-page">
         ${logo()}
-        <section class="report-progress" aria-label="Owner archetype report steps">
-          <div class="report-step complete"><span>✓</span><b>Basics</b></div>
-          <i></i>
-          <div class="report-step complete"><span>✓</span><b>Quiz</b></div>
-          <i></i>
+        <section class="report-progress" aria-label="Owner identity report steps">
+          <div class="report-step complete"><span>✓</span><b>Basics</b></div><i></i>
+          <div class="report-step complete"><span>✓</span><b>Quiz</b></div><i></i>
           <div class="report-step current"><span>3</span><b>Report</b></div>
         </section>
-
-        <section class="report-intro">
-          <h1>Your free Owner Archetype Report</h1>
-          <p>A snapshot of the owner-style ceiling that shows up in the agency. The full diagnostic uses this as its starting hypothesis.</p>
-        </section>
-
-        <article class="archetype-report-card">
-          <header>
-            <span class="report-kicker">✣ &nbsp;Your archetype</span>
-            <h2>${escapeHtml(data.archetypeTitle)}</h2>
-            <p>${escapeHtml(reportSummary(data.archetypeKey))}</p>
-          </header>
-          <div class="report-insights">
-            <section><span>◎ &nbsp;Primary constraint</span><h3>${escapeHtml(data.primaryConstraint)}</h3><p>${escapeHtml(data.primaryConstraintCopy)}</p></section>
-            <section><span>◉ &nbsp;Desired path</span><h3>${escapeHtml(data.desiredPath)}</h3><p>${escapeHtml(data.desiredPathCopy)}</p></section>
+        <section class="identity-confirmation">
+          <h1>Congratulations, ${escapeHtml(firstName)}!</h1>
+          <p class="identity-lead">You have taken an important step toward improving how you lead ${escapeHtml(agencyUrl)}</p>
+          <div class="identity-email-card">
+            <span>Your Owner Identity Report</span>
+            <h2>We have emailed your detailed Owner Identity Report to ${escapeHtml(email)}</h2>
+            <p>Check your inbox and your spam/junk folders just in case.</p>
           </div>
-          <footer><code>Report ID · ${escapeHtml(data.reportId)}</code><button type="button" class="download-report" id="downloadReport">⇩ &nbsp;Download PDF</button></footer>
-        </article>
-
-        <section class="report-next">
-          <div><span>Next step</span><h2>Turn this into a full Agency Diagnostic</h2><p>Layer your systems, financials, and independence review on top of this archetype. Get a valuation, a 90-day roadmap, and a fractional executive to turn the plan.</p></div>
-          <a href="/payment/" class="next-payment">Continue to payment →</a>
+          <section class="identity-next-step">
+            <span class="identity-section-label">Your Next Step</span>
+            <h2>Now that you have received your Owner Identity Report, you may have questions you want answered.</h2>
+            <div class="identity-questions">
+              <p><strong>Strategy:</strong> What should our Top Priorities over the next 90 days be and why?</p>
+              <p><strong>Sales:</strong> How do we get more new sales or replace me as the owner in sales?</p>
+              <p><strong>Operations:</strong> Who should we hire next and why?</p>
+              <p><strong>Leadership &amp; Goals:</strong> What should our goals be over the next year and why?</p>
+              <p><strong>Agency Value:</strong> What is the agency valued at right now?</p>
+            </div>
+          </section>
+          <section class="end-game">
+            <span class="identity-section-label">The End Game</span>
+            <h2>If you are like us, when we were in your shoes, you have a lot on your plate.</h2>
+            <p>So, we need you to think about what you truly want from your agency.</p>
+            <ul><li>An exit that pays for your retirement</li><li>A business you can hand down to family</li><li>A great paycheck and challenge for the next decade</li></ul>
+            <div class="guarantee-card"><div class="guarantee-mark">★</div><div><h3>100% Money Back Guarantee</h3><p>No matter what you want, work with one of our Fractional Executives and Back Office Platform, and if you do not scale revenue to hit goals, grow profit margins and increase your agency valuation by at least 3X, we’ll refund your money. No questions. Seriously!</p><p><strong>We are so confident in what we can help you achieve, we put our money where our mouth is.</strong></p></div></div>
+            <button class="nav-btn primary identity-continue" id="continueIdentity">Continue →</button>
+          </section>
         </section>
-        <a class="report-home" href="/diagnostic/">I'm done for now — take me home</a>
+        <section class="diagnostic-offer" id="diagnosticOffer" hidden>
+          <div class="top-one-copy">
+            <h2>Are you ready to take the step<br>only the top 1% of agency owners take?</h2>
+            <p>Choose how you want to start! That’s what the 1% do, they get started, right now, working on themselves and their agencies. That’s it!</p>
+            <p>Ok, there is more to it than that, so let us take a deeper look under the hood with you and we guarantee you will be 100% satisfied. There are no quick fixes.</p>
+          </div>
+          <article class="diagnostic-offer-card">
+            <span class="offer-kicker">DIAGNOSTIC</span><h2>Get My Agency Diagnostic</h2><p class="offer-sub">A private, two week look under the hood of your agency.</p>
+            <div class="offer-columns">
+              <section><h3>What We Do</h3><ul><li>✓ Owner Identity Assessment</li><li>✓ Leadership &amp; Team Accountability Review</li><li>✓ Back Office Performance Analysis<div class="offer-sublist">Marketing · Sales · Onboarding · Client Success · Services Delivery · Billing &amp; Finance</div></li><li>✓ Agency Strength Assessment</li><li>✓ Owner Dependency Assessment</li><li>✓ Agency Valuation Snapshot</li></ul></section>
+              <section><h3>What You Get</h3><ul><li>✓ Owner Freedom Report</li><li>✓ Custom 90 Day Priority Roadmap</li><li>✓ Custom 1 Year Goals &amp; Strategic Plan</li><li>✓ (Optional) Accountability Partner &amp; Platform</li></ul></section>
+            </div>
+            <a href="/payment/" class="next-payment offer-cta">Start My Diagnostic →</a>
+          </article>
+        </section>
       </main>`;
-
-    document.querySelector('#downloadReport')?.addEventListener('click', () => window.print());
+    document.querySelector('#continueIdentity')?.addEventListener('click', () => {
+      const offer = document.querySelector('#diagnosticOffer');
+      offer.hidden = false;
+      offer.scrollIntoView({behavior:'smooth', block:'start'});
+    });
   }
 
   function reportSummary(key) {

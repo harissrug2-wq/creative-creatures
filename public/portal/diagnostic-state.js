@@ -152,6 +152,9 @@
     });
     if (source.reportReady === true || source.report_ready === true) localStorage.setItem('ccDiagnosticReportReady', 'true');
     if (source.generatedAt || source.generated_at) localStorage.setItem('ccDiagnosticGeneratedAt', source.generatedAt || source.generated_at);
+    if (source.paymentComplete === true || source.payment_complete === true) { localStorage.setItem('ccPaymentComplete','true'); localStorage.setItem('agencyPaymentComplete','true'); }
+    if (source.integrationsComplete === true || source.integrations_complete === true) localStorage.setItem('agencyIntegrationsComplete','true');
+    if (source.goalsComplete === true || source.goals_complete === true) localStorage.setItem('agencyGoalsComplete','true');
     return getState();
   };
 
@@ -163,6 +166,9 @@
       allComplete: state.allComplete,
       reportReady: state.reportReady,
       generatedAt: state.generatedAt,
+      paymentComplete: localStorage.getItem('ccPaymentComplete') === 'true' || localStorage.getItem('agencyPaymentComplete') === 'true',
+      integrationsComplete: localStorage.getItem('agencyIntegrationsComplete') === 'true',
+      goalsComplete: localStorage.getItem('agencyGoalsComplete') === 'true',
       updatedAt: localStorage.getItem('ccDiagnosticUpdatedAt') || new Date().toISOString()
     };
   };

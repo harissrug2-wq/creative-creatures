@@ -26,10 +26,16 @@
       <div class="card-actions"><button type="button" data-download="${id}">${actionIcon('download')} Download report</button><button type="button" data-email="${id}">${actionIcon('email')} Email report</button></div>
     </article>`;
   }).join('');
-  const issueRows = model.weakest.map(row => `<div class="insight-row"><b>${esc(row.name)} · ${row.score}/100</b><p>${esc(row.indexTitle)} is below the other measured capabilities and should be validated before the next planning cycle.</p></div>`).join('');
+  const rockCandidates = {};
+  const issueRows = model.weakest.map((row,index) => {
+    const id=`issue-${index}`;
+    rockCandidates[id]={title:row.name,description:`${row.indexTitle} is below the other measured capabilities and should be validated before the next planning cycle.`};
+    return `<label class="insight-row selectable-insight"><input type="checkbox" data-rock-candidate="${id}"><span><b>${esc(row.name)} · ${row.score}/100</b><p>${esc(row.indexTitle)} is below the other measured capabilities and should be validated before the next planning cycle.</p></span></label>`;
+  }).join('');
   const opportunityRows = model.weakest.map((row,index) => {
-    const report = model.reports[row.index];
-    return `<div class="insight-row opportunity-row"><i>${index+1}</i><div><b>${esc(row.name)}</b><p>${esc(report.recommendation)}</p></div><em>+${Math.max(1,Math.round((100-row.score)*.18))} pts</em></div>`;
+    const report = model.reports[row.index],id=`opportunity-${index}`;
+    rockCandidates[id]={title:row.name,description:report.recommendation};
+    return `<label class="insight-row opportunity-row selectable-insight"><input type="checkbox" data-rock-candidate="${id}"><i>${index+1}</i><div><b>${esc(row.name)}</b><p>${esc(report.recommendation)}</p></div><em>+${Math.max(1,Math.round((100-row.score)*.18))} pts</em></label>`;
   }).join('');
   const perf = model.reports.performance;
   root.innerHTML = `
@@ -37,14 +43,25 @@
     <div class="section-title"><div><div class="section-kicker">Section 01</div><h2>Executive Summary</h2></div><p>The headline index uses the supplied 40 / 40 / 20 scoring formula.</p></div>
     <section class="aofi-card">
       <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance, Strength, and Owner Independence. Confidence is weighted using the same formula, and validation inherits the weakest index status.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)}</strong></div><div class="aofi-stat"><span>Momentum</span><strong>Baseline</strong></div></div></div>
-      <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(model.weakest[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[model.weakest[0]?.index || 'strength'].recommendation)}</p></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
+      <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(model.weakest[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[model.weakest[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">Create 90 Day Rock</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
     </section>
     <div class="section-title"><div><div class="section-kicker">Section 02</div><h2>Three Index Reports</h2></div><p>Reports appear here only after all three indexes are complete and generated.</p></div>
     <section class="index-grid">${cards}</section>
     <div class="section-title"><div><div class="section-kicker">Section 03</div><h2>Issues &amp; Opportunities</h2></div><p>Prioritized from the lowest-scoring capabilities across all three indices.</p></div>
-    <section class="insight-grid"><article class="insight-card"><h3>Key issues</h3><div class="insight-list">${issueRows}</div></article><article class="insight-card"><h3>Biggest opportunities</h3><div class="insight-list">${opportunityRows}</div></article></section>
-    <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Financial Evidence &amp; Valuation</h2></div><p>Only source-supported values are displayed.</p></div>
-    <section class="valuation-note"><div><h3>Adjusted Seller Discretionary Earnings</h3><p>The Performance assessment calculates Adjusted SDE from the submitted net income, owner compensation, and eligible add-backs. The supplied scoring documents do not define a complete enterprise-value multiple formula, so the platform does not fabricate a valuation.</p></div><strong>${money(perf.adjustedSDE)}<small>${perf.roicLite === null ? 'ROIC-Lite unavailable' : `ROIC-Lite ${Number(perf.roicLite).toFixed(1)}%`}</small></strong></section>`;
+    <section class="insight-grid"><article class="insight-card"><h3>Key issues</h3><div class="insight-list">${issueRows}</div></article><article class="insight-card"><h3>Biggest opportunities</h3><div class="insight-list">${opportunityRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues or opportunities.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">Create 90 Day Rock(s)</button></div>
+    <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Agency Valuation</h2></div><p>Only source-supported values are displayed.</p></div>
+    <section class="valuation-note"><div><h3>Adjusted Seller Discretionary Earnings</h3><p>The Performance assessment calculates Adjusted SDE from the submitted net income, owner compensation, and eligible add-backs. The supplied scoring documents do not define a complete enterprise-value multiple formula, so the platform does not fabricate a valuation.</p></div><strong>${money(perf.adjustedSDE)}<small>${perf.roicLite === null ? 'ROIC-Lite unavailable' : `ROIC-Lite ${Number(perf.roicLite).toFixed(1)}%`}</small></strong></section><div class="define-goals-wrap"><a class="define-goals-cta" href="/agency-goals/">Define Agency Goals →</a></div>`;
+  const saveRocks = candidates => {
+    if(!candidates.length) return 0;
+    let rocks=[];try{rocks=JSON.parse(localStorage.getItem('agencyRocks')||'[]')}catch{}
+    let added=0;
+    candidates.forEach(candidate=>{if(!candidate||rocks.some(rock=>String(rock.title).toLowerCase()===String(candidate.title).toLowerCase()))return;rocks.push({title:candidate.title,description:candidate.description,owner:'Agency Owner',due:'This quarter',status:'Not started',createdAt:new Date().toISOString(),source:'agency-scorecard'});added+=1;});
+    localStorage.setItem('agencyRocks',JSON.stringify(rocks));return added;
+  };
+  root.querySelectorAll('[data-rock-candidate]').forEach(input=>input.addEventListener('change',()=>input.closest('.selectable-insight')?.classList.toggle('selected',input.checked)));
+  root.querySelector('#createSelectedRocks')?.addEventListener('click',event=>{const chosen=[...root.querySelectorAll('[data-rock-candidate]:checked')].map(input=>rockCandidates[input.dataset.rockCandidate]);const note=root.querySelector('#rockSelectionNote');if(!chosen.length){note.textContent='Select at least one issue or opportunity first.';return;}const added=saveRocks(chosen);note.textContent=added?`${added} 90 Day Rock${added===1?'':'s'} added to Agency Goals.`:'Those items are already in Agency Goals.';event.currentTarget.textContent='Created ✓';setTimeout(()=>event.currentTarget.textContent='Create 90 Day Rock(s)',1500);});
+  root.querySelector('#createSingleRock')?.addEventListener('click',event=>{const first=model.weakest[0],report=model.reports[first?.index||'strength'];const added=saveRocks([{title:first?.name||'Validate the evidence',description:report.recommendation}]);event.currentTarget.textContent=added?'90 Day Rock Created ✓':'Already Added';});
+
   root.querySelectorAll('[data-download]').forEach(button => button.addEventListener('click', () => window.CCReports.downloadReport(button.dataset.download)));
   root.querySelectorAll('[data-email]').forEach(button => button.addEventListener('click', () => window.CCReports.openEmailDialog(button.dataset.email)));
 })();

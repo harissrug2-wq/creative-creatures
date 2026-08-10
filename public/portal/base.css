@@ -112,3 +112,10 @@ img { max-width: 100%; }
 .top-account-menu svg,.mobile-signout svg{width:15px;height:15px}
 .mobile-signout{padding:11px 8px;font-size:13px;text-align:left}
 @media(max-width:1100px){.top-account{display:none}}
+
+/* Diagnostic onboarding navigation and status rail */
+.app-nav a.nav-disabled,.mobile-nav-panel a.nav-disabled{color:#adb3bd;cursor:not-allowed;pointer-events:auto}
+.app-nav a.nav-disabled::after{display:none}.app-nav .portal-muted{color:#adb3bd}
+.diagnostic-status{background:#fff;border-bottom:1px solid var(--cc-line);min-height:70px;padding:13px 26px;display:flex;align-items:center;justify-content:center;gap:9px;overflow-x:auto;position:relative;z-index:20}
+.diagnostic-status-step{display:flex;align-items:center;gap:7px;white-space:nowrap;flex:0 0 auto}.diagnostic-status-step span{width:25px;height:25px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:750;background:#ecece9;color:#959da8}.diagnostic-status-step b{font-size:10px;font-weight:600;color:#969da8}.diagnostic-status-step.complete span{background:var(--cc-green);color:#fff}.diagnostic-status-step.complete b{color:#4a6557}.diagnostic-status-step.current span{background:var(--cc-blue);color:#fff;box-shadow:0 0 0 3px var(--cc-blue-soft)}.diagnostic-status-step.current b{color:var(--cc-blue)}.diagnostic-status>i{height:1px;width:30px;min-width:20px;background:#dfe0dd;flex:0 1 30px}
+@media(max-width:900px){.diagnostic-status{justify-content:flex-start;padding:11px 16px;min-height:62px}.diagnostic-status-step b{font-size:9px}.diagnostic-status>i{width:18px;min-width:12px}.mobile-nav-panel a.nav-disabled{background:#f7f7f5;color:#a0a6af}}

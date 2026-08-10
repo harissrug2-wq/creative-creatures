@@ -8,10 +8,8 @@
   const initials = ownerName.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase() || 'DD';
   const pageFromPath = path === '/' ? 'platform' : path.split('/').filter(Boolean).pop();
   const page = document.body.dataset.page || pageFromPath;
-  const scorecardUnlocked = ['agencyStrengthScore','ownerIndependenceScore','agencyPerformanceScore'].every(key => {
-    const value = localStorage.getItem(key);
-    return value !== null && value !== '' && value !== 'null' && value !== 'undefined';
-  });
+  const scorecardUnlocked = localStorage.getItem('ccDiagnosticReportReady') === 'true';
+  const goalsUnlocked = scorecardUnlocked;
   const scorecardHref = scorecardUnlocked ? '/agency-scorecard/' : '/diagnostic/?locked=scorecard';
 
   const iconPaths = {
@@ -68,12 +66,12 @@
         </aside>
         <div class="main-shell">
           <header class="topbar"><button class="mobile-toggle" id="mobileToggle">${ico('menu')}</button><nav class="topnav">
-            <a href="/platform/" class="top-link active">${ico('monitor')} Monitor</a>
+            <a href="/integrations/" class="top-link">${ico('plug')} Integrations</a>
             <a href="/diagnostic/" class="top-link">${ico('diagnostic')} Diagnostic</a>
-            <a href="${scorecardHref}" class="top-link ${scorecardUnlocked?'':'locked-link'}" aria-disabled="${scorecardUnlocked?'false':'true'}">${ico('score')} Agency Scorecard${scorecardUnlocked?'':'<span class="nav-lock">Locked</span>'}</a>
-            <a href="/independence-index/" class="top-link">${ico('goals')} Agency Goals</a>
-            <a href="/agency-strength-index/" class="top-link">${ico('plug')} Integrations</a>
-            <button class="top-link" data-toast="Portal is coming soon.">${ico('dashboard')} Portal <span class="coming">coming soon</span></button>
+            <a href="${scorecardHref}" class="top-link ${scorecardUnlocked?'':'locked-link'}" aria-disabled="${scorecardUnlocked?'false':'true'}">${ico('score')} Agency Scorecard</a>
+            <a href="${goalsUnlocked?'/agency-goals/':'#'}" class="top-link ${goalsUnlocked?'':'locked-link'}" aria-disabled="${goalsUnlocked?'false':'true'}">${ico('goals')} Agency Goals</a>
+            <a href="/platform/" class="top-link active">${ico('monitor')} Monitor</a>
+            <button class="top-link locked-link" aria-disabled="true">${ico('dashboard')} Portal</button>
           </nav><button class="ask-button" id="askButton">${ico('spark')} Ask Creature</button></header>
           <main class="page-wrap">${content}</main>
         </div>

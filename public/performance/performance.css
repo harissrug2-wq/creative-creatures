@@ -14,3 +14,6 @@
 
 /* Final type scale aligned to the supplied Creative Creatures UI */
 .section-tab strong{font-size:14px}.section-tab small{font-size:11px}.section-kicker{font-size:11px}.section-card-head p{font-size:15px}.status-pill{font-size:11px}.upload-zone h3{font-size:18px}.upload-zone p{font-size:14px}.file-button{font-size:14px}.file-meta,.requirement{font-size:13px}.sde-block h3{font-size:17px}.sde-block>p,.check-option{font-size:13px}.field label{font-size:12px}.field input,.field select,.field textarea{font-size:14px}.save-note{font-size:12px}.review-card>p,.review-row{font-size:14px}.prototype-note{font-size:13px}.score-label,.confidence-box,.doc-summary div{font-size:13px}
+
+/* Latest financial-upload workflow */
+.sde-single{grid-template-columns:1fr}.ownership-percent{display:none;max-width:260px}.ownership-percent.show{display:grid}.sde-review-note{font-size:12px!important;color:var(--muted);margin:14px 0 0!important}.performance-layout .button.primary{min-width:130px}

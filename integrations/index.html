@@ -26,7 +26,7 @@
       <div>
         <span class="head-badge">Integrations</span>
         <h1>Which Back Office Software Do You Use?</h1>
-        <p>As part of our back-office systems analysis, we need to know which software you use. This analysis takes the longest, so we start here. Select all that apply.</p>
+        <p>As part of your Back Office Systems Analysis we need to know which software you use. This analysis takes the longest so we start here. Select all that apply.</p>
       </div>
       <aside class="summary">
         <strong id="selectedCount">0 Tools Selected</strong>
@@ -50,15 +50,15 @@
         <span id="summaryCopy">If you skip selecting any systems, don’t worry, we’ll flag it as a data gap for you.</span>
       </div>
       <div class="actions">
-        <button class="button primary large" id="submitButton">Submit and Next</button>
+        <button class="button primary large" id="submitButton">Submit &amp; Next →</button>
       </div>
     </footer>
   </main>
 
   <div class="modal-backdrop" id="thanksModal">
     <section class="modal">
-      <h2>Thank you — back-office software saved!</h2>
-      <p>Now that we know which back-office software you use, it’s time to move to the next step of your Agency Diagnostic: uploading your financial data.</p>
+      <h2>Thank you - you’re off to the races!</h2>
+      <p>Now that we know which back office software you use, it’s time to take a look at where we are in the data gathering process before you take next steps.</p>
       <div class="queued">
         <i>✓</i>
         <div>
@@ -67,7 +67,7 @@
         </div>
       </div>
       <div class="modal-actions">
-        <button class="button primary" id="nextButton">Continue to Financial Data Upload →</button>
+        <button class="button primary" id="nextButton">Next</button>
       </div>
     </section>
   </div>
@@ -77,8 +77,8 @@
       <h2>Request an Integration</h2>
       <p>We will record the request and confirm it for your diagnostic workspace.</p>
       <div class="form-grid">
-        <div class="field"><label>First Name</label><input id="firstName" value="Agency Owner"></div>
-        <div class="field"><label>Email</label><input id="email" type="email" value="owner@agency.com"></div>
+        <div class="field"><label>First Name</label><input id="firstName"></div>
+        <div class="field"><label>Email</label><input id="email" type="email"></div>
         <div class="field"><label>Back Office Category</label><select id="categorySelect"></select></div>
         <div class="field"><label>Software Vendor Name</label><input id="vendorName" placeholder="Vendor name"></div>
       </div>
@@ -91,10 +91,10 @@
 
   <div class="modal-backdrop" id="requestThanks">
     <section class="modal">
-      <h2>Integration Request Received!</h2>
+      <h2>Thank you for submitting this!</h2>
       <p>Your integration request has been recorded for this diagnostic session.</p>
       <div class="modal-actions">
-        <button class="button primary" id="backIntegrations">Back to Integrations</button>
+        <button class="button primary" id="backIntegrations">Back to the platform</button>
       </div>
     </section>
   </div>
@@ -137,8 +137,8 @@
     const update = () => {
       const items = [...document.querySelectorAll('.tool input:checked')].map(x => x.value);
       localStorage.setItem('agencySelectedTools', JSON.stringify(items));
-      document.querySelector('#selectedCount').textContent = `${items.length} ${items.length === 1 ? 'Tool' : 'Tools'} Selected`;
-      document.querySelector('#summaryTitle').textContent = items.length ? `${items.length} ${items.length === 1 ? 'tool' : 'tools'} selected` : 'No systems selected yet';
+      document.querySelector('#selectedCount').textContent = `${items.length} ${items.length === 1 ? 'Tool' : 'Tools'} Selected.`;
+      document.querySelector('#summaryTitle').textContent = items.length ? `${items.length} ${items.length === 1 ? 'Tool' : 'Tools'} Selected.` : 'No systems selected yet';
       document.querySelector('#summaryCopy').textContent = items.length ? items.join(' · ') : 'If you skip selecting any systems, don’t worry, we’ll flag it as a data gap for you.';
       return items;
     };
@@ -152,6 +152,7 @@
     document.querySelector('#submitButton').onclick = () => {
       const items = update();
       localStorage.setItem('agencyIntegrationsComplete', 'true');
+      Promise.resolve(window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.())).catch(()=>null);
       document.querySelector('#queuedText').textContent = items.length ? `${items.length} selected tools are queued.` : 'No tools selected; a data gap has been recorded.';
       show('#thanksModal');
     };
@@ -160,6 +161,11 @@
 
     const categories = Object.keys(catalog);
     document.querySelector('#categorySelect').innerHTML = categories.map(x => `<option>${x}</option>`).join('');
+    const account = window.CCAccount?.getAccount?.() || (()=>{try{return JSON.parse(localStorage.getItem('ccUserAccount')||'null')}catch{return null}})();
+    const accountName = account?.first_name || account?.firstName || account?.displayName?.trim?.().split(/\s+/)[0] || localStorage.getItem('ccOwnerFirstName') || '';
+    const accountEmail = account?.email || localStorage.getItem('ccOwnerEmail') || '';
+    document.querySelector('#firstName').value = accountName;
+    document.querySelector('#email').value = accountEmail;
 
     document.querySelector('#requestButton').onclick = () => show('#requestModal');
     document.querySelectorAll('[data-close-request]').forEach(b => b.onclick = () => hide('#requestModal'));
@@ -179,7 +185,7 @@
       show('#requestThanks');
     };
 
-    document.querySelector('#backIntegrations').onclick = () => hide('#requestThanks');
+    document.querySelector('#backIntegrations').onclick = () => location.href = '/diagnostic/';
   </script>
 </body>
 </html>

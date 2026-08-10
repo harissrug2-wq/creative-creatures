@@ -163,3 +163,10 @@
 .processing-tip code{font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:600px){.report-processing-main{width:calc(100% - 24px);padding-top:34px}.processing-header h1{font-size:31px}.processing-header p{font-size:14px}.processing-step{grid-template-columns:34px minmax(0,1fr);padding:16px}.stage-spinner{display:none!important}.processing-step h2{font-size:15px}.processing-step code{font-size:10px}}
+
+/* August Diagnostic UX update: green/gray analysis status only */
+.diagnostic-main .progress-line span{background:var(--cc-green)}
+.diagnostic-main .archetype-card:before{display:none}.diagnostic-main .archetype-word{color:#7e8794}.diagnostic-main .owner-progress{margin-top:13px;max-width:320px}
+.diagnostic-main .diag-step.active .step-dot,.diagnostic-main .diag-step.in-progress .step-dot{background:#f8f8f6;border-color:#cfd2cf;color:#7c8590;box-shadow:none}.diagnostic-main .diag-step.active .diag-step-card,.diagnostic-main .diag-step.in-progress .diag-step-card{border-color:#dadbd7;box-shadow:none}.diagnostic-main .diag-step.active .diag-step-card:before,.diagnostic-main .diag-step.in-progress .diag-step-card:before{display:none}
+.diagnostic-main .diag-step.complete .step-dot{background:var(--cc-green);border-color:var(--cc-green);color:#fff;box-shadow:0 0 0 4px #f8f8f6}.diagnostic-main .diag-step.complete .diag-step-card{border-color:#dfe1dd}.diagnostic-main .diag-meta>span:first-child{color:#737c89!important}.diagnostic-main .up-next{color:#6e7785;background:#f0f0ed}.diagnostic-main .index-progress i{background:#ecece8}.diagnostic-main .index-progress b{background:var(--cc-green)!important}
+.diagnostic-main .small-blue,.diagnostic-main .small-outline{min-height:42px;padding:0 17px;font-size:12px}.diagnostic-main .generate-diagnostic{min-height:44px;font-size:12px}.diagnostic-main .locked{opacity:.62}
