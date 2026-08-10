@@ -1,0 +1,26 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Start your journey · Creative Creatures</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/portal/base.css"><link rel="stylesheet" href="/portal/onboarding.css"></head>
+<body class="onboard-page">
+<main class="onboard-wrap">
+<a class="onboard-logo" href="/login/"><img class="cc-logo" src="/portal/creative-creatures-logo.png" alt="Creative Creatures"></a>
+<section class="onboard-center"><h1>How do you want to work on your agency?</h1><p>Both paths deliver the same evidence-based diagnostic. Pick the format that fits how you like to work — privately with our team, or alongside a small cohort of peer owners.</p></section>
+<div class="path-grid" id="pathGrid">
+<button class="path-card selected" data-path="diagnostic">
+  <div class="path-head"><span class="path-head-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 19V5M4 19h16"/><path d="m8 15 3-4 3 2 4-6"/></svg></span><h2>Agency Diagnostic</h2></div>
+  <p class="path-sub">A private 14-day look under the hood of your agency.</p>
+  <ul class="path-list"><li>Owner archetype + team & leadership review</li><li>14-point risk assessment and valuation</li><li>Back office systems performance analysis</li><li>90-day + 1-year strategic roadmap</li><li>2 private 1:1 review sessions</li></ul>
+  <div class="path-choice-label">Choose this path</div>
+</button>
+<button class="path-card accelerator" data-path="accelerator">
+  <div class="path-head"><span class="path-head-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20a6 6 0 0 1 12 0M10 20a6 6 0 0 1 12 0"/></svg></span><h2>Breakthrough Accelerator</h2></div>
+  <p class="path-sub">The same diagnostic in a 90-day peer cohort.</p>
+  <ul class="path-list"><li>Owner archetype + team & leadership review</li><li>14-point risk assessment and valuation</li><li>Back office systems performance analysis</li><li>90-day + 1-year strategic roadmap</li><li>Bi-weekly cohort calls (3–8 owners)</li></ul>
+  <div class="path-choice-label">Choose this path</div>
+</button>
+</div>
+<div class="onboard-actions"><a class="back-link" href="/login/">← Back to sign in</a><a class="cc-btn cc-btn-primary" id="continuePath" href="/signup/lookup/?destination=diagnostic">Continue →</a></div>
+</main>
+<script>
+const cards=[...document.querySelectorAll('[data-path]')],cta=document.getElementById('continuePath');
+cards.forEach(card=>card.addEventListener('click',()=>{cards.forEach(c=>c.classList.remove('selected'));card.classList.add('selected');cta.href='/signup/lookup/?destination='+card.dataset.path;}));
+</script></body></html>

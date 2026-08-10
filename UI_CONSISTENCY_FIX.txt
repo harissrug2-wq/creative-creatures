@@ -1,0 +1,49 @@
+CREATIVE CREATURES UI CONSISTENCY FIX
+=====================================
+
+Visual source of truth
+----------------------
+The /login page design system is authoritative for portal branding:
+- Creative Creatures logo
+- Inter font family
+- white / warm-white surfaces
+- #2929ed primary blue
+- 54px desktop application header
+- 13px desktop navigation text
+- consistent rounded cards and borders
+
+What was corrected
+------------------
+1. Removed the alternate blue "Creature Agency Intelligence Platform" logo.
+2. Applied the Creative Creatures logo used on /login to:
+   - Monitor and department pages
+   - Diagnostic
+   - Breakthrough Accelerator
+   - Agency Scorecard
+   - Agency Strength Index
+   - Owner Independence Index
+3. Removed the unintended ADMIN VIEW badge from the agency Monitor sidebar.
+4. Restored the agency/workspace name beneath the sidebar logo.
+5. Standardized portal menu sizing, icon sizing, header height, and mobile navigation.
+6. Standardized Monitor sidebar, top navigation, headings, table text, and card text.
+7. Migrated Agency Scorecard and the two index tools to the same shared portal header.
+8. Preserved the original Owner Archetype questionnaire, questions, scoring, report UI, and typography.
+9. Kept account creation asynchronous so a backend outage does not replace or block the original result flow.
+
+Responsive breakpoints checked in CSS
+-------------------------------------
+- Desktop: above 1100px
+- Tablet: 760px to 1100px
+- Mobile navigation: below 900px
+- Small mobile: below 560px / 520px depending on screen
+
+Deployment
+----------
+Run:
+
+npm install
+npm run build
+
+Then deploy the repository through Vercel.
+
+For cross-device account lookup, follow ACCOUNT_BACKEND_SETUP.txt.

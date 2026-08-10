@@ -1,0 +1,13 @@
+QA DIAGNOSTIC FLOW
+
+Validated:
+- ZIP integrity
+- Vanilla JavaScript syntax for app shell, Monitor shell, Owner Archetype, and diagnostic state
+- Inline JavaScript syntax for Diagnostic, Payment, Performance Index, and Scorecard
+- Required new routes and assets exist
+- Scorecard has a direct-route guard
+- Independence and Performance have prerequisite guards
+- Diagnostic report URL uses the saved Owner Archetype report token
+
+Build note:
+The final Vite build could not be executed in this environment because its internal npm registry does not contain Vite 8.2.0. Run npm install and npm run build locally before deployment.

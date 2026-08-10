@@ -1,0 +1,37 @@
+CREATIVE CREATURES JOURNEY UPDATE
+=================================
+
+Added:
+- New role-based landing page
+- HoldCo Admin agencies screen
+- Platform/Partner Portal entry flow
+- Agency Diagnostic entry and dashboard
+- Breakthrough Accelerator entry and roadmap
+- Start Your Journey path selector
+- Existing archetype yes/no lookup flow
+- Owner Archetype questionnaire
+- Supabase-backed account create/update endpoint
+- Exact three-field account lookup
+- Responsive desktop, tablet, and mobile layouts
+- Separate Creative Creatures and Creature Platform logo treatments
+
+Preserved:
+- All Monitor department routes
+- Agency Scorecard
+- Agency Strength Index
+- Owner Independence Index
+
+Backend files:
+- api/accounts.js
+- supabase/schema.sql
+- .env.example
+
+REPORT SCORING AUDIT UPDATE
+- Individual index results no longer appear immediately after completion.
+- Reports are released only after all three indices complete and diagnostic generation finishes.
+- Each scorecard index card has Download Report and Email Report actions.
+- Added guarded Performance, Strength, and Independence report routes under /agency-scorecard/.
+- Rebuilt Performance Index as a seven-step assessment with exact PDF metric bands, SDE/add-back review, capital allocation review, and evidence uploads.
+- AOFI score, confidence, validation, and rating bands now follow the supplied scoring documents.
+- Unsupported sample valuation math was removed; only Adjusted SDE and ROIC-Lite are displayed.
+- See SCORING_IMPLEMENTATION_AUDIT.md for exact mappings and the one documented Strategic Independence assumption.

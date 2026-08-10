@@ -1,0 +1,13 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "cleanUrls": true,
+  "trailingSlash": true,
+  "rewrites": [
+    { "source": "/owner-archetype/assessment/", "destination": "/owner-archetype/" },
+    { "source": "/owner-archetype/assessment", "destination": "/owner-archetype/" },
+    { "source": "/owner-archetype/processing/", "destination": "/owner-archetype/" },
+    { "source": "/owner-archetype/processing", "destination": "/owner-archetype/" },
+    { "source": "/owner-archetype/report/:token/", "destination": "/owner-archetype/" },
+    { "source": "/owner-archetype/report/:token", "destination": "/owner-archetype/" }
+  ]
+}

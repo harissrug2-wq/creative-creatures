@@ -1,0 +1,22 @@
+CREATIVE CREATURES REPORT FLOW QA
+
+Validated implementation
+- Individual index completion returns to /diagnostic/ and does not open a result dashboard.
+- Diagnostic cards unlock sequentially: Strength → Independence → Performance.
+- Generate Diagnostic is unavailable until all three index completion flags exist.
+- /agency-scorecard/ and all three /agency-scorecard/<index>/ routes require ccDiagnosticReportReady=true.
+- Processing redirects to /agency-scorecard/ only after completeReportGeneration().
+- Scorecard renders dynamic AOFI, weighted confidence, worst validation, three index cards, capability gaps, Adjusted SDE, and ROIC-Lite.
+- Every index card contains exactly two report actions: Download Report and Email Report.
+- Each full index report repeats the same two actions.
+- Performance Index includes 25 metric questions, five exact category weights, SDE/add-back inputs, investment inputs, and nine evidence upload types.
+- Report detail data is included in diagnostic_state so cross-device account lookup can restore reports.
+- Evidence bucket remains private.
+
+Static validation performed
+- node --check passed for every public portal JavaScript file and every Vercel API file.
+- TypeScript parser validation passed for modified React JSX files.
+- All 34 HTML entry pages have titles and all local CSS/JS/image references resolve.
+- Runtime model test confirmed sample AOFI: Performance 75, Strength 56, Independence 39 → 60; weighted confidence → 72; worst validation → Needs Validation.
+- AOFI rating for 60 resolves to Developing.
+- Vite production build was not executable in this environment because the configured package mirror does not contain vite@8.2.0.

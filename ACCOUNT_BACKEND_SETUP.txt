@@ -1,0 +1,28 @@
+CREATIVE CREATURES ACCOUNT, EVIDENCE, AND REPORT BACKEND
+
+1. Create or open a Supabase project.
+2. In Supabase SQL Editor, run supabase/schema.sql.
+3. In Vercel > Project > Settings > Environment Variables add:
+   SUPABASE_URL=https://YOUR_PROJECT.supabase.co
+   SUPABASE_SERVICE_ROLE_KEY=YOUR_SERVICE_ROLE_KEY
+4. To email PDF reports, verify a sending domain in Resend and add:
+   RESEND_API_KEY=re_YOUR_KEY
+   REPORT_FROM_EMAIL=Creative Creatures Reports <reports@YOUR_VERIFIED_DOMAIN.com>
+5. Redeploy the project.
+
+Security
+- SUPABASE_SERVICE_ROLE_KEY and RESEND_API_KEY are server-only values.
+- Never expose either value as a VITE_ environment variable.
+- Financial evidence is stored in the private diagnostic-evidence bucket.
+- The included upload endpoint accepts files up to 4 MB.
+
+Account behavior
+- Completing Owner Archetype creates or updates one account.
+- Email and normalized agency URL are separately unique.
+- Returning users can find the account using either email OR agency URL.
+- Owner report, partial diagnostic progress, index details, scores, and generated-report state are restored on lookup.
+- If the backend is temporarily unavailable, the current browser keeps a local copy and the user is not blocked.
+
+Report behavior
+- Report emails are sent by /api/email-report.js with the generated PDF attached.
+- When Resend is not configured, the UI opens the user's local email client with a text summary; automatic PDF attachment requires Resend.

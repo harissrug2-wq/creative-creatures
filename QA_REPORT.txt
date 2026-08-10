@@ -1,0 +1,18 @@
+QA REPORT — OWNER ARCHETYPE + DIAGNOSTIC FLOW
+
+Passed
+- 31 HTML entry pages parsed.
+- All standalone and inline JavaScript passed node --check.
+- Original Owner Archetype flow remains 12 questions.
+- Email capture is added after the questionnaire, not counted as a questionnaire question.
+- Email-only and agency-URL-only account lookup passed mocked client tests.
+- Diagnostic state unit test passed: owner → strength → independence → performance → generate → scorecard.
+- Partial progress persists for all three index questionnaires.
+- Scorecard direct-route guard requires ccDiagnosticReportReady.
+- Processing page marks the report ready and redirects through /artifacts/ to Agency Scorecard.
+- Vite inputs include all new nested routes.
+- Supabase schema includes unique normalized email and agency URL indexes.
+
+Build note
+- The source is configured for the normal clean npm install used by Vercel.
+- A local structural Vite build transformed all 1,825 modules and emitted every route. The sandbox copy of node_modules came from a Windows archive, so its native Tailwind/Lightning CSS binaries were not suitable for the final production-plugin build. A clean Linux npm install resolves the platform-specific optional packages.

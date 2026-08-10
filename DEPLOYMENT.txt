@@ -1,0 +1,39 @@
+CREATIVE CREATURES DEPLOYMENT
+
+1. Extract this ZIP into your Git repository root.
+2. Install and verify locally:
+
+   npm install
+   npm run build
+
+3. Configure the account backend before production testing. Follow ACCOUNT_BACKEND_SETUP.txt.
+4. Commit and push:
+
+   git add .
+   git commit -m "Integrate Owner Archetype accounts and diagnostic report flow"
+   git pull --rebase origin main
+   git push origin main
+
+If the remote branch must be replaced and you have verified nobody else pushed changes:
+
+   git fetch origin
+   git branch backup-before-diagnostic-flow origin/main
+   git push origin backup-before-diagnostic-flow
+   git push origin main --force-with-lease
+
+5. In Vercel, deploy from the repository root using:
+   Build command: npm run build
+   Output directory: dist
+
+6. Production smoke-test in this order:
+   /signup/lookup/
+   /owner-archetype/assessment/
+   /diagnostic/
+   /agency-strength-index/
+   /independence-index/
+   /agency-performance-index/
+   /diagnostic/processing/
+   /agency-scorecard/
+   /users/
+
+Do not expose SUPABASE_SERVICE_ROLE_KEY in browser code or as a VITE_ environment variable.

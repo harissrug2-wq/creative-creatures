@@ -1,0 +1,234 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --ink: #0d0f14;
+  --muted: #566171;
+  --line: #e2e2dd;
+  --paper: #fafaf8;
+  --card: #ffffff;
+  --blue: #272cf3;
+  --blue-soft: #eef0ff;
+  --blue-hover: #1e23d4;
+  --green: #109b4b;
+}
+
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a { text-decoration: none; color: inherit; }
+button { font: inherit; }
+
+.entry-shell {
+  width: min(840px, calc(100% - 36px));
+  margin: 0 auto;
+  padding: 48px 0 64px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.entry-header {
+  margin-bottom: 36px;
+  text-align: center;
+}
+
+.entry-logo {
+  height: 38px;
+  width: auto;
+}
+
+.entry-card-container {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  padding: 48px 42px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.04);
+  width: 100%;
+}
+
+.entry-badge {
+  display: inline-flex;
+  margin-bottom: 20px;
+}
+
+.entry-badge span {
+  background: var(--blue-soft);
+  color: var(--blue);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(39, 44, 243, 0.15);
+}
+
+.entry-question {
+  font-size: clamp(28px, 3.5vw, 40px);
+  line-height: 1.15;
+  letter-spacing: -0.04em;
+  font-weight: 800;
+  margin: 0 0 32px;
+  color: var(--ink);
+}
+
+.entry-options {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 36px;
+}
+
+.option-card {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  padding: 24px;
+  background: #fbfbfa;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.option-card:hover {
+  border-color: #b5b8ff;
+  background: #ffffff;
+}
+
+.option-card.active {
+  border-color: var(--blue);
+  background: #ffffff;
+  box-shadow: 0 4px 20px rgba(39, 44, 243, 0.08);
+}
+
+.option-radio {
+  margin-top: 4px;
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.option-radio input {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.option-radio span {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid #b3bac5;
+  transition: all 0.2s ease;
+  background: #ffffff;
+}
+
+.option-card.active .option-radio span {
+  border-color: var(--blue);
+  background: var(--blue);
+  box-shadow: inset 0 0 0 3px #ffffff;
+}
+
+.option-content h2 {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 8px;
+  color: var(--ink);
+  letter-spacing: -0.02em;
+}
+
+.option-copy {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0;
+}
+
+.entry-action-area {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.entry-cta-button {
+  min-height: 56px;
+  padding: 0 32px;
+  font-size: 16px;
+  font-weight: 700;
+  border-radius: 14px;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+  width: 100%;
+  justify-content: center;
+}
+
+.entry-cta-button.primary {
+  background: var(--blue);
+  color: #ffffff;
+  box-shadow: 0 8px 24px rgba(39, 44, 243, 0.25);
+}
+
+.entry-cta-button.primary:hover {
+  background: var(--blue-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px rgba(39, 44, 243, 0.32);
+}
+
+.entry-cta-button svg {
+  width: 20px;
+  height: 20px;
+  transition: transform 0.2s ease;
+}
+
+.entry-cta-button:hover svg {
+  transform: translateX(4px);
+}
+
+@media (max-width: 640px) {
+  .entry-shell {
+    padding: 24px 0 40px;
+    width: calc(100% - 24px);
+  }
+  .entry-card-container {
+    padding: 28px 20px;
+    border-radius: 18px;
+  }
+  .entry-question {
+    font-size: 24px;
+    margin-bottom: 24px;
+  }
+  .option-card {
+    padding: 18px;
+    gap: 14px;
+  }
+  .option-content h2 {
+    font-size: 17px;
+  }
+  .option-copy {
+    font-size: 14px;
+  }
+  .entry-cta-button {
+    font-size: 15px;
+    min-height: 50px;
+    padding: 0 20px;
+  }
+}

@@ -1,0 +1,45 @@
+
+.login-page { background:#f8f8f6; }
+.login-wrap { width:min(1110px, calc(100% - 40px)); margin:0 auto; padding:42px 0 76px; }
+.login-logo { margin-bottom:58px; }
+.login-hero h1 { margin:0; max-width:720px; font-size:58px; line-height:.98; letter-spacing:-.055em; font-weight:780; }
+.login-hero .gradient { display:block; margin-top:7px; background:linear-gradient(90deg,#2a2ae8 0%,#8b63a4 52%,#fa5b20 100%); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.login-hero p { margin:24px 0 43px; max-width:625px; color:#596172; font-size:17px; line-height:1.55; }
+.holdco-card { min-height:142px; padding:30px 30px 30px 33px; display:flex; align-items:center; gap:22px; border-radius:17px; background:linear-gradient(100deg,#edf2ff 0%,#fff 55%,#e4e0ff 100%); }
+.holdco-icon { width:56px; height:56px; border-radius:13px; display:grid; place-items:center; color:#fff; background:#2c2cf0; box-shadow:0 7px 13px rgba(44,44,240,.22); flex:0 0 auto; }
+.holdco-copy h2 { margin:0 0 7px; font-size:25px; letter-spacing:-.025em; }
+.holdco-copy p { margin:0; font-size:14px; line-height:1.45; color:#596172; max-width:560px; }
+.holdco-card .cc-btn { margin-left:auto; padding:0 22px; }
+.login-choices { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-top:22px; }
+.login-choice { min-height:218px; padding:24px 23px 21px; display:flex; flex-direction:column; text-decoration:none; transition:.18s ease; }
+.login-choice:hover { transform:translateY(-2px); box-shadow:0 10px 26px rgba(17,18,24,.06); }
+.choice-icon { width:44px; height:44px; display:grid; place-items:center; border-radius:11px; margin-bottom:18px; }
+.choice-icon.orange { color:#ff5a1f; background:#fff0ea; }
+.choice-icon.blue { color:#2f32ec; background:#ececff; }
+.choice-icon.green { color:#18995a; background:#e9f7ef; }
+.login-choice h3 { margin:0 0 11px; font-size:18px; letter-spacing:-.02em; }
+.login-choice p { margin:0; color:#626a79; font-size:14px; line-height:1.48; }
+.login-choice .cc-link { margin-top:auto; padding-top:17px; }
+.start-strip { margin-top:38px; min-height:70px; border-style:dashed; padding:0 20px 0 24px; display:flex; align-items:center; gap:20px; color:#707784; font-size:13px; }
+.start-strip .cc-btn { margin-left:auto; min-height:38px; padding:0 16px; }
+
+@media(max-width:800px){
+  .login-wrap { padding-top:28px; }
+  .login-logo { margin-bottom:42px; }
+  .login-hero h1 { font-size:44px; }
+  .holdco-card { align-items:flex-start; flex-wrap:wrap; }
+  .holdco-card .cc-btn { width:100%; margin:6px 0 0; }
+  .login-choices { grid-template-columns:1fr; }
+  .login-choice { min-height:180px; }
+}
+@media(max-width:520px){
+  .login-wrap { width:calc(100% - 24px); padding-bottom:36px; }
+  .login-hero h1 { font-size:38px; line-height:1.02; }
+  .login-hero p { font-size:15px; margin:20px 0 28px; }
+  .holdco-card { padding:22px; gap:16px; }
+  .holdco-icon { width:48px; height:48px; }
+  .holdco-copy { width:calc(100% - 64px); }
+  .holdco-copy h2 { font-size:21px; }
+  .start-strip { padding:17px; align-items:flex-start; flex-direction:column; }
+  .start-strip .cc-btn { margin:0; width:100%; }
+}

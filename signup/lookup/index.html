@@ -1,0 +1,57 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Find your account · Creative Creatures</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/portal/base.css"><link rel="stylesheet" href="/portal/onboarding.css"></head>
+<body class="onboard-page">
+<main class="lookup-wrap">
+<a class="lookup-logo" href="/login/"><img class="cc-logo" src="/portal/creative-creatures-logo.png" alt="Creative Creatures"></a>
+<h1>Have you completed an Agency Owner Archetype Report before?</h1>
+<p class="lookup-intro">Every paid journey starts with owner identity. If you've done the free Archetype Questionnaire we'll upgrade that account — otherwise we'll walk you through it now.</p>
+<div class="lookup-options">
+  <button class="lookup-option" id="yesOption"><strong>Yes, I have one</strong><span>Look it up and upgrade my existing account.</span></button>
+  <button class="lookup-option" id="noOption"><strong>No, not yet</strong><span>Take me through the free Archetype first.</span></button>
+</div>
+<section class="lookup-panel" id="yesPanel" hidden>
+  <h3>Find your Archetype account</h3>
+  <p>Enter the email address or agency URL used in the questionnaire. Name is optional.</p>
+  <form id="lookupForm" novalidate>
+    <div class="field"><label for="lookupName">Name <small>optional</small></label><input id="lookupName" name="name" autocomplete="name" placeholder="Jane Doe"></div>
+    <div class="lookup-or-grid">
+      <div class="field"><label for="lookupEmail">Email</label><input id="lookupEmail" name="email" type="email" autocomplete="email" placeholder="jane@directingdesign.com"></div>
+      <div class="lookup-or"><span>or</span></div>
+      <div class="field"><label for="lookupUrl">Agency URL</label><input id="lookupUrl" name="agencyUrl" inputmode="url" placeholder="https://directingdesign.com"></div>
+    </div>
+    <button class="cc-btn cc-btn-dark" id="lookupSubmit" type="submit">Find my account</button>
+    <div class="cc-error" id="lookupError" role="alert"></div><div class="cc-success" id="lookupSuccess"></div>
+  </form>
+</section>
+<section class="lookup-panel lookup-why" id="noPanel" hidden>
+  <h3>Why we ask</h3>
+  <p>Every paid diagnostic uses your archetype as its starting hypothesis — the difference between an accurate score and a generic one. It takes about 3 minutes and stays free.</p>
+</section>
+<a class="cc-btn cc-btn-primary lookup-cta" id="archetypeCta" href="/owner-archetype/assessment/" hidden>Take the free Archetype Questionnaire →</a>
+<a class="lookup-back" href="/signup/">← Back</a>
+</main>
+<script src="/portal/diagnostic-state.js"></script><script src="/portal/account-client.js"></script>
+<script>
+const params=new URLSearchParams(location.search),destination=params.get('destination')||'diagnostic';
+const yesOption=document.getElementById('yesOption'),noOption=document.getElementById('noOption'),yesPanel=document.getElementById('yesPanel'),noPanel=document.getElementById('noPanel'),cta=document.getElementById('archetypeCta');
+cta.href='/owner-archetype/assessment/?destination='+encodeURIComponent(destination)+'&source=signup';
+cta.addEventListener('click',()=>localStorage.setItem('ccProgramPath',destination));
+function select(mode){const yes=mode==='yes';yesOption.classList.toggle('selected',yes);noOption.classList.toggle('selected',!yes);yesPanel.hidden=!yes;noPanel.hidden=yes;cta.hidden=yes;}
+yesOption.onclick=()=>select('yes');noOption.onclick=()=>select('no');
+document.getElementById('lookupForm').addEventListener('submit',async e=>{
+ e.preventDefault();const btn=document.getElementById('lookupSubmit'),err=document.getElementById('lookupError'),ok=document.getElementById('lookupSuccess');
+ const form=new FormData(e.currentTarget),email=String(form.get('email')||'').trim(),agencyUrl=String(form.get('agencyUrl')||'').trim();
+ err.classList.remove('show');ok.classList.remove('show');
+ if(!email&&!agencyUrl){err.textContent='Enter your email address or agency URL.';err.classList.add('show');return;}
+ btn.disabled=true;btn.textContent='Finding account…';
+ try{
+  const account=await window.CCAccount.lookupAccount({name:form.get('name'),email,agencyUrl});
+  localStorage.setItem('ccProgramPath',destination);localStorage.setItem('ccSignedIn','true');
+  ok.textContent='Account found. Opening your workspace…';ok.classList.add('show');
+  const target=window.CCAccount.destinationPath(destination);
+  setTimeout(()=>location.href=target,450);
+ }catch(error){
+  err.textContent=error?.message==='Enter an email address or agency URL.'?error.message:'We could not find an account using those details. Check the email or agency URL.';err.classList.add('show');
+ }finally{btn.disabled=false;btn.textContent='Find my account';}
+});
+</script></body></html>

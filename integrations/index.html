@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Select the back-office software used by your agency.">
+  <title>Integrations · Creative Creatures</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/portal/base.css">
+  <style>
+    :root{--line:#e4e4df;--blue:#272cf3;--blue-soft:#eef0ff;--green:#109b4b;--green-soft:#eaf8ef;--muted:#5d6878;--bg:#fafaf8}
+    *{box-sizing:border-box}body{background:var(--bg)}
+    .wrap{width:calc(100% - 40px);margin:0 auto;padding:40px 0 72px}
+    .head-badge{display:inline-block;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:5px 12px;border-radius:999px;margin-bottom:12px}
+    .head{display:flex;justify-content:space-between;align-items:flex-end;gap:28px;margin-bottom:32px}.head h1{font-size:38px;line-height:1.07;letter-spacing:-.045em;margin:0 0 10px}.head p{font-size:16px;line-height:1.55;color:var(--muted);margin:0;max-width:790px}.summary{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;min-width:220px}.summary strong{display:block;font-size:22px;margin-bottom:4px}.summary span{font-size:12px;color:#8792a3}
+    .category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.category{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.02)}.category h2{font-size:18px;margin:0 0 5px}.category>p{font-size:13px;color:var(--muted);margin:0 0 16px}.tools{display:flex;flex-wrap:wrap;gap:10px}.tool{position:relative;display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line);background:#fbfbfa;border-radius:10px;padding:11px 14px;font-size:14px;color:#465161;cursor:pointer;transition:all .15s ease}.tool input{position:absolute;opacity:0}.tool:has(input:checked){border-color:#8e91ff;background:var(--blue-soft);color:#2227d8;box-shadow:0 0 0 1px rgba(39,44,243,.08)}.check{width:18px;height:18px;border:1px solid #bcc2cb;border-radius:4px;display:grid;place-items:center;font-size:11px}.tool:has(input:checked) .check{background:var(--blue);border-color:var(--blue);color:#fff}.tool:has(input:checked) .check:after{content:'✓'}
+    .footer{margin-top:32px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:0 4px 16px rgba(0,0,0,.03)}.footer-copy{font-size:14px;color:var(--muted);line-height:1.5}.footer-copy strong{display:block;color:#1b2028;font-size:16px;margin-bottom:3px}.actions{display:flex;gap:12px}.button{min-height:52px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0 24px;font-size:15px;font-weight:700;color:#4b5665;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;transition:all .2s ease}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 20px rgba(39,44,243,.2)}.button.primary:hover{background:#1d21d4;transform:translateY(-1px)}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.45);backdrop-filter:blur(3px);z-index:200;display:none;place-items:center;padding:20px}.modal-backdrop.show{display:grid}.modal{width:min(560px,100%);background:#fff;border-radius:20px;border:1px solid var(--line);box-shadow:0 24px 70px rgba(0,0,0,.18);padding:32px}.modal h2{font-size:26px;letter-spacing:-.03em;margin:0 0 10px}.modal p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 24px}.queued{display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:center;border:1px solid #b9e0c7;background:#f8fdf9;border-radius:14px;padding:16px;margin:20px 0}.queued i{width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:18px}.queued strong{display:block;font-size:14px}.queued span{font-size:12px;color:var(--muted)}.modal-actions{display:flex;justify-content:flex-end;gap:12px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:12px;font-weight:600}.field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff;font-size:13px;outline:none}.field input:focus,.field select:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}.request-card{margin-top:24px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:20px}.request-card h3{font-size:16px;margin:0 0 4px}.request-card p{font-size:13px;color:var(--muted);margin:0}
+    @media(max-width:800px){.wrap{width:calc(100% - 26px);padding-top:28px}.head{align-items:flex-start;flex-direction:column}.summary{width:100%}.category-grid{grid-template-columns:1fr}.footer,.request-card{align-items:flex-start;flex-direction:column}.actions,.actions .button,.request-card .button{width:100%}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}}
+  </style>
+</head>
+<body>
+  <div data-app-header="integrations"></div>
+  <main class="wrap">
+    <header class="head">
+      <div>
+        <span class="head-badge">Integrations</span>
+        <h1>Which Back Office Software Do You Use?</h1>
+        <p>As part of our back-office systems analysis, we need to know which software you use. This analysis takes the longest, so we start here. Select all that apply.</p>
+      </div>
+      <aside class="summary">
+        <strong id="selectedCount">0 Tools Selected</strong>
+        <span>Your selections auto-save instantly.</span>
+      </aside>
+    </header>
+
+    <section class="category-grid" id="categoryGrid"></section>
+    
+    <section class="request-card">
+      <div>
+        <h3>Don’t see a system you use?</h3>
+        <p>Submit the vendor and category. We will add it to the integration request queue.</p>
+      </div>
+      <button class="button" id="requestButton">Request Integration</button>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-copy">
+        <strong id="summaryTitle">No systems selected yet</strong>
+        <span id="summaryCopy">If you skip selecting any systems, don’t worry, we’ll flag it as a data gap for you.</span>
+      </div>
+      <div class="actions">
+        <button class="button primary large" id="submitButton">Submit and Next</button>
+      </div>
+    </footer>
+  </main>
+
+  <div class="modal-backdrop" id="thanksModal">
+    <section class="modal">
+      <h2>Thank you — back-office software saved!</h2>
+      <p>Now that we know which back-office software you use, it’s time to move to the next step of your Agency Diagnostic: uploading your financial data.</p>
+      <div class="queued">
+        <i>✓</i>
+        <div>
+          <strong>Back Office Integrations Queued</strong>
+          <span id="queuedText">Your selected tools are saved.</span>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="button primary" id="nextButton">Continue to Financial Data Upload →</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="requestModal">
+    <section class="modal">
+      <h2>Request an Integration</h2>
+      <p>We will record the request and confirm it for your diagnostic workspace.</p>
+      <div class="form-grid">
+        <div class="field"><label>First Name</label><input id="firstName" value="Agency Owner"></div>
+        <div class="field"><label>Email</label><input id="email" type="email" value="owner@agency.com"></div>
+        <div class="field"><label>Back Office Category</label><select id="categorySelect"></select></div>
+        <div class="field"><label>Software Vendor Name</label><input id="vendorName" placeholder="Vendor name"></div>
+      </div>
+      <div class="modal-actions" style="margin-top:20px">
+        <button class="button" data-close-request>Cancel</button>
+        <button class="button primary" id="sendRequest">Submit Request</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="requestThanks">
+    <section class="modal">
+      <h2>Integration Request Received!</h2>
+      <p>Your integration request has been recorded for this diagnostic session.</p>
+      <div class="modal-actions">
+        <button class="button primary" id="backIntegrations">Back to Integrations</button>
+      </div>
+    </section>
+  </div>
+
+  <script src="/portal/diagnostic-state.js"></script>
+  <script src="/portal/account-client.js"></script>
+  <script src="/portal/app-shell.js"></script>
+  <script>
+    const catalog = {
+      'CRM': ['GoHighLevel', 'HubSpot', 'Salesforce', 'Pipedrive', 'Keap', 'Zoho CRM'],
+      'Bookkeeping': ['QuickBooks Online', 'Xero', 'Sage', 'FreshBooks', 'NetSuite'],
+      'Project Management': ['ClickUp', 'Asana', 'Monday.com', 'Teamwork', 'Jira', 'Basecamp'],
+      'Communications': ['Slack', 'Microsoft Teams', 'Google Chat'],
+      'Calendar & Meetings': ['Google Calendar', 'Outlook Calendar', 'Zoom', 'Calendly'],
+      'Central Drive': ['Google Drive', 'Dropbox', 'OneDrive', 'Box'],
+      'HR & People': ['Gusto', 'BambooHR', 'Rippling', 'ADP', 'Justworks'],
+      'Billing': ['Stripe', 'Square', 'PayPal', 'Chargebee', 'Bill.com'],
+      'IT & Security': ['Keeper', 'Bitwarden', '1Password', 'Cloudflare', 'Okta']
+    };
+
+    const saved = JSON.parse(localStorage.getItem('agencySelectedTools') || '[]');
+    const selected = new Set(saved);
+    const grid = document.querySelector('#categoryGrid');
+    grid.innerHTML = Object.entries(catalog).map(([category, tools]) => `
+      <article class="category">
+        <h2>${category}</h2>
+        <p>Select every system currently used by the agency.</p>
+        <div class="tools">
+          ${tools.map(tool => `
+            <label class="tool">
+              <input type="checkbox" value="${tool}" ${selected.has(tool) ? 'checked' : ''}>
+              <span class="check"></span>
+              <span>${tool}</span>
+            </label>
+          `).join('')}
+        </div>
+      </article>
+    `).join('');
+
+    const update = () => {
+      const items = [...document.querySelectorAll('.tool input:checked')].map(x => x.value);
+      localStorage.setItem('agencySelectedTools', JSON.stringify(items));
+      document.querySelector('#selectedCount').textContent = `${items.length} ${items.length === 1 ? 'Tool' : 'Tools'} Selected`;
+      document.querySelector('#summaryTitle').textContent = items.length ? `${items.length} ${items.length === 1 ? 'tool' : 'tools'} selected` : 'No systems selected yet';
+      document.querySelector('#summaryCopy').textContent = items.length ? items.join(' · ') : 'If you skip selecting any systems, don’t worry, we’ll flag it as a data gap for you.';
+      return items;
+    };
+
+    document.querySelectorAll('.tool input').forEach(input => input.addEventListener('change', update));
+    update();
+
+    const show = id => document.querySelector(id).classList.add('show');
+    const hide = id => document.querySelector(id).classList.remove('show');
+
+    document.querySelector('#submitButton').onclick = () => {
+      const items = update();
+      localStorage.setItem('agencyIntegrationsComplete', 'true');
+      document.querySelector('#queuedText').textContent = items.length ? `${items.length} selected tools are queued.` : 'No tools selected; a data gap has been recorded.';
+      show('#thanksModal');
+    };
+
+    document.querySelector('#nextButton').onclick = () => location.href = '/diagnostic/';
+
+    const categories = Object.keys(catalog);
+    document.querySelector('#categorySelect').innerHTML = categories.map(x => `<option>${x}</option>`).join('');
+
+    document.querySelector('#requestButton').onclick = () => show('#requestModal');
+    document.querySelectorAll('[data-close-request]').forEach(b => b.onclick = () => hide('#requestModal'));
+
+    document.querySelector('#sendRequest').onclick = () => {
+      if (!document.querySelector('#vendorName').value.trim()) return document.querySelector('#vendorName').focus();
+      const requests = JSON.parse(localStorage.getItem('agencyIntegrationRequests') || '[]');
+      requests.push({
+        firstName: document.querySelector('#firstName').value,
+        email: document.querySelector('#email').value,
+        category: document.querySelector('#categorySelect').value,
+        vendor: document.querySelector('#vendorName').value,
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('agencyIntegrationRequests', JSON.stringify(requests));
+      hide('#requestModal');
+      show('#requestThanks');
+    };
+
+    document.querySelector('#backIntegrations').onclick = () => hide('#requestThanks');
+  </script>
+</body>
+</html>

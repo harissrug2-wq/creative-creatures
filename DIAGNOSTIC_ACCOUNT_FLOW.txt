@@ -1,0 +1,12 @@
+IMPLEMENTED FLOW
+
+1. Take the free Archetype Questionnaire opens the integrated 12-question Owner Archetype experience.
+2. Completion creates the user account and opens Diagnostic.
+3. Agency Strength unlocks first.
+4. Owner Independence unlocks only after Strength is complete.
+5. Agency Performance unlocks only after Independence is complete.
+6. Partial answers and progress are saved locally and synced to the account backend.
+7. Generate diagnostic appears only at 3/3.
+8. The processing screen runs four visible stages and automatically opens Agency Scorecard.
+9. Agency Scorecard remains route-guarded until report generation completes.
+10. Account lookup accepts either email or agency URL.

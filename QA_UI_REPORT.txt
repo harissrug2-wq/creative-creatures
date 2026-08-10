@@ -1,0 +1,15 @@
+UI QA REPORT
+============
+
+Static validation passed:
+- 25 HTML files parsed.
+- All local CSS, JavaScript, image, and favicon references resolve.
+- Browser JavaScript syntax passed for portal, Monitor, and Owner Archetype scripts.
+- package.json, package-lock.json, vercel.json, and .oxlintrc.json are valid JSON.
+- No source file references the removed creature-platform-logo asset.
+- No source file contains the unintended ADMIN VIEW badge.
+- Original Owner Archetype CSS is byte-identical to the uploaded source.
+- Original Owner Archetype question set and scoring code are preserved; only destination/account sync logic was appended after completion.
+
+Build limitation:
+The final Vite build could not run in this environment because Vite 8.2.0 is not present in the offline package cache. Run npm install and npm run build locally or in Vercel.

@@ -1,7 +1,7 @@
 {
-  "name": "createtive-creatures",
+  "name": "creative-creatures-combined",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -25,5 +25,6 @@
     "postcss": "^8.5.25",
     "tailwindcss": "^4.3.3",
     "vite": "^8.2.0"
-  }
+  },
+  "description": "Creative Creatures unified portal with persistent Owner Archetype accounts, sequential diagnostic indexes, report generation, and a guarded scorecard."
 }

@@ -1,0 +1,16 @@
+DIAGNOSTIC FLOW UPDATE
+
+Added:
+- Existing Owner Archetype report is opened from Diagnostic using its saved report token.
+- /payment/ screen matching the supplied layout.
+- Sequential Diagnostic state: Strength -> Independence -> Performance.
+- Agency Performance Index page and saved score.
+- 3/3 orange Generate diagnostic state.
+- Agency Scorecard navigation and route are locked until all three indexes are complete.
+- Direct URL bypass is blocked for Independence, Performance, and Scorecard.
+
+Git:
+git add .
+git commit -m "Add diagnostic completion flow and scorecard lock"
+git pull --rebase origin main
+git push origin main
