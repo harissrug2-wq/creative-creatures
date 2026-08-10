@@ -170,3 +170,11 @@
 .diagnostic-main .diag-step.active .step-dot,.diagnostic-main .diag-step.in-progress .step-dot{background:#f8f8f6;border-color:#cfd2cf;color:#7c8590;box-shadow:none}.diagnostic-main .diag-step.active .diag-step-card,.diagnostic-main .diag-step.in-progress .diag-step-card{border-color:#dadbd7;box-shadow:none}.diagnostic-main .diag-step.active .diag-step-card:before,.diagnostic-main .diag-step.in-progress .diag-step-card:before{display:none}
 .diagnostic-main .diag-step.complete .step-dot{background:var(--cc-green);border-color:var(--cc-green);color:#fff;box-shadow:0 0 0 4px #f8f8f6}.diagnostic-main .diag-step.complete .diag-step-card{border-color:#dfe1dd}.diagnostic-main .diag-meta>span:first-child{color:#737c89!important}.diagnostic-main .up-next{color:#6e7785;background:#f0f0ed}.diagnostic-main .index-progress i{background:#ecece8}.diagnostic-main .index-progress b{background:var(--cc-green)!important}
 .diagnostic-main .small-blue,.diagnostic-main .small-outline{min-height:42px;padding:0 17px;font-size:12px}.diagnostic-main .generate-diagnostic{min-height:44px;font-size:12px}.diagnostic-main .locked{opacity:.62}
+
+
+/* Diagnostic timeline numbering + dynamic What's Next placement */
+.diagnostic-main .owner-identity-step .archetype-card{margin-bottom:0;width:100%}
+.diagnostic-main .owner-identity-step .step-dot{background:var(--cc-green);border-color:var(--cc-green);color:#fff;box-shadow:0 0 0 4px #f8f8f6;font-weight:800}
+.diagnostic-main .diagnostic-timeline>.section-title-row{position:relative;z-index:2;background:#f8f8f6;margin:16px 0 2px;padding:3px 0}
+.diagnostic-main .diagnostic-timeline>.section-title-row[hidden]{display:none}
+@media(max-width:560px){.diagnostic-main .diagnostic-timeline>.section-title-row{margin-top:12px}}

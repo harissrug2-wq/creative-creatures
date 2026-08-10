@@ -474,6 +474,38 @@
       app.innerHTML = `<main class="report-page">${logo()}<section class="missing-report"><h1>Your report is not available in this browser.</h1><p>Retake the questionnaire to create a new Owner Identity Report.</p><a class="nav-btn primary" href="/owner-archetype/assessment?retake=1">Retake quiz</a></section></main>`;
       return;
     }
+
+    const summaryView = new URLSearchParams(location.search).get('view') === 'summary';
+    if (summaryView) {
+      app.innerHTML = `
+        <main class="report-page">
+          ${logo()}
+          <section class="report-progress" aria-label="Owner identity report steps">
+            <div class="report-step complete"><span>✓</span><b>Basics</b></div><i></i>
+            <div class="report-step complete"><span>✓</span><b>Quiz</b></div><i></i>
+            <div class="report-step current"><span>3</span><b>Report</b></div>
+          </section>
+          <section class="report-intro">
+            <h1>Your Owner Identity Report</h1>
+            <p>This report was created from your Owner Identity (Archetype) questionnaire and is the owner-context layer used in your Agency Diagnostic.</p>
+          </section>
+          <article class="archetype-report-card">
+            <header>
+              <span class="report-kicker">✣ &nbsp;Your archetype</span>
+              <h2>${escapeHtml(data.archetypeTitle)}</h2>
+              <p>${escapeHtml(reportSummary(data.archetypeKey))}</p>
+            </header>
+            <div class="report-insights">
+              <section><span>◎ &nbsp;Primary constraint</span><h3>${escapeHtml(data.primaryConstraint)}</h3><p>${escapeHtml(data.primaryConstraintCopy)}</p></section>
+              <section><span>◉ &nbsp;Desired path</span><h3>${escapeHtml(data.desiredPath)}</h3><p>${escapeHtml(data.desiredPathCopy)}</p></section>
+            </div>
+            <footer><code>Report ID · ${escapeHtml(data.reportId || '')}</code></footer>
+          </article>
+          <a class="report-home" href="/diagnostic/">← Back to Agency Diagnostic</a>
+        </main>`;
+      return;
+    }
+
     const firstName = data.firstName || localStorage.getItem('ccOwnerFirstName') || 'there';
     const agencyUrl = data.agencyWebsite || localStorage.getItem('ccAgencyWebsite') || 'your agency';
     const email = data.email || localStorage.getItem('ccOwnerEmail') || 'your email address';
