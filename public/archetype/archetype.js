@@ -411,6 +411,7 @@
     localStorage.setItem('ccOwnerLastName', report.lastName);
     localStorage.setItem('ccAgencyWebsite', report.agencyWebsite);
     localStorage.setItem('ccAgencyName', report.agencyName);
+    window.CCArchetypePDF?.ensureReportToken?.().catch(() => null);
     STORE.del('cc_archetype_index');
     STORE.del('cc_archetype_answers');
 
