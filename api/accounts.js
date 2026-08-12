@@ -41,8 +41,10 @@ async function supabaseRequest(config, path, options = {}) {
   const response = await fetch(`${config.url}/rest/v1/${path}`, {
     ...options,
     headers: {
+      // Supabase's current sb_secret_* keys are API keys, not JWTs.
+      // Send them through `apikey` only. The API gateway maps the
+      // secret key to the service role for PostgREST.
       apikey: config.serviceRole,
-      Authorization: `Bearer ${config.serviceRole}`,
       'Content-Type': 'application/json',
       ...(options.headers || {})
     }

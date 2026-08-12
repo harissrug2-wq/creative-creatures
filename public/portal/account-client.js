@@ -6,6 +6,7 @@
   };
 
   const ACCOUNT_API_BASE = String(window.CC_ACCOUNT_API_BASE || '/api/accounts').replace(/\/+$/, '');
+  const DIAGNOSTIC_API_BASE = String(window.CC_DIAGNOSTIC_API_BASE || '/api/diagnostic-state').replace(/\/+$/, '');
 
   function safeJson(value, fallback = null) {
     try { return JSON.parse(value); } catch { return fallback; }
@@ -179,23 +180,41 @@
   async function syncDiagnosticState(state) {
     const account = getAccount();
     if (!account) return null;
+
     const payload = currentDiagnosticPayload(state);
+
     try {
-      const result = await request(ACCOUNT_API_BASE, {
-        method: 'PATCH',
+      // Dedicated diagnostic sync writes the normalized diagnostic tables
+      // (diagnostic_runs + index_results) and also maintains accounts.diagnostic_state
+      // for backwards compatibility while the frontend is migrated gradually.
+      await request(DIAGNOSTIC_API_BASE, {
+        method: 'POST',
         body: JSON.stringify({
-          id: account.id && !String(account.id).startsWith('local-') ? account.id : undefined,
+          accountId: account.id && !String(account.id).startsWith('local-') ? account.id : undefined,
           email: payload.email,
           agencyUrl: payload.agencyUrl,
           diagnosticState: payload.diagnosticState,
           reportData: payload.reportData
         })
       });
-      if (result.account) return saveAccount({ ...result.account, backend_saved: true });
+
+      // Keep the local account snapshot current without requiring another
+      // database round-trip. Returning-user hydration still works from
+      // accounts.diagnostic_state because the API updates it above.
+      const updated = {
+        ...account,
+        diagnostic_state: payload.diagnosticState,
+        report_data: payload.reportData || account.report_data || {},
+        backend_saved: true,
+        updated_at: new Date().toISOString()
+      };
+      return saveAccount(updated);
     } catch (error) {
+      // Existing localStorage behavior remains the fallback so an API outage
+      // never blocks the user from completing the diagnostic.
       console.warn('Diagnostic progress could not be synced yet.', error);
+      return account;
     }
-    return account;
   }
 
   const pending = safeJson(localStorage.getItem('ccPendingDiagnosticState'), null);
@@ -215,6 +234,7 @@
     lookupAccount,
     syncDiagnosticState,
     destinationPath,
-    accountApiBase: ACCOUNT_API_BASE
+    accountApiBase: ACCOUNT_API_BASE,
+    diagnosticApiBase: DIAGNOSTIC_API_BASE
   };
 })();
