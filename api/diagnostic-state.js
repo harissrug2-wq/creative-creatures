@@ -191,11 +191,58 @@ function extractAnswers(details = {}) {
     : {};
 }
 
+function hasMeaningfulDetails(index, details) {
+  if (!details || typeof details !== 'object' || !Object.keys(details).length) return false;
+  if (index === 'strength') return Boolean(details.results || details.answers);
+  if (index === 'independence') return Boolean(details.scores || details.answers);
+  if (index === 'performance') return details.completed === true || Boolean(details.documents) || Boolean(details.categoryScores);
+  return false;
+}
+
+function sanitizeIndexState(index, data = {}) {
+  const details = data.details && typeof data.details === 'object' ? data.details : {};
+  const score = data.score === null || data.score === undefined || data.score === '' ? null : percent(data.score);
+  const progress = Math.round(percent(data.progress || 0) || 0);
+
+  // A completed assessment must have an explicit complete flag, a finite
+  // score (0 is valid), and genuine assessment result details. This blocks
+  // stale/default localStorage values from manufacturing completed reports.
+  const complete = data.complete === true && score !== null && hasMeaningfulDetails(index, details);
+
+  return {
+    complete,
+    progress: complete ? 100 : progress,
+    score: complete ? score : null,
+    details: Object.keys(details).length ? details : null
+  };
+}
+
+function sanitizeDiagnosticState(raw = {}) {
+  const source = raw && typeof raw === 'object' ? raw : {};
+  const indexes = Object.fromEntries(
+    INDEXES.map(index => [index, sanitizeIndexState(index, source.indexes?.[index] || source[index] || {})])
+  );
+  const count = INDEXES.filter(index => indexes[index].complete).length;
+  const allComplete = count === INDEXES.length;
+  const reportReady = allComplete && source.reportReady === true;
+
+  return {
+    indexes,
+    count,
+    allComplete,
+    reportReady,
+    generatedAt: reportReady ? (source.generatedAt || source.generated_at || null) : null,
+    paymentComplete: source.paymentComplete === true || source.payment_complete === true,
+    integrationsComplete: source.integrationsComplete === true || source.integrations_complete === true,
+    goalsComplete: source.goalsComplete === true || source.goals_complete === true,
+    updatedAt: source.updatedAt || source.updated_at || new Date().toISOString()
+  };
+}
+
 function hasMeaningfulIndexState(data = {}) {
   if (!data || typeof data !== 'object') return false;
   if (data.complete === true) return true;
   if (Number(data.progress || 0) > 0) return true;
-  if (data.score !== null && data.score !== undefined) return true;
   const details = data.details;
   return Boolean(details && typeof details === 'object' && Object.keys(details).length);
 }
@@ -291,7 +338,7 @@ export default async function handler(req, res) {
 
   try {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
-    const diagnosticState = body.diagnosticState || body.diagnostic_state || {};
+    const diagnosticState = sanitizeDiagnosticState(body.diagnosticState || body.diagnostic_state || {});
     const reportData = body.reportData || body.report_data || {};
 
     const account = await findAccount(config, {

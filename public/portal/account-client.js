@@ -30,6 +30,16 @@
     return DESTINATIONS[value] || DESTINATIONS.diagnostic;
   }
 
+  function cleanDiagnosticState() {
+    return {
+      indexes: {},
+      count: 0,
+      allComplete: false,
+      reportReady: false,
+      generatedAt: null
+    };
+  }
+
   function accountIdentity(account) {
     if (!account) return { id: '', email: '', agencyUrl: '' };
     const id = String(account.id || '').trim();
@@ -171,9 +181,11 @@
   }
 
   async function createAccount(payload) {
-    const localAccount = provisionalAccount(payload);
     const previous = getAccount();
-    const isNewIdentity = !previous || !sameAccount(previous, localAccount);
+    const candidate = provisionalAccount(payload);
+    const isNewIdentity = !previous || !sameAccount(previous, candidate);
+    const initialDiagnosticState = isNewIdentity ? cleanDiagnosticState() : (payload.diagnosticState || candidate.diagnostic_state || {});
+    const localAccount = { ...candidate, diagnostic_state: initialDiagnosticState };
 
     // A brand-new signup must start from a clean diagnostic workspace even
     // when another owner previously used this browser/profile.
@@ -185,11 +197,19 @@
         method: 'POST',
         body: JSON.stringify({
           ...payload,
+          // A new account never inherits browser diagnostic state. The API
+          // also enforces this server-side; this is a client-side safeguard.
+          diagnosticState: initialDiagnosticState,
           agencyUrl: payload.agencyUrl,
           agencyUrlNormalized: normalizeUrl(payload.agencyUrl)
         })
       });
-      if (result.account) return saveAccount({ ...result.account, backend_saved: true }, { replaceDiagnostic: false });
+      if (result.account) {
+        return saveAccount(
+          { ...result.account, backend_saved: true },
+          { replaceDiagnostic: isNewIdentity }
+        );
+      }
     } catch (error) {
       console.warn('Creative Creatures account sync is unavailable; the local report remains usable.', error);
     }

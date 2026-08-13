@@ -92,11 +92,29 @@
     return getState();
   };
 
+  const hasMeaningfulDetails = (index, details) => {
+    if (!details || typeof details !== 'object' || !Object.keys(details).length) return false;
+    if (index === 'strength') return Boolean(details.results || details.answers);
+    if (index === 'independence') return Boolean(details.scores || details.answers);
+    if (index === 'performance') return details.completed === true || Boolean(details.documents) || Boolean(details.categoryScores);
+    return false;
+  };
+
   const getIndex = (index) => {
-    const complete = hasValue(SCORE_KEYS[index]) || localStorage.getItem(COMPLETE_KEYS[index]) === 'true';
-    const progress = complete ? 100 : asPercent(localStorage.getItem(PROGRESS_KEYS[index]));
-    const score = complete ? asPercent(localStorage.getItem(SCORE_KEYS[index])) : null;
     const details = safeJson(localStorage.getItem(detailKey(index)), null);
+    const explicitComplete = localStorage.getItem(COMPLETE_KEYS[index]) === 'true';
+    const rawScore = localStorage.getItem(SCORE_KEYS[index]);
+    const parsedScore = rawScore !== null && rawScore !== '' ? Number(rawScore) : NaN;
+    const hasFiniteScore = Number.isFinite(parsedScore);
+
+    // Do not treat a bare score key (especially a default/stale 0) as proof
+    // that an assessment is complete. Current assessments always set the
+    // explicit completion flag. The legacy fallback only applies when real
+    // result details exist as well.
+    const legacyComplete = !explicitComplete && hasFiniteScore && hasMeaningfulDetails(index, details);
+    const complete = explicitComplete || legacyComplete;
+    const progress = complete ? 100 : asPercent(localStorage.getItem(PROGRESS_KEYS[index]));
+    const score = complete && hasFiniteScore ? asPercent(parsedScore) : null;
     return { complete, progress, score, details };
   };
 
@@ -195,22 +213,60 @@
 
   const restore = (diagnosticState = {}, options = {}) => {
     const source = diagnosticState || {};
-    // `replace` is used when a different account is loaded from the backend.
-    // Without this, missing/empty fields from the new account leave the
-    // previous account's completed reports in localStorage.
+    // `replace` is used whenever an account is loaded authoritatively from
+    // the backend. It guarantees another owner's browser state cannot leak.
     if (options.replace === true) reset({ silent: true });
+
     INDEXES.forEach(index => {
       const data = source.indexes?.[index] || source[index] || {};
-      if (data.score !== undefined && data.score !== null) localStorage.setItem(SCORE_KEYS[index], String(asPercent(data.score)));
-      if (data.complete === true || data.score !== undefined) localStorage.setItem(COMPLETE_KEYS[index], 'true');
-      if (data.progress !== undefined) localStorage.setItem(PROGRESS_KEYS[index], String(asPercent(data.progress)));
-      if (data.details !== undefined && data.details !== null) localStorage.setItem(detailKey(index), JSON.stringify(data.details));
+      const details = data.details && typeof data.details === 'object' ? data.details : null;
+      const rawScore = data.score;
+      const parsedScore = rawScore !== undefined && rawScore !== null && rawScore !== '' ? Number(rawScore) : NaN;
+      const hasFiniteScore = Number.isFinite(parsedScore);
+
+      // CRITICAL: score:null is part of a normal empty serialized state.
+      // The old code used `data.score !== undefined`, which incorrectly made
+      // score:null count as completed and marked all three reports complete.
+      const explicitComplete = data.complete === true;
+      const legacyComplete = data.complete === undefined && hasFiniteScore && hasMeaningfulDetails(index, details);
+      const complete = explicitComplete || legacyComplete;
+
+      if (complete) {
+        localStorage.setItem(COMPLETE_KEYS[index], 'true');
+        localStorage.setItem(PROGRESS_KEYS[index], '100');
+        if (hasFiniteScore) localStorage.setItem(SCORE_KEYS[index], String(asPercent(parsedScore)));
+      } else if (options.replace === true) {
+        localStorage.removeItem(COMPLETE_KEYS[index]);
+        localStorage.removeItem(SCORE_KEYS[index]);
+        localStorage.setItem(PROGRESS_KEYS[index], String(asPercent(data.progress || 0)));
+      } else if (data.progress !== undefined) {
+        localStorage.setItem(PROGRESS_KEYS[index], String(asPercent(data.progress)));
+      }
+
+      if (details) localStorage.setItem(detailKey(index), JSON.stringify(details));
+      else if (options.replace === true) localStorage.removeItem(detailKey(index));
     });
+
     if (source.reportReady === true || source.report_ready === true) localStorage.setItem('ccDiagnosticReportReady', 'true');
+    else if (options.replace === true) localStorage.removeItem('ccDiagnosticReportReady');
+
     if (source.generatedAt || source.generated_at) localStorage.setItem('ccDiagnosticGeneratedAt', source.generatedAt || source.generated_at);
-    if (source.paymentComplete === true || source.payment_complete === true) { localStorage.setItem('ccPaymentComplete','true'); localStorage.setItem('agencyPaymentComplete','true'); }
+    else if (options.replace === true) localStorage.removeItem('ccDiagnosticGeneratedAt');
+
+    if (source.paymentComplete === true || source.payment_complete === true) {
+      localStorage.setItem('ccPaymentComplete','true');
+      localStorage.setItem('agencyPaymentComplete','true');
+    } else if (options.replace === true) {
+      localStorage.removeItem('ccPaymentComplete');
+      localStorage.removeItem('agencyPaymentComplete');
+    }
+
     if (source.integrationsComplete === true || source.integrations_complete === true) localStorage.setItem('agencyIntegrationsComplete','true');
+    else if (options.replace === true) localStorage.removeItem('agencyIntegrationsComplete');
+
     if (source.goalsComplete === true || source.goals_complete === true) localStorage.setItem('agencyGoalsComplete','true');
+    else if (options.replace === true) localStorage.removeItem('agencyGoalsComplete');
+
     return getState();
   };
 

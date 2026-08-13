@@ -9,6 +9,14 @@ const clean = value => String(value ?? '').trim();
 const lower = value => clean(value).toLowerCase();
 const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,archetype_result,report_data,diagnostic_state,created_at,updated_at';
 
+const EMPTY_DIAGNOSTIC_STATE = {
+  indexes: {},
+  count: 0,
+  allComplete: false,
+  reportReady: false,
+  generatedAt: null
+};
+
 function normalizeAgencyUrl(value) {
   const raw = clean(value);
   if (!raw) return '';
@@ -155,7 +163,6 @@ export default async function handler(req, res) {
         archetype_answers: body.archetypeAnswers || body.archetype_answers || {},
         archetype_result: body.archetypeResult || body.archetype_result || {},
         report_data: body.reportData || body.report_data || {},
-        diagnostic_state: body.diagnosticState || body.diagnostic_state || {},
         updated_at: new Date().toISOString()
       };
 
@@ -164,8 +171,14 @@ export default async function handler(req, res) {
 
       let account;
       if (existing.length === 1) {
+        // Retaking/updating Owner Identity must not overwrite an existing
+        // account's diagnostic history. Diagnostic progress is managed only
+        // by /api/diagnostic-state.
         account = await updateById(config, existing[0].id, record);
       } else {
+        // A truly new account always begins with a clean diagnostic state,
+        // regardless of any stale browser payload sent by the client.
+        record.diagnostic_state = EMPTY_DIAGNOSTIC_STATE;
         const rows = await supabaseRequest(config, 'accounts', {
           method: 'POST',
           headers: { Prefer: 'return=representation' },
