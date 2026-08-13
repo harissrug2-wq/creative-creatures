@@ -454,7 +454,7 @@ async function extractWithOpenAI({ evidenceType, fileUrl, filename }) {
       input: [{
         role: 'user',
         content: [
-          { type: 'input_file', file_url: fileUrl, filename },
+          { type: 'input_file', file_url: fileUrl },
           { type: 'input_text', text: prompt }
         ]
       }],
