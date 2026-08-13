@@ -191,6 +191,15 @@ function extractAnswers(details = {}) {
     : {};
 }
 
+function hasMeaningfulIndexState(data = {}) {
+  if (!data || typeof data !== 'object') return false;
+  if (data.complete === true) return true;
+  if (Number(data.progress || 0) > 0) return true;
+  if (data.score !== null && data.score !== undefined) return true;
+  const details = data.details;
+  return Boolean(details && typeof details === 'object' && Object.keys(details).length);
+}
+
 async function upsertIndexResult(config, runId, indexType, data = {}) {
   const details = data.details && typeof data.details === 'object' ? data.details : {};
   const params = new URLSearchParams({
@@ -302,7 +311,9 @@ export default async function handler(req, res) {
 
     for (const index of INDEXES) {
       const data = indexes[index];
-      if (!data || typeof data !== 'object') continue;
+      // `serialize()` always includes all three index objects. Do not create
+      // placeholder rows for assessments the current account has never begun.
+      if (!hasMeaningfulIndexState(data)) continue;
       await upsertIndexResult(config, run.id, index, data);
     }
 

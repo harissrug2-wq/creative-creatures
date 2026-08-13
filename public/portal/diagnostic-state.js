@@ -40,6 +40,58 @@
   const detailKey = index => `ccIndex${index[0].toUpperCase()}${index.slice(1)}Result`;
   const safeJson = (value, fallback = null) => { try { return JSON.parse(value); } catch { return fallback; } };
 
+
+  // All workflow state below is account-specific. These keys must never leak
+  // from one owner/account into another account in the same browser.
+  const ACCOUNT_SCOPED_KEYS = [
+    ...Object.values(SCORE_KEYS),
+    ...Object.values(COMPLETE_KEYS),
+    ...Object.values(PROGRESS_KEYS),
+    ...INDEXES.map(detailKey),
+
+    'ccStrengthAnswers',
+    'ccStrengthCurrentQuestion',
+    'ccStrengthScaleAnswer',
+    'ccIndependenceAnswers',
+    'ccIndependenceCurrentQuestion',
+    'ccPerformanceAnswers',
+    'ccPerformanceState',
+    'agencyPerformanceDetails',
+    'agencyPerformanceDraft',
+
+    'ccDiagnosticReportReady',
+    'ccDiagnosticGeneratedAt',
+    'ccDiagnosticProcessing',
+    'ccDiagnosticUpdatedAt',
+    'agencyScorecardGenerated',
+    'diagnosticComplete',
+
+    'ccPaymentComplete',
+    'ccPaymentCompletedAt',
+    'ccPaymentPlan',
+    'agencyPaymentComplete',
+
+    'agencyIntegrationsComplete',
+    'agencySelectedTools',
+    'agencyIntegrationRequests',
+    'agencyFinancialUploadComplete',
+    'agencyUploadedFiles',
+
+    'agencyGoalsComplete',
+    'agencyGoalsCompletedAt',
+    'agencyGoalTargets',
+    'agencyDepartmentGoals',
+    'agencyRocks'
+  ];
+
+  const reset = (options = {}) => {
+    ACCOUNT_SCOPED_KEYS.forEach(key => localStorage.removeItem(key));
+    if (!options.silent) {
+      window.dispatchEvent(new CustomEvent('cc-diagnostic-reset'));
+    }
+    return getState();
+  };
+
   const getIndex = (index) => {
     const complete = hasValue(SCORE_KEYS[index]) || localStorage.getItem(COMPLETE_KEYS[index]) === 'true';
     const progress = complete ? 100 : asPercent(localStorage.getItem(PROGRESS_KEYS[index]));
@@ -141,8 +193,12 @@
     return getState();
   };
 
-  const restore = (diagnosticState = {}) => {
+  const restore = (diagnosticState = {}, options = {}) => {
     const source = diagnosticState || {};
+    // `replace` is used when a different account is loaded from the backend.
+    // Without this, missing/empty fields from the new account leave the
+    // previous account's completed reports in localStorage.
+    if (options.replace === true) reset({ silent: true });
     INDEXES.forEach(index => {
       const data = source.indexes?.[index] || source[index] || {};
       if (data.score !== undefined && data.score !== null) localStorage.setItem(SCORE_KEYS[index], String(asPercent(data.score)));
@@ -182,6 +238,7 @@
     invalidateReport,
     completeReportGeneration,
     restore,
+    reset,
     serialize,
     isOwnerComplete
   };
