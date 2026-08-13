@@ -5,6 +5,7 @@
   const account = () => window.CCAccount?.getAccount?.() || safeJson(localStorage.getItem('cc_account'), {}) || {};
   const ownerReport = () => safeJson(localStorage.getItem('ownerArchetypeReportData'), {}) || {};
   const state = () => window.CCDiagnostic?.getState?.() || { indexes:{} };
+  let databaseScorecard = null;
   const validationRank = { 'Verified': 0, 'Needs Validation': 1, 'Significant Contradiction': 2 };
 
   const AOFI_BANDS = [
@@ -132,9 +133,11 @@
     };
   }
 
-  const reports = () => ({performance:performanceReport(),strength:strengthReport(),independence:independenceReport()});
+  const localReports = () => ({performance:performanceReport(),strength:strengthReport(),independence:independenceReport()});
+  const reports = () => databaseScorecard?.reports || localReports();
   function scorecard() {
-    const r = reports();
+    if (databaseScorecard) return databaseScorecard;
+    const r = localReports();
     const score = Math.round(r.performance.score*.40 + r.strength.score*.40 + r.independence.score*.20);
     const confidence = Math.round(r.performance.confidence*.40 + r.strength.confidence*.40 + r.independence.confidence*.20);
     const band = aofiBand(score);
@@ -240,5 +243,6 @@
     dialog.showModal();
   }
 
-  window.CCReports={reports,scorecard,downloadReport,emailReport,openEmailDialog,reportLines,scorecardLines,esc,aofiBand};
+  const setScorecardModel = model => { databaseScorecard = model && typeof model === 'object' ? model : null; return databaseScorecard; };
+  window.CCReports={reports,scorecard,setScorecardModel,downloadReport,emailReport,openEmailDialog,reportLines,scorecardLines,esc,aofiBand};
 })();

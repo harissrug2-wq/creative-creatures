@@ -1,11 +1,24 @@
-(() => {
+(async () => {
   const root = document.getElementById('reportRoot');
   const index = document.documentElement.dataset.reportIndex;
   const state = window.CCDiagnostic?.getState?.();
-  if (!state?.reportReady) {
+  let model = null;
+
+  try {
+    model = await window.CCScorecard?.load?.({ fresh: true });
+  } catch (error) {
+    if (state?.allComplete && state?.reportReady) {
+      try { model = await window.CCScorecard?.generate?.(); } catch { model = null; }
+    }
+  }
+
+  if (model) window.CCReports.setScorecardModel?.(model);
+
+  if (!model && !state?.reportReady) {
     root.innerHTML = `<section class="report-locked"><h1>This report is not available yet</h1><p>All three index assessments must be completed and the diagnostic must be generated first.</p><a class="cc-btn cc-btn-primary" href="/diagnostic/">Return to Diagnostic</a></section>`;
     return;
   }
+
   const report = window.CCReports.reports()[index];
   if (!report) { location.replace('/agency-scorecard/'); return; }
   const esc = window.CCReports.esc;

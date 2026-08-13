@@ -10,14 +10,50 @@
   </section>
   <div class="processing-tip"><code>Tip: you can leave this tab open — the diagnostic will still land in your account.</code></div>
 </main>
-<script src="/portal/diagnostic-state.js"></script><script src="/portal/account-client.js"></script><script src="/portal/app-shell.js"></script>
+<script src="/portal/diagnostic-state.js"></script><script src="/portal/account-client.js"></script><script src="/portal/app-shell.js"></script><script src="/portal/scorecard-client.js"></script>
 <script>(()=>{
  const state=window.CCDiagnostic.getState();
  if(!state.ownerComplete||!state.allComplete){location.replace('/diagnostic/');return;}
  if(state.reportReady){location.replace('/agency-scorecard/');return;}
  localStorage.setItem('ccDiagnosticProcessing','true');
- const startKey='ccDiagnosticProcessingStartedAt';let started=Number(localStorage.getItem(startKey));if(!Number.isFinite(started)||started<=0){started=Date.now();localStorage.setItem(startKey,String(started));}
+ const startKey='ccDiagnosticProcessingStartedAt';
+ let started=Number(localStorage.getItem(startKey));
+ if(!Number.isFinite(started)||started<=0){started=Date.now();localStorage.setItem(startKey,String(started));}
  const cards=[...document.querySelectorAll('.processing-step')],stageMs=1450,totalMs=stageMs*cards.length+500;
- function paint(){const elapsed=Date.now()-started;const active=Math.min(cards.length-1,Math.floor(elapsed/stageMs));cards.forEach((card,index)=>{card.classList.toggle('active',index===active);card.classList.toggle('done',index<active);const number=card.querySelector('.processing-number');if(index<active)number.textContent='✓';else number.textContent=String(index+1);});if(elapsed>=totalMs){cards.forEach(card=>{card.classList.remove('active');card.classList.add('done');card.querySelector('.processing-number').textContent='✓';});window.CCDiagnostic.completeReportGeneration();localStorage.removeItem(startKey);setTimeout(()=>location.replace('/agency-scorecard/'),450);return;}requestAnimationFrame(()=>setTimeout(paint,120));}
+ const tip=document.querySelector('.processing-tip');
+ let finishing=false;
+ const generationPromise=window.CCScorecard?.generate?.();
+
+ async function finish(){
+   if(finishing)return;
+   finishing=true;
+   try{
+     if(!generationPromise)throw new Error('The scorecard service is unavailable.');
+     await generationPromise;
+     cards.forEach(card=>{card.classList.remove('active');card.classList.add('done');card.querySelector('.processing-number').textContent='✓';});
+     window.CCDiagnostic.completeReportGeneration();
+     localStorage.removeItem(startKey);
+     setTimeout(()=>location.replace('/agency-scorecard/'),450);
+   }catch(error){
+     localStorage.removeItem('ccDiagnosticProcessing');
+     localStorage.removeItem(startKey);
+     cards.forEach(card=>card.classList.remove('active'));
+     if(tip)tip.innerHTML=`<code>We could not generate the Agency Scorecard: ${String(error.message||'Unknown error').replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}</code><br><button type="button" class="cc-btn cc-btn-primary" id="retryGeneration" style="margin-top:12px">Try again</button>`;
+     document.getElementById('retryGeneration')?.addEventListener('click',()=>location.reload());
+   }
+ }
+
+ function paint(){
+   const elapsed=Date.now()-started;
+   const active=Math.min(cards.length-1,Math.floor(elapsed/stageMs));
+   cards.forEach((card,index)=>{
+     card.classList.toggle('active',index===active);
+     card.classList.toggle('done',index<active);
+     const number=card.querySelector('.processing-number');
+     number.textContent=index<active?'✓':String(index+1);
+   });
+   if(elapsed>=totalMs){finish();return;}
+   requestAnimationFrame(()=>setTimeout(paint,120));
+ }
  paint();
 })();</script></body></html>

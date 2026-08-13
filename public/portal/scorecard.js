@@ -1,12 +1,39 @@
-(() => {
+(async () => {
   const root = document.getElementById('scorecardRoot');
   const state = window.CCDiagnostic?.getState?.();
-  if (!state?.reportReady) {
-    root.innerHTML = `<section class="scorecard-empty"><h1>Your Agency Scorecard is still locked</h1><p>Complete all three indexes and generate the diagnostic before opening any report.</p><a class="cc-btn cc-btn-primary" href="/diagnostic/">Return to Diagnostic</a></section>`;
+  const esc = window.CCReports.esc;
+  let model = null;
+  let databaseError = null;
+
+  try {
+    model = await window.CCScorecard?.load?.({ fresh: true });
+  } catch (error) {
+    databaseError = error;
+    // Existing completed users may have generated the Scorecard before the
+    // normalized scorecards table was introduced. Backfill it once from the
+    // persisted index_results rows, then use that database snapshot.
+    if (state?.allComplete && state?.reportReady) {
+      try {
+        model = await window.CCScorecard?.generate?.();
+        databaseError = null;
+      } catch (generationError) {
+        databaseError = generationError;
+      }
+    }
+  }
+
+  if (model) window.CCReports.setScorecardModel?.(model);
+
+  if (!model && state?.reportReady) {
+    // Temporary migration fallback only. New generations are always stored
+    // and read from Supabase through /api/scorecard.
+    model = window.CCReports.scorecard();
+  }
+
+  if (!model) {
+    root.innerHTML = `<section class="scorecard-empty"><h1>Your Agency Scorecard is still locked</h1><p>Complete all three indexes and generate the diagnostic before opening any report.</p>${databaseError ? `<p>${esc(databaseError.message || 'The saved scorecard is not available yet.')}</p>` : ''}<a class="cc-btn cc-btn-primary" href="/diagnostic/">Return to Diagnostic</a></section>`;
     return;
   }
-  const esc = window.CCReports.esc;
-  const model = window.CCReports.scorecard();
   const reportOrder = ['performance','strength','independence'];
   const colors = {performance:'#2e35e8',strength:'#e4a20d',independence:'#e35252'};
   const actionIcon = type => type === 'download'
@@ -27,15 +54,21 @@
     </article>`;
   }).join('');
   const rockCandidates = {};
-  const issueRows = model.weakest.map((row,index) => {
+  const issueSource = Array.isArray(model.issues) && model.issues.length
+    ? model.issues
+    : model.weakest.map(row => ({ capability: row.name, index: row.index, indexTitle: row.indexTitle, score: row.score, description: `${row.indexTitle} is below the other measured capabilities and should be validated before the next planning cycle.` }));
+  const opportunitySource = Array.isArray(model.opportunities) && model.opportunities.length
+    ? model.opportunities
+    : model.weakest.map(row => ({ capability: row.name, index: row.index, indexTitle: row.indexTitle, score: row.score, recommendation: model.reports[row.index]?.recommendation, estimatedLift: Math.max(1, Math.round((100-row.score)*.18)) }));
+  const issueRows = issueSource.map((row,index) => {
     const id=`issue-${index}`;
-    rockCandidates[id]={title:row.name,description:`${row.indexTitle} is below the other measured capabilities and should be validated before the next planning cycle.`};
-    return `<label class="insight-row selectable-insight"><input type="checkbox" data-rock-candidate="${id}"><span><b>${esc(row.name)} · ${row.score}/100</b><p>${esc(row.indexTitle)} is below the other measured capabilities and should be validated before the next planning cycle.</p></span></label>`;
+    rockCandidates[id]={title:row.capability,description:row.description};
+    return `<label class="insight-row selectable-insight"><input type="checkbox" data-rock-candidate="${id}"><span><b>${esc(row.capability)} · ${row.score}/100</b><p>${esc(row.description)}</p></span></label>`;
   }).join('');
-  const opportunityRows = model.weakest.map((row,index) => {
-    const report = model.reports[row.index],id=`opportunity-${index}`;
-    rockCandidates[id]={title:row.name,description:report.recommendation};
-    return `<label class="insight-row opportunity-row selectable-insight"><input type="checkbox" data-rock-candidate="${id}"><i>${index+1}</i><div><b>${esc(row.name)}</b><p>${esc(report.recommendation)}</p></div><em>+${Math.max(1,Math.round((100-row.score)*.18))} pts</em></label>`;
+  const opportunityRows = opportunitySource.map((row,index) => {
+    const id=`opportunity-${index}`;
+    rockCandidates[id]={title:row.capability,description:row.recommendation};
+    return `<label class="insight-row opportunity-row selectable-insight"><input type="checkbox" data-rock-candidate="${id}"><i>${index+1}</i><div><b>${esc(row.capability)}</b><p>${esc(row.recommendation)}</p></div><em>+${row.estimatedLift} pts</em></label>`;
   }).join('');
   const perf = model.reports.performance;
   root.innerHTML = `
