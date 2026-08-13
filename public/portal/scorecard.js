@@ -62,12 +62,12 @@
     : model.weakest.map(row => ({ capability: row.name, index: row.index, indexTitle: row.indexTitle, score: row.score, recommendation: model.reports[row.index]?.recommendation, estimatedLift: Math.max(1, Math.round((100-row.score)*.18)) }));
   const issueRows = issueSource.map((row,index) => {
     const id=`issue-${index}`;
-    rockCandidates[id]={title:row.capability,description:row.description};
+    rockCandidates[id]={title:row.capability,description:row.description,sourceType:'issue',sourceKey:`issue:${row.index||'index'}:${String(row.capability||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')}`};
     return `<label class="insight-row selectable-insight"><input type="checkbox" data-rock-candidate="${id}"><span><b>${esc(row.capability)} · ${row.score}/100</b><p>${esc(row.description)}</p></span></label>`;
   }).join('');
   const opportunityRows = opportunitySource.map((row,index) => {
     const id=`opportunity-${index}`;
-    rockCandidates[id]={title:row.capability,description:row.recommendation};
+    rockCandidates[id]={title:row.capability,description:row.recommendation,sourceType:'opportunity',sourceKey:`opportunity:${row.index||'index'}:${String(row.capability||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')}`};
     return `<label class="insight-row opportunity-row selectable-insight"><input type="checkbox" data-rock-candidate="${id}"><i>${index+1}</i><div><b>${esc(row.capability)}</b><p>${esc(row.recommendation)}</p></div><em>+${row.estimatedLift} pts</em></label>`;
   }).join('');
   const perf = model.reports.performance;
@@ -84,16 +84,49 @@
     <section class="insight-grid"><article class="insight-card"><h3>Key issues</h3><div class="insight-list">${issueRows}</div></article><article class="insight-card"><h3>Biggest opportunities</h3><div class="insight-list">${opportunityRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues or opportunities.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">Create 90 Day Rock(s)</button></div>
     <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Agency Valuation</h2></div><p>Only source-supported values are displayed.</p></div>
     <section class="valuation-note"><div><h3>Adjusted Seller Discretionary Earnings</h3><p>The Performance assessment calculates Adjusted SDE from the submitted net income, owner compensation, and eligible add-backs. The supplied scoring documents do not define a complete enterprise-value multiple formula, so the platform does not fabricate a valuation.</p></div><strong>${money(perf.adjustedSDE)}<small>${perf.roicLite === null ? 'ROIC-Lite unavailable' : `ROIC-Lite ${Number(perf.roicLite).toFixed(1)}%`}</small></strong></section><div class="define-goals-wrap"><a class="define-goals-cta" href="/agency-goals/">Define Agency Goals →</a></div>`;
-  const saveRocks = candidates => {
-    if(!candidates.length) return 0;
-    let rocks=[];try{rocks=JSON.parse(localStorage.getItem('agencyRocks')||'[]')}catch{}
-    let added=0;
-    candidates.forEach(candidate=>{if(!candidate||rocks.some(rock=>String(rock.title).toLowerCase()===String(candidate.title).toLowerCase()))return;rocks.push({title:candidate.title,description:candidate.description,owner:'Agency Owner',due:'This quarter',status:'Not started',createdAt:new Date().toISOString(),source:'agency-scorecard'});added+=1;});
-    localStorage.setItem('agencyRocks',JSON.stringify(rocks));return added;
+  const saveRocks = async candidates => {
+    if (!candidates.length) return { added: 0 };
+    if (!window.CCGoals?.createRocks) throw new Error('Agency Goals persistence is unavailable.');
+    return window.CCGoals.createRocks(candidates.map(candidate => ({
+      ...candidate,
+      owner: 'Agency Owner',
+      due: 'This quarter',
+      status: 'Not started'
+    })));
   };
   root.querySelectorAll('[data-rock-candidate]').forEach(input=>input.addEventListener('change',()=>input.closest('.selectable-insight')?.classList.toggle('selected',input.checked)));
-  root.querySelector('#createSelectedRocks')?.addEventListener('click',event=>{const chosen=[...root.querySelectorAll('[data-rock-candidate]:checked')].map(input=>rockCandidates[input.dataset.rockCandidate]);const note=root.querySelector('#rockSelectionNote');if(!chosen.length){note.textContent='Select at least one issue or opportunity first.';return;}const added=saveRocks(chosen);note.textContent=added?`${added} 90 Day Rock${added===1?'':'s'} added to Agency Goals.`:'Those items are already in Agency Goals.';event.currentTarget.textContent='Created ✓';setTimeout(()=>event.currentTarget.textContent='Create 90 Day Rock(s)',1500);});
-  root.querySelector('#createSingleRock')?.addEventListener('click',event=>{const first=model.weakest[0],report=model.reports[first?.index||'strength'];const added=saveRocks([{title:first?.name||'Validate the evidence',description:report.recommendation}]);event.currentTarget.textContent=added?'90 Day Rock Created ✓':'Already Added';});
+  root.querySelector('#createSelectedRocks')?.addEventListener('click',async event=>{
+    const chosen=[...root.querySelectorAll('[data-rock-candidate]:checked')].map(input=>rockCandidates[input.dataset.rockCandidate]);
+    const note=root.querySelector('#rockSelectionNote');
+    if(!chosen.length){note.textContent='Select at least one issue or opportunity first.';return;}
+    const button=event.currentTarget;
+    button.disabled=true;
+    try {
+      const result=await saveRocks(chosen);
+      const added=Number(result?.added||0);
+      note.textContent=added?`${added} 90 Day Rock${added===1?'':'s'} added to Agency Goals.`:'Those items are already in Agency Goals.';
+      button.textContent='Created ✓';
+      root.querySelectorAll('[data-rock-candidate]:checked').forEach(input=>{input.checked=false;input.closest('.selectable-insight')?.classList.remove('selected');});
+    } catch(error) {
+      note.textContent=error.message||'The 90 Day Rocks could not be saved.';
+    } finally {
+      setTimeout(()=>{button.textContent='Create 90 Day Rock(s)';button.disabled=false;},1500);
+    }
+  });
+  root.querySelector('#createSingleRock')?.addEventListener('click',async event=>{
+    const first=model.weakest[0],report=model.reports[first?.index||'strength'];
+    const button=event.currentTarget;
+    button.disabled=true;
+    try {
+      const key=String(first?.name||'validate-evidence').toLowerCase().replace(/[^a-z0-9]+/g,'-');
+      const result=await saveRocks([{title:first?.name||'Validate the evidence',description:report.recommendation,sourceType:'priority',sourceKey:`priority:${first?.index||'strength'}:${key}`}]);
+      button.textContent=Number(result?.added||0)?'90 Day Rock Created ✓':'Already Added';
+    } catch(error) {
+      button.textContent='Could not save';
+    } finally {
+      setTimeout(()=>{button.textContent='Create 90 Day Rock';button.disabled=false;},1600);
+    }
+  });
 
   root.querySelectorAll('[data-download]').forEach(button => button.addEventListener('click', () => window.CCReports.downloadReport(button.dataset.download)));
   root.querySelectorAll('[data-email]').forEach(button => button.addEventListener('click', () => window.CCReports.openEmailDialog(button.dataset.email)));
