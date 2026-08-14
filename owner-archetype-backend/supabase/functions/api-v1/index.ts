@@ -519,14 +519,18 @@ serve(async (req) => {
 
       // Send via Resend
       const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
+      const RESEND_FROM_EMAIL = Deno.env.get('RESEND_FROM_EMAIL');
+      if (!RESEND_API_KEY || !RESEND_FROM_EMAIL) {
+        return new Response(JSON.stringify({ error: 'Email delivery is not configured' }), { status: 503, headers: corsHeaders });
+      }
       const webUrl = `${Deno.env.get('FRONTEND_URL')}/report/${token}`;
       const pdfUrl = `${Deno.env.get('FRONTEND_URL')}/api/v1/reports/${token}/pdf/download`;
 
       const resendReq = await fetch('https://api.resend.com/emails', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        headers: { 'Authorization': `Bearer ${RESEND_API_KEY}`, 'Content-Type': 'application/json', 'User-Agent': 'CreativeCreatures-OwnerArchetype/1.0' },
         body: JSON.stringify({
-          from: 'Creative Creature <reports@creativecreature.co>',
+          from: RESEND_FROM_EMAIL,
           to: email,
           subject: 'Your Agency Archetype Report is Ready',
           html: `

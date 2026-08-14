@@ -60,6 +60,6 @@ export function getEnvStatus(): EnvStatus {
   return {
     reportTokenSecret: !!Deno.env.get('REPORT_TOKEN_SECRET'),
     frontendUrl: !!Deno.env.get('FRONTEND_URL'),
-    resendConfigured: !!(Deno.env.get('RESEND_API_KEY') && Deno.env.get('RESEND_WEBHOOK_SECRET') && Deno.env.get('RESEND_FROM_EMAIL')),
+    resendConfigured: !!(Deno.env.get('RESEND_API_KEY') && Deno.env.get('RESEND_FROM_EMAIL')),
   };
 }
