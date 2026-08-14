@@ -10,7 +10,7 @@
   <style>
     :root{--bg:#fafaf8;--card:#fff;--text:#101217;--muted:#5e6878;--line:#e4e4df;--blue:#272cf3;--blue-soft:#eef0ff;--green:#109b4b;--green-soft:#eaf8ef;--amber:#a86f00;--amber-soft:#fff6df;--red:#d83b3b;--red-soft:#ffeded}
     *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}button,input,select,textarea{font:inherit}
-    .wrap{width:min(1180px,calc(100% - 48px));margin:0 auto;padding:40px 0 78px}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:28px;margin-bottom:30px}.head h1{font-size:38px;line-height:1.08;letter-spacing:-.045em;margin:0 0 9px}.head p{font-size:16px;line-height:1.55;color:var(--muted);margin:0;max-width:760px}.status-pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-size:12px;color:var(--muted)}.section-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);padding-bottom:10px;margin:35px 0 15px}.section-head h2{font-size:23px;margin:0 0 4px}.section-head p{font-size:12px;color:var(--muted);margin:0}.section-head span{font-size:12px;color:#8792a3}.goal-groups{display:grid;gap:18px}.group h3{font-size:14px;text-transform:uppercase;letter-spacing:.07em;color:#6f7988;margin:0 0 10px}.goals-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.goal-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;min-height:150px;display:flex;flex-direction:column;cursor:pointer;transition:.15s;box-shadow:0 2px 8px rgba(0,0,0,.02)}.goal-card:hover{border-color:#afb1ff;transform:translateY(-2px);box-shadow:0 6px 18px rgba(39,44,243,.08)}.goal-label{display:flex;align-items:center;gap:7px;font-size:13px;color:#556172;font-weight:600}.info{width:18px;height:18px;border-radius:50%;border:1px solid #b9c0ca;display:grid;place-items:center;font-size:10px}.actual{font-size:28px;font-weight:700;letter-spacing:-.035em;margin:14px 0 5px}.actual small{font-size:11px;font-weight:500;color:#8b95a4}.target{margin-top:auto;border-top:1px solid var(--line);padding-top:11px;display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#8a94a3}.target strong{font-size:14px;color:#2529df}.target.empty strong{color:#8a94a3}.card{background:#fff;border:1px solid var(--line);border-radius:16px}.table-wrap{overflow-x:auto}.goals-table{width:100%;border-collapse:collapse;min-width:1050px}.goals-table th,.goals-table td{border-bottom:1px solid var(--line);padding:13px 14px;text-align:left;font-size:13px;vertical-align:middle}.goals-table th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#929baa;background:#fbfbfa}.goals-table tr:last-child td{border-bottom:0}.goals-table input,.goals-table select{width:100%;min-width:110px;border:1px solid transparent;background:transparent;border-radius:7px;padding:7px 8px;font-size:13px}.goals-table input:hover,.goals-table select:hover,.goals-table input:focus,.goals-table select:focus{border-color:var(--line);background:#fff;outline:none}.status-select.needs{color:#7d8795}.status-select.track{color:var(--green)}.status-select.watch{color:var(--amber)}.status-select.off{color:var(--red)}.rocks{overflow:hidden}.rocks-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}.rocks-head h3{font-size:17px;margin:0}.button{min-height:46px;border:1px solid var(--line);background:#fff;color:#4e5868;border-radius:10px;padding:0 18px;font-size:14px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s ease}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.button.grayed-out{background:#ecece8;border-color:#e0e0dc;color:#9aa2ae;cursor:pointer}.rock-row{display:grid;grid-template-columns:minmax(0,1fr) 180px 160px 120px;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}.rock-row:last-child{border-bottom:0}.rock-title strong{font-size:14px;display:block}.rock-title span{font-size:12px;color:var(--muted);display:block;margin-top:3px}.rock-row input,.rock-row select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:#fff;font-size:12px}.empty-rocks{padding:26px;text-align:center;color:var(--muted);font-size:13px}.finish{margin-top:40px;display:flex;justify-content:flex-end}.finish-complete-btn{min-height:68px;padding:0 48px;font-size:18px;font-weight:700;background:var(--blue);color:#fff;border:1px solid var(--blue);border-radius:14px;cursor:pointer;box-shadow:0 8px 24px rgba(39,44,243,.25);display:inline-flex;align-items:center;gap:12px;transition:all .2s ease}.finish-complete-btn:hover{background:#1d21d4;transform:translateY(-1px);box-shadow:0 12px 28px rgba(39,44,243,.32)}.locked{min-height:calc(100vh - 60px);display:grid;place-items:center;padding:30px}.locked-card{width:min(560px,100%);background:#fff;border:1px solid var(--line);border-radius:16px;padding:31px;text-align:center}.locked-card h1{font-size:27px;margin:0 0 9px}.locked-card p{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 20px}.modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.45);backdrop-filter:blur(3px);z-index:200;display:none;place-items:center;padding:20px}.modal-backdrop.show{display:grid}.modal{width:min(620px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:32px;box-shadow:0 24px 70px rgba(0,0,0,.18)}.modal h2{font-size:26px;margin:0 0 8px;letter-spacing:-.03em}.modal p{font-size:14px;line-height:1.6;color:var(--muted);margin:0 0 20px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:11px;font-weight:600}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:#fff;font-size:13px;outline:none}.field textarea{min-height:80px}.modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}.complete-box{border:1px solid #b8dfc6;background:#f8fdf9;border-radius:14px;padding:18px;margin:20px 0}.complete-box strong{display:block;font-size:15px;color:#109b4b;margin-bottom:4px}.complete-box span{font-size:13px;color:var(--muted)}.fractional{border-top:1px solid var(--line);margin-top:24px;padding-top:24px}.fractional h3{font-size:18px;margin:0 0 8px;color:#111318}.fractional p{font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.5}.toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,20px);background:#111827;color:#fff;border-radius:12px;padding:13px 20px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:.2s ease;z-index:300;box-shadow:0 10px 30px rgba(0,0,0,.2)}.toast.show{opacity:1;transform:translate(-50%,0)}
+    .wrap{width:min(1180px,calc(100% - 48px));margin:0 auto;padding:40px 0 78px}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:28px;margin-bottom:30px}.head h1{font-size:38px;line-height:1.08;letter-spacing:-.045em;margin:0 0 9px}.head p{font-size:16px;line-height:1.55;color:var(--muted);margin:0;max-width:760px}.status-pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-size:12px;color:var(--muted)}.section-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);padding-bottom:10px;margin:35px 0 15px}.section-head h2{font-size:23px;margin:0 0 4px}.section-head p{font-size:12px;color:var(--muted);margin:0}.section-head span{font-size:12px;color:#8792a3}.goal-groups{display:grid;gap:18px}.group h3{font-size:14px;text-transform:uppercase;letter-spacing:.07em;color:#6f7988;margin:0 0 10px}.goals-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.goal-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;min-height:150px;display:flex;flex-direction:column;cursor:pointer;transition:.15s;box-shadow:0 2px 8px rgba(0,0,0,.02)}.goal-card:hover{border-color:#afb1ff;transform:translateY(-2px);box-shadow:0 6px 18px rgba(39,44,243,.08)}.goal-label{display:flex;align-items:center;gap:7px;font-size:13px;color:#556172;font-weight:600}.info{width:18px;height:18px;border-radius:50%;border:1px solid #b9c0ca;display:grid;place-items:center;font-size:10px}.actual{font-size:28px;font-weight:700;letter-spacing:-.035em;margin:14px 0 5px}.actual small{font-size:11px;font-weight:500;color:#8b95a4}.target{margin-top:auto;border-top:1px solid var(--line);padding-top:11px;display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#8a94a3}.target strong{font-size:14px;color:#2529df}.target.empty strong{color:#8a94a3}.card{background:#fff;border:1px solid var(--line);border-radius:16px}.table-wrap{overflow-x:auto}.goals-table{width:100%;border-collapse:collapse;min-width:1050px}.goals-table th,.goals-table td{border-bottom:1px solid var(--line);padding:13px 14px;text-align:left;font-size:13px;vertical-align:middle}.goals-table th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#929baa;background:#fbfbfa}.goals-table tr:last-child td{border-bottom:0}.goals-table input,.goals-table select{width:100%;min-width:110px;border:1px solid transparent;background:transparent;border-radius:7px;padding:7px 8px;font-size:13px}.goals-table input:hover,.goals-table select:hover,.goals-table input:focus,.goals-table select:focus{border-color:var(--line);background:#fff;outline:none}.status-select.needs{color:#7d8795}.status-select.track{color:var(--green)}.status-select.watch{color:var(--amber)}.status-select.off{color:var(--red)}.rocks{overflow:hidden}.rocks-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}.rocks-head h3{font-size:17px;margin:0}.button{min-height:46px;border:1px solid var(--line);background:#fff;color:#4e5868;border-radius:10px;padding:0 18px;font-size:14px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s ease}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.button.grayed-out{background:#ecece8;border-color:#e0e0dc;color:#9aa2ae;cursor:pointer}.rock-row{display:grid;grid-template-columns:minmax(0,1fr) 180px 160px 120px;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}.rock-row:last-child{border-bottom:0}.rock-title strong{font-size:14px;display:block}.rock-title span{font-size:12px;color:var(--muted);display:block;margin-top:3px}.rock-row input,.rock-row select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:#fff;font-size:12px}.empty-rocks{padding:26px;text-align:center;color:var(--muted);font-size:13px}.finish{margin-top:40px;display:flex;justify-content:flex-end}.finish-complete-btn{min-height:68px;padding:0 48px;font-size:18px;font-weight:700;background:var(--blue);color:#fff;border:1px solid var(--blue);border-radius:14px;cursor:pointer;box-shadow:0 8px 24px rgba(39,44,243,.25);display:inline-flex;align-items:center;gap:12px;transition:all .2s ease}.finish-complete-btn:hover{background:#1d21d4;transform:translateY(-1px);box-shadow:0 12px 28px rgba(39,44,243,.32)}.locked{min-height:calc(100vh - 60px);display:grid;place-items:center;padding:30px}.locked-card{width:min(560px,100%);background:#fff;border:1px solid var(--line);border-radius:16px;padding:31px;text-align:center}.locked-card h1{font-size:27px;margin:0 0 9px}.locked-card p{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 20px}.modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.45);backdrop-filter:blur(3px);z-index:200;display:none;place-items:center;padding:20px}.modal-backdrop.show{display:grid}.modal{width:min(620px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:32px;box-shadow:0 24px 70px rgba(0,0,0,.18)}.modal h2{font-size:26px;margin:0 0 8px;letter-spacing:-.03em}.modal p{font-size:14px;line-height:1.6;color:var(--muted);margin:0 0 20px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:11px;font-weight:600}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:#fff;font-size:13px;outline:none}.field textarea{min-height:80px}.current-target-box{border:1px solid var(--line);background:#fafaf8;border-radius:12px;padding:14px 16px;margin:0 0 18px;display:flex;justify-content:space-between;gap:18px;align-items:center}.current-target-box span{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8b95a4}.current-target-box strong{font-size:20px;letter-spacing:-.02em}.target-preview{grid-column:1/-1;border:1px solid #dfe2ff;background:#f8f8ff;border-radius:12px;padding:14px 16px}.target-preview span{display:block;font-size:11px;color:#697386;margin-bottom:4px}.target-preview strong{font-size:18px;color:#2529df}.target-method{display:block;font-size:10px;color:#8a94a3;margin-top:2px;font-weight:500}.direction-field.hidden{display:none}.modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}.complete-box{border:1px solid #b8dfc6;background:#f8fdf9;border-radius:14px;padding:18px;margin:20px 0}.complete-box strong{display:block;font-size:15px;color:#109b4b;margin-bottom:4px}.complete-box span{font-size:13px;color:var(--muted)}.fractional{border-top:1px solid var(--line);margin-top:24px;padding-top:24px}.fractional h3{font-size:18px;margin:0 0 8px;color:#111318}.fractional p{font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.5}.toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,20px);background:#111827;color:#fff;border-radius:12px;padding:13px 20px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:.2s ease;z-index:300;box-shadow:0 10px 30px rgba(0,0,0,.2)}.toast.show{opacity:1;transform:translate(-50%,0)}
     @media(max-width:900px){.wrap{width:min(100% - 32px,1180px);padding-top:28px}.head{align-items:flex-start;flex-direction:column}.goals-grid{grid-template-columns:repeat(2,1fr)}.rock-row{grid-template-columns:1fr 1fr}.rock-title{grid-column:1/-1}}
     @media(max-width:580px){.wrap{width:calc(100% - 24px);padding-top:24px;padding-bottom:60px}.head h1{font-size:31px}.goals-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column;gap:6px}.finish-complete-btn{width:100%;justify-content:center}.rock-row{grid-template-columns:1fr}.rock-title{grid-column:auto}.modal{padding:24px 20px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions{flex-direction:column-reverse}.modal-actions .button{width:100%}}
 .goals-update-actions{align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:16px}.goals-update-actions>span{font-size:12px;color:var(--muted)}
@@ -23,18 +23,30 @@
   <div class="modal-backdrop" id="targetModal">
     <section class="modal">
       <h2 id="targetTitle">Set Target</h2>
-      <p>Set either a specific number or a percentage change. The current actual remains visible on the goal card.</p>
+      <p>Choose an exact target or set a percentage increase/decrease from the current actual. Percentage targets are frozen against the current value when saved.</p>
+      <div class="current-target-box"><span>Current actual</span><strong id="targetCurrent">—</strong></div>
       <div class="form-grid">
         <div class="field">
           <label>Target type</label>
           <select id="targetType">
-            <option value="number">Specific number</option>
+            <option value="number">Exact value</option>
             <option value="percent">Percentage change</option>
           </select>
         </div>
+        <div class="field direction-field hidden" id="directionField">
+          <label>Direction</label>
+          <select id="targetDirection">
+            <option value="increase">Increase by</option>
+            <option value="decrease">Decrease by</option>
+          </select>
+        </div>
         <div class="field">
-          <label>Target value</label>
-          <input id="targetValue" type="number" step="0.1" placeholder="e.g. 2500000 or 15">
+          <label id="targetValueLabel">Target value</label>
+          <input id="targetValue" type="number" min="0" step="0.1" placeholder="Enter target">
+        </div>
+        <div class="target-preview">
+          <span>Resolved target</span>
+          <strong id="resolvedTarget">Enter a target</strong>
         </div>
         <div class="field full">
           <label>Notes</label>
@@ -122,13 +134,23 @@
     }
 
     const money = n => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(n) || 0);
+    const formatGoalValue = (goal, value) => {
+      if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) return '—';
+      const number = Number(value);
+      if (goal.unit === '$') return money(number);
+      if (goal.unit === '%') return `${Number.isInteger(number) ? number : number.toFixed(1)}%`;
+      if (goal.unit === 'level') return `${Number.isInteger(number) ? number : number.toFixed(1)} / 5`;
+      return Number.isInteger(number) ? String(number) : number.toFixed(1);
+    };
     const formatTarget = (goal, target) => {
       if (!target) return 'Set target →';
-      if (target.type === 'percent') return `+${Number(target.value)}%`;
-      const value = Number(target.value);
-      if (goal.unit === '$') return money(value);
-      if (goal.unit === '%') return `${value}%`;
-      return String(value);
+      const resolved = target.resolvedValue ?? (target.type === 'number' ? target.value : null);
+      return formatGoalValue(goal, resolved);
+    };
+    const formatTargetMethod = target => {
+      if (!target || target.type !== 'percent') return '';
+      const value = Number(target.value) || 0;
+      return `${value < 0 ? 'Decrease' : 'Increase'} ${Math.abs(value)}%`;
     };
 
     const goalCard = goal => {
@@ -140,10 +162,11 @@
             <span>${esc(goal.label)}</span>
             ${goal.id === 'aofi' ? '<span class="info" title="The Agency Owner Freedom Index combines Performance at 40%, Strength at 40%, and Owner Independence at 20%.">i</span>' : ''}
           </div>
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#9aa2ae;margin-top:8px">${esc(goal.group)}</div>
           <div class="actual">${esc(goal.actualDisplay || '—')} <small>${actualNote}</small></div>
           <div class="target ${target ? '' : 'empty'}">
             <span>Target</span>
-            <strong>${esc(formatTarget(goal, target))}</strong>
+            <strong>${esc(formatTarget(goal, target))}${target && target.type === 'percent' ? `<small class="target-method">${esc(formatTargetMethod(target))}</small>` : ''}</strong>
           </div>
         </article>`;
     };
@@ -196,12 +219,8 @@
           <span>Category Goals</span>
         </div>
 
-        <div class="goal-groups">
-          ${[...new Set(goals.map(x => x.group))].map(group => `
-            <section class="group">
-              <h3>${esc(group)}</h3>
-              <div class="goals-grid">${goals.filter(x => x.group === group).map(goalCard).join('')}</div>
-            </section>`).join('')}
+        <div class="goals-grid">
+          ${goals.map(goalCard).join('')}
         </div>
 
         <div class="section-head">
@@ -243,14 +262,57 @@
       activeGoal = goals.find(x => x.id === card.dataset.goal);
       if (!activeGoal) return;
       document.querySelector('#targetTitle').textContent = `Set Target: ${activeGoal.label}`;
+      document.querySelector('#targetCurrent').textContent = activeGoal.actualDisplay || '—';
       const target = targets[activeGoal.id] || {};
-      document.querySelector('#targetType').value = target.type || 'number';
-      document.querySelector('#targetValue').value = target.value ?? '';
+      const targetType = target.type || 'number';
+      document.querySelector('#targetType').value = targetType;
+      document.querySelector('#targetDirection').value = target.direction || (Number(target.value) < 0 ? 'decrease' : 'increase');
+      document.querySelector('#targetValue').value = targetType === 'percent' && target.value !== undefined && target.value !== '' ? Math.abs(Number(target.value)) : (target.value ?? '');
       document.querySelector('#targetNotes').value = target.notes || '';
+      syncTargetEditor();
       show('#targetModal');
     }));
 
     document.querySelectorAll('[data-close-target]').forEach(button => button.addEventListener('click', () => hide('#targetModal')));
+
+    const targetTypeInput = document.querySelector('#targetType');
+    const targetValueInput = document.querySelector('#targetValue');
+    const targetDirectionInput = document.querySelector('#targetDirection');
+    function syncTargetEditor() {
+      if (!activeGoal) return;
+      const type = targetTypeInput.value;
+      const isPercent = type === 'percent';
+      document.querySelector('#directionField').classList.toggle('hidden', !isPercent);
+      document.querySelector('#targetValueLabel').textContent = isPercent ? 'Percentage change' : 'Target value';
+      targetValueInput.placeholder = isPercent ? 'e.g. 15' : (activeGoal.unit === '$' ? 'e.g. 2500000' : 'Enter target');
+      targetValueInput.max = activeGoal.unit === '%' && !isPercent ? '100' : activeGoal.unit === 'score' && !isPercent ? '100' : activeGoal.unit === 'level' && !isPercent ? '5' : '';
+
+      const raw = Number(targetValueInput.value);
+      const preview = document.querySelector('#resolvedTarget');
+      const saveButton = document.querySelector('#saveTarget');
+      if (targetValueInput.value === '' || !Number.isFinite(raw)) {
+        preview.textContent = 'Enter a target';
+        saveButton.disabled = false;
+        return;
+      }
+      if (isPercent) {
+        if (!activeGoal.available || activeGoal.actualValue === null || !Number.isFinite(Number(activeGoal.actualValue))) {
+          preview.textContent = 'Current actual required for percentage target';
+          saveButton.disabled = true;
+          return;
+        }
+        const sign = targetDirectionInput.value === 'decrease' ? -1 : 1;
+        const resolved = Number(activeGoal.actualValue) * (1 + sign * Math.abs(raw) / 100);
+        preview.textContent = resolved < 0 ? 'Decrease is too large' : formatGoalValue(activeGoal, resolved);
+        saveButton.disabled = resolved < 0;
+        return;
+      }
+      preview.textContent = formatGoalValue(activeGoal, raw);
+      saveButton.disabled = false;
+    }
+    targetTypeInput.addEventListener('change', syncTargetEditor);
+    targetValueInput.addEventListener('input', syncTargetEditor);
+    targetDirectionInput.addEventListener('change', syncTargetEditor);
 
     document.querySelector('#saveTarget').addEventListener('click', async () => {
       if (!activeGoal) return;
@@ -261,7 +323,8 @@
           activeGoal.id,
           document.querySelector('#targetType').value,
           document.querySelector('#targetValue').value,
-          document.querySelector('#targetNotes').value
+          document.querySelector('#targetNotes').value,
+          document.querySelector('#targetDirection').value
         );
         hide('#targetModal');
         showToast('Target saved.');

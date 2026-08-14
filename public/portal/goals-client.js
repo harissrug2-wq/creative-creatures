@@ -66,8 +66,8 @@
     return payload;
   }
 
-  const saveTarget = (metricId, targetType, targetValue, targetNotes = '') =>
-    action('set_target', { metricId, targetType, targetValue, targetNotes });
+  const saveTarget = (metricId, targetType, targetValue, targetNotes = '', targetDirection = 'increase') =>
+    action('set_target', { metricId, targetType, targetValue, targetNotes, targetDirection });
 
   const saveDepartment = department => action('save_department', department);
   const createRocks = rocks => action('create_rocks', { rocks });

@@ -148,7 +148,7 @@ async function getEvidenceRows(config, runId) {
 
 async function getTargets(config, accountId) {
   const params = new URLSearchParams({
-    select: 'id,metric_id,target_type,target_value,target_notes,updated_at',
+    select: 'id,metric_id,target_type,target_value,baseline_actual_value,resolved_target_value,target_notes,updated_at',
     account_id: `eq.${accountId}`,
     order: 'metric_id.asc'
   });
@@ -286,9 +286,10 @@ function buildMetrics(scorecard, indexRows, evidenceRows) {
     ? `Missing valuation evidence: ${(valuationSnapshot.missingInputs || []).join(', ')}`
     : 'Valuation has not been calculated yet';
 
-  const leadershipDisplay = leadershipScore === null
+  const leadershipLevel = leadershipScore === null
     ? null
-    : `${Math.max(0, Math.min(5, Math.round(leadershipScore / 20)))} / 5`;
+    : Math.max(0, Math.min(5, Math.round(leadershipScore / 20)));
+  const leadershipDisplay = leadershipLevel === null ? null : `${leadershipLevel} / 5`;
 
   return [
     metric('ownerDelivery', ownerDelivery, 'Owner Independence evidence'),
@@ -297,7 +298,7 @@ function buildMetrics(scorecard, indexRows, evidenceRows) {
     metric('cogs', cogs, 'Financial evidence'),
     metric('margin', netMargin, 'Financial evidence'),
     metric('sde', adjustedSDE, 'Agency Performance · Adjusted SDE'),
-    metric('leadership', leadershipScore, 'Agency Strength · Leadership System', leadershipDisplay),
+    metric('leadership', leadershipLevel, 'Agency Strength · Leadership System', leadershipDisplay),
     metric('aofi', aofi, 'Generated Agency Scorecard'),
     metric('valuation', enterpriseValuation, 'Agency Valuation™ · Step 7B snapshot', null, valuationUnavailable)
   ];
@@ -345,13 +346,33 @@ async function loadModel(config, account) {
   const valuationSnapshot = buildValuationSnapshot(indexRows, { diagnosticRunId: run.id });
   const scorecardWithValuation = await persistValuationSnapshot(config, scorecard, valuationSnapshot);
 
-  const targets = Object.fromEntries(targetRows.map(row => [row.metric_id, {
-    id: row.id,
-    type: row.target_type,
-    value: row.target_value === null ? '' : Number(row.target_value),
-    notes: row.target_notes || '',
-    updatedAt: row.updated_at
-  }]));
+  const metrics = buildMetrics(scorecardWithValuation, indexRows, evidenceRows);
+  const metricMap = Object.fromEntries(metrics.map(item => [item.id, item]));
+  const targets = Object.fromEntries(targetRows.map(row => {
+    const storedValue = row.target_value === null ? null : Number(row.target_value);
+    const metricValue = metricMap[row.metric_id]?.available ? finite(metricMap[row.metric_id]?.actualValue) : null;
+    let baselineValue = row.baseline_actual_value === null ? null : Number(row.baseline_actual_value);
+    let resolvedValue = row.resolved_target_value === null ? null : Number(row.resolved_target_value);
+
+    // Step 5 rows predate frozen percentage baselines. Preserve exact targets and
+    // provide a safe display fallback for legacy percentage targets until saved again.
+    if (resolvedValue === null && storedValue !== null) {
+      if (row.target_type === 'number') resolvedValue = storedValue;
+      else if (metricValue !== null) resolvedValue = metricValue * (1 + storedValue / 100);
+    }
+    if (baselineValue === null && row.target_type === 'percent' && metricValue !== null) baselineValue = metricValue;
+
+    return [row.metric_id, {
+      id: row.id,
+      type: row.target_type,
+      value: storedValue === null ? '' : storedValue,
+      baselineValue,
+      resolvedValue,
+      direction: storedValue !== null && storedValue < 0 ? 'decrease' : 'increase',
+      notes: row.target_notes || '',
+      updatedAt: row.updated_at
+    }];
+  }));
 
   const savedDepartments = Object.fromEntries(departmentRows.map(row => [row.department, {
     id: row.id,
@@ -384,7 +405,7 @@ async function loadModel(config, account) {
     account: { id: account.id, name: account.name, email: account.email, agencyName: account.agency_name },
     diagnosticRun: { id: run.id, status: run.status },
     scorecard: { id: scorecard.id, aofiScore: Number(scorecard.aofi_score), generatedAt: scorecard.generated_at },
-    metrics: buildMetrics(scorecardWithValuation, indexRows, evidenceRows),
+    metrics,
     targets,
     departments,
     rocks,
@@ -393,20 +414,72 @@ async function loadModel(config, account) {
   };
 }
 
-async function upsertTarget(config, accountId, body) {
+function validateExactTarget(definition, value) {
+  if (value === null) return 'Enter a valid target value.';
+  if (value < 0) return 'Target value cannot be negative.';
+  if (definition.unit === '%' && value > 100) return 'Percentage targets must be between 0 and 100.';
+  if (definition.unit === 'score' && value > 100) return 'Score targets must be between 0 and 100.';
+  if (definition.unit === 'level' && value > 5) return 'Leadership maturity target must be between 0 and 5.';
+  return '';
+}
+
+function resolveTarget(definition, actualValue, targetType, rawValue, direction) {
+  const entered = finite(rawValue);
+  if (targetType === 'number') {
+    const validation = validateExactTarget(definition, entered);
+    if (validation) {
+      const error = new Error(validation);
+      error.status = 422;
+      throw error;
+    }
+    return { storedValue: entered, baselineValue: actualValue, resolvedValue: entered };
+  }
+
+  if (entered === null || entered < 0 || entered > 1000) {
+    const error = new Error('Enter a percentage change between 0 and 1000.');
+    error.status = 422;
+    throw error;
+  }
+  if (actualValue === null) {
+    const error = new Error('A percentage target requires a current actual value. Use a specific number until source data is available.');
+    error.status = 422;
+    throw error;
+  }
+
+  const sign = direction === 'decrease' ? -1 : 1;
+  const signedPercent = Math.abs(entered) * sign;
+  const resolved = actualValue * (1 + signedPercent / 100);
+  if (resolved < 0) {
+    const error = new Error('This percentage decrease would create a negative target.');
+    error.status = 422;
+    throw error;
+  }
+
+  const validation = validateExactTarget(definition, resolved);
+  if (validation) {
+    const error = new Error(validation);
+    error.status = 422;
+    throw error;
+  }
+
+  return {
+    storedValue: signedPercent,
+    baselineValue: actualValue,
+    resolvedValue: resolved
+  };
+}
+
+async function upsertTarget(config, accountId, body, currentMetric) {
   const definition = METRICS.find(item => item.id === clean(body.metricId));
   if (!definition) {
     const error = new Error('Unknown agency goal metric.');
     error.status = 422;
     throw error;
   }
+
   const targetType = body.targetType === 'percent' ? 'percent' : 'number';
-  const targetValue = finite(body.targetValue);
-  if (targetValue === null) {
-    const error = new Error('Enter a valid target value.');
-    error.status = 422;
-    throw error;
-  }
+  const actualValue = currentMetric?.available ? finite(currentMetric.actualValue) : null;
+  const target = resolveTarget(definition, actualValue, targetType, body.targetValue, clean(body.targetDirection));
 
   const path = 'agency_goals?on_conflict=account_id%2Cmetric_id';
   const rows = await supabaseRequest(config, path, {
@@ -416,12 +489,20 @@ async function upsertTarget(config, accountId, body) {
       account_id: accountId,
       metric_id: definition.id,
       target_type: targetType,
-      target_value: targetValue,
+      target_value: target.storedValue,
+      baseline_actual_value: target.baselineValue,
+      resolved_target_value: target.resolvedValue,
       target_notes: clean(body.targetNotes),
       updated_at: new Date().toISOString()
     })
   });
-  return Array.isArray(rows) ? rows[0] || null : rows;
+
+  const row = Array.isArray(rows) ? rows[0] || null : rows;
+  return row ? {
+    ...row,
+    baseline_actual_value: row.baseline_actual_value === null ? null : Number(row.baseline_actual_value),
+    resolved_target_value: row.resolved_target_value === null ? null : Number(row.resolved_target_value)
+  } : row;
 }
 
 async function upsertDepartment(config, accountId, body) {
@@ -567,7 +648,9 @@ export default async function handler(req, res) {
 
     const action = clean(body.action);
     if (action === 'set_target') {
-      const row = await upsertTarget(config, account.id, body);
+      const model = await loadModel(config, account);
+      const currentMetric = model.metrics.find(item => item.id === clean(body.metricId)) || null;
+      const row = await upsertTarget(config, account.id, body, currentMetric);
       return json(res, 200, { ok: true, target: row });
     }
     if (action === 'save_department') {
