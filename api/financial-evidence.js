@@ -101,7 +101,7 @@ async function storageRequest(config, path, options = {}) {
 }
 
 async function findAccount(config, { accountId, email, agencyUrl }) {
-  const select = 'id,name,email,agency_url,agency_name';
+  const select = 'id,name,email,agency_url,agency_name,diagnostic_state';
   if (accountId && !String(accountId).startsWith('local-')) {
     const params = new URLSearchParams({ select, id: `eq.${accountId}`, limit: '1' });
     const rows = await supabaseRequest(config, `accounts?${params.toString()}`);
@@ -378,11 +378,11 @@ function deriveMetrics(evidenceType, data) {
     const topFive = clients.slice(0, 5).reduce((sum, item) => sum + Number(item.revenue), 0);
     out.clients = clients;
     out.totalRevenue = total;
-    out.clientCount = clients.length || null;
-    out.topClientRevenue = top;
-    out.topClientPercent = total && top !== null ? pct(top, total) : null;
-    out.top5Percent = total && clients.length ? pct(topFive, total) : null;
-    out.averageClientRevenue = total !== null && clients.length ? Math.round((total / clients.length) * 100) / 100 : null;
+    out.clientCount = clients.length || finite(out.clientCount);
+    out.topClientRevenue = top ?? finite(out.topClientRevenue);
+    out.topClientPercent = total && top !== null ? pct(top, total) : finite(out.topClientPercent);
+    out.top5Percent = total && clients.length ? pct(topFive, total) : finite(out.top5Percent);
+    out.averageClientRevenue = total !== null && clients.length ? Math.round((total / clients.length) * 100) / 100 : finite(out.averageClientRevenue);
   }
 
   if (evidenceType === 'service_revenue_mix') {
@@ -399,8 +399,8 @@ function deriveMetrics(evidenceType, data) {
     out.topServicePercent = out.services[0]?.percent ?? null;
     const recurring = finite(out.recurringRevenue);
     const project = finite(out.projectRevenue);
-    out.recurringRevenuePercent = total && recurring !== null ? pct(recurring, total) : null;
-    out.projectRevenuePercent = total && project !== null ? pct(project, total) : null;
+    out.recurringRevenuePercent = total && recurring !== null ? pct(recurring, total) : finite(out.recurringRevenuePercent);
+    out.projectRevenuePercent = total && project !== null ? pct(project, total) : finite(out.projectRevenuePercent);
   }
 
   return out;
@@ -529,6 +529,7 @@ async function prepareUpload(config, body) {
   }
 
   const { account, run } = await requireContext(config, body);
+  const existing = await findEvidence(config, run.id, evidenceType);
   const storagePath = `${account.id}/${run.id}/${evidenceType}/${Date.now()}-${filename}`;
   const evidence = await saveEvidence(config, run.id, evidenceType, {
     file_name: filename,
@@ -536,11 +537,11 @@ async function prepareUpload(config, body) {
     storage_path: storagePath,
     mime_type: 'application/pdf',
     extraction_status: 'uploaded',
-    extraction_model: null,
+    extraction_model: existing?.extraction_model === 'manual_entry' ? 'manual_entry' : null,
     extraction_error: null,
-    extracted_at: null,
-    extracted_data: {},
-    validation_status: 'unverified'
+    extracted_at: existing?.extracted_at || null,
+    extracted_data: existing?.extracted_data && typeof existing.extracted_data === 'object' ? existing.extracted_data : {},
+    validation_status: existing?.validation_status || 'unverified'
   });
   const signedUploadUrl = await createSignedUploadUrl(config, storagePath);
   return { account, run, evidence, signedUploadUrl };
@@ -614,26 +615,566 @@ async function saveSde(config, body) {
   const benefits = Array.isArray(body.benefits)
     ? [...new Set(body.benefits.map(clean).filter(Boolean))].slice(0, 30)
     : [];
+  const existing = await findEvidence(config, run.id, 'sde');
+  const current = existing?.extracted_data && typeof existing.extracted_data === 'object'
+    ? existing.extracted_data
+    : {};
+  const manual = sanitizeManualData('sde', body.values || body.manualData || {});
   const ownershipPercent = finite(body.ownershipPercent);
-  const extractedAt = new Date().toISOString();
+  const capturedAt = new Date().toISOString();
+  const extracted = deriveMetrics('sde', {
+    ...current,
+    ...manual,
+    benefits,
+    ownershipPercent: ownershipPercent === null ? (finite(current.ownershipPercent) ?? null) : Math.max(0, Math.min(100, ownershipPercent)),
+    source: 'owner_input',
+    capturedAt,
+    extraction: {
+      ...(current.extraction && typeof current.extraction === 'object' ? current.extraction : {}),
+      source: 'manual_entry',
+      capturedAt,
+      evidenceType: 'sde'
+    }
+  });
+
   const evidence = await saveEvidence(config, run.id, 'sde', {
     file_name: null,
     file_size_bytes: null,
     storage_path: null,
     mime_type: 'application/json',
     extraction_status: 'processed',
-    extraction_model: 'owner_input',
+    extraction_model: 'manual_entry',
     extraction_error: null,
-    extracted_at: extractedAt,
-    extracted_data: {
-      benefits,
-      ownershipPercent: ownershipPercent === null ? null : Math.max(0, Math.min(100, ownershipPercent)),
-      source: 'owner_input',
-      capturedAt: extractedAt
-    },
+    extracted_at: capturedAt,
+    extracted_data: extracted,
     validation_status: 'unverified'
   });
   return { account, run, evidence };
+}
+
+const MANUAL_FIELDS = {
+  profit_loss: {
+    strings: ['currency', 'periodLabel'],
+    numbers: ['revenueTTM','revenueYTD','cogsTTM','grossProfitTTM','operatingExpensesTTM','netIncomeTTM','netIncomeYTD','explicitEBITDA','revenueGrowthPercent','netIncomeGrowthPercent','grossProfitGrowthPercent','profitConversionPercent'],
+    levels: ['marginStabilityLevel','growthConsistencyLevel','revenuePredictabilityLevel']
+  },
+  balance_sheet: {
+    strings: ['currency', 'asOfDate'],
+    numbers: ['cash','accountsReceivable','currentAssets','currentLiabilities','totalAssets','totalLiabilities','totalDebt','monthlyOperatingExpenses','ebitdaTTM'],
+    levels: ['operatingCashFlowLevel']
+  },
+  ar_aging: {
+    strings: ['currency', 'asOfDate'],
+    numbers: ['totalAR','currentAR','days1to30','days31to60','days61to90','days90Plus','collectionRatePercent'],
+    levels: []
+  },
+  client_revenue: {
+    strings: ['currency', 'periodLabel'],
+    numbers: ['totalRevenue','topClientRevenue','topClientPercent','top5Percent','clientCount','averageClientRevenue','averageClientTenureMonths'],
+    levels: ['revenueDiversificationLevel','contractDurationLevel']
+  },
+  service_revenue_mix: {
+    strings: ['currency', 'periodLabel'],
+    numbers: ['totalRevenue','recurringRevenue','projectRevenue','recurringRevenuePercent','projectRevenuePercent','topServicePercent'],
+    levels: []
+  },
+  sde: {
+    strings: [],
+    numbers: ['adjustedSDE','capitalInvested','incrementalOperatingProfit','reinvestmentRatePercent'],
+    levels: ['technologyInvestmentLevel','talentInvestmentLevel','retainedEarningsGrowthLevel']
+  }
+};
+
+function clampLevel(value) {
+  const number = finite(value);
+  if (number === null) return null;
+  return Math.max(0, Math.min(4, Math.round(number)));
+}
+
+function sanitizeManualData(evidenceType, raw) {
+  const definition = MANUAL_FIELDS[evidenceType];
+  if (!definition) return {};
+  const input = raw && typeof raw === 'object' ? raw : {};
+  const out = {};
+  for (const key of definition.strings) {
+    if (input[key] !== undefined) out[key] = clean(input[key]).slice(0, 240) || null;
+  }
+  for (const key of definition.numbers) {
+    if (input[key] !== undefined) out[key] = finite(input[key]);
+  }
+  for (const key of definition.levels) {
+    if (input[key] !== undefined) out[key] = clampLevel(input[key]);
+  }
+  return out;
+}
+
+async function saveManualEvidence(config, body) {
+  const evidenceType = clean(body.evidenceType);
+  if (!EVIDENCE_TYPES.has(evidenceType)) {
+    const error = new Error('Unsupported financial evidence type.');
+    error.status = 422;
+    throw error;
+  }
+  if (evidenceType === 'sde') return saveSde(config, body);
+
+  const { account, run } = await requireContext(config, body);
+  const existing = await findEvidence(config, run.id, evidenceType);
+  const current = existing?.extracted_data && typeof existing.extracted_data === 'object'
+    ? existing.extracted_data
+    : {};
+  const manual = sanitizeManualData(evidenceType, body.values || body.manualData || {});
+  const capturedAt = new Date().toISOString();
+  const merged = deriveMetrics(evidenceType, {
+    ...current,
+    ...manual,
+    extraction: {
+      ...(current.extraction && typeof current.extraction === 'object' ? current.extraction : {}),
+      source: 'manual_entry',
+      capturedAt,
+      evidenceType,
+      fileName: existing?.file_name || null
+    }
+  });
+
+  const evidence = await saveEvidence(config, run.id, evidenceType, {
+    extraction_status: 'processed',
+    extraction_model: 'manual_entry',
+    extraction_error: null,
+    extracted_at: capturedAt,
+    extracted_data: merged,
+    validation_status: existing?.validation_status === 'verified' ? 'verified' : 'unverified'
+  });
+  return { account, run, evidence };
+}
+
+const CATEGORY_WEIGHTS = {
+  profitability: 25,
+  growth: 20,
+  revenueQuality: 20,
+  cash: 20,
+  capital: 15
+};
+
+const METRIC_WEIGHTS = {
+  profitability: {
+    grossMargin: 20,
+    netMargin: 25,
+    sdeMargin: 20,
+    marginStability: 15,
+    grossProfitGrowth: 10,
+    profitConversion: 10
+  },
+  growth: {
+    revenueGrowth: 30,
+    netIncomeGrowth: 30,
+    growthConsistency: 20,
+    revenuePredictability: 20
+  },
+  revenueQuality: {
+    recurringRevenue: 25,
+    clientConcentration: 25,
+    revenueDiversification: 20,
+    averageClientTenure: 15,
+    contractDuration: 15
+  },
+  cash: {
+    cashReserve: 25,
+    operatingCashFlow: 25,
+    currentRatio: 20,
+    accountsReceivable: 15,
+    debtPosition: 15
+  },
+  capital: {
+    returnOnCapital: 30,
+    reinvestmentRate: 20,
+    technologyInvestment: 15,
+    talentInvestment: 15,
+    retainedEarningsGrowth: 20
+  }
+};
+
+const round2 = value => Math.round(Number(value) * 100) / 100;
+const pctOf = (part, whole) => {
+  const p = finite(part);
+  const w = finite(whole);
+  if (p === null || w === null || w === 0) return null;
+  return round2((p / w) * 100);
+};
+
+function scoreBands(value, cutoffs) {
+  const number = finite(value);
+  if (number === null) return null;
+  for (let i = cutoffs.length - 1; i >= 0; i -= 1) {
+    if (number >= cutoffs[i]) return i + 1;
+  }
+  return 0;
+}
+
+function scoreGrowth(value) {
+  const number = finite(value);
+  if (number === null) return null;
+  if (number < 0) return 0;
+  if (number < 5) return 1;
+  if (number < 10) return 2;
+  if (number < 20) return 3;
+  return 4;
+}
+
+function scoreGrossMargin(value) { return scoreBands(value, [30,40,50,60]); }
+function scoreNetMargin(value) { return scoreBands(value, [5,10,15,20]); }
+function scoreSdeMargin(value) { return scoreBands(value, [10,15,20,25]); }
+function scoreProfitConversion(value) { return scoreBands(value, [5,10,20,30]); }
+function scoreRecurring(value) { return scoreBands(value, [20,40,60,80]); }
+function scoreClientConcentration(value) {
+  const number = finite(value);
+  if (number === null) return null;
+  if (number >= 30) return 0;
+  if (number >= 20) return 1;
+  if (number >= 15) return 2;
+  if (number >= 10) return 3;
+  return 4;
+}
+function scoreClientTenure(months) {
+  const number = finite(months);
+  if (number === null) return null;
+  if (number < 12) return 0;
+  if (number < 24) return 1;
+  if (number < 36) return 2;
+  if (number < 60) return 3;
+  return 4;
+}
+function scoreCashReserve(value) {
+  const number = finite(value);
+  if (number === null) return null;
+  if (number < 1) return 0;
+  if (number < 2) return 1;
+  if (number < 3) return 2;
+  if (number <= 6) return 3;
+  return 4;
+}
+function scoreCurrentRatio(value) {
+  const number = finite(value);
+  if (number === null) return null;
+  if (number < 1) return 0;
+  if (number < 1.25) return 1;
+  if (number < 1.5) return 2;
+  if (number <= 2) return 3;
+  return 4;
+}
+function scoreCollectionRate(value) { return scoreBands(value, [50,70,85,95]); }
+function scoreDebtRatio(value) {
+  const number = finite(value);
+  if (number === null) return null;
+  if (number >= 4) return 0;
+  if (number >= 3) return 1;
+  if (number >= 2) return 2;
+  if (number >= 1) return 3;
+  return 4;
+}
+function scoreReturnOnCapital(value) {
+  const number = finite(value);
+  if (number === null) return null;
+  if (number < 0) return 0;
+  if (number < 10) return 1;
+  if (number < 20) return 2;
+  if (number < 30) return 3;
+  return 4;
+}
+function scoreReinvestmentRate(value) { return scoreBands(value, [10,25,40,60]); }
+
+function metricRecord(key, label, rawValue, score, weight) {
+  return {
+    key,
+    label,
+    value: finite(rawValue),
+    score: score === null ? null : Math.max(0, Math.min(4, Number(score))),
+    weight
+  };
+}
+
+function categoryModel(key, label, metricRows) {
+  const totalWeight = Object.values(METRIC_WEIGHTS[key]).reduce((sum, value) => sum + value, 0);
+  const available = metricRows.filter(row => row.score !== null);
+  const availableWeight = available.reduce((sum, row) => sum + row.weight, 0);
+  if (!availableWeight) {
+    return { key, label, score: null, coverage: 0, metrics: metricRows };
+  }
+  const score = Math.round(available.reduce((sum, row) => sum + ((row.score / 4) * 100 * row.weight), 0) / availableWeight);
+  return {
+    key,
+    label,
+    score,
+    coverage: Math.round((availableWeight / totalWeight) * 100),
+    metrics: metricRows
+  };
+}
+
+function evidenceMap(rows) {
+  return Object.fromEntries(rows.map(row => [row.evidence_type, row]));
+}
+
+function evidenceData(map, type) {
+  const data = map[type]?.extracted_data;
+  return data && typeof data === 'object' ? data : {};
+}
+
+function buildPerformanceModel(rows) {
+  const map = evidenceMap(rows);
+  const pnl = evidenceData(map, 'profit_loss');
+  const balance = evidenceData(map, 'balance_sheet');
+  const ar = evidenceData(map, 'ar_aging');
+  const client = evidenceData(map, 'client_revenue');
+  const service = evidenceData(map, 'service_revenue_mix');
+  const sde = evidenceData(map, 'sde');
+
+  const revenue = finite(pnl.revenueTTM);
+  const cogs = finite(pnl.cogsTTM);
+  const grossProfit = finite(pnl.grossProfitTTM) ?? (revenue !== null && cogs !== null ? revenue - cogs : null);
+  const netIncome = finite(pnl.netIncomeTTM);
+  const grossMargin = finite(pnl.grossMarginPercent) ?? pctOf(grossProfit, revenue);
+  const netMargin = finite(pnl.netMargin) ?? pctOf(netIncome, revenue);
+  const adjustedSDE = finite(sde.adjustedSDE);
+  const sdeMargin = pctOf(adjustedSDE, revenue);
+  const cashReserveMonths = finite(balance.monthlyOperatingExpenses) && finite(balance.cash) !== null
+    ? round2(Number(balance.cash) / Number(balance.monthlyOperatingExpenses))
+    : null;
+  const currentRatio = finite(balance.currentRatio) ?? (
+    finite(balance.currentAssets) !== null && finite(balance.currentLiabilities) !== null && Number(balance.currentLiabilities) !== 0
+      ? round2(Number(balance.currentAssets) / Number(balance.currentLiabilities))
+      : null
+  );
+  const ebitda = finite(balance.ebitdaTTM) ?? finite(pnl.explicitEBITDA);
+  const debtToEbitda = finite(balance.totalDebt) !== null && ebitda !== null && ebitda > 0
+    ? round2(Number(balance.totalDebt) / ebitda)
+    : null;
+  const capitalInvested = finite(sde.capitalInvested);
+  const incrementalOperatingProfit = finite(sde.incrementalOperatingProfit);
+  const roicLite = capitalInvested !== null && capitalInvested !== 0 && incrementalOperatingProfit !== null
+    ? round2((incrementalOperatingProfit / capitalInvested) * 100)
+    : null;
+
+  const profitability = categoryModel('profitability', 'Profitability', [
+    metricRecord('grossMargin','Gross Margin',grossMargin,scoreGrossMargin(grossMargin),20),
+    metricRecord('netMargin','Net Margin',netMargin,scoreNetMargin(netMargin),25),
+    metricRecord('sdeMargin','EBITDA / SDE Margin',sdeMargin,scoreSdeMargin(sdeMargin),20),
+    metricRecord('marginStability','Margin Stability',pnl.marginStabilityLevel,clampLevel(pnl.marginStabilityLevel),15),
+    metricRecord('grossProfitGrowth','Gross Profit Growth',pnl.grossProfitGrowthPercent,scoreGrowth(pnl.grossProfitGrowthPercent),10),
+    metricRecord('profitConversion','Profit Conversion',pnl.profitConversionPercent,scoreProfitConversion(pnl.profitConversionPercent),10)
+  ]);
+
+  const growth = categoryModel('growth', 'Growth Performance', [
+    metricRecord('revenueGrowth','Revenue Growth',pnl.revenueGrowthPercent,scoreGrowth(pnl.revenueGrowthPercent),30),
+    metricRecord('netIncomeGrowth','Net Income Growth',pnl.netIncomeGrowthPercent,scoreGrowth(pnl.netIncomeGrowthPercent),30),
+    metricRecord('growthConsistency','Growth Consistency',pnl.growthConsistencyLevel,clampLevel(pnl.growthConsistencyLevel),20),
+    metricRecord('revenuePredictability','Revenue Predictability',pnl.revenuePredictabilityLevel,clampLevel(pnl.revenuePredictabilityLevel),20)
+  ]);
+
+  const topClientPercent = finite(client.topClientPercent) ?? finite(client.largestClientPercent);
+  const recurringRevenuePercent = finite(service.recurringRevenuePercent);
+  const revenueQuality = categoryModel('revenueQuality', 'Revenue Quality', [
+    metricRecord('recurringRevenue','Recurring Revenue',recurringRevenuePercent,scoreRecurring(recurringRevenuePercent),25),
+    metricRecord('clientConcentration','Largest Client Concentration',topClientPercent,scoreClientConcentration(topClientPercent),25),
+    metricRecord('revenueDiversification','Revenue Diversification',client.revenueDiversificationLevel,clampLevel(client.revenueDiversificationLevel),20),
+    metricRecord('averageClientTenure','Average Client Tenure',client.averageClientTenureMonths,scoreClientTenure(client.averageClientTenureMonths),15),
+    metricRecord('contractDuration','Contract Duration',client.contractDurationLevel,clampLevel(client.contractDurationLevel),15)
+  ]);
+
+  const cash = categoryModel('cash', 'Cash Performance', [
+    metricRecord('cashReserve','Cash Reserve (months)',cashReserveMonths,scoreCashReserve(cashReserveMonths),25),
+    metricRecord('operatingCashFlow','Operating Cash Flow',balance.operatingCashFlowLevel,clampLevel(balance.operatingCashFlowLevel),25),
+    metricRecord('currentRatio','Current Ratio',currentRatio,scoreCurrentRatio(currentRatio),20),
+    metricRecord('accountsReceivable','Collected Within 30 Days',ar.collectionRatePercent,scoreCollectionRate(ar.collectionRatePercent),15),
+    metricRecord('debtPosition','Debt-to-EBITDA',debtToEbitda,scoreDebtRatio(debtToEbitda),15)
+  ]);
+
+  const capital = categoryModel('capital', 'Capital Allocation', [
+    metricRecord('returnOnCapital','Return on Capital / ROIC-Lite',roicLite,scoreReturnOnCapital(roicLite),30),
+    metricRecord('reinvestmentRate','Reinvestment Rate',sde.reinvestmentRatePercent,scoreReinvestmentRate(sde.reinvestmentRatePercent),20),
+    metricRecord('technologyInvestment','Technology Investment',sde.technologyInvestmentLevel,clampLevel(sde.technologyInvestmentLevel),15),
+    metricRecord('talentInvestment','Talent Investment',sde.talentInvestmentLevel,clampLevel(sde.talentInvestmentLevel),15),
+    metricRecord('retainedEarningsGrowth','Retained Earnings Growth',sde.retainedEarningsGrowthLevel,clampLevel(sde.retainedEarningsGrowthLevel),20)
+  ]);
+
+  const categories = { profitability, growth, revenueQuality, cash, capital };
+  const missingCapabilities = Object.values(categories).filter(category => category.score === null).map(category => category.label);
+  if (missingCapabilities.length) {
+    const error = new Error(`More financial values are required before Performance can be scored: ${missingCapabilities.join(', ')}.`);
+    error.status = 422;
+    error.code = 'PERFORMANCE_DATA_INCOMPLETE';
+    error.missingCapabilities = missingCapabilities;
+    throw error;
+  }
+
+  const score = Math.round(Object.entries(CATEGORY_WEIGHTS)
+    .reduce((sum, [key, weight]) => sum + (categories[key].score * weight / 100), 0));
+  const weightedCoverage = Math.round(Object.entries(CATEGORY_WEIGHTS)
+    .reduce((sum, [key, weight]) => sum + (categories[key].coverage * weight / 100), 0));
+  const allVerified = rows.length > 0 && rows.every(row => row.validation_status === 'verified');
+  // The source rubric defines qualitative confidence layers but not a numeric
+  // formula. Manual/unverified inputs are therefore conservatively capped at
+  // 80; verified evidence can rise to 95. Missing metric coverage lowers it.
+  const confidenceCap = allVerified ? 95 : 80;
+  const confidence = Math.min(confidenceCap, Math.round(45 + weightedCoverage * 0.5));
+  const validationStatus = allVerified ? 'verified' : 'needs_validation';
+  const completedAt = new Date().toISOString();
+
+  const missingEvidence = [];
+  for (const category of Object.values(categories)) {
+    for (const metric of category.metrics) {
+      if (metric.score === null) missingEvidence.push(`${category.label}: ${metric.label}`);
+    }
+  }
+
+  const categoryScores = Object.fromEntries(Object.entries(categories).map(([key, category]) => [key, {
+    categoryScore: category.score,
+    coverage: category.coverage,
+    metrics: category.metrics
+  }]));
+
+  const files = rows
+    .filter(row => row.file_name)
+    .map(row => ({ type: row.evidence_type, name: row.file_name, status: row.extraction_status }));
+
+  const details = {
+    score,
+    confidence,
+    confidenceScore: confidence,
+    confidenceLabel: allVerified
+      ? `Verified financial evidence · ${weightedCoverage}% rubric coverage`
+      : `Manual financial evidence · ${weightedCoverage}% rubric coverage · verification recommended`,
+    validationStatus,
+    validation: allVerified ? 'green' : 'yellow',
+    provisional: false,
+    completed: true,
+    categoryScores,
+    financials: {
+      revenueTTM: revenue,
+      cogsTTM: cogs,
+      cogsPercent: revenue !== null && cogs !== null ? pctOf(cogs, revenue) : null,
+      grossProfitTTM: grossProfit,
+      grossMarginPercent: grossMargin,
+      netIncomeTTM: netIncome,
+      netMargin,
+      adjustedSDE,
+      sdeMarginPercent: sdeMargin,
+      cashReserveMonths,
+      currentRatio,
+      debtToEbitda,
+      recurringRevenuePercent,
+      topClientPercent,
+      roicLite,
+      reinvestmentRatePercent: finite(sde.reinvestmentRatePercent)
+    },
+    adjustedSDE,
+    roicLite,
+    evidenceLevel: allVerified ? 'Verified financial evidence' : 'Manual evidence with uploaded financial reports',
+    evidence: { files },
+    missingEvidence,
+    scoringVersion: 'performance-rubric-2026-step6b',
+    completedAt
+  };
+
+  return { score, confidence, validationStatus, weightedCoverage, categoryScores, details };
+}
+
+async function upsertPerformanceIndex(config, runId, model) {
+  const params = new URLSearchParams({
+    select: 'id,completed_at',
+    diagnostic_run_id: `eq.${runId}`,
+    index_type: 'eq.performance',
+    limit: '1'
+  });
+  const rows = await supabaseRequest(config, `index_results?${params.toString()}`);
+  const existing = Array.isArray(rows) ? rows[0] || null : null;
+  const record = {
+    diagnostic_run_id: runId,
+    index_type: 'performance',
+    score: model.score,
+    confidence: model.confidence,
+    validation_status: model.validationStatus,
+    progress: 100,
+    complete: true,
+    answers: {},
+    category_scores: model.categoryScores,
+    details: model.details,
+    completed_at: existing?.completed_at || model.details.completedAt,
+    updated_at: new Date().toISOString()
+  };
+
+  if (existing?.id) {
+    const update = new URLSearchParams({ id: `eq.${existing.id}` });
+    const updated = await supabaseRequest(config, `index_results?${update.toString()}`, {
+      method: 'PATCH',
+      headers: { Prefer: 'return=representation' },
+      body: JSON.stringify(record)
+    });
+    return Array.isArray(updated) ? updated[0] || record : record;
+  }
+  const created = await supabaseRequest(config, 'index_results', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify(record)
+  });
+  return Array.isArray(created) ? created[0] || record : record;
+}
+
+async function refreshDiagnosticStateAfterPerformance(config, account, run, model) {
+  const params = new URLSearchParams({
+    select: 'index_type,score,complete,progress,details',
+    diagnostic_run_id: `eq.${run.id}`
+  });
+  const rows = await supabaseRequest(config, `index_results?${params.toString()}`);
+  const map = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.index_type, row]));
+  const allComplete = ['strength','independence','performance'].every(index => map[index]?.complete === true && finite(map[index]?.score) !== null);
+  const now = new Date().toISOString();
+  const current = account.diagnostic_state && typeof account.diagnostic_state === 'object' ? account.diagnostic_state : {};
+  const indexes = { ...(current.indexes || {}) };
+  indexes.performance = {
+    complete: true,
+    progress: 100,
+    score: model.score,
+    details: model.details
+  };
+  const count = ['strength','independence','performance'].filter(index => index === 'performance' || indexes[index]?.complete === true || map[index]?.complete === true).length;
+  const state = {
+    ...current,
+    indexes,
+    count,
+    allComplete,
+    reportReady: false,
+    generatedAt: null,
+    updatedAt: now
+  };
+
+  const accountParams = new URLSearchParams({ id: `eq.${account.id}` });
+  await supabaseRequest(config, `accounts?${accountParams.toString()}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ diagnostic_state: state, updated_at: now })
+  });
+
+  const runParams = new URLSearchParams({ id: `eq.${run.id}` });
+  await supabaseRequest(config, `diagnostic_runs?${runParams.toString()}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ status: allComplete ? 'ready_to_generate' : 'in_progress', generated_at: null, updated_at: now })
+  });
+
+  return { allComplete, state };
+}
+
+async function calculatePerformance(config, body) {
+  const { account, run } = await requireContext(config, body);
+  const rows = await listEvidence(config, run.id);
+  const model = buildPerformanceModel(rows);
+  const indexResult = await upsertPerformanceIndex(config, run.id, model);
+  const diagnostic = await refreshDiagnosticStateAfterPerformance(config, account, run, model);
+  return {
+    account: { id: account.id, name: account.name, email: account.email, agencyName: account.agency_name },
+    diagnosticRun: { id: run.id, status: diagnostic.allComplete ? 'ready_to_generate' : 'in_progress' },
+    indexResult,
+    performance: model
+  };
 }
 
 export default async function handler(req, res) {
@@ -673,6 +1214,14 @@ export default async function handler(req, res) {
     }
     if (action === 'save_sde') {
       const result = await saveSde(config, body);
+      return json(res, 200, result);
+    }
+    if (action === 'save_manual') {
+      const result = await saveManualEvidence(config, body);
+      return json(res, 200, result);
+    }
+    if (action === 'calculate_performance') {
+      const result = await calculatePerformance(config, body);
       return json(res, 200, result);
     }
     return json(res, 422, { error: 'Unknown financial evidence action.' });

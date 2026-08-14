@@ -1,30 +1,34 @@
 (() => {
-  const API_BASE = String(window.CC_FINANCIAL_EVIDENCE_API_BASE || '/api/financial-evidence').replace(/\/+$/, '');
+  const API_BASE = '/api/financial-evidence';
   const MAX_FILE_BYTES = 4 * 1024 * 1024;
 
+  const safeJson = (value, fallback = null) => {
+    try { return JSON.parse(value); } catch { return fallback; }
+  };
+
   function accountIdentity() {
-    const account = window.CCAccount?.getAccount?.() || {};
-    const id = String(account.id || '').trim();
+    const current = window.CCAccount?.getAccount?.()
+      || safeJson(localStorage.getItem('cc_account'), null)
+      || safeJson(localStorage.getItem('ccUserAccount'), null)
+      || {};
     return {
-      accountId: id && !id.startsWith('local-') ? id : undefined,
-      email: String(account.email || localStorage.getItem('ccOwnerEmail') || '').trim(),
-      agencyUrl: String(account.agency_url || account.agencyUrl || localStorage.getItem('ccAgencyWebsite') || '').trim()
+      accountId: current.id && !String(current.id).startsWith('local-') ? current.id : '',
+      email: current.email || localStorage.getItem('ccOwnerEmail') || '',
+      agencyUrl: current.agency_url || current.agencyUrl || localStorage.getItem('ccAgencyWebsite') || ''
     };
   }
 
   async function request(url, options = {}) {
     const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(options.headers || {})
-      }
+      headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
+      ...options
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const error = new Error(payload.error || payload.message || 'Financial evidence request failed.');
+      const error = new Error(payload.error || 'Financial evidence request failed.');
       error.status = response.status;
       error.code = payload.code;
+      error.payload = payload;
       throw error;
     }
     return payload;
@@ -40,11 +44,6 @@
   }
 
   async function prepareUpload(evidenceType, file) {
-    if (!(file instanceof File)) throw new Error('Select a PDF report first.');
-    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
-    if (!isPdf) throw new Error('Only PDF reports can be uploaded.');
-    if (file.size <= 0 || file.size > MAX_FILE_BYTES) throw new Error('PDF must be 4 MB or smaller.');
-
     return request(API_BASE, {
       method: 'POST',
       body: JSON.stringify({
@@ -52,26 +51,23 @@
         ...accountIdentity(),
         evidenceType,
         filename: file.name,
-        mimeType: file.type || 'application/pdf',
-        size: file.size
+        size: file.size,
+        mimeType: file.type || 'application/pdf'
       })
     });
   }
 
   async function putSignedFile(signedUploadUrl, file) {
-    const formData = new FormData();
-    formData.append('cacheControl', '3600');
-    formData.append('', file);
     const response = await fetch(signedUploadUrl, {
       method: 'PUT',
-      headers: { 'x-upsert': 'false' },
-      body: formData
+      headers: { 'Content-Type': 'application/pdf' },
+      body: file
     });
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      let message = text;
-      try { message = JSON.parse(text)?.message || JSON.parse(text)?.error || text; } catch {}
-      throw new Error(message || 'The PDF could not be uploaded to secure storage.');
+      const error = new Error(text || 'The PDF could not be uploaded to secure storage.');
+      error.status = response.status;
+      throw error;
     }
     return true;
   }
@@ -96,8 +92,8 @@
       const extracted = await extract(prepared.evidence?.id, evidenceType);
       return { ...extracted, uploaded: true, extractionError: null };
     } catch (error) {
-      // The file is already safely stored. Return the current DB row so the
-      // assessment does not lose the upload if extraction is unavailable.
+      // Upload success is independent from optional AI extraction. If the
+      // extractor is unavailable, Step 6B manual fields remain fully usable.
       let evidence = prepared.evidence || null;
       try {
         const current = await list();
@@ -115,14 +111,37 @@
     return extract(evidenceId, evidenceType);
   }
 
-  async function saveSde({ benefits = [], ownershipPercent = null } = {}) {
+  async function saveManual(evidenceType, values = {}) {
+    return request(API_BASE, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'save_manual',
+        ...accountIdentity(),
+        evidenceType,
+        values
+      })
+    });
+  }
+
+  async function saveSde({ benefits = [], ownershipPercent = null, values = {} } = {}) {
     return request(API_BASE, {
       method: 'POST',
       body: JSON.stringify({
         action: 'save_sde',
         ...accountIdentity(),
         benefits,
-        ownershipPercent
+        ownershipPercent,
+        values
+      })
+    });
+  }
+
+  async function calculatePerformance() {
+    return request(API_BASE, {
+      method: 'POST',
+      body: JSON.stringify({
+        action: 'calculate_performance',
+        ...accountIdentity()
       })
     });
   }
@@ -134,6 +153,8 @@
     list,
     uploadPdf,
     retryExtraction,
-    saveSde
+    saveManual,
+    saveSde,
+    calculatePerformance
   };
 })();
