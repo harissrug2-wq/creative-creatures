@@ -1,8 +1,33 @@
 import React, { useEffect, useState } from 'react';
 import { CATEGORIES, QUESTIONS } from './questionsData.js';
 
+const TIME_ALLOCATION_QUESTION = QUESTIONS.find(q => q.id === 24) || {};
+const STRATEGIC_TIME_ITEMS = TIME_ALLOCATION_QUESTION.strategicItems || [];
+const OPERATIONAL_TIME_ITEMS = TIME_ALLOCATION_QUESTION.operationalItems || [];
+const ALL_TIME_ITEMS = [...STRATEGIC_TIME_ITEMS, ...OPERATIONAL_TIME_ITEMS];
+
+const clampPercent = value => {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.max(0, Math.min(100, Math.round(number * 10) / 10));
+};
+
+function summarizeTimeAllocation(rawAllocations = {}) {
+  const allocations = Object.fromEntries(
+    ALL_TIME_ITEMS.map(item => [item, clampPercent(rawAllocations?.[item])]),
+  );
+  const strategic = Math.round(
+    STRATEGIC_TIME_ITEMS.reduce((sum, item) => sum + allocations[item], 0) * 10,
+  ) / 10;
+  const operational = Math.round(
+    OPERATIONAL_TIME_ITEMS.reduce((sum, item) => sum + allocations[item], 0) * 10,
+  ) / 10;
+  const total = Math.round((strategic + operational) * 10) / 10;
+  return { allocations, strategic, operational, total };
+}
+
 const DEFAULT_ANSWERS = {
-  24: { strategic: 50, operational: 50 },
+  24: { strategic: 0, operational: 0, total: 0, allocations: {} },
   25: {
     Sales: 50,
     'Client Delivery': 50,
@@ -18,7 +43,8 @@ function calculateScores(answers) {
   CATEGORIES.forEach(cat => {
     const catQs = QUESTIONS.filter(q => q.category === cat.id);
     if (cat.id === 'strategic') {
-      const stratPct = answers[24]?.strategic ?? 50;
+      const timeAllocation = summarizeTimeAllocation(answers[24]?.allocations || {});
+      const stratPct = timeAllocation.strategic;
       const matrixObj = answers[25] || {};
       const matrixVals = Object.values(matrixObj);
       const matrixAvg = matrixVals.length ? matrixVals.reduce((a, b) => a + b, 0) / matrixVals.length : 50;
@@ -42,7 +68,29 @@ function calculateScores(answers) {
   } else if (mismatch !== null && mismatch > 15) {
     confidenceScore = Math.max(45, Math.round(60 - (mismatch - 15) * 0.6));
   }
-  return { categoryDetails, overallIndexScore, validationAnswer, validationScore, mismatch, validationStatus, confidenceScore };
+  const timeAllocation = summarizeTimeAllocation(answers[24]?.allocations || {});
+  const ownerTime = {
+    salesPercent: timeAllocation.allocations.Sales ?? 0,
+    deliveryPercent: timeAllocation.allocations.Delivery ?? 0,
+    clientManagementPercent: timeAllocation.allocations['Client Management'] ?? 0,
+    strategicPercent: timeAllocation.strategic,
+    operationalPercent: timeAllocation.operational,
+    totalPercent: timeAllocation.total,
+    period: 'last_30_days',
+    source: 'owner_reported_time_allocation'
+  };
+
+  return {
+    categoryDetails,
+    overallIndexScore,
+    validationAnswer,
+    validationScore,
+    mismatch,
+    validationStatus,
+    confidenceScore,
+    ownerTime,
+    timeAllocation
+  };
 }
 
 export default function App() {
@@ -51,8 +99,20 @@ export default function App() {
     return Number.isFinite(saved) && saved >= 0 && saved < QUESTIONS.length ? saved : 0;
   });
   const [answers, setAnswers] = useState(() => {
-    try { return { ...DEFAULT_ANSWERS, ...JSON.parse(localStorage.getItem('ccIndependenceAnswers') || '{}') }; }
-    catch { return { ...DEFAULT_ANSWERS }; }
+    try {
+      const saved = JSON.parse(localStorage.getItem('ccIndependenceAnswers') || '{}');
+      const merged = { ...DEFAULT_ANSWERS, ...saved };
+      const savedAllocations = saved?.[24]?.allocations;
+      // Older builds stored only a Strategic/Operational split. That is not
+      // enough to recover Sales or Delivery time, so do not fabricate those
+      // values. The owner must complete the detailed allocation once.
+      merged[24] = savedAllocations && typeof savedAllocations === 'object'
+        ? summarizeTimeAllocation(savedAllocations)
+        : { strategic: 0, operational: 0, total: 0, allocations: {} };
+      return merged;
+    } catch {
+      return { ...DEFAULT_ANSWERS };
+    }
   });
 
   const currentQuestion = QUESTIONS[currentIdx];
@@ -62,7 +122,10 @@ export default function App() {
   const isValidation = activeCategory === 'validation';
 
   const isQuestionAnswered = q => {
-    if (q.type === 'strategic-sliders' || q.type === 'activity-matrix') return true;
+    if (q.type === 'strategic-sliders') {
+      return Math.abs(Number(answers[24]?.total || 0) - 100) < 0.001;
+    }
+    if (q.type === 'activity-matrix') return true;
     return answers[q.id] !== undefined;
   };
   const currentAnswered = isQuestionAnswered(currentQuestion);
@@ -83,15 +146,31 @@ export default function App() {
   };
 
   const setChoice = score => setAnswers(prev => ({ ...prev, [currentQuestion.id]: score }));
-  const handleStrategicSlider = value => {
-    const strategic = Math.min(100, Math.max(0, Number(value) || 0));
-    setAnswers(prev => ({ ...prev, 24: { strategic, operational: 100 - strategic } }));
+  const handleTimeAllocation = (activity, value) => {
+    setAnswers(prev => {
+      const currentAllocations = prev?.[24]?.allocations || {};
+      const nextAllocations = {
+        ...currentAllocations,
+        [activity]: clampPercent(value)
+      };
+      return { ...prev, 24: summarizeTimeAllocation(nextAllocations) };
+    });
   };
   const handleMatrix = (activity, score) => setAnswers(prev => ({ ...prev, 25: { ...(prev[25] || {}), [activity]: score } }));
 
   const finish = () => {
     const scores = calculateScores(answers);
-    window.CCDiagnostic?.mark?.('independence', scores.overallIndexScore, { answers, scores });
+    if (Math.abs(scores.ownerTime.totalPercent - 100) >= 0.001) {
+      const allocationIndex = QUESTIONS.findIndex(q => q.id === 24);
+      if (allocationIndex >= 0) setCurrentIdx(allocationIndex);
+      return;
+    }
+    window.CCDiagnostic?.mark?.('independence', scores.overallIndexScore, {
+      answers,
+      scores,
+      ownerTime: scores.ownerTime,
+      timeAllocation: scores.timeAllocation
+    });
     if (!window.CCDiagnostic) {
       localStorage.setItem('ownerIndependenceScore', String(scores.overallIndexScore));
       localStorage.setItem('ccIndexIndependenceComplete', 'true');
@@ -173,12 +252,89 @@ export default function App() {
 
               {currentQuestion.type === 'strategic-sliders' && (
                 <div className="special-question-body">
-                  <div className="allocation-grid">
-                    <section><span>Strategic Work</span><strong>{answers[24]?.strategic ?? 50}%</strong><ul>{currentQuestion.strategicItems.map(item => <li key={item}>{item}</li>)}</ul></section>
-                    <section><span>Operational Work</span><strong>{answers[24]?.operational ?? 50}%</strong><ul>{currentQuestion.operationalItems.map(item => <li key={item}>{item}</li>)}</ul></section>
+                  <div className="time-allocation-summary">
+                    <div>
+                      <span>Strategic Work</span>
+                      <strong>{answers[24]?.strategic ?? 0}%</strong>
+                    </div>
+                    <div>
+                      <span>Operational Work</span>
+                      <strong>{answers[24]?.operational ?? 0}%</strong>
+                    </div>
+                    <div className={`allocation-total ${Math.abs(Number(answers[24]?.total || 0) - 100) < 0.001 ? 'complete' : 'incomplete'}`}>
+                      <span>Total allocation</span>
+                      <strong>{answers[24]?.total ?? 0}%</strong>
+                      <small>{Math.abs(Number(answers[24]?.total || 0) - 100) < 0.001 ? 'Ready to continue' : 'Must equal 100%'}</small>
+                    </div>
                   </div>
-                  <div className="slider-labels"><span>100% Operational</span><span>100% Strategic</span></div>
-                  <input className="allocation-slider" type="range" min="0" max="100" value={answers[24]?.strategic ?? 50} onChange={e => handleStrategicSlider(e.target.value)} />
+
+                  <div className="time-allocation-groups">
+                    <section className="time-allocation-card strategic">
+                      <header>
+                        <div>
+                          <span>Strategic Work</span>
+                          <small>Owner time spent building, leading, and allocating.</small>
+                        </div>
+                        <strong>{answers[24]?.strategic ?? 0}%</strong>
+                      </header>
+                      <div className="time-allocation-list">
+                        {currentQuestion.strategicItems.map(item => (
+                          <label className="time-allocation-row" key={item}>
+                            <span>{item}</span>
+                            <span className="percent-input">
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                max="100"
+                                step="1"
+                                value={answers[24]?.allocations?.[item] ?? ''}
+                                placeholder="0"
+                                onChange={e => handleTimeAllocation(item, e.target.value)}
+                              />
+                              <b>%</b>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </section>
+
+                    <section className="time-allocation-card operational">
+                      <header>
+                        <div>
+                          <span>Operational Work</span>
+                          <small>Owner time spent directly operating the agency.</small>
+                        </div>
+                        <strong>{answers[24]?.operational ?? 0}%</strong>
+                      </header>
+                      <div className="time-allocation-list">
+                        {currentQuestion.operationalItems.map(item => (
+                          <label className="time-allocation-row" key={item}>
+                            <span>{item}</span>
+                            <span className="percent-input">
+                              <input
+                                type="number"
+                                inputMode="decimal"
+                                min="0"
+                                max="100"
+                                step="1"
+                                value={answers[24]?.allocations?.[item] ?? ''}
+                                placeholder="0"
+                                onChange={e => handleTimeAllocation(item, e.target.value)}
+                              />
+                              <b>%</b>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    </section>
+                  </div>
+
+                  <p className="time-allocation-help">
+                    Enter the percentage of your time spent on each activity over the last 30 days.
+                    All activities together must equal 100%. Sales and Delivery are saved as separate
+                    owner-dependency metrics for Agency Goals.
+                  </p>
                 </div>
               )}
 

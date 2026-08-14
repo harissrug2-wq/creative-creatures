@@ -242,10 +242,24 @@ function buildMetrics(scorecard, indexRows, evidenceRows) {
   const extracted = evidenceObjects(evidenceRows);
 
   const ownerDelivery = firstNumber([independenceDetails, ...extracted], [
-    'ownerTime.deliveryPercent', 'owner_time.delivery_percent', 'ownerDeliveryPercent', 'owner_delivery_percent'
+    'ownerTime.deliveryPercent',
+    'scores.ownerTime.deliveryPercent',
+    'timeAllocation.allocations.Delivery',
+    'scores.timeAllocation.allocations.Delivery',
+    'answers.24.allocations.Delivery',
+    'owner_time.delivery_percent',
+    'ownerDeliveryPercent',
+    'owner_delivery_percent'
   ]);
   const ownerSales = firstNumber([independenceDetails, ...extracted], [
-    'ownerTime.salesPercent', 'owner_time.sales_percent', 'ownerSalesPercent', 'owner_sales_percent'
+    'ownerTime.salesPercent',
+    'scores.ownerTime.salesPercent',
+    'timeAllocation.allocations.Sales',
+    'scores.timeAllocation.allocations.Sales',
+    'answers.24.allocations.Sales',
+    'owner_time.sales_percent',
+    'ownerSalesPercent',
+    'owner_sales_percent'
   ]);
   const revenue = firstNumber([...extracted, performanceDetails], [
     'revenueTTM', 'ttmRevenue', 'revenue_ttm', 'financials.revenueTTM', 'financials.revenue_ttm', 'metrics.revenueTTM'
@@ -270,8 +284,8 @@ function buildMetrics(scorecard, indexRows, evidenceRows) {
     : `${Math.max(0, Math.min(5, Math.round(leadershipScore / 20)))} / 5`;
 
   return [
-    metric('ownerDelivery', ownerDelivery, 'Owner Independence evidence'),
-    metric('ownerSales', ownerSales, 'Owner Independence evidence'),
+    metric('ownerDelivery', ownerDelivery, 'Owner Independence · 30-day time allocation'),
+    metric('ownerSales', ownerSales, 'Owner Independence · 30-day time allocation'),
     metric('revenue', revenue, 'Financial evidence'),
     metric('cogs', cogs, 'Financial evidence'),
     metric('margin', netMargin, 'Financial evidence'),
