@@ -14,6 +14,9 @@ export default function QuestionCard({
   onNext,
   canGoBack,
   isLast,
+  isSaving = false,
+  saveError = '',
+  finishLabel = 'Save & finish',
 }) {
   if (!question) return null;
 
@@ -21,6 +24,7 @@ export default function QuestionCard({
   const canProceed = selectedValue !== undefined && selectedValue !== null;
 
   const handleSelect = (val) => {
+    if (isSaving) return;
     onAnswer(isScaleTest ? 'scale' : question.id, val);
   };
 
@@ -171,6 +175,12 @@ export default function QuestionCard({
         })}
       </div>
 
+      {saveError && (
+        <div style={{ margin: '0 28px 18px', padding: '12px 14px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fecaca', color: '#b91c1c', fontSize: 13, lineHeight: 1.45 }}>
+          {saveError}
+        </div>
+      )}
+
       {/* ── Divider ──────────────────────────────────── */}
       <div style={{ height: 1, background: '#f1f5f9', margin: 0 }} />
 
@@ -204,10 +214,11 @@ export default function QuestionCard({
 
         {/* Next / Save & finish Button */}
         <button
-          className={`btn-next ${canProceed ? 'active' : 'disabled'}`}
-          onClick={canProceed ? onNext : undefined}
+          className={`btn-next ${canProceed && !isSaving ? 'active' : 'disabled'}`}
+          disabled={!canProceed || isSaving}
+          onClick={canProceed && !isSaving ? onNext : undefined}
         >
-          {isLast ? 'Save & finish' : 'Next'}
+          {isSaving ? 'Saving & regenerating…' : (isLast ? finishLabel : 'Next')}
           <svg
             width="13"
             height="13"

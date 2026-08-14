@@ -1,4 +1,5 @@
 (() => {
+  const IS_RETAKE = new URLSearchParams(window.location.search).get('retake') === '1';
   const sections = [
     {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Upload your PDF report, then confirm the financial values below. Manual values are used when automated extraction is unavailable.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
     {id:'balanceSheet',evidenceType:'balance_sheet',title:'Balance Sheet',short:'Balance Sheet',type:'upload',copy:'Upload your balance sheet PDF, then confirm the balance-sheet and cash values used for scoring.',requirements:['PDF report','Current assets and liabilities','Cash / debt evidence']},
@@ -255,7 +256,7 @@
         <div class="review-error ${state.finishError?'show':''}" id="reviewError">${esc(state.finishError||'Complete every section before calculating Financial Performance.')}</div>
         <div class="performance-analysis-note"><strong>Scoring:</strong> Profitability 25%, Growth 20%, Revenue Quality 20%, Cash Performance 20%, Capital Allocation 15%. Missing optional metrics reduce confidence rather than being silently scored as zero. Manual/unverified evidence is capped below fully verified confidence.</div>
       </div>
-      <footer class="q-card-footer"><button type="button" class="btn-back" id="previous">← Back</button><span class="saved-note">Database-backed</span><button type="button" class="btn-next ${allComplete()?'active':'disabled'}" id="completePerformance">Calculate Performance Index ${arrowIcon}</button></footer>
+      <footer class="q-card-footer"><button type="button" class="btn-back" id="previous">← Back</button><span class="saved-note">Database-backed</span><button type="button" class="btn-next ${allComplete()?'active':'disabled'}" id="completePerformance">${IS_RETAKE?'Recalculate & regenerate report':'Calculate Performance Index'} ${arrowIcon}</button></footer>
     </article>`;
   }
 
@@ -380,7 +381,7 @@
   async function finish(){
     if(!allComplete()){state.finishError='Complete every section and all required financial values before calculating Performance.';render();return;}
     const button=document.querySelector('#completePerformance');
-    if(button){button.disabled=true;button.textContent='Calculating Performance…';}
+    if(button){button.disabled=true;button.textContent=IS_RETAKE?'Saving & regenerating…':'Calculating Performance…';}
     state.finishError='';
     try{
       for(const section of sections)await saveManualSection(section,{silent:true});
@@ -389,27 +390,32 @@
       const performance=result?.performance;
       if(!performance||!Number.isFinite(Number(performance.score)))throw new Error('The Performance score was not returned by the backend.');
       const score=Number(performance.score);
-      const details=performance.details||{};
+      const details={...(performance.details||{}),retakenAt:IS_RETAKE?new Date().toISOString():null};
       localStorage.setItem('agencyPerformanceDetails',JSON.stringify(details));
       localStorage.setItem('agencyPerformanceScore',String(score));
       localStorage.setItem('agencyPerformanceDraft',JSON.stringify({sectionIndex:state.sectionIndex,documents:state.documents,addbacks:state.addbacks,sdeReviewed:state.sdeReviewed,ownershipPercent:state.ownershipPercent,manual:state.manual}));
       if(window.CCDiagnostic?.mark)window.CCDiagnostic.mark('performance',score,details);
       else localStorage.setItem('ccIndexPerformanceComplete','true');
 
-      // Step 6B refreshes the already-generated Scorecard immediately when
-      // possible, so AOFI and Agency Goals use the new Performance score.
-      if(window.CCScorecard?.generate){
-        try{
-          await window.CCScorecard.generate();
-          if(window.CCDiagnostic?.completeReportGeneration)window.CCDiagnostic.completeReportGeneration();
-        }catch(error){
-          // Performance is still saved. The Diagnostic page will offer the
-          // normal Generate My Agency Scorecard action if regeneration fails.
-          console.warn('Scorecard regeneration deferred',error);
-        }
+      if(window.CCDiagnostic&&window.CCAccount?.syncDiagnosticState){
+        await window.CCAccount.syncDiagnosticState(window.CCDiagnostic.serialize(),{throwOnError:true});
       }
-      location.href='/diagnostic/';
+
+      const diagnosticState=window.CCDiagnostic?.getState?.()||{};
+      if(diagnosticState.allComplete&&window.CCScorecard?.generate){
+        window.CCScorecard.clear?.();
+        await window.CCScorecard.generate();
+        window.CCDiagnostic?.completeReportGeneration?.();
+        if(window.CCAccount?.syncDiagnosticState){
+          await window.CCAccount.syncDiagnosticState(window.CCDiagnostic.serialize(),{throwOnError:true});
+        }
+        location.href=IS_RETAKE?'/agency-scorecard/?updated=performance':'/agency-scorecard/?generated=performance';
+        return;
+      }
+
+      location.href='/diagnostic/?updated=performance';
     }catch(error){
+      console.error('Agency Performance retake could not be saved.',error);
       state.finishError=error.message||'Agency Performance could not be calculated.';
       render();
     }
@@ -436,6 +442,7 @@
     finally{state.remoteLoaded=true;persist();render();}
   }
 
-  if(window.CCDiagnostic?.getState?.().performance)state.sectionIndex=sections.length;
+  if(IS_RETAKE)state.sectionIndex=0;
+  else if(window.CCDiagnostic?.getState?.().performance)state.sectionIndex=sections.length;
   render();hydrateRemoteEvidence();
 })();

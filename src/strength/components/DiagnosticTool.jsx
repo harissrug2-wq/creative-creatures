@@ -9,10 +9,12 @@ import {
 } from '../data/questions.js';
 import QuestionCard from './QuestionCard.jsx';
 
+const IS_RETAKE = new URLSearchParams(window.location.search).get('retake') === '1';
 const TOTAL_STEPS = 31;
 
 export default function DiagnosticTool() {
   const [currentQ, setCurrentQ] = useState(() => {
+    if (IS_RETAKE) return 1;
     const saved = Number(localStorage.getItem('ccStrengthCurrentQuestion'));
     return Number.isFinite(saved) && saved >= 1 && saved <= TOTAL_STEPS ? saved : 1;
   });
@@ -23,6 +25,8 @@ export default function DiagnosticTool() {
     const saved = localStorage.getItem('ccStrengthScaleAnswer');
     return saved === null ? undefined : Number(saved);
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const isScaleTest = currentQ === 31;
   const question = isScaleTest ? SCALE_TEST_QUESTION : QUESTIONS[currentQ - 1];
@@ -54,18 +58,62 @@ export default function DiagnosticTool() {
     else setAnswers((prev) => ({ ...prev, [qId]: value }));
   }, []);
 
-  const handleNext = () => {
-    if (currentQ < 31) setCurrentQ((q) => q + 1);
-    else {
-      const results = computeResults(answers, scaleAnswer);
-      window.CCDiagnostic?.mark?.('strength', results.overallScore, { results, answers, scaleAnswer });
+  const finish = async () => {
+    if (isSaving) return;
+    const results = computeResults(answers, scaleAnswer);
+    setIsSaving(true);
+    setSaveError('');
+
+    try {
+      window.CCDiagnostic?.mark?.('strength', results.overallScore, {
+        results,
+        answers,
+        scaleAnswer,
+        retakenAt: IS_RETAKE ? new Date().toISOString() : null,
+      });
+
       if (!window.CCDiagnostic) {
-        localStorage.setItem('agencyStrengthScore', results.overallScore);
+        localStorage.setItem('agencyStrengthScore', String(results.overallScore));
         localStorage.setItem('ccIndexStrengthComplete', 'true');
         localStorage.setItem('ccIndexStrengthProgress', '100');
+        window.location.href = '/diagnostic/';
+        return;
       }
-      window.location.href = '/diagnostic/';
+
+      if (window.CCAccount?.syncDiagnosticState) {
+        await window.CCAccount.syncDiagnosticState(
+          window.CCDiagnostic.serialize(),
+          { throwOnError: true },
+        );
+      }
+
+      const diagnosticState = window.CCDiagnostic.getState?.() || {};
+      if (diagnosticState.allComplete && window.CCScorecard?.generate) {
+        window.CCScorecard.clear?.();
+        await window.CCScorecard.generate();
+        window.CCDiagnostic.completeReportGeneration?.();
+        if (window.CCAccount?.syncDiagnosticState) {
+          await window.CCAccount.syncDiagnosticState(
+            window.CCDiagnostic.serialize(),
+            { throwOnError: true },
+          );
+        }
+        window.location.href = '/agency-scorecard/?updated=strength';
+        return;
+      }
+
+      window.location.href = '/diagnostic/?updated=strength';
+    } catch (error) {
+      console.error('Agency Strength retake could not be saved.', error);
+      setSaveError(error?.message || 'Your updated assessment could not be saved. Please try again.');
+      setIsSaving(false);
     }
+  };
+
+  const handleNext = () => {
+    if (isSaving) return;
+    if (currentQ < TOTAL_STEPS) setCurrentQ((q) => q + 1);
+    else void finish();
   };
 
   const handleBack = () => {
@@ -208,7 +256,10 @@ export default function DiagnosticTool() {
               onBack={handleBack}
               onNext={handleNext}
               canGoBack={currentQ > 1}
-              isLast={currentQ === 31}
+              isLast={currentQ === TOTAL_STEPS}
+              isSaving={isSaving}
+              saveError={saveError}
+              finishLabel={IS_RETAKE ? 'Save & regenerate report' : 'Save & finish'}
             />
           </main>
         </div>

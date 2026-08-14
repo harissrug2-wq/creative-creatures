@@ -30,12 +30,65 @@
     return DESTINATIONS[value] || DESTINATIONS.diagnostic;
   }
 
+  function cleanDiagnosticState() {
+    return {
+      indexes: {},
+      count: 0,
+      allComplete: false,
+      reportReady: false,
+      generatedAt: null
+    };
+  }
+
+  function accountIdentity(account) {
+    if (!account) return { id: '', email: '', agencyUrl: '' };
+    const id = String(account.id || '').trim();
+    return {
+      id: id && !id.startsWith('local-') ? id : '',
+      email: String(account.email || '').trim().toLowerCase(),
+      agencyUrl: normalizeUrl(account.agency_url || account.agencyUrl || account.agencyWebsite || '')
+    };
+  }
+
+  function sameAccount(left, right) {
+    if (!left || !right) return false;
+    const a = accountIdentity(left);
+    const b = accountIdentity(right);
+    if (a.id && b.id) return a.id === b.id;
+    if (a.email && b.email && a.email === b.email) return true;
+    if (a.agencyUrl && b.agencyUrl && a.agencyUrl === b.agencyUrl) return true;
+    return false;
+  }
+
+  function clearIdentityStorage() {
+    [
+      'ownerArchetypeReportData',
+      'ownerArchetypeReportToken',
+      'ownerArchetypeRemoteReportToken',
+      'ownerArchetypeRemoteAssessment',
+      'ownerIdentityComplete',
+      'ccOwnerFirstName',
+      'ccOwnerLastName',
+      'ccOwnerEmail',
+      'ccAgencyWebsite',
+      'ccAgencyName',
+      'ccPendingDiagnosticState',
+      'ccProgramPath',
+      'ccAccountCreated'
+    ].forEach(key => localStorage.removeItem(key));
+  }
+
+  function resetAccountScopedState() {
+    window.CCDiagnostic?.reset?.({ silent: true });
+    clearIdentityStorage();
+  }
+
   function getAccount() {
     return safeJson(localStorage.getItem('cc_account'), null)
       || safeJson(localStorage.getItem('ccUserAccount'), null);
   }
 
-  function hydrateAccount(account) {
+  function hydrateAccount(account, options = {}) {
     if (!account) return null;
     const name = String(account.name || account.displayName || '').trim();
     const names = name.split(/\s+/).filter(Boolean);
@@ -61,19 +114,33 @@
       localStorage.setItem('ownerIdentityComplete', 'true');
     }
 
-    const diagnosticState = account.diagnostic_state || account.diagnosticState;
-    if (diagnosticState) {
-      if (window.CCDiagnostic?.restore) window.CCDiagnostic.restore(diagnosticState);
-      else localStorage.setItem('ccPendingDiagnosticState', JSON.stringify(diagnosticState));
+    const hasDiagnosticState = Object.prototype.hasOwnProperty.call(account, 'diagnostic_state')
+      || Object.prototype.hasOwnProperty.call(account, 'diagnosticState');
+    const diagnosticState = account.diagnostic_state ?? account.diagnosticState ?? {};
+    if (hasDiagnosticState) {
+      if (window.CCDiagnostic?.restore) {
+        window.CCDiagnostic.restore(diagnosticState, { replace: options.replaceDiagnostic === true });
+      } else {
+        localStorage.setItem('ccPendingDiagnosticState', JSON.stringify({
+          state: diagnosticState,
+          replace: options.replaceDiagnostic === true
+        }));
+      }
     }
 
     return account;
   }
 
-  function saveAccount(account) {
+  function saveAccount(account, options = {}) {
+    const previous = getAccount();
+    const switching = Boolean(previous && !sameAccount(previous, account));
+    if (options.forceReset === true || switching) resetAccountScopedState();
+
     localStorage.setItem('cc_account', JSON.stringify(account));
     localStorage.setItem('ccUserAccount', JSON.stringify(account));
-    hydrateAccount(account);
+    hydrateAccount(account, {
+      replaceDiagnostic: options.replaceDiagnostic === true || options.forceReset === true || switching
+    });
     window.dispatchEvent(new CustomEvent('cc-account-updated', { detail: account }));
     return account;
   }
@@ -114,19 +181,35 @@
   }
 
   async function createAccount(payload) {
-    const localAccount = provisionalAccount(payload);
-    saveAccount(localAccount);
+    const previous = getAccount();
+    const candidate = provisionalAccount(payload);
+    const isNewIdentity = !previous || !sameAccount(previous, candidate);
+    const initialDiagnosticState = isNewIdentity ? cleanDiagnosticState() : (payload.diagnosticState || candidate.diagnostic_state || {});
+    const localAccount = { ...candidate, diagnostic_state: initialDiagnosticState };
+
+    // A brand-new signup must start from a clean diagnostic workspace even
+    // when another owner previously used this browser/profile.
+    if (isNewIdentity) resetAccountScopedState();
+    saveAccount(localAccount, { replaceDiagnostic: isNewIdentity });
 
     try {
       const result = await request(ACCOUNT_API_BASE, {
         method: 'POST',
         body: JSON.stringify({
           ...payload,
+          // A new account never inherits browser diagnostic state. The API
+          // also enforces this server-side; this is a client-side safeguard.
+          diagnosticState: initialDiagnosticState,
           agencyUrl: payload.agencyUrl,
           agencyUrlNormalized: normalizeUrl(payload.agencyUrl)
         })
       });
-      if (result.account) return saveAccount({ ...result.account, backend_saved: true });
+      if (result.account) {
+        return saveAccount(
+          { ...result.account, backend_saved: true },
+          { replaceDiagnostic: isNewIdentity }
+        );
+      }
     } catch (error) {
       console.warn('Creative Creatures account sync is unavailable; the local report remains usable.', error);
     }
@@ -157,7 +240,14 @@
 
     try {
       const result = await request(`${ACCOUNT_API_BASE}?${params.toString()}`);
-      if (result.account) return saveAccount({ ...result.account, backend_saved: true });
+      if (result.account) {
+        // Backend state is authoritative for a returning account. Clear any
+        // other owner's local workflow before restoring this account.
+        return saveAccount(
+          { ...result.account, backend_saved: true },
+          { forceReset: true, replaceDiagnostic: true }
+        );
+      }
     } catch (error) {
       const local = getAccount();
       if (matchesLocal(local, { name, email: cleanEmail, agencyUrl: cleanUrl })) return saveAccount(local);
@@ -220,11 +310,15 @@
 
   const pending = safeJson(localStorage.getItem('ccPendingDiagnosticState'), null);
   if (pending && window.CCDiagnostic?.restore) {
-    window.CCDiagnostic.restore(pending);
+    const pendingState = pending?.state ?? pending;
+    const replace = pending?.state ? pending.replace === true : true;
+    window.CCDiagnostic.restore(pendingState, { replace });
     localStorage.removeItem('ccPendingDiagnosticState');
   }
   const existingAccount = getAccount();
-  if (existingAccount) hydrateAccount(existingAccount);
+  // Normal page navigation keeps the current account's newer local progress.
+  // Exact backend replacement happens only during account lookup/switch.
+  if (existingAccount) hydrateAccount(existingAccount, { replaceDiagnostic: false });
 
   window.CCAccount = {
     normalizeUrl,
@@ -234,6 +328,8 @@
     createAccount,
     lookupAccount,
     syncDiagnosticState,
+    resetAccountScopedState,
+    sameAccount,
     destinationPath,
     accountApiBase: ACCOUNT_API_BASE,
     diagnosticApiBase: DIAGNOSTIC_API_BASE
