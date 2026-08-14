@@ -419,7 +419,7 @@ async function loadModel(config, account) {
     owner: row.owner_name || '',
     status: row.status || 'Needs Definition',
     done: row.done_looks_like || '',
-    completion: row.target_completion || 'This month',
+    completion: row.target_completion || '',
     completionDate: row.target_completion_date || '',
     updatedAt: row.updated_at
   }]));
@@ -427,7 +427,7 @@ async function loadModel(config, account) {
   const departmentSuggestions = buildDepartmentSuggestions(scorecardWithValuation);
   const departments = DEPARTMENTS.map(name => ({
     name,
-    ...(savedDepartments[name] || { goal: '', owner: '', status: 'Needs Definition', done: '', completion: 'This month', completionDate: '' }),
+    ...(savedDepartments[name] || { goal: '', owner: '', status: 'Needs Definition', done: '', completion: '', completionDate: '' }),
     suggestion: departmentSuggestions[name] || null
   }));
 
@@ -444,6 +444,20 @@ async function loadModel(config, account) {
     status: row.status || 'Not started'
   }));
 
+  const targetCount = METRICS.filter(item => targets[item.id] && finite(targets[item.id].resolvedValue) !== null).length;
+  const evidenceGaps = metrics.filter(item => !item.available).map(item => ({
+    metricId: item.id,
+    label: item.label,
+    reason: item.source || 'Required source evidence has not been supplied.'
+  }));
+  const definedDepartmentCount = departments.filter(item => clean(item.goal)).length;
+  const partialDepartments = departments
+    .filter(item => clean(item.goal) && (!clean(item.owner) || !clean(item.done) || !clean(item.completionDate)))
+    .map(item => item.name);
+  const incompleteRocks = rocks
+    .filter(item => !clean(item.owner) || !clean(item.dueDate))
+    .map(item => item.title);
+
   return {
     account: { id: account.id, name: account.name, email: account.email, agencyName: account.agency_name },
     diagnosticRun: { id: run.id, status: run.status },
@@ -452,6 +466,17 @@ async function loadModel(config, account) {
     targets,
     departments,
     rocks,
+    readiness: {
+      targetCount,
+      targetTotal: METRICS.length,
+      definedDepartmentCount,
+      departmentTotal: DEPARTMENTS.length,
+      rockCount: rocks.length,
+      evidenceGaps,
+      partialDepartments,
+      incompleteRocks,
+      canComplete: targetCount === METRICS.length && partialDepartments.length === 0 && incompleteRocks.length === 0
+    },
     goalsComplete: account.diagnostic_state?.goalsComplete === true,
     goalsCompletedAt: account.diagnostic_state?.goalsCompletedAt || null
   };
@@ -558,7 +583,7 @@ async function upsertDepartment(config, accountId, body) {
   const allowedStatuses = ['Needs Definition', 'On Track', 'Watch', 'Off Track'];
   const allowedCompletions = ['This month', 'This quarter', 'Next quarter', 'This year'];
   const status = allowedStatuses.includes(body.status) ? body.status : 'Needs Definition';
-  const completion = allowedCompletions.includes(body.completion) ? body.completion : 'This month';
+  const completion = allowedCompletions.includes(body.completion) ? body.completion : null;
   const completionDate = /^\d{4}-\d{2}-\d{2}$/.test(clean(body.completionDate)) ? clean(body.completionDate) : null;
 
   const rows = await supabaseRequest(config, 'department_goals?on_conflict=account_id%2Cdepartment', {
@@ -720,6 +745,24 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, rock: row });
     }
     if (action === 'complete') {
+      const model = await loadModel(config, account);
+      const readiness = model.readiness || {};
+      const blockers = [];
+      if (Number(readiness.targetCount || 0) < Number(readiness.targetTotal || METRICS.length)) {
+        blockers.push(`Set targets for all ${readiness.targetTotal || METRICS.length} Agency Goal cards.`);
+      }
+      if (Array.isArray(readiness.partialDepartments) && readiness.partialDepartments.length) {
+        blockers.push(`Finish owner, measurable outcome, and completion date for: ${readiness.partialDepartments.join(', ')}.`);
+      }
+      if (Array.isArray(readiness.incompleteRocks) && readiness.incompleteRocks.length) {
+        blockers.push(`Add an owner and due date for: ${readiness.incompleteRocks.join(', ')}.`);
+      }
+      if (blockers.length) {
+        const error = new Error(blockers.join(' '));
+        error.status = 409;
+        error.code = 'GOALS_INCOMPLETE';
+        throw error;
+      }
       const completedAt = await markGoalsComplete(config, account);
       return json(res, 200, { ok: true, completedAt });
     }
