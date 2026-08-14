@@ -1,40 +1,84 @@
 <!doctype html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Admin · Creative Creatures</title><link rel="icon" href="/favicon.svg"><link rel="stylesheet" href="/portal/base.css"><link rel="stylesheet" href="/portal/admin.css"></head>
-<body class="admin-page">
-<button class="admin-mobile-toggle" id="adminToggle" aria-label="Open admin navigation">☰</button>
-<div class="admin-layout">
-<aside class="admin-sidebar" id="adminSidebar">
-  <a class="admin-brand" href="/login/"><img class="cc-logo" src="/portal/creative-creatures-logo.png" alt="Creative Creatures"></a>
-  <span class="admin-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3 5 6v5c0 5 3 8 7 10 4-2 7-5 7-10V6z"/></svg>Admin Console</span>
-  <nav class="admin-nav">
-    <a class="active" href="/admin/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M8 8V4h8v4M8 12v5M12 10v7M16 13v4"/></svg>Agencies</a>
-    <a href="#" data-demo><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Performance</a>
-  </nav>
-  <div class="admin-profile"><span class="admin-avatar">PA</span><div class="admin-profile-copy"><strong>Platform Admin</strong><span>admin@creativecreatures.org</span></div></div>
-</aside>
-<main class="admin-main">
-  <div class="admin-crumb">Creative Creatures / <strong>Admin</strong></div>
-  <section class="admin-content">
-    <div class="admin-title-row"><div><h1>Agencies</h1><p>All agency tenants on the platform. Click a card to manage, or peek at high-level stats at a glance.</p></div><button class="cc-btn cc-btn-primary" id="newAgency">＋ New Agency</button></div>
-    <div class="agency-grid" id="agencyGrid">
-      <article class="cc-card agency-card">
-        <div class="agency-head"><span class="agency-head-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="8" width="14" height="12" rx="2"/><path d="M9 8V4h6v4M9 12v5M13 10v7M17 13v4"/></svg></span><div class="agency-head-copy"><div class="agency-name-row"><h2>Directing Design</h2><span class="plan-pill">Growth</span></div><div class="agency-email">owner@directingdesign.com</div></div></div>
-        <div class="agency-stats"><div class="agency-stat"><span>♧ Accounts</span><strong>8</strong></div><div class="agency-stat"><span>$ MRR</span><strong>$10.0k</strong></div><div class="agency-stat"><span>♮ Integrations</span><strong>9</strong></div></div>
-        <div class="health-row"><div class="health-label"><span>Account health</span><span>5/8 healthy</span></div><div class="health-track"><span style="width:63%"></span></div><div class="health-dots"><span><i style="background:#1aaa61"></i>5 healthy</span><span><i style="background:#e1a21b"></i>3 at risk</span></div></div>
-        <div class="agency-footer"><time>since 2024-01-15</time><button class="small-action" data-demo>Delete</button><a class="small-action" style="display:inline-grid;place-items:center;text-decoration:none" href="/platform/">◉ Dashboard</a><a class="small-action primary" style="display:inline-grid;place-items:center;text-decoration:none" href="/platform/">Manage →</a></div>
-      </article>
-      <article class="cc-card agency-card">
-        <div class="agency-head"><span class="agency-head-icon"><svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="5" y="8" width="14" height="12" rx="2"/><path d="M9 8V4h6v4M9 12v5M13 10v7M17 13v4"/></svg></span><div class="agency-head-copy"><div class="agency-name-row"><h2>Bright Foundry Co.</h2><span class="plan-pill">Starter</span></div><div class="agency-email">ops@brightfoundry.co</div></div></div>
-        <div class="agency-stats"><div class="agency-stat"><span>♧ Accounts</span><strong>2</strong></div><div class="agency-stat"><span>$ MRR</span><strong>$1.4k</strong></div><div class="agency-stat"><span>♮ Integrations</span><strong>3</strong></div></div>
-        <div class="health-row"><div class="health-label"><span>Account health</span><span>1/2 healthy</span></div><div class="health-track"><span style="width:50%"></span></div><div class="health-dots"><span><i style="background:#1aaa61"></i>1 healthy</span><span><i style="background:#e1a21b"></i>1 at risk</span></div></div>
-        <div class="agency-footer"><time>since 2025-03-02</time><button class="small-action" data-demo>Delete</button><button class="small-action" data-demo>◉ Dashboard</button><button class="small-action primary" data-demo>Manage →</button></div>
-      </article>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agencies · Creative Creatures Admin</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div class="admin-app">
+    <aside class="admin-side">
+      <div class="admin-brand">
+        <img src="/portal/creative-creatures-logo.png" alt="Creative Creatures">
+        <div class="admin-badge">
+          <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/></svg>Admin Console
+        </div>
+      </div>
+      <nav class="admin-nav">
+        <a class="admin-link active" href="/admin/">
+          <svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg>Agencies
+        </a>
+        <a class="admin-link" href="/admin/performance/">
+          <svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Performance
+        </a>
+      </nav>
+      <div class="admin-profile">
+        <span class="admin-avatar">PA</span>
+        <div>
+          <strong>Platform Admin</strong>
+          <span>admin@creativecreatures.org</span>
+        </div>
+        <i>⌃</i>
+      </div>
+    </aside>
+    <div class="admin-overlay"></div>
+    <div class="admin-main">
+      <header class="admin-top">
+        <button class="admin-mobile">☰</button>
+        <span>Creative Creatures</span>&nbsp;/&nbsp;Admin
+      </header>
+      <main class="admin-content">
+        <header class="admin-head">
+          <div>
+            <h1>Agencies</h1>
+            <p>All agency tenants on the platform. Click a card to manage, or peek at high-level stats at a glance.</p>
+          </div>
+          <button class="admin-primary" data-new-agency>＋ New Agency</button>
+        </header>
+
+        <section class="admin-grid" id="agencyGrid">
+          <!-- Dynamically populated by admin.js -->
+        </section>
+      </main>
     </div>
-  </section>
-</main>
-</div>
-<script>
-const s=document.getElementById('adminSidebar');document.getElementById('adminToggle').onclick=()=>s.classList.toggle('open');
-document.querySelectorAll('[data-demo],#newAgency').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();alert('This action is ready for backend wiring.');}));
-</script></body></html>
+  </div>
+
+  <!-- New Agency Modal -->
+  <div class="admin-modal" id="newAgencyModal">
+    <div class="admin-dialog">
+      <h2>Add New Agency Tenant</h2>
+      <form id="newAgencyForm">
+        <input type="text" id="newAgencyName" placeholder="Agency Name (e.g. Directing Design)" required>
+        <input type="email" id="newAgencyEmail" placeholder="Owner Email (e.g. owner@directingdesign.com)" required>
+        <input type="text" id="newAgencyWebsite" placeholder="Agency Website (e.g. directingdesign.com)" required>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <select id="newAgencyPlan" class="sortbox" style="width:100%;margin-bottom:12px;">
+            <option value="Starter">Starter Plan</option>
+            <option value="Growth" selected>Growth Plan</option>
+            <option value="Scale">Scale Plan</option>
+          </select>
+          <input type="number" id="newAgencyMRR" placeholder="MRR ($)" value="5000" style="margin-bottom:12px;">
+        </div>
+        <div class="dialog-actions">
+          <button type="button" class="mini-btn" data-close-modal>Cancel</button>
+          <button type="submit" class="mini-btn primary">Create Agency</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/admin/admin.js"></script>
+</body>
+</html>

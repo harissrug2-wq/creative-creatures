@@ -116,7 +116,7 @@ async function updateById(config, id, patch) {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return json(res, 204, {});
 
@@ -125,6 +125,11 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
+      if (req.query?.all === 'true' || req.query?.all === '1' || req.query?.list === '1') {
+        const rows = await supabaseRequest(config, `accounts?select=${SELECT}&order=created_at.desc`);
+        return json(res, 200, { accounts: (Array.isArray(rows) ? rows : []).map(publicAccount) });
+      }
+
       const email = lower(req.query?.email);
       const normalizedUrl = normalizeAgencyUrl(req.query?.agencyUrl || req.query?.agency_url);
       if (!email && !normalizedUrl) return json(res, 422, { error: 'Enter an email address or agency URL.' });
@@ -139,6 +144,13 @@ export default async function handler(req, res) {
     }
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+
+    if (req.method === 'DELETE') {
+      const id = clean(req.query?.id || body.id);
+      if (!id) return json(res, 422, { error: 'Account ID is required.' });
+      await supabaseRequest(config, `accounts?id=eq.${id}`, { method: 'DELETE' });
+      return json(res, 200, { success: true, deletedId: id });
+    }
 
     if (req.method === 'POST') {
       const name = clean(body.name || `${body.firstName || ''} ${body.lastName || ''}`);

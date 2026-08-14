@@ -13,6 +13,7 @@ export default defineConfig({
         home: resolve(__dirname, 'index.html'),
         login: page('login'),
         admin: page('admin'),
+        adminPerformance: resolve(__dirname, 'admin', 'performance', 'index.html'),
         platform: page('platform'),
         leadership: page('leadership'),
         marketing: page('marketing'),
