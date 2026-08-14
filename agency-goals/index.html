@@ -14,6 +14,9 @@
 
     .readiness-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 0 24px}.readiness-item{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px}.readiness-item span{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.055em;color:#8a94a3;margin-bottom:4px}.readiness-item strong{font-size:17px;color:#202632}.evidence-gap-note{margin-top:8px;padding:8px 10px;border-radius:9px;background:#fff8ec;border:1px solid #f3d7a4;color:#8b5a11;font-size:11px;line-height:1.4}.completion-warning{margin-top:12px;font-size:12px;color:#8b5a11;max-width:620px;text-align:right}.status-pill.complete{color:#0b8740;border-color:#b8dfc6;background:#f8fdf9}@media(max-width:760px){.readiness-bar{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
+
+    .progress-strip{margin:10px 0 12px}.progress-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:10px;color:#7c8797;margin-bottom:6px}.progress-meta strong{font-size:11px;color:#30384a}.progress-track{height:7px;background:#eef0f3;border-radius:999px;overflow:hidden}.progress-fill{height:100%;background:var(--blue);border-radius:999px;min-width:0}.progress-fill.achieved{background:var(--green)}.goal-actions{display:flex;gap:8px;margin-top:9px}.mini-button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:6px 8px;font-size:10px;font-weight:700;color:#5b6575;cursor:pointer}.mini-button:hover{border-color:#b8bbff;color:#2529df}.actual-source{font-size:10px;color:#8b95a4;margin-top:-1px}.history-list{display:grid;gap:8px;max-height:245px;overflow:auto;margin-top:12px}.history-row{display:grid;grid-template-columns:120px 1fr auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 11px}.history-row strong{font-size:13px}.history-row span{font-size:11px;color:var(--muted);line-height:1.35}.history-source{display:inline-flex;padding:3px 6px;border-radius:999px;background:#f1f2f4;font-size:9px!important;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#6f7887!important}.history-source.manual{background:#eef0ff;color:#373bd9!important}.history-empty{font-size:12px;color:var(--muted);padding:14px 0}.progress-summary{border:1px solid #dfe2ff;background:#f8f8ff;border-radius:12px;padding:12px 14px;margin-bottom:16px}.progress-summary strong{font-size:18px;color:#2529df}.progress-summary span{display:block;font-size:11px;color:#697386;margin-top:3px}
+
     .department-goal-wrap{min-width:260px}.suggestion-box{margin-top:7px;padding:8px 9px;border:1px solid #d9defe;background:#f7f8ff;border-radius:8px;font-size:11px;color:#505a70;line-height:1.35}.suggestion-box strong{color:#2529df}.suggestion-box button{margin-top:6px;border:0;background:transparent;color:#2529df;font-weight:700;padding:0;cursor:pointer}.suggestion-meta{display:block;color:#7b8596;margin-top:3px}.status-help{margin:8px 0 0;font-size:11px;color:#7a8493;line-height:1.45}.date-input{min-width:145px}
     @media(max-width:900px){.wrap{width:min(100% - 32px,1180px);padding-top:28px}.head{align-items:flex-start;flex-direction:column}.goals-grid{grid-template-columns:repeat(2,1fr)}.rock-row{grid-template-columns:1fr 1fr}.rock-title{grid-column:1/-1}}
     @media(max-width:580px){.wrap{width:calc(100% - 24px);padding-top:24px;padding-bottom:60px}.head h1{font-size:31px}.goals-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column;gap:6px}.finish-complete-btn{width:100%;justify-content:center}.rock-row{grid-template-columns:1fr}.rock-title{grid-column:auto}.modal{padding:24px 20px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions{flex-direction:column-reverse}.modal-actions .button{width:100%}}
@@ -60,6 +63,35 @@
       <div class="modal-actions">
         <button class="button" data-close-target>Cancel</button>
         <button class="button primary" id="saveTarget">Save Target</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="progressModal">
+    <section class="modal">
+      <h2 id="progressTitle">Update Progress</h2>
+      <p>Record a new current actual without changing the saved target. Each update is kept in the metric history.</p>
+      <div class="progress-summary">
+        <strong id="progressTargetSummary">—</strong>
+        <span id="progressSummaryCopy">Set a target to calculate progress.</span>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Current actual</label>
+          <input id="progressActual" type="number" min="0" step="0.1" placeholder="Enter current actual">
+        </div>
+        <div class="field full">
+          <label>Update note</label>
+          <textarea id="progressNote" placeholder="Optional context: monthly close, owner update, corrected financials, etc."></textarea>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="button" data-close-progress>Cancel</button>
+        <button class="button primary" id="saveProgress">Save Progress Update</button>
+      </div>
+      <div style="border-top:1px solid var(--line);margin-top:22px;padding-top:18px">
+        <strong style="font-size:13px">Progress History</strong>
+        <div class="history-list" id="progressHistoryList"></div>
       </div>
     </section>
   </div>
@@ -145,10 +177,13 @@
 
     const goals = Array.isArray(model.metrics) ? model.metrics : [];
     const targets = model.targets || {};
+    const progress = model.progress || {};
+    const progressHistory = model.progressHistory || {};
     const departments = Array.isArray(model.departments) ? model.departments : [];
     const rocks = Array.isArray(model.rocks) ? model.rocks : [];
     const readiness = model.readiness || {};
     let activeGoal = null;
+    let activeProgressGoal = null;
 
     if (model.goalsComplete) {
       localStorage.setItem('agencyGoalsComplete', 'true');
@@ -183,8 +218,15 @@
 
     const goalCard = goal => {
       const target = targets[goal.id];
-      const actualNote = goal.available ? 'current actual' : 'evidence gap';
-      const gapHtml = goal.available ? '' : `<div class="evidence-gap-note">${esc(goal.source || 'Required source evidence has not been supplied.')}</div>`;
+      const progressItem = progress[goal.id];
+      const actualNote = goal.currentSourceType === 'manual' ? 'updated actual' : (goal.available ? 'current actual' : 'evidence gap');
+      const gapHtml = goal.evidenceAvailable === false ? `<div class="evidence-gap-note">Source evidence is still missing. Manual progress can be tracked, but the diagnostic source has not been supplied.</div>` : '';
+      const updatedCopy = goal.actualUpdatedAt ? `Updated ${new Date(goal.actualUpdatedAt).toLocaleDateString()}` : '';
+      const progressHtml = target && progressItem ? `
+        <div class="progress-strip">
+          <div class="progress-meta"><span>Progress to target</span><strong>${esc(progressItem.percent)}%${progressItem.achieved ? ' · Achieved' : ''}</strong></div>
+          <div class="progress-track"><div class="progress-fill ${progressItem.achieved ? 'achieved' : ''}" style="width:${Math.max(0, Math.min(100, Number(progressItem.percent) || 0))}%"></div></div>
+        </div>` : '';
       return `
         <article class="goal-card" data-goal="${esc(goal.id)}" title="${esc(goal.source || '')}">
           <div class="goal-label">
@@ -193,10 +235,16 @@
           </div>
           <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#9aa2ae;margin-top:8px">${esc(goal.group)}</div>
           <div class="actual">${esc(goal.actualDisplay || '—')} <small>${actualNote}</small></div>
+          ${updatedCopy ? `<div class="actual-source">${esc(updatedCopy)} · ${esc(goal.currentSourceType === 'manual' ? 'Manual update' : 'Diagnostic evidence')}</div>` : ''}
           ${gapHtml}
+          ${progressHtml}
           <div class="target ${target ? '' : 'empty'}">
             <span>Target</span>
             <strong>${esc(formatTarget(goal, target))}${target && target.type === 'percent' ? `<small class="target-method">${esc(formatTargetMethod(target))}</small>` : ''}</strong>
+          </div>
+          <div class="goal-actions">
+            <button type="button" class="mini-button" data-progress-goal="${esc(goal.id)}">Update actual</button>
+            <button type="button" class="mini-button" data-target-goal="${esc(goal.id)}">Edit target</button>
           </div>
         </article>`;
     };
@@ -256,7 +304,7 @@
         </div>
 
         <div class="section-head">
-          <div><h2>Agency Goals</h2><p>Current diagnostic and financial actuals are shown below. Missing source data is never replaced with demo values.</p></div>
+          <div><h2>Agency Goals</h2><p>Current actuals are tracked over time. Diagnostic evidence is captured automatically, and manual progress updates never change the saved target.</p></div>
           <span>Category Goals</span>
         </div>
 
@@ -300,8 +348,8 @@
         </div>
       </div>`;
 
-    document.querySelectorAll('[data-goal]').forEach(card => card.addEventListener('click', () => {
-      activeGoal = goals.find(x => x.id === card.dataset.goal);
+    const openTargetEditor = goalId => {
+      activeGoal = goals.find(x => x.id === goalId);
       if (!activeGoal) return;
       document.querySelector('#targetTitle').textContent = `Set Target: ${activeGoal.label}`;
       document.querySelector('#targetCurrent').textContent = activeGoal.actualDisplay || '—';
@@ -313,7 +361,76 @@
       document.querySelector('#targetNotes').value = target.notes || '';
       syncTargetEditor();
       show('#targetModal');
+    };
+
+    document.querySelectorAll('[data-target-goal]').forEach(button => button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      openTargetEditor(button.dataset.targetGoal);
     }));
+
+    document.querySelectorAll('[data-goal]').forEach(card => card.addEventListener('click', event => {
+      if (event.target.closest('button')) return;
+      openTargetEditor(card.dataset.goal);
+    }));
+
+    const renderProgressHistory = goal => {
+      const list = document.querySelector('#progressHistoryList');
+      const history = Array.isArray(progressHistory[goal.id]) ? progressHistory[goal.id] : [];
+      if (!history.length) {
+        list.innerHTML = '<div class="history-empty">No progress updates recorded yet.</div>';
+        return;
+      }
+      list.innerHTML = history.map(item => `
+        <div class="history-row">
+          <strong>${esc(formatGoalValue(goal, item.actualValue))}</strong>
+          <span>${item.capturedAt ? esc(new Date(item.capturedAt).toLocaleString()) : 'Saved update'}${item.note ? `<br>${esc(item.note)}` : ''}</span>
+          <span class="history-source ${item.sourceType === 'manual' ? 'manual' : ''}">${esc(item.sourceType === 'manual' ? 'Manual' : 'Diagnostic')}</span>
+        </div>`).join('');
+    };
+
+    const openProgressEditor = goalId => {
+      activeProgressGoal = goals.find(x => x.id === goalId);
+      if (!activeProgressGoal) return;
+      const target = targets[goalId];
+      const progressItem = progress[goalId];
+      document.querySelector('#progressTitle').textContent = `Update Progress: ${activeProgressGoal.label}`;
+      document.querySelector('#progressActual').value = activeProgressGoal.available && activeProgressGoal.actualValue !== null ? activeProgressGoal.actualValue : '';
+      document.querySelector('#progressActual').max = activeProgressGoal.unit === '%' ? '100' : activeProgressGoal.unit === 'score' ? '100' : activeProgressGoal.unit === 'level' ? '5' : '';
+      document.querySelector('#progressNote').value = '';
+      document.querySelector('#progressTargetSummary').textContent = target ? `Target ${formatTarget(activeProgressGoal, target)}` : 'No target saved';
+      document.querySelector('#progressSummaryCopy').textContent = progressItem
+        ? `${progressItem.percent}% complete from baseline ${progressItem.baselineDisplay}. Saved target stays fixed when this actual changes.`
+        : 'Save a target to calculate percentage progress. This update will still be stored in history.';
+      renderProgressHistory(activeProgressGoal);
+      show('#progressModal');
+    };
+
+    document.querySelectorAll('[data-progress-goal]').forEach(button => button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      openProgressEditor(button.dataset.progressGoal);
+    }));
+    document.querySelectorAll('[data-close-progress]').forEach(button => button.addEventListener('click', () => hide('#progressModal')));
+    document.querySelector('#saveProgress').addEventListener('click', async () => {
+      if (!activeProgressGoal) return;
+      const button = document.querySelector('#saveProgress');
+      button.disabled = true;
+      try {
+        await window.CCGoals.saveProgress(
+          activeProgressGoal.id,
+          document.querySelector('#progressActual').value,
+          document.querySelector('#progressNote').value
+        );
+        hide('#progressModal');
+        showToast('Progress update saved.');
+        setTimeout(() => location.reload(), 250);
+      } catch (error) {
+        showToast(error.message || 'Progress update could not be saved.');
+      } finally {
+        button.disabled = false;
+      }
+    });
 
     document.querySelectorAll('[data-close-target]').forEach(button => button.addEventListener('click', () => hide('#targetModal')));
 

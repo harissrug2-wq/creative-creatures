@@ -120,7 +120,7 @@ async function getCurrentRun(config, accountId) {
 
 async function getScorecard(config, runId) {
   const params = new URLSearchParams({
-    select: 'id,diagnostic_run_id,aofi_score,confidence,validation_status,report_data,generated_at',
+    select: 'id,diagnostic_run_id,aofi_score,confidence,validation_status,report_data,generated_at,updated_at',
     diagnostic_run_id: `eq.${runId}`,
     limit: '1'
   });
@@ -130,7 +130,7 @@ async function getScorecard(config, runId) {
 
 async function getIndexRows(config, runId) {
   const params = new URLSearchParams({
-    select: 'index_type,score,confidence,validation_status,category_scores,details',
+    select: 'index_type,score,confidence,validation_status,category_scores,details,updated_at',
     diagnostic_run_id: `eq.${runId}`
   });
   const rows = await supabaseRequest(config, `index_results?${params.toString()}`);
@@ -139,7 +139,7 @@ async function getIndexRows(config, runId) {
 
 async function getEvidenceRows(config, runId) {
   const params = new URLSearchParams({
-    select: 'evidence_type,extraction_status,extracted_data,validation_status',
+    select: 'evidence_type,extraction_status,extracted_data,validation_status,updated_at',
     diagnostic_run_id: `eq.${runId}`
   });
   const rows = await supabaseRequest(config, `financial_evidence?${params.toString()}`);
@@ -153,6 +153,17 @@ async function getTargets(config, accountId) {
     order: 'metric_id.asc'
   });
   const rows = await supabaseRequest(config, `agency_goals?${params.toString()}`);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function getProgressRows(config, accountId) {
+  const params = new URLSearchParams({
+    select: 'id,diagnostic_run_id,metric_id,actual_value,source_type,source_updated_at,note,captured_at,created_at',
+    account_id: `eq.${accountId}`,
+    order: 'captured_at.desc',
+    limit: '450'
+  });
+  const rows = await supabaseRequest(config, `agency_goal_progress?${params.toString()}`);
   return Array.isArray(rows) ? rows : [];
 }
 
@@ -214,7 +225,16 @@ function percentage(value) {
   return `${Number.isInteger(number) ? number : number.toFixed(1)}%`;
 }
 
-function metric(id, value, source, displayOverride = null, unavailableSource = 'Data not available') {
+function maxTimestamp(values) {
+  const valid = values
+    .filter(Boolean)
+    .map(value => new Date(value))
+    .filter(date => !Number.isNaN(date.getTime()));
+  if (!valid.length) return null;
+  return new Date(Math.max(...valid.map(date => date.getTime()))).toISOString();
+}
+
+function metric(id, value, source, displayOverride = null, unavailableSource = 'Data not available', sourceUpdatedAt = null) {
   const definition = METRICS.find(item => item.id === id);
   const available = value !== null && value !== undefined && value !== '';
   let actualDisplay = '—';
@@ -229,7 +249,8 @@ function metric(id, value, source, displayOverride = null, unavailableSource = '
     available,
     actualValue: available ? Number(value) : null,
     actualDisplay,
-    source: available ? source : unavailableSource
+    source: available ? source : unavailableSource,
+    sourceUpdatedAt: sourceUpdatedAt || null
   };
 }
 
@@ -291,16 +312,22 @@ function buildMetrics(scorecard, indexRows, evidenceRows) {
     : Math.max(0, Math.min(5, Math.round(leadershipScore / 20)));
   const leadershipDisplay = leadershipLevel === null ? null : `${leadershipLevel} / 5`;
 
+  const financialUpdatedAt = maxTimestamp([
+    performance.updated_at,
+    ...evidenceRows.map(row => row?.updated_at)
+  ]);
+  const valuationUpdatedAt = maxTimestamp(indexRows.map(row => row?.updated_at));
+
   return [
-    metric('ownerDelivery', ownerDelivery, 'Owner Independence evidence'),
-    metric('ownerSales', ownerSales, 'Owner Independence evidence'),
-    metric('revenue', revenue, 'Financial evidence'),
-    metric('cogs', cogs, 'Financial evidence'),
-    metric('margin', netMargin, 'Financial evidence'),
-    metric('sde', adjustedSDE, 'Agency Performance · Adjusted SDE'),
-    metric('leadership', leadershipLevel, 'Agency Strength · Leadership System', leadershipDisplay),
-    metric('aofi', aofi, 'Generated Agency Scorecard'),
-    metric('valuation', enterpriseValuation, 'Agency Valuation™ · Step 7B snapshot', null, valuationUnavailable)
+    metric('ownerDelivery', ownerDelivery, 'Owner Independence evidence', null, 'Data not available', independence.updated_at),
+    metric('ownerSales', ownerSales, 'Owner Independence evidence', null, 'Data not available', independence.updated_at),
+    metric('revenue', revenue, 'Financial evidence', null, 'Data not available', financialUpdatedAt),
+    metric('cogs', cogs, 'Financial evidence', null, 'Data not available', financialUpdatedAt),
+    metric('margin', netMargin, 'Financial evidence', null, 'Data not available', financialUpdatedAt),
+    metric('sde', adjustedSDE, 'Agency Performance · Adjusted SDE', null, 'Data not available', financialUpdatedAt),
+    metric('leadership', leadershipLevel, 'Agency Strength · Leadership System', leadershipDisplay, 'Data not available', strength.updated_at),
+    metric('aofi', aofi, 'Generated Agency Scorecard', null, 'Data not available', scorecard?.generated_at),
+    metric('valuation', enterpriseValuation, 'Agency Valuation™ · Step 7B snapshot', null, valuationUnavailable, valuationUpdatedAt)
   ];
 }
 
@@ -354,6 +381,162 @@ function buildDepartmentSuggestions(scorecard) {
   return suggestions;
 }
 
+
+function formatMetricDisplay(metricDefinition, value) {
+  if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) return '—';
+  const number = Number(value);
+  if (metricDefinition.unit === '$') return money(number);
+  if (metricDefinition.unit === '%') return percentage(number);
+  if (metricDefinition.unit === 'level') return `${Number.isInteger(number) ? number : number.toFixed(1)} / 5`;
+  return Number.isInteger(number) ? String(number) : number.toFixed(1);
+}
+
+function normalizeProgressRow(row) {
+  return {
+    id: row.id,
+    diagnosticRunId: row.diagnostic_run_id || null,
+    metricId: row.metric_id,
+    actualValue: Number(row.actual_value),
+    sourceType: row.source_type || 'manual',
+    sourceUpdatedAt: row.source_updated_at || null,
+    note: row.note || '',
+    capturedAt: row.captured_at || row.created_at || null
+  };
+}
+
+function latestProgressByMetric(rows) {
+  const latest = {};
+  for (const row of rows) {
+    if (!latest[row.metric_id]) latest[row.metric_id] = row;
+  }
+  return latest;
+}
+
+async function syncDiagnosticProgress(config, accountId, runId, metrics, existingRows) {
+  const latestDiagnostic = {};
+  for (const row of existingRows) {
+    if (row.source_type === 'diagnostic' && !latestDiagnostic[row.metric_id]) latestDiagnostic[row.metric_id] = row;
+  }
+
+  const inserts = [];
+  for (const current of metrics) {
+    if (!current.available || finite(current.actualValue) === null) continue;
+    const previous = latestDiagnostic[current.id];
+    const sourceUpdatedAt = current.sourceUpdatedAt || null;
+    const previousValue = previous ? finite(previous.actual_value) : null;
+    const previousRevision = previous?.source_updated_at || null;
+    const valueChanged = previousValue === null || Math.abs(previousValue - Number(current.actualValue)) > 0.000001;
+    const revisionChanged = sourceUpdatedAt && previousRevision !== sourceUpdatedAt;
+
+    if (!previous || valueChanged || revisionChanged) {
+      inserts.push({
+        account_id: accountId,
+        diagnostic_run_id: runId,
+        metric_id: current.id,
+        actual_value: Number(current.actualValue),
+        source_type: 'diagnostic',
+        source_updated_at: sourceUpdatedAt,
+        note: 'Captured automatically from current diagnostic / financial evidence.',
+        captured_at: new Date().toISOString()
+      });
+    }
+  }
+
+  if (!inserts.length) return existingRows;
+
+  // Insert individually so a concurrent page load hitting the diagnostic revision
+  // uniqueness guard cannot prevent the remaining metrics from being captured.
+  const saved = [];
+  for (const record of inserts) {
+    try {
+      const rows = await supabaseRequest(config, 'agency_goal_progress', {
+        method: 'POST',
+        headers: { Prefer: 'return=representation' },
+        body: JSON.stringify(record)
+      });
+      if (Array.isArray(rows) && rows[0]) saved.push(rows[0]);
+    } catch (error) {
+      // PostgreSQL 23505 = another request already captured this source revision.
+      if (error?.payload?.code !== '23505') throw error;
+    }
+  }
+  return [...saved, ...existingRows].sort((a, b) => new Date(b.captured_at || 0) - new Date(a.captured_at || 0));
+}
+
+function calculateProgress(metricDefinition, currentActual, target) {
+  const actual = finite(currentActual);
+  const resolvedTarget = finite(target?.resolvedValue);
+  const baseline = finite(target?.baselineValue);
+  if (actual === null || resolvedTarget === null || baseline === null) return null;
+
+  const distance = resolvedTarget - baseline;
+  let rawPercent;
+  if (Math.abs(distance) < 0.000001) {
+    rawPercent = Math.abs(actual - resolvedTarget) < 0.000001 ? 100 : 0;
+  } else {
+    rawPercent = ((actual - baseline) / distance) * 100;
+  }
+  const percent = Math.max(0, Math.min(100, rawPercent));
+  const achieved = rawPercent >= 100;
+  return {
+    baselineValue: baseline,
+    targetValue: resolvedTarget,
+    currentValue: actual,
+    rawPercent: Math.round(rawPercent * 10) / 10,
+    percent: Math.round(percent * 10) / 10,
+    achieved,
+    state: achieved ? 'achieved' : rawPercent <= 0 ? 'not_started' : 'in_progress',
+    remainingValue: resolvedTarget - actual,
+    baselineDisplay: formatMetricDisplay(metricDefinition, baseline),
+    targetDisplay: formatMetricDisplay(metricDefinition, resolvedTarget),
+    currentDisplay: formatMetricDisplay(metricDefinition, actual)
+  };
+}
+
+function validateProgressActual(definition, value) {
+  const number = finite(value);
+  if (number === null) return 'Enter a valid current actual value.';
+  if (number < 0) return 'Current actual value cannot be negative.';
+  if (definition.unit === '%' && number > 100) return 'Percentage actuals must be between 0 and 100.';
+  if (definition.unit === 'score' && number > 100) return 'Score actuals must be between 0 and 100.';
+  if (definition.unit === 'level' && number > 5) return 'Leadership maturity must be between 0 and 5.';
+  return '';
+}
+
+async function saveProgressUpdate(config, accountId, runId, body) {
+  const metricId = clean(body.metricId);
+  const definition = METRICS.find(item => item.id === metricId);
+  if (!definition) {
+    const error = new Error('Unknown Agency Goal metric.');
+    error.status = 422;
+    throw error;
+  }
+  const value = finite(body.actualValue);
+  const validation = validateProgressActual(definition, value);
+  if (validation) {
+    const error = new Error(validation);
+    error.status = 422;
+    throw error;
+  }
+
+  const rows = await supabaseRequest(config, 'agency_goal_progress', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      account_id: accountId,
+      diagnostic_run_id: runId || null,
+      metric_id: metricId,
+      actual_value: value,
+      source_type: 'manual',
+      source_updated_at: null,
+      note: clean(body.note),
+      captured_at: new Date().toISOString()
+    })
+  });
+  const row = Array.isArray(rows) ? rows[0] || null : rows;
+  return row ? normalizeProgressRow(row) : null;
+}
+
 async function loadModel(config, account) {
   const run = await getCurrentRun(config, account.id);
   if (!run) {
@@ -371,12 +554,13 @@ async function loadModel(config, account) {
     throw error;
   }
 
-  const [indexRows, evidenceRows, targetRows, departmentRows, rockRows] = await Promise.all([
+  const [indexRows, evidenceRows, targetRows, departmentRows, rockRows, initialProgressRows] = await Promise.all([
     getIndexRows(config, run.id),
     getEvidenceRows(config, run.id),
     getTargets(config, account.id),
     getDepartments(config, account.id),
-    getRocks(config, account.id)
+    getRocks(config, account.id),
+    getProgressRows(config, account.id)
   ]);
 
   // Always derive the Goals valuation from the current persisted diagnostic
@@ -385,7 +569,43 @@ async function loadModel(config, account) {
   const valuationSnapshot = buildValuationSnapshot(indexRows, { diagnosticRunId: run.id });
   const scorecardWithValuation = await persistValuationSnapshot(config, scorecard, valuationSnapshot);
 
-  const metrics = buildMetrics(scorecardWithValuation, indexRows, evidenceRows);
+  const sourceMetrics = buildMetrics(scorecardWithValuation, indexRows, evidenceRows);
+  const progressRows = await syncDiagnosticProgress(config, account.id, run.id, sourceMetrics, initialProgressRows);
+  const latestProgress = latestProgressByMetric(progressRows);
+  const progressHistory = {};
+  for (const definition of METRICS) {
+    progressHistory[definition.id] = progressRows
+      .filter(row => row.metric_id === definition.id)
+      .slice(0, 20)
+      .map(normalizeProgressRow);
+  }
+
+  const metrics = sourceMetrics.map(sourceMetric => {
+    const latest = latestProgress[sourceMetric.id] || null;
+    if (!latest) return {
+      ...sourceMetric,
+      sourceActualValue: sourceMetric.actualValue,
+      sourceActualDisplay: sourceMetric.actualDisplay,
+      evidenceAvailable: sourceMetric.available,
+      currentSourceType: sourceMetric.available ? 'diagnostic' : null,
+      actualUpdatedAt: sourceMetric.sourceUpdatedAt || null
+    };
+    const actualValue = Number(latest.actual_value);
+    return {
+      ...sourceMetric,
+      sourceActualValue: sourceMetric.actualValue,
+      sourceActualDisplay: sourceMetric.actualDisplay,
+      evidenceAvailable: sourceMetric.available,
+      available: true,
+      actualValue,
+      actualDisplay: formatMetricDisplay(sourceMetric, actualValue),
+      currentSourceType: latest.source_type,
+      actualUpdatedAt: latest.captured_at || latest.created_at || null,
+      source: latest.source_type === 'manual'
+        ? (clean(latest.note) ? `Manual progress update · ${clean(latest.note)}` : 'Manual progress update')
+        : sourceMetric.source
+    };
+  });
   const metricMap = Object.fromEntries(metrics.map(item => [item.id, item]));
   const targets = Object.fromEntries(targetRows.map(row => {
     const storedValue = row.target_value === null ? null : Number(row.target_value);
@@ -411,6 +631,11 @@ async function loadModel(config, account) {
       notes: row.target_notes || '',
       updatedAt: row.updated_at
     }];
+  }));
+
+  const goalProgress = Object.fromEntries(METRICS.map(definition => {
+    const current = metricMap[definition.id];
+    return [definition.id, calculateProgress(definition, current?.actualValue, targets[definition.id])];
   }));
 
   const savedDepartments = Object.fromEntries(departmentRows.map(row => [row.department, {
@@ -445,7 +670,7 @@ async function loadModel(config, account) {
   }));
 
   const targetCount = METRICS.filter(item => targets[item.id] && finite(targets[item.id].resolvedValue) !== null).length;
-  const evidenceGaps = metrics.filter(item => !item.available).map(item => ({
+  const evidenceGaps = metrics.filter(item => item.evidenceAvailable === false).map(item => ({
     metricId: item.id,
     label: item.label,
     reason: item.source || 'Required source evidence has not been supplied.'
@@ -464,6 +689,8 @@ async function loadModel(config, account) {
     scorecard: { id: scorecard.id, aofiScore: Number(scorecard.aofi_score), generatedAt: scorecard.generated_at },
     metrics,
     targets,
+    progress: goalProgress,
+    progressHistory,
     departments,
     rocks,
     readiness: {
@@ -728,6 +955,11 @@ export default async function handler(req, res) {
       const currentMetric = model.metrics.find(item => item.id === clean(body.metricId)) || null;
       const row = await upsertTarget(config, account.id, body, currentMetric);
       return json(res, 200, { ok: true, target: row });
+    }
+    if (action === 'save_progress') {
+      const run = await getCurrentRun(config, account.id);
+      const row = await saveProgressUpdate(config, account.id, run?.id || null, body);
+      return json(res, 200, { ok: true, progress: row });
     }
     if (action === 'save_department') {
       const row = await upsertDepartment(config, account.id, body);

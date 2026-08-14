@@ -69,11 +69,12 @@
   const saveTarget = (metricId, targetType, targetValue, targetNotes = '', targetDirection = 'increase') =>
     action('set_target', { metricId, targetType, targetValue, targetNotes, targetDirection });
 
+  const saveProgress = (metricId, actualValue, note = '') => action('save_progress', { metricId, actualValue, note });
   const saveDepartment = department => action('save_department', department);
   const createRocks = rocks => action('create_rocks', { rocks });
   const updateRock = rock => action('update_rock', rock);
   const complete = () => action('complete');
   const clear = () => { cached = null; };
 
-  window.CCGoals = { load, saveTarget, saveDepartment, createRocks, updateRock, complete, clear };
+  window.CCGoals = { load, saveTarget, saveProgress, saveDepartment, createRocks, updateRock, complete, clear };
 })();
