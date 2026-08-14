@@ -11,6 +11,8 @@
     :root{--bg:#fafaf8;--card:#fff;--text:#101217;--muted:#5e6878;--line:#e4e4df;--blue:#272cf3;--blue-soft:#eef0ff;--green:#109b4b;--green-soft:#eaf8ef;--amber:#a86f00;--amber-soft:#fff6df;--red:#d83b3b;--red-soft:#ffeded}
     *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Arial,sans-serif;-webkit-font-smoothing:antialiased}button,input,select,textarea{font:inherit}
     .wrap{width:min(1180px,calc(100% - 48px));margin:0 auto;padding:40px 0 78px}.head{display:flex;justify-content:space-between;align-items:flex-end;gap:28px;margin-bottom:30px}.head h1{font-size:38px;line-height:1.08;letter-spacing:-.045em;margin:0 0 9px}.head p{font-size:16px;line-height:1.55;color:var(--muted);margin:0;max-width:760px}.status-pill{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 14px;font-size:12px;color:var(--muted)}.section-head{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid var(--line);padding-bottom:10px;margin:35px 0 15px}.section-head h2{font-size:23px;margin:0 0 4px}.section-head p{font-size:12px;color:var(--muted);margin:0}.section-head span{font-size:12px;color:#8792a3}.goal-groups{display:grid;gap:18px}.group h3{font-size:14px;text-transform:uppercase;letter-spacing:.07em;color:#6f7988;margin:0 0 10px}.goals-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.goal-card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px;min-height:150px;display:flex;flex-direction:column;cursor:pointer;transition:.15s;box-shadow:0 2px 8px rgba(0,0,0,.02)}.goal-card:hover{border-color:#afb1ff;transform:translateY(-2px);box-shadow:0 6px 18px rgba(39,44,243,.08)}.goal-label{display:flex;align-items:center;gap:7px;font-size:13px;color:#556172;font-weight:600}.info{width:18px;height:18px;border-radius:50%;border:1px solid #b9c0ca;display:grid;place-items:center;font-size:10px}.actual{font-size:28px;font-weight:700;letter-spacing:-.035em;margin:14px 0 5px}.actual small{font-size:11px;font-weight:500;color:#8b95a4}.target{margin-top:auto;border-top:1px solid var(--line);padding-top:11px;display:flex;justify-content:space-between;gap:10px;font-size:12px;color:#8a94a3}.target strong{font-size:14px;color:#2529df}.target.empty strong{color:#8a94a3}.card{background:#fff;border:1px solid var(--line);border-radius:16px}.table-wrap{overflow-x:auto}.goals-table{width:100%;border-collapse:collapse;min-width:1050px}.goals-table th,.goals-table td{border-bottom:1px solid var(--line);padding:13px 14px;text-align:left;font-size:13px;vertical-align:middle}.goals-table th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#929baa;background:#fbfbfa}.goals-table tr:last-child td{border-bottom:0}.goals-table input,.goals-table select{width:100%;min-width:110px;border:1px solid transparent;background:transparent;border-radius:7px;padding:7px 8px;font-size:13px}.goals-table input:hover,.goals-table select:hover,.goals-table input:focus,.goals-table select:focus{border-color:var(--line);background:#fff;outline:none}.status-select.needs{color:#7d8795}.status-select.track{color:var(--green)}.status-select.watch{color:var(--amber)}.status-select.off{color:var(--red)}.rocks{overflow:hidden}.rocks-head{display:flex;justify-content:space-between;align-items:center;padding:18px 20px;border-bottom:1px solid var(--line)}.rocks-head h3{font-size:17px;margin:0}.button{min-height:46px;border:1px solid var(--line);background:#fff;color:#4e5868;border-radius:10px;padding:0 18px;font-size:14px;font-weight:600;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:all .15s ease}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff}.button.grayed-out{background:#ecece8;border-color:#e0e0dc;color:#9aa2ae;cursor:pointer}.rock-row{display:grid;grid-template-columns:minmax(0,1fr) 180px 160px 120px;gap:12px;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)}.rock-row:last-child{border-bottom:0}.rock-title strong{font-size:14px;display:block}.rock-title span{font-size:12px;color:var(--muted);display:block;margin-top:3px}.rock-row input,.rock-row select{width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;background:#fff;font-size:12px}.empty-rocks{padding:26px;text-align:center;color:var(--muted);font-size:13px}.finish{margin-top:40px;display:flex;justify-content:flex-end}.finish-complete-btn{min-height:68px;padding:0 48px;font-size:18px;font-weight:700;background:var(--blue);color:#fff;border:1px solid var(--blue);border-radius:14px;cursor:pointer;box-shadow:0 8px 24px rgba(39,44,243,.25);display:inline-flex;align-items:center;gap:12px;transition:all .2s ease}.finish-complete-btn:hover{background:#1d21d4;transform:translateY(-1px);box-shadow:0 12px 28px rgba(39,44,243,.32)}.locked{min-height:calc(100vh - 60px);display:grid;place-items:center;padding:30px}.locked-card{width:min(560px,100%);background:#fff;border:1px solid var(--line);border-radius:16px;padding:31px;text-align:center}.locked-card h1{font-size:27px;margin:0 0 9px}.locked-card p{font-size:13px;color:var(--muted);line-height:1.6;margin:0 0 20px}.modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.45);backdrop-filter:blur(3px);z-index:200;display:none;place-items:center;padding:20px}.modal-backdrop.show{display:grid}.modal{width:min(620px,100%);background:#fff;border:1px solid var(--line);border-radius:20px;padding:32px;box-shadow:0 24px 70px rgba(0,0,0,.18)}.modal h2{font-size:26px;margin:0 0 8px;letter-spacing:-.03em}.modal p{font-size:14px;line-height:1.6;color:var(--muted);margin:0 0 20px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:11px;font-weight:600}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;background:#fff;font-size:13px;outline:none}.field textarea{min-height:80px}.current-target-box{border:1px solid var(--line);background:#fafaf8;border-radius:12px;padding:14px 16px;margin:0 0 18px;display:flex;justify-content:space-between;gap:18px;align-items:center}.current-target-box span{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#8b95a4}.current-target-box strong{font-size:20px;letter-spacing:-.02em}.target-preview{grid-column:1/-1;border:1px solid #dfe2ff;background:#f8f8ff;border-radius:12px;padding:14px 16px}.target-preview span{display:block;font-size:11px;color:#697386;margin-bottom:4px}.target-preview strong{font-size:18px;color:#2529df}.target-method{display:block;font-size:10px;color:#8a94a3;margin-top:2px;font-weight:500}.direction-field.hidden{display:none}.modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}.complete-box{border:1px solid #b8dfc6;background:#f8fdf9;border-radius:14px;padding:18px;margin:20px 0}.complete-box strong{display:block;font-size:15px;color:#109b4b;margin-bottom:4px}.complete-box span{font-size:13px;color:var(--muted)}.fractional{border-top:1px solid var(--line);margin-top:24px;padding-top:24px}.fractional h3{font-size:18px;margin:0 0 8px;color:#111318}.fractional p{font-size:14px;color:var(--muted);margin-bottom:18px;line-height:1.5}.toast{position:fixed;left:50%;bottom:30px;transform:translate(-50%,20px);background:#111827;color:#fff;border-radius:12px;padding:13px 20px;font-size:14px;font-weight:500;opacity:0;pointer-events:none;transition:.2s ease;z-index:300;box-shadow:0 10px 30px rgba(0,0,0,.2)}.toast.show{opacity:1;transform:translate(-50%,0)}
+
+    .department-goal-wrap{min-width:260px}.suggestion-box{margin-top:7px;padding:8px 9px;border:1px solid #d9defe;background:#f7f8ff;border-radius:8px;font-size:11px;color:#505a70;line-height:1.35}.suggestion-box strong{color:#2529df}.suggestion-box button{margin-top:6px;border:0;background:transparent;color:#2529df;font-weight:700;padding:0;cursor:pointer}.suggestion-meta{display:block;color:#7b8596;margin-top:3px}.status-help{margin:8px 0 0;font-size:11px;color:#7a8493;line-height:1.45}.date-input{min-width:145px}
     @media(max-width:900px){.wrap{width:min(100% - 32px,1180px);padding-top:28px}.head{align-items:flex-start;flex-direction:column}.goals-grid{grid-template-columns:repeat(2,1fr)}.rock-row{grid-template-columns:1fr 1fr}.rock-title{grid-column:1/-1}}
     @media(max-width:580px){.wrap{width:calc(100% - 24px);padding-top:24px;padding-bottom:60px}.head h1{font-size:31px}.goals-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column;gap:6px}.finish-complete-btn{width:100%;justify-content:center}.rock-row{grid-template-columns:1fr}.rock-title{grid-column:auto}.modal{padding:24px 20px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions{flex-direction:column-reverse}.modal-actions .button{width:100%}}
 .goals-update-actions{align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:16px}.goals-update-actions>span{font-size:12px;color:var(--muted)}
@@ -171,23 +173,28 @@
         </article>`;
     };
 
-    const departmentRow = department => `
+    const departmentRow = department => {
+      const suggestion = department.suggestion;
+      const suggestionHtml = suggestion && !department.goal ? `
+        <div class="suggestion-box" data-suggestion-box>
+          <strong>Suggested from diagnostic</strong><br>${esc(suggestion.goal)}
+          <span class="suggestion-meta">${esc(suggestion.capability)} · ${esc(suggestion.confidence)}% confidence${suggestion.score !== null && suggestion.score !== undefined ? ` · score ${esc(suggestion.score)}` : ''}</span>
+          <button type="button" data-use-suggestion="${esc(suggestion.goal)}">Use suggestion</button>
+        </div>` : '';
+      return `
       <tr data-department="${esc(department.name)}">
         <td><strong>${esc(department.name)}</strong></td>
-        <td><input data-field="goal" value="${esc(department.goal)}" placeholder="Add goal"></td>
+        <td><div class="department-goal-wrap"><input data-field="goal" value="${esc(department.goal)}" placeholder="Add goal">${suggestionHtml}</div></td>
         <td><input data-field="owner" value="${esc(department.owner)}" placeholder="Owner name"></td>
         <td>
-          <select data-field="status" class="status-select">
+          <select data-field="status" class="status-select" title="On Track: expected to hit target. Watch: at risk and needs attention. Off Track: target is unlikely without intervention.">
             ${['Needs Definition','On Track','Watch','Off Track'].map(option => `<option ${department.status === option ? 'selected' : ''}>${option}</option>`).join('')}
           </select>
         </td>
-        <td><input data-field="done" value="${esc(department.done)}" placeholder="Completion outcome"></td>
-        <td>
-          <select data-field="completion">
-            ${['This month','This quarter','Next quarter','This year'].map(option => `<option ${department.completion === option ? 'selected' : ''}>${option}</option>`).join('')}
-          </select>
-        </td>
+        <td><input data-field="done" value="${esc(department.done)}" placeholder="Measurable completion outcome"></td>
+        <td><input class="date-input" data-field="completionDate" type="date" value="${esc(department.completionDate || '')}" aria-label="Target completion date"></td>
       </tr>`;
+    };
 
     const rockRow = rock => `
       <div class="rock-row" data-rock-id="${esc(rock.id)}">
@@ -224,13 +231,13 @@
         </div>
 
         <div class="section-head">
-          <div><h2>Departmental Goals</h2><p>Define outcomes and target completion quarters for department leads.</p></div>
+          <div><h2>Departmental Goals</h2><p>High-confidence diagnostic suggestions appear when supported by evidence. Otherwise the goal stays blank until you define it.</p><p class="status-help"><strong>On Track</strong> = expected to hit target · <strong>Watch</strong> = at risk · <strong>Off Track</strong> = unlikely without intervention</p></div>
           <span>Department Targets</span>
         </div>
 
         <section class="card table-wrap">
           <table class="goals-table">
-            <thead><tr><th>Department</th><th>Goal</th><th>Owner</th><th>Status</th><th>Done Looks Like</th><th>Target Completion</th></tr></thead>
+            <thead><tr><th>Department</th><th>Goal</th><th>Owner</th><th>Status</th><th>Done Looks Like</th><th>Target Completion Date</th></tr></thead>
             <tbody>${departments.map(departmentRow).join('')}</tbody>
           </table>
         </section>
@@ -335,6 +342,17 @@
         button.disabled = false;
       }
     });
+
+    document.querySelectorAll('[data-use-suggestion]').forEach(button => button.addEventListener('click', event => {
+      event.preventDefault();
+      event.stopPropagation();
+      const row = button.closest('[data-department]');
+      const goalInput = row?.querySelector('[data-field="goal"]');
+      if (!goalInput) return;
+      goalInput.value = button.dataset.useSuggestion || '';
+      button.closest('[data-suggestion-box]')?.remove();
+      goalInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }));
 
     document.querySelectorAll('[data-department]').forEach(row => {
       const saveDepartment = async () => {

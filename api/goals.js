@@ -158,7 +158,7 @@ async function getTargets(config, accountId) {
 
 async function getDepartments(config, accountId) {
   const params = new URLSearchParams({
-    select: 'id,department,goal,owner_name,status,done_looks_like,target_completion,updated_at',
+    select: 'id,department,goal,owner_name,status,done_looks_like,target_completion,target_completion_date,updated_at',
     account_id: `eq.${accountId}`,
     order: 'department.asc'
   });
@@ -315,6 +315,45 @@ async function persistValuationSnapshot(config, scorecard, snapshot) {
   return { ...scorecard, report_data: reportData };
 }
 
+
+const DEPARTMENT_SUGGESTION_MAP = [
+  { department: 'Leadership', capability: /Leadership System|Leadership Independence|Decision Independence|Strategic Independence/i },
+  { department: 'Marketing', capability: /Growth Performance/i },
+  { department: 'Sales', capability: /Revenue Infrastructure|Revenue Independence/i },
+  { department: 'Onboarding', capability: /People Infrastructure/i },
+  { department: 'Billing', capability: /Financial Infrastructure|Cash Performance/i },
+  { department: 'Service Delivery', capability: /Operating System|Delivery Independence/i },
+  { department: 'Client Success', capability: /Revenue Quality/i }
+];
+
+function buildDepartmentSuggestions(scorecard) {
+  const report = scorecard?.report_data && typeof scorecard.report_data === 'object' ? scorecard.report_data : {};
+  const opportunities = Array.isArray(report.opportunities) ? report.opportunities : [];
+  const reports = report.reports && typeof report.reports === 'object' ? report.reports : {};
+  const suggestions = {};
+
+  for (const mapping of DEPARTMENT_SUGGESTION_MAP) {
+    const match = opportunities.find(item => mapping.capability.test(clean(item?.capability)));
+    if (!match) continue;
+    const indexKey = clean(match.index);
+    const confidence = finite(reports?.[indexKey]?.confidence);
+    // Step 8B intentionally requires high-confidence diagnostic evidence.
+    // Lower-confidence opportunities remain visible on the Scorecard but do not
+    // silently become departmental goals.
+    if (confidence === null || confidence < 80) continue;
+    const recommendation = clean(match.recommendation);
+    if (!recommendation) continue;
+    suggestions[mapping.department] = {
+      goal: recommendation,
+      capability: clean(match.capability),
+      score: finite(match.score),
+      confidence,
+      source: clean(match.indexTitle) || clean(reports?.[indexKey]?.title) || 'Agency Scorecard'
+    };
+  }
+  return suggestions;
+}
+
 async function loadModel(config, account) {
   const run = await getCurrentRun(config, account.id);
   if (!run) {
@@ -381,12 +420,15 @@ async function loadModel(config, account) {
     status: row.status || 'Needs Definition',
     done: row.done_looks_like || '',
     completion: row.target_completion || 'This month',
+    completionDate: row.target_completion_date || '',
     updatedAt: row.updated_at
   }]));
 
+  const departmentSuggestions = buildDepartmentSuggestions(scorecardWithValuation);
   const departments = DEPARTMENTS.map(name => ({
     name,
-    ...(savedDepartments[name] || { goal: '', owner: '', status: 'Needs Definition', done: '', completion: 'This month' })
+    ...(savedDepartments[name] || { goal: '', owner: '', status: 'Needs Definition', done: '', completion: 'This month', completionDate: '' }),
+    suggestion: departmentSuggestions[name] || null
   }));
 
   const rocks = rockRows.map(row => ({
@@ -516,6 +558,7 @@ async function upsertDepartment(config, accountId, body) {
   const allowedCompletions = ['This month', 'This quarter', 'Next quarter', 'This year'];
   const status = allowedStatuses.includes(body.status) ? body.status : 'Needs Definition';
   const completion = allowedCompletions.includes(body.completion) ? body.completion : 'This month';
+  const completionDate = /^\d{4}-\d{2}-\d{2}$/.test(clean(body.completionDate)) ? clean(body.completionDate) : null;
 
   const rows = await supabaseRequest(config, 'department_goals?on_conflict=account_id%2Cdepartment', {
     method: 'POST',
@@ -528,6 +571,7 @@ async function upsertDepartment(config, accountId, body) {
       status,
       done_looks_like: clean(body.done),
       target_completion: completion,
+      target_completion_date: completionDate,
       updated_at: new Date().toISOString()
     })
   });
