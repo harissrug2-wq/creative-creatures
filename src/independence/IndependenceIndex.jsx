@@ -5,6 +5,7 @@ const TIME_ALLOCATION_QUESTION = QUESTIONS.find(q => q.id === 24) || {};
 const STRATEGIC_TIME_ITEMS = TIME_ALLOCATION_QUESTION.strategicItems || [];
 const OPERATIONAL_TIME_ITEMS = TIME_ALLOCATION_QUESTION.operationalItems || [];
 const ALL_TIME_ITEMS = [...STRATEGIC_TIME_ITEMS, ...OPERATIONAL_TIME_ITEMS];
+const IS_RETAKE = new URLSearchParams(window.location.search).get('retake') === '1';
 
 const clampPercent = value => {
   const number = Number(value);
@@ -95,9 +96,12 @@ function calculateScores(answers) {
 
 export default function App() {
   const [currentIdx, setCurrentIdx] = useState(() => {
+    if (IS_RETAKE) return 0;
     const saved = Number(localStorage.getItem('ccIndependenceCurrentQuestion'));
     return Number.isFinite(saved) && saved >= 0 && saved < QUESTIONS.length ? saved : 0;
   });
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [answers, setAnswers] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('ccIndependenceAnswers') || '{}');
@@ -158,28 +162,72 @@ export default function App() {
   };
   const handleMatrix = (activity, score) => setAnswers(prev => ({ ...prev, 25: { ...(prev[25] || {}), [activity]: score } }));
 
-  const finish = () => {
+  const finish = async () => {
+    if (isSaving) return;
     const scores = calculateScores(answers);
     if (Math.abs(scores.ownerTime.totalPercent - 100) >= 0.001) {
       const allocationIndex = QUESTIONS.findIndex(q => q.id === 24);
       if (allocationIndex >= 0) setCurrentIdx(allocationIndex);
       return;
     }
-    window.CCDiagnostic?.mark?.('independence', scores.overallIndexScore, {
-      answers,
-      scores,
-      ownerTime: scores.ownerTime,
-      timeAllocation: scores.timeAllocation
-    });
-    if (!window.CCDiagnostic) {
-      localStorage.setItem('ownerIndependenceScore', String(scores.overallIndexScore));
-      localStorage.setItem('ccIndexIndependenceComplete', 'true');
-      localStorage.setItem('ccIndexIndependenceProgress', '100');
+
+    setIsSaving(true);
+    setSaveError('');
+
+    try {
+      window.CCDiagnostic?.mark?.('independence', scores.overallIndexScore, {
+        answers,
+        scores,
+        ownerTime: scores.ownerTime,
+        timeAllocation: scores.timeAllocation,
+        retakenAt: IS_RETAKE ? new Date().toISOString() : null
+      });
+
+      if (!window.CCDiagnostic) {
+        localStorage.setItem('ownerIndependenceScore', String(scores.overallIndexScore));
+        localStorage.setItem('ccIndexIndependenceComplete', 'true');
+        localStorage.setItem('ccIndexIndependenceProgress', '100');
+        location.href = '/diagnostic/';
+        return;
+      }
+
+      // Wait for the updated Independence row to reach Supabase before the
+      // scorecard is regenerated. The previous implementation navigated away
+      // immediately after mark(), which could cancel the background request.
+      if (window.CCAccount?.syncDiagnosticState) {
+        await window.CCAccount.syncDiagnosticState(
+          window.CCDiagnostic.serialize(),
+          { throwOnError: true }
+        );
+      }
+
+      const state = window.CCDiagnostic.getState?.() || {};
+      if (state.allComplete && window.CCScorecard?.generate) {
+        window.CCScorecard.clear?.();
+        await window.CCScorecard.generate();
+
+        // Mark the newly generated snapshot ready only after the database
+        // scorecard has been upserted successfully.
+        window.CCDiagnostic.completeReportGeneration?.();
+        if (window.CCAccount?.syncDiagnosticState) {
+          await window.CCAccount.syncDiagnosticState(
+            window.CCDiagnostic.serialize(),
+            { throwOnError: true }
+          );
+        }
+        location.href = '/agency-scorecard/?updated=independence';
+        return;
+      }
+
+      location.href = '/diagnostic/?updated=independence';
+    } catch (error) {
+      console.error('Owner Independence retake could not be saved.', error);
+      setSaveError(error?.message || 'Your updated assessment could not be saved. Please try again.');
+      setIsSaving(false);
     }
-    location.href = '/diagnostic/';
   };
 
-  const next = () => currentIdx < totalQuestions - 1 ? setCurrentIdx(i => i + 1) : finish();
+  const next = () => currentIdx < totalQuestions - 1 ? setCurrentIdx(i => i + 1) : void finish();
   const back = () => currentIdx > 0 && setCurrentIdx(i => i - 1);
   const categoryColor = isValidation ? '#d97706' : '#2563eb';
 
@@ -345,9 +393,10 @@ export default function App() {
               )}
 
               <div className="question-card-divider" />
+              {saveError && <p style={{ color: '#b91c1c', margin: '0 0 12px', fontSize: '14px' }}>{saveError}</p>}
               <div className="question-card-actions">
-                {currentIdx > 0 ? <button className="btn-back" onClick={back}>← Back</button> : <span />}
-                <button className={`btn-next ${currentAnswered ? 'active' : 'disabled'}`} disabled={!currentAnswered} onClick={next}>{currentIdx === totalQuestions - 1 ? 'Save & finish' : 'Next'} <span>→</span></button>
+                {currentIdx > 0 ? <button className="btn-back" disabled={isSaving} onClick={back}>← Back</button> : <span />}
+                <button className={`btn-next ${currentAnswered && !isSaving ? 'active' : 'disabled'}`} disabled={!currentAnswered || isSaving} onClick={next}>{isSaving ? (IS_RETAKE ? 'Saving & regenerating…' : 'Saving…') : (currentIdx === totalQuestions - 1 ? (IS_RETAKE ? 'Save & regenerate report' : 'Save & finish') : 'Next')} {!isSaving && <span>→</span>}</button>
               </div>
             </section>
           </main>
