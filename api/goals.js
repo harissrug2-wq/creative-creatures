@@ -1,3 +1,5 @@
+import { buildValuationSnapshot, withValuationReportData } from './valuation-engine.js';
+
 const json = (res, status, payload) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -212,7 +214,7 @@ function percentage(value) {
   return `${Number.isInteger(number) ? number : number.toFixed(1)}%`;
 }
 
-function metric(id, value, source, displayOverride = null) {
+function metric(id, value, source, displayOverride = null, unavailableSource = 'Data not available') {
   const definition = METRICS.find(item => item.id === id);
   const available = value !== null && value !== undefined && value !== '';
   let actualDisplay = '—';
@@ -227,7 +229,7 @@ function metric(id, value, source, displayOverride = null) {
     available,
     actualValue: available ? Number(value) : null,
     actualDisplay,
-    source: available ? source : 'Data not available'
+    source: available ? source : unavailableSource
   };
 }
 
@@ -241,22 +243,21 @@ function buildMetrics(scorecard, indexRows, evidenceRows) {
   const strengthCategories = strength.category_scores || {};
   const extracted = evidenceObjects(evidenceRows);
 
-  const ownerDelivery = firstNumber([independenceDetails, ...extracted], [
+  // Owner Time in Sales / Delivery must come from the explicit 30-day
+  // time-allocation question in Owner Independence. Do not infer these
+  // percentages from category scores, revenue involvement, or financial data.
+  const ownerDelivery = firstNumber([independenceDetails], [
     'ownerTime.deliveryPercent',
     'scores.ownerTime.deliveryPercent',
-    'timeAllocation.allocations.Delivery',
-    'scores.timeAllocation.allocations.Delivery',
-    'answers.24.allocations.Delivery',
+    'answers.24.activities.Delivery',
     'owner_time.delivery_percent',
     'ownerDeliveryPercent',
     'owner_delivery_percent'
   ]);
-  const ownerSales = firstNumber([independenceDetails, ...extracted], [
+  const ownerSales = firstNumber([independenceDetails], [
     'ownerTime.salesPercent',
     'scores.ownerTime.salesPercent',
-    'timeAllocation.allocations.Sales',
-    'scores.timeAllocation.allocations.Sales',
-    'answers.24.allocations.Sales',
+    'answers.24.activities.Sales',
     'owner_time.sales_percent',
     'ownerSalesPercent',
     'owner_sales_percent'
@@ -275,25 +276,42 @@ function buildMetrics(scorecard, indexRows, evidenceRows) {
   ]);
   const leadershipScore = firstNumber([strengthCategories], ['leadership', 'leadershipSystem', 'leadership_system']);
   const aofi = finite(scorecard?.aofi_score);
+  const valuationSnapshot = scorecard?.report_data?.valuation && typeof scorecard.report_data.valuation === 'object'
+    ? scorecard.report_data.valuation
+    : null;
   const enterpriseValuation = firstNumber([scorecard?.report_data || {}, ...extracted], [
     'enterpriseValuation', 'enterprise_valuation', 'valuation.enterpriseValue', 'valuation.enterprise_value'
   ]);
+  const valuationUnavailable = valuationSnapshot?.status === 'insufficient_evidence'
+    ? `Missing valuation evidence: ${(valuationSnapshot.missingInputs || []).join(', ')}`
+    : 'Valuation has not been calculated yet';
 
   const leadershipDisplay = leadershipScore === null
     ? null
     : `${Math.max(0, Math.min(5, Math.round(leadershipScore / 20)))} / 5`;
 
   return [
-    metric('ownerDelivery', ownerDelivery, 'Owner Independence · 30-day time allocation'),
-    metric('ownerSales', ownerSales, 'Owner Independence · 30-day time allocation'),
+    metric('ownerDelivery', ownerDelivery, 'Owner Independence evidence'),
+    metric('ownerSales', ownerSales, 'Owner Independence evidence'),
     metric('revenue', revenue, 'Financial evidence'),
     metric('cogs', cogs, 'Financial evidence'),
     metric('margin', netMargin, 'Financial evidence'),
     metric('sde', adjustedSDE, 'Agency Performance · Adjusted SDE'),
     metric('leadership', leadershipScore, 'Agency Strength · Leadership System', leadershipDisplay),
     metric('aofi', aofi, 'Generated Agency Scorecard'),
-    metric('valuation', enterpriseValuation, 'Approved valuation output')
+    metric('valuation', enterpriseValuation, 'Agency Valuation™ · Step 7B snapshot', null, valuationUnavailable)
   ];
+}
+
+async function persistValuationSnapshot(config, scorecard, snapshot) {
+  const reportData = withValuationReportData(scorecard?.report_data || {}, snapshot);
+  const params = new URLSearchParams({ id: `eq.${scorecard.id}` });
+  await supabaseRequest(config, `scorecards?${params.toString()}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ report_data: reportData, updated_at: new Date().toISOString() })
+  });
+  return { ...scorecard, report_data: reportData };
 }
 
 async function loadModel(config, account) {
@@ -320,6 +338,12 @@ async function loadModel(config, account) {
     getDepartments(config, account.id),
     getRocks(config, account.id)
   ]);
+
+  // Always derive the Goals valuation from the current persisted diagnostic
+  // results. This makes the scorecard snapshot the single valuation source of
+  // truth and prevents an old placeholder from surviving a retake.
+  const valuationSnapshot = buildValuationSnapshot(indexRows, { diagnosticRunId: run.id });
+  const scorecardWithValuation = await persistValuationSnapshot(config, scorecard, valuationSnapshot);
 
   const targets = Object.fromEntries(targetRows.map(row => [row.metric_id, {
     id: row.id,
@@ -360,7 +384,7 @@ async function loadModel(config, account) {
     account: { id: account.id, name: account.name, email: account.email, agencyName: account.agency_name },
     diagnosticRun: { id: run.id, status: run.status },
     scorecard: { id: scorecard.id, aofiScore: Number(scorecard.aofi_score), generatedAt: scorecard.generated_at },
-    metrics: buildMetrics(scorecard, indexRows, evidenceRows),
+    metrics: buildMetrics(scorecardWithValuation, indexRows, evidenceRows),
     targets,
     departments,
     rocks,

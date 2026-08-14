@@ -1,3 +1,5 @@
+import { buildValuationSnapshot, withValuationReportData } from './valuation-engine.js';
+
 const json = (res, status, payload) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -288,7 +290,7 @@ function ownerArchetype(account) {
   return report.archetypeTitle || report.title || result.title || result.name || 'Owner Archetype';
 }
 
-function buildModel(account, rows, generatedAt) {
+function buildModel(account, rows, generatedAt, diagnosticRunId = null) {
   const map = Object.fromEntries(rows.map(row => [row.index_type, row]));
   const required = ['performance', 'strength', 'independence'];
   for (const index of required) {
@@ -331,7 +333,8 @@ function buildModel(account, rows, generatedAt) {
     recommendation: reports[row.index]?.recommendation || 'Validate this capability and assign a clear owner.'
   }));
 
-  return {
+  const valuation = buildValuationSnapshot(rows, { diagnosticRunId, calculatedAt: generatedAt });
+  return withValuationReportData({
     title: 'Agency Scorecard',
     score,
     confidence,
@@ -343,7 +346,7 @@ function buildModel(account, rows, generatedAt) {
     opportunities,
     archetype: ownerArchetype(account),
     generatedAt
-  };
+  }, valuation);
 }
 
 async function saveScorecard(config, run, model) {
@@ -375,6 +378,20 @@ async function saveScorecard(config, run, model) {
   });
 
   return Array.isArray(saved) ? saved[0] : saved;
+}
+
+
+async function updateSavedScorecardReport(config, scorecardId, model) {
+  if (!scorecardId) return;
+  const params = new URLSearchParams({ id: `eq.${scorecardId}` });
+  await supabaseRequest(config, `scorecards?${params.toString()}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({
+      report_data: model,
+      updated_at: new Date().toISOString()
+    })
+  });
 }
 
 async function markAccountGenerated(config, account, model) {
@@ -425,18 +442,28 @@ export default async function handler(req, res) {
       if (!saved?.report_data || !Object.keys(saved.report_data).length) {
         return json(res, 404, { error: 'The Agency Scorecard has not been generated yet.', code: 'SCORECARD_NOT_FOUND' });
       }
+
+      // Step 7B is calculated from the current persisted index results, never
+      // from demo values or stale valuation text. Refresh the snapshot when the
+      // scorecard is opened so existing completed accounts are upgraded without
+      // forcing a retake.
+      const rows = await getIndexRows(config, run.id);
+      const valuation = buildValuationSnapshot(rows, { diagnosticRunId: run.id });
+      const enriched = withValuationReportData(saved.report_data, valuation);
+      await updateSavedScorecardReport(config, saved.id, enriched);
+
       return json(res, 200, {
         ok: true,
         accountId: account.id,
         diagnosticRunId: run.id,
         scorecardId: saved.id,
-        scorecard: saved.report_data
+        scorecard: enriched
       });
     }
 
     const rows = await getIndexRows(config, run.id);
     const generatedAt = new Date().toISOString();
-    const model = buildModel(account, rows, generatedAt);
+    const model = buildModel(account, rows, generatedAt, run.id);
     const saved = await saveScorecard(config, run, model);
     await markAccountGenerated(config, account, model);
 
