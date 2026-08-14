@@ -168,7 +168,7 @@ async function getDepartments(config, accountId) {
 
 async function getRocks(config, accountId) {
   const params = new URLSearchParams({
-    select: 'id,scorecard_id,source_type,source_key,title,description,owner_name,due,status,created_at,updated_at',
+    select: 'id,scorecard_id,source_type,source_key,title,description,owner_name,due,due_date,status,created_at,updated_at',
     account_id: `eq.${accountId}`,
     order: 'created_at.asc'
   });
@@ -440,6 +440,7 @@ async function loadModel(config, account) {
     description: row.description || '',
     owner: row.owner_name || 'Agency Owner',
     due: row.due || 'This quarter',
+    dueDate: row.due_date || '',
     status: row.status || 'Not started'
   }));
 
@@ -586,6 +587,7 @@ function normalizeSourceKey(value, title, index) {
 }
 
 async function createRocks(config, accountId, scorecardId, items) {
+  const defaultDueDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const input = Array.isArray(items) ? items.slice(0, 20) : [];
   const normalized = input
     .map((item, index) => ({
@@ -595,6 +597,7 @@ async function createRocks(config, accountId, scorecardId, items) {
       description: clean(item?.description),
       owner: clean(item?.owner) || 'Agency Owner',
       due: ['This month', 'This quarter', 'Next quarter'].includes(item?.due) ? item.due : 'This quarter',
+      dueDate: /^\d{4}-\d{2}-\d{2}$/.test(clean(item?.dueDate)) ? clean(item.dueDate) : defaultDueDate,
       status: ['Not started', 'On track', 'Watch', 'Complete'].includes(item?.status) ? item.status : 'Not started'
     }))
     .filter(item => item.title);
@@ -614,6 +617,7 @@ async function createRocks(config, accountId, scorecardId, items) {
     description: item.description,
     owner_name: item.owner,
     due: item.due,
+    due_date: item.dueDate,
     status: item.status,
     updated_at: new Date().toISOString()
   }));
@@ -637,9 +641,12 @@ async function updateRock(config, accountId, body) {
   const patch = { updated_at: new Date().toISOString() };
   if (body.owner !== undefined) patch.owner_name = clean(body.owner);
   if (body.due !== undefined && ['This month', 'This quarter', 'Next quarter'].includes(body.due)) patch.due = body.due;
+  if (body.dueDate !== undefined) patch.due_date = /^\d{4}-\d{2}-\d{2}$/.test(clean(body.dueDate)) ? clean(body.dueDate) : null;
+  if (body.title !== undefined) patch.title = clean(body.title);
+  if (body.description !== undefined) patch.description = clean(body.description);
   if (body.status !== undefined && ['Not started', 'On track', 'Watch', 'Complete'].includes(body.status)) patch.status = body.status;
 
-  const params = new URLSearchParams({ id: `eq.${id}`, account_id: `eq.${accountId}`, select: 'id,owner_name,due,status,updated_at' });
+  const params = new URLSearchParams({ id: `eq.${id}`, account_id: `eq.${accountId}`, select: 'id,title,description,owner_name,due,due_date,status,updated_at' });
   const rows = await supabaseRequest(config, `rocks?${params.toString()}`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },

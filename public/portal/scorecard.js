@@ -54,6 +54,14 @@
     </article>`;
   }).join('');
   const rockCandidates = {};
+  let existingRockKeys = new Set();
+  try {
+    const goalsModel = await window.CCGoals?.load?.({ fresh: true });
+    existingRockKeys = new Set((goalsModel?.rocks || []).map(rock => rock.sourceKey).filter(Boolean));
+  } catch (_) {
+    // Scorecard remains usable if Goals cannot be loaded; create_rocks still
+    // enforces account_id + source_key uniqueness server-side.
+  }
   const issueSource = Array.isArray(model.issues) && model.issues.length
     ? model.issues
     : model.weakest.map(row => ({ capability: row.name, index: row.index, indexTitle: row.indexTitle, score: row.score, description: `${row.indexTitle} is below the other measured capabilities and should be validated before the next planning cycle.` }));
@@ -63,12 +71,14 @@
   const issueRows = issueSource.map((row,index) => {
     const id=`issue-${index}`;
     rockCandidates[id]={title:row.capability,description:row.description,sourceType:'issue',sourceKey:`issue:${row.index||'index'}:${String(row.capability||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')}`};
-    return `<label class="insight-row selectable-insight"><input type="checkbox" data-rock-candidate="${id}"><span><b>${esc(row.capability)} · ${row.score}/100</b><p>${esc(row.description)}</p></span></label>`;
+    const exists=existingRockKeys.has(rockCandidates[id].sourceKey);
+    return `<label class="insight-row selectable-insight${exists?' selected':''}"><input type="checkbox" data-rock-candidate="${id}" ${exists?'disabled':''}><span><b>${esc(row.capability)} · ${row.score}/100</b><p>${esc(row.description)}</p>${exists?'<small>Already a 90-Day Rock</small>':''}</span></label>`;
   }).join('');
   const opportunityRows = opportunitySource.map((row,index) => {
     const id=`opportunity-${index}`;
     rockCandidates[id]={title:row.capability,description:row.recommendation,sourceType:'opportunity',sourceKey:`opportunity:${row.index||'index'}:${String(row.capability||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')}`};
-    return `<label class="insight-row opportunity-row selectable-insight"><input type="checkbox" data-rock-candidate="${id}"><i>${index+1}</i><div><b>${esc(row.capability)}</b><p>${esc(row.recommendation)}</p></div><em>+${row.estimatedLift} pts</em></label>`;
+    const exists=existingRockKeys.has(rockCandidates[id].sourceKey);
+    return `<label class="insight-row opportunity-row selectable-insight${exists?' selected':''}"><input type="checkbox" data-rock-candidate="${id}" ${exists?'disabled':''}><i>${index+1}</i><div><b>${esc(row.capability)}</b><p>${esc(row.recommendation)}</p>${exists?'<small>Already a 90-Day Rock</small>':''}</div><em>+${row.estimatedLift} pts</em></label>`;
   }).join('');
   const perf = model.reports.performance;
   const valuation = model.valuation && typeof model.valuation === 'object' ? model.valuation : null;
@@ -90,11 +100,13 @@
     ${valuationHtml}<div class="define-goals-wrap"><a class="define-goals-cta" href="/agency-goals/">Define Agency Goals →</a></div>`;
   const saveRocks = async candidates => {
     if (!candidates.length) return { added: 0 };
+    const dueDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
     if (!window.CCGoals?.createRocks) throw new Error('Agency Goals persistence is unavailable.');
     return window.CCGoals.createRocks(candidates.map(candidate => ({
       ...candidate,
       owner: 'Agency Owner',
       due: 'This quarter',
+      dueDate,
       status: 'Not started'
     })));
   };
@@ -110,7 +122,16 @@
       const added=Number(result?.added||0);
       note.textContent=added?`${added} 90 Day Rock${added===1?'':'s'} added to Agency Goals.`:'Those items are already in Agency Goals.';
       button.textContent='Created ✓';
-      root.querySelectorAll('[data-rock-candidate]:checked').forEach(input=>{input.checked=false;input.closest('.selectable-insight')?.classList.remove('selected');});
+      root.querySelectorAll('[data-rock-candidate]:checked').forEach(input=>{
+        const candidate=rockCandidates[input.dataset.rockCandidate];
+        if(candidate?.sourceKey) existingRockKeys.add(candidate.sourceKey);
+        input.checked=false;
+        input.disabled=true;
+        const row=input.closest('.selectable-insight');
+        row?.classList.add('selected');
+        const holder=row?.querySelector('span,div');
+        if(holder && !holder.querySelector('small')) holder.insertAdjacentHTML('beforeend','<small>Already a 90-Day Rock</small>');
+      });
     } catch(error) {
       note.textContent=error.message||'The 90 Day Rocks could not be saved.';
     } finally {
