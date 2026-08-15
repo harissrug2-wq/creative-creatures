@@ -17,6 +17,20 @@ const json = (res, status, payload) => {
   res.end(JSON.stringify(payload));
 };
 
+function parseBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (typeof req.body === 'string') {
+    try { return JSON.parse(req.body || '{}'); }
+    catch {
+      const error = new Error('The financial evidence request body is invalid JSON.');
+      error.status = 400;
+      error.code = 'INVALID_JSON_BODY';
+      throw error;
+    }
+  }
+  return {};
+}
+
 const EVIDENCE_TYPES = new Set([
   'profit_loss',
   'balance_sheet',
@@ -191,7 +205,18 @@ async function saveEvidence(config, runId, evidenceType, patch) {
       updated_at: now
     })
   });
-  return Array.isArray(rows) ? rows[0] || null : null;
+  let created = Array.isArray(rows) ? rows[0] || null : null;
+  // Do not allow the upload UI to continue unless the database row can be
+  // read back. This prevents a local-only "uploaded" state from masking a
+  // failed financial_evidence insert.
+  if (!created) created = await findEvidence(config, runId, evidenceType);
+  if (!created?.id) {
+    const error = new Error('The financial evidence database record could not be created.');
+    error.status = 500;
+    error.code = 'EVIDENCE_ROW_NOT_CREATED';
+    throw error;
+  }
+  return created;
 }
 
 function safeFilename(value) {
@@ -543,8 +568,14 @@ async function prepareUpload(config, body) {
     extracted_data: existing?.extracted_data && typeof existing.extracted_data === 'object' ? existing.extracted_data : {},
     validation_status: existing?.validation_status || 'unverified'
   });
+  if (!evidence?.id) {
+    const error = new Error('The financial evidence record was not created before upload.');
+    error.status = 500;
+    error.code = 'EVIDENCE_ROW_NOT_CREATED';
+    throw error;
+  }
   const signedUploadUrl = await createSignedUploadUrl(config, storagePath);
-  return { account, run, evidence, signedUploadUrl };
+  return { account, run, evidence, signedUploadUrl, phase: 'database_saved' };
 }
 
 async function extractEvidence(config, body) {
@@ -1201,7 +1232,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed.' });
-    const body = req.body && typeof req.body === 'object' ? req.body : {};
+    const body = parseBody(req);
     const action = clean(body.action);
 
     if (action === 'prepare_upload') {
@@ -1230,7 +1261,8 @@ export default async function handler(req, res) {
     const status = Number(error.status) || 500;
     return json(res, status, {
       error: error.message || 'Financial evidence request failed.',
-      code: error.code || 'FINANCIAL_EVIDENCE_ERROR'
+      code: error.code || 'FINANCIAL_EVIDENCE_ERROR',
+      phase: error.code === 'DIAGNOSTIC_RUN_REQUIRED' ? 'context' : (error.code === 'EVIDENCE_ROW_NOT_CREATED' ? 'database' : undefined)
     });
   }
 }

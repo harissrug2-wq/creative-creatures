@@ -180,8 +180,9 @@
     if(model==='manual_entry')return {className:'complete',text:'Manual values saved'};
     if(status==='processed')return {className:'complete',text:'Automated values available'};
     if(status==='processing')return {className:'processing',text:'Trying automated extraction…'};
+    if(status==='failed'&&!meta?.evidenceId)return {className:'warning',text:'Upload was not saved · retry PDF upload'};
     if(status==='failed')return {className:'warning',text:'Automated extraction unavailable · use manual values'};
-    return {className:'pending',text:'PDF stored · confirm values below'};
+    return {className:'pending',text:meta?.evidenceId?'PDF record saved · confirm values below':'Preparing PDF…'};
   }
 
   function uploadBody(section){
@@ -195,6 +196,7 @@
         <p>${esc(section.copy)}</p>
         ${meta?`<div class="uploaded-file"><strong>${esc(meta.name)}</strong>${meta.size?`<span>${formatSize(meta.size)}</span>`:''}</div>`:''}
         ${status?`<div class="extraction-status ${status.className}">${esc(status.text)}</div>`:''}
+        ${meta?.extractionError?`<div class="extraction-error">${esc(meta.extractionError)}</div>`:''}
         <div class="upload-actions">
           <label class="upload-button">${meta?'Replace PDF':'Choose PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
           ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry automated extraction</button>`:''}
@@ -314,18 +316,34 @@
   }
 
   async function handleUpload(section,file){
-    if(!window.CCFinancialEvidence?.uploadPdf){state.documents[section.id]={...fileMeta(file),extractionStatus:'uploaded'};persist();render();return;}
+    if(!window.CCFinancialEvidence?.prepareUpload||!window.CCFinancialEvidence?.uploadPrepared){
+      state.documents[section.id]={...fileMeta(file),extractionStatus:'failed',extractionError:'Financial evidence upload service is not loaded. Refresh the page and try again.'};persist();render();return;
+    }
     if(file.size>window.CCFinancialEvidence.maxFileBytes){state.documents[section.id]={...fileMeta(file),extractionStatus:'failed',extractionError:'PDF must be 4 MB or smaller.'};persist();render();return;}
 
     state.documents[section.id]={...fileMeta(file)};
     state.uploadState[section.id]='uploading';persist();render();
     try{
-      const result=await window.CCFinancialEvidence.uploadPdf(section.evidenceType,file);
-      const row=result?.evidence||{};
-      state.documents[section.id]={name:row.file_name||file.name,size:Number(row.file_size_bytes)||file.size,type:row.mime_type||file.type||'application/pdf',receivedAt:row.updated_at||new Date().toISOString(),evidenceId:row.id||null,storagePath:row.storage_path||null,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:result?.extractionError?.message||row.extraction_error||'',extractedAt:row.extracted_at||null};
+      // Phase 1: persist the financial_evidence row BEFORE any storage or AI
+      // work. If this fails, stop immediately and show the real backend error.
+      const prepared=await window.CCFinancialEvidence.prepareUpload(section.evidenceType,file);
+      const preparedRow=prepared?.evidence;
+      if(!preparedRow?.id)throw Object.assign(new Error('Supabase did not create the financial_evidence row.'),{code:'EVIDENCE_ROW_NOT_CREATED',phase:'database'});
+      state.documents[section.id]={name:preparedRow.file_name||file.name,size:Number(preparedRow.file_size_bytes)||file.size,type:preparedRow.mime_type||file.type||'application/pdf',receivedAt:preparedRow.updated_at||new Date().toISOString(),evidenceId:preparedRow.id,storagePath:preparedRow.storage_path||null,extractionStatus:preparedRow.extraction_status||'uploaded',extractionModel:preparedRow.extraction_model||null,extractionError:'',extractedAt:preparedRow.extracted_at||null};
+      persist();render();
+
+      // Phase 2 + 3: upload the bytes, then ask OpenAI to extract. A failure
+      // here must never erase the row created above.
+      state.uploadState[section.id]='extracting';persist();render();
+      const result=await window.CCFinancialEvidence.uploadPrepared(prepared,section.evidenceType,file);
+      const row=result?.evidence||preparedRow;
+      state.documents[section.id]={name:row.file_name||file.name,size:Number(row.file_size_bytes)||file.size,type:row.mime_type||file.type||'application/pdf',receivedAt:row.updated_at||new Date().toISOString(),evidenceId:row.id||preparedRow.id,storagePath:row.storage_path||preparedRow.storage_path||null,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:result?.extractionError?.message||row.extraction_error||'',extractedAt:row.extracted_at||null};
       if(row.extracted_data&&typeof row.extracted_data==='object')state.manual[section.id]={...manualFor(section),...row.extracted_data};
-    }catch(error){state.documents[section.id]={...state.documents[section.id],extractionStatus:'failed',extractionError:error.message||'Upload failed.'};}
-    finally{delete state.uploadState[section.id];persist();render();}
+    }catch(error){
+      const existing=state.documents[section.id]||fileMeta(file);
+      state.documents[section.id]={...existing,extractionStatus:'failed',extractionError:error.message||'Upload failed before the financial evidence record could be saved.'};
+      state.remoteError=error.message||'Financial evidence upload failed.';
+    } finally{delete state.uploadState[section.id];persist();render();}
   }
 
   async function retryAnalysis(section){
