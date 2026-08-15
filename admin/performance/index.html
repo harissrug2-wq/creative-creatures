@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Platform Performance · Creative Creatures Admin</title>
+  <title>Diagnostic Performance · Creative Creatures Admin</title>
   <link rel="icon" href="/favicon.svg">
   <link rel="stylesheet" href="/admin/admin.css">
 </head>
@@ -12,71 +12,38 @@
     <aside class="admin-side">
       <div class="admin-brand">
         <img src="/portal/creative-creatures-logo.png" alt="Creative Creatures">
-        <div class="admin-badge">
-          <svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/></svg>Admin Console
-        </div>
+        <div class="admin-badge"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/></svg>Admin Console</div>
       </div>
       <nav class="admin-nav">
-        <a class="admin-link" href="/admin/">
-          <svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg>Agencies
-        </a>
-        <a class="admin-link active" href="/admin/performance/">
-          <svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Performance
-        </a>
+        <a class="admin-link" href="/admin/owner-archetypes/"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Owner Archetype</a>
+        <a class="admin-link" href="/admin/"><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg>Diagnostics</a>
+        <a class="admin-link active" href="/admin/performance/"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Performance</a>
       </nav>
-      <div class="admin-profile">
-        <span class="admin-avatar">PA</span>
-        <div>
-          <strong>Platform Admin</strong>
-          <span>admin@creativecreatures.org</span>
-        </div>
-        <i>⌃</i>
-      </div>
+      <div class="admin-profile"><span class="admin-avatar">PA</span><div><strong>Platform Admin</strong><span>admin@creativecreatures.org</span></div><i>⌃</i></div>
     </aside>
-
     <div class="admin-overlay"></div>
-
     <div class="admin-main">
-      <header class="admin-top">
-        <button class="admin-mobile">☰</button>
-        <span>Creative Creatures</span>&nbsp;/&nbsp;Admin&nbsp;/&nbsp;Performance
-      </header>
-
+      <header class="admin-top"><button class="admin-mobile">☰</button><span>Creative Creatures</span>&nbsp;/&nbsp;Admin&nbsp;/&nbsp;Performance</header>
       <main class="admin-content">
-        <header class="admin-head">
-          <div>
-            <h1>Platform Performance</h1>
-            <p>Rolled-up view across every agency on the platform. Drill into any tenant to inspect their dashboards.</p>
-          </div>
-        </header>
-
-        <!-- Dynamic metric cards grid -->
-        <section class="metric-grid" id="metricGrid">
-          <!-- Dynamically populated by admin.js -->
-        </section>
-
+        <header class="admin-head"><div><h1>Diagnostic Performance</h1><p>Live completion and report-readiness rollup across paid Agency Diagnostic clients.</p></div><span class="admin-updated" data-admin-updated></span></header>
+        <p class="admin-inline-error" data-admin-error hidden></p>
+        <section class="metric-grid" id="metricGrid"></section>
         <div class="rollup-head">
-          <h2>Per-agency rollup</h2>
+          <h2>Per-diagnostic rollup</h2>
           <div class="rollup-tools">
-            <input class="searchbox" id="agencySearch" placeholder="⌕  Search agency...">
+            <input class="searchbox" id="agencySearch" placeholder="⌕  Search diagnostic...">
             <select class="sortbox" id="agencySort">
-              <option value="mrr-desc">Sort: MRR ↓</option>
-              <option value="health-desc">Sort: Health ↓</option>
+              <option value="progress-desc">Sort: Analysis ↓</option>
+              <option value="status-desc">Sort: Status ↓</option>
               <option value="name-asc">Sort: Name A-Z</option>
-              <option value="accounts-desc">Sort: Accounts ↓</option>
               <option value="date-desc">Sort: Date Newest</option>
             </select>
           </div>
         </div>
-
-        <!-- Dynamic Rollup Table -->
-        <section class="rollup-table" id="rollupTableContainer">
-          <!-- Dynamically populated by admin.js -->
-        </section>
+        <section class="rollup-table" id="rollupTableContainer"></section>
       </main>
     </div>
   </div>
-
   <script src="/admin/admin.js"></script>
 </body>
 </html>

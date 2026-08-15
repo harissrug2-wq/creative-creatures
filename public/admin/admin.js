@@ -1,387 +1,334 @@
 (() => {
-  const BASELINE_AGENCIES = [
-    {
-      id: 'demo-directing-design',
-      agencyName: 'Directing Design',
-      ownerEmail: 'owner@directingdesign.com',
-      agencyWebsite: 'directingdesign.com',
-      archetypeTitle: 'The Creative Wizard',
-      plan: 'Growth',
-      mrr: 10040,
-      accountsCount: 8,
-      integrationsCount: 9,
-      healthPct: 63,
-      healthyCount: 5,
-      riskCount: 3,
-      createdAt: '2024-01-15',
-      source: 'seed'
-    },
-    {
-      id: 'demo-bright-foundry',
-      agencyName: 'Bright Foundry Co.',
-      ownerEmail: 'ops@brightfoundry.co',
-      agencyWebsite: 'brightfoundry.co',
-      archetypeTitle: 'The Control Builder',
-      plan: 'Starter',
-      mrr: 1400,
-      accountsCount: 2,
-      integrationsCount: 3,
-      healthPct: 50,
-      healthyCount: 1,
-      riskCount: 1,
-      createdAt: '2025-03-02',
-      source: 'seed'
+  const ACCOUNT_API = '/api/accounts';
+  const REFRESH_MS = 60000;
+
+  const safeJson = (value, fallback = null) => {
+    try { return JSON.parse(value); } catch { return fallback; }
+  };
+
+  const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[char]));
+
+  const normalizeUrl = value => {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    try {
+      const parsed = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+      return parsed.href;
+    } catch {
+      return raw;
     }
-  ];
+  };
 
-  function safeJson(str, fallback = null) {
-    try { return JSON.parse(str); } catch { return fallback; }
+  const displayUrl = value => String(value || '').trim().replace(/^https?:\/\//i, '').replace(/\/$/, '') || '—';
+
+  function formatDate(value, includeTime = false) {
+    if (!value) return '—';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value).split('T')[0] || '—';
+    return new Intl.DateTimeFormat('en-US', includeTime
+      ? { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }
+      : { year: 'numeric', month: 'short', day: 'numeric' }
+    ).format(date);
   }
 
-  function formatMRR(val) {
-    const num = Number(val) || 0;
-    if (num >= 1000) {
-      return `$${(num / 1000).toFixed(1).replace(/\.0$/, '')}k`;
-    }
-    return `$${num.toLocaleString()}`;
+  function diagnosticState(item) {
+    return item?.diagnostic_state && typeof item.diagnostic_state === 'object'
+      ? item.diagnostic_state
+      : {};
   }
 
-  function formatCurrency(val) {
-    const num = Number(val) || 0;
-    return `$${num.toLocaleString('en-US')}`;
+  function indexSummary(item) {
+    const state = diagnosticState(item);
+    const indexes = state.indexes && typeof state.indexes === 'object' ? state.indexes : {};
+    const names = ['strength', 'independence', 'performance'];
+    const completeCount = names.filter(name => indexes?.[name]?.complete === true).length;
+    const progressValues = names.map(name => {
+      const value = Number(indexes?.[name]?.progress || 0);
+      return Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : 0;
+    });
+    const averageProgress = Math.round(progressValues.reduce((sum, value) => sum + value, 0) / names.length);
+    return {
+      completeCount,
+      averageProgress,
+      allComplete: state.allComplete === true || completeCount === 3,
+      reportReady: state.reportReady === true,
+      integrationsComplete: state.integrationsComplete === true,
+      paymentComplete: state.paymentComplete === true
+    };
   }
 
-  function parseRevenue(revenueStr) {
-    if (!revenueStr) return 5000;
-    if (typeof revenueStr === 'number') return revenueStr;
-    const lower = String(revenueStr).toLowerCase();
-    if (lower.includes('under_1m') || lower.includes('under $1m')) return 4500;
-    if (lower.includes('1m_2m') || lower.includes('$1m and $2m')) return 12000;
-    if (lower.includes('2m_3m') || lower.includes('$2m and $3m')) return 22000;
-    if (lower.includes('over_3m') || lower.includes('over $3m')) return 38000;
-    return 5000;
+  function isActivatedDiagnostic(item) {
+    const state = diagnosticState(item);
+    const indexes = state.indexes && typeof state.indexes === 'object' ? state.indexes : {};
+    const hasIndexActivity = Object.values(indexes).some(value =>
+      value?.complete === true || Number(value?.progress || 0) > 0
+    );
+
+    // Accounts created manually by the admin are already diagnostic tenants.
+    if (String(item?.source || '').toLowerCase() !== 'owner-archetype') return true;
+
+    // Owner Archetype leads become Diagnostics only after payment/activation.
+    return state.paymentComplete === true ||
+      state.integrationsComplete === true ||
+      state.reportReady === true ||
+      state.allComplete === true ||
+      Number(state.count || 0) > 0 ||
+      hasIndexActivity;
+  }
+
+  function isOwnerArchetypeLead(item) {
+    return String(item?.source || '').toLowerCase() === 'owner-archetype' && !isActivatedDiagnostic(item);
   }
 
   function normalizeAccount(item) {
     if (!item) return null;
-    const report = item.report_data || item.reportData || safeJson(localStorage.getItem('ownerArchetypeReportData'), {});
-    const archetypeResult = item.archetype_result || item.archetypeResult || {};
-    const archetypeTitle = archetypeResult.title || report?.archetypeTitle || (item.source === 'owner-archetype' ? 'Owner Identity' : '');
-
-    const mrr = item.mrr !== undefined ? Number(item.mrr) : parseRevenue(report?.annualRevenue || item.annualRevenue);
-    const accountsCount = item.accountsCount || item.accounts_count || (report ? 4 : 2);
-    const integrationsCount = item.integrationsCount || item.integrations_count || Math.max(2, accountsCount + 1);
-    const healthPct = item.healthPct || item.health_pct || 75;
-    const healthyCount = Math.round((healthPct / 100) * accountsCount);
-    const riskCount = Math.max(0, accountsCount - healthyCount);
-
-    const rawDate = item.created_at || item.createdAt || report?.completedAt || new Date().toISOString();
-    const formattedDate = String(rawDate).split('T')[0];
-
-    const agencyName = item.agency_name || item.agencyName || item.name || 'Agency Tenant';
-    const ownerEmail = item.email || item.ownerEmail || 'owner@agency.com';
-    const agencyWebsite = item.agency_url || item.agencyWebsite || item.agency_url_normalized || '';
+    const report = item.report_data && typeof item.report_data === 'object' ? item.report_data : {};
+    const archetype = item.archetype_result && typeof item.archetype_result === 'object' ? item.archetype_result : {};
+    const summary = indexSummary(item);
+    const visitDate = report.completedAt || report.completed_at || item.created_at || item.updated_at || null;
 
     return {
-      id: String(item.id || ownerEmail || agencyWebsite || Math.random().toString(36).slice(2)),
-      agencyName,
-      ownerEmail,
-      agencyWebsite,
-      archetypeTitle,
-      plan: item.plan || (item.journey ? item.journey.charAt(0).toUpperCase() + item.journey.slice(1) : 'Growth'),
-      mrr,
-      accountsCount,
-      integrationsCount,
-      healthPct,
-      healthyCount,
-      riskCount,
-      createdAt: formattedDate,
-      source: item.source || 'db'
+      ...item,
+      id: String(item.id || ''),
+      name: String(item.name || `${report.firstName || ''} ${report.lastName || ''}` || '').trim() || 'Agency Owner',
+      email: String(item.email || report.email || '').trim(),
+      agencyName: String(item.agency_name || report.agencyName || '').trim() || 'Agency Diagnostic',
+      agencyUrl: String(item.agency_url || report.agencyWebsite || '').trim(),
+      source: String(item.source || '').trim(),
+      journey: String(item.journey || 'diagnostic').trim(),
+      archetypeTitle: String(archetype.title || report.archetypeTitle || '').trim(),
+      reportData: report,
+      visitDate,
+      createdAt: item.created_at || visitDate,
+      updatedAt: item.updated_at || visitDate,
+      ...summary
     };
   }
 
-  let stateAgencies = [];
+  let allAccounts = [];
+  let diagnostics = [];
+  let ownerArchetypes = [];
 
-  async function fetchAllAgencies() {
-    const map = new Map();
-
-    // 1. Load Baseline seed agencies
-    BASELINE_AGENCIES.forEach(item => map.set((item.agencyWebsite || item.ownerEmail).toLowerCase(), item));
-
-    // 2. Load DB Accounts
-    try {
-      const res = await fetch('/api/accounts?all=true');
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.accounts)) {
-          data.accounts.forEach(item => {
-            const norm = normalizeAccount(item);
-            if (norm && norm.ownerEmail) {
-              const key = (norm.agencyWebsite || norm.ownerEmail).toLowerCase();
-              map.set(key, norm);
-            }
-          });
-        }
-      }
-    } catch (e) {
-      console.warn('API Accounts check warning:', e);
+  async function fetchAccounts() {
+    const response = await fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload.error || 'Unable to load admin accounts.');
     }
-
-    // 3. Load LocalStorage signups
-    const localAccounts = safeJson(localStorage.getItem('ccAccounts'), []);
-    if (Array.isArray(localAccounts)) {
-      localAccounts.forEach(item => {
-        const norm = normalizeAccount(item);
-        if (norm && norm.ownerEmail) {
-          const key = (norm.agencyWebsite || norm.ownerEmail).toLowerCase();
-          map.set(key, norm);
-        }
-      });
-    }
-
-    const localAccount = safeJson(localStorage.getItem('cc_account'), null) || safeJson(localStorage.getItem('ccUserAccount'), null);
-    if (localAccount) {
-      const norm = normalizeAccount(localAccount);
-      if (norm && norm.ownerEmail) {
-        const key = (norm.agencyWebsite || norm.ownerEmail).toLowerCase();
-        map.set(key, norm);
-      }
-    }
-
-    const localReport = safeJson(localStorage.getItem('ownerArchetypeReportData'), null);
-    if (localReport && (localReport.agencyWebsite || localReport.email)) {
-      const norm = normalizeAccount({
-        agency_name: localReport.agencyName,
-        email: localReport.email,
-        agency_url: localReport.agencyWebsite,
-        report_data: localReport,
-        source: 'owner-archetype'
-      });
-      if (norm) {
-        const key = (norm.agencyWebsite || norm.ownerEmail).toLowerCase();
-        map.set(key, norm);
-      }
-    }
-
-    stateAgencies = Array.from(map.values());
-    return stateAgencies;
+    const payload = await response.json();
+    allAccounts = (Array.isArray(payload.accounts) ? payload.accounts : []).map(normalizeAccount).filter(Boolean);
+    ownerArchetypes = allAccounts.filter(isOwnerArchetypeLead);
+    diagnostics = allAccounts.filter(account => account.journey === 'diagnostic' && isActivatedDiagnostic(account));
+    return { allAccounts, diagnostics, ownerArchetypes };
   }
 
-  function renderAgenciesGrid(agencies) {
+  function diagnosticStatus(account) {
+    if (account.reportReady) return { label: 'Scorecard Ready', className: 'success' };
+    if (account.allComplete) return { label: 'Ready to Generate', className: 'info' };
+    if (account.completeCount > 0 || account.averageProgress > 0) return { label: 'In Progress', className: 'warning' };
+    if (account.integrationsComplete) return { label: 'Integrations Complete', className: 'info' };
+    return { label: 'Activated', className: 'neutral' };
+  }
+
+  function renderDiagnosticsGrid(items) {
     const grid = document.querySelector('#agencyGrid');
     if (!grid) return;
 
-    if (!agencies.length) {
+    if (!items.length) {
       grid.innerHTML = `
         <div class="empty-state">
-          <h3>No agencies found</h3>
-          <p>Sign up an agency using the Owner Identity Report or click "+ New Agency" to create one.</p>
+          <h3>No paid diagnostics yet</h3>
+          <p>Owner Archetype leads will move here automatically after their Agency Diagnostic payment is recorded.</p>
         </div>`;
       return;
     }
 
-    grid.innerHTML = agencies.map(agency => `
-      <article class="agency-card" data-agency-id="${agency.id}">
-        <div class="agency-title">
-          <div class="agency-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <rect x="5" y="8" width="14" height="12" rx="2"/>
-              <path d="M9 8V4h6v4M9 12v5M13 10v7M17 13v4"/>
-            </svg>
+    grid.innerHTML = items.map(account => {
+      const status = diagnosticStatus(account);
+      return `
+        <article class="agency-card" data-agency-id="${escapeHtml(account.id)}">
+          <div class="agency-title">
+            <div class="agency-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="5" y="8" width="14" height="12" rx="2"/>
+                <path d="M9 8V4h6v4M9 12v5M13 10v7M17 13v4"/>
+              </svg>
+            </div>
+            <div class="agency-name">
+              <h2>${escapeHtml(account.agencyName)} <span class="plan">Diagnostic</span></h2>
+              <p>${escapeHtml(account.email || 'No email')}</p>
+              ${account.archetypeTitle ? `<div class="archetype-pill">⚡ ${escapeHtml(account.archetypeTitle)}</div>` : ''}
+            </div>
           </div>
-          <div class="agency-name">
-            <h2>${agency.agencyName} <span class="plan">${agency.plan}</span></h2>
-            <p>${agency.ownerEmail}</p>
-            ${agency.archetypeTitle ? `<div class="archetype-pill">⚡ ${agency.archetypeTitle}</div>` : ''}
-          </div>
-        </div>
 
-        <div class="agency-stats">
-          <div class="agency-stat">
-            <label>♧ Accounts</label>
-            <strong>${agency.accountsCount}</strong>
+          <div class="diagnostic-stats">
+            <div class="agency-stat">
+              <label>Assessments</label>
+              <strong>${account.completeCount}/3</strong>
+            </div>
+            <div class="agency-stat">
+              <label>Analysis</label>
+              <strong>${account.averageProgress}%</strong>
+            </div>
+            <div class="agency-stat">
+              <label>Integrations</label>
+              <strong>${account.integrationsComplete ? 'Done' : 'Pending'}</strong>
+            </div>
           </div>
-          <div class="agency-stat">
-            <label>$ MRR</label>
-            <strong>${formatMRR(agency.mrr)}</strong>
-          </div>
-          <div class="agency-stat">
-            <label>♮ Integrations</label>
-            <strong>${agency.integrationsCount}</strong>
-          </div>
-        </div>
 
-        <div class="health">
-          <div class="health-head">
-            <span>Account health</span>
-            <span>${agency.healthyCount}/${agency.accountsCount} healthy</span>
+          <div class="diagnostic-progress">
+            <div class="health-head">
+              <span>Diagnostic progress</span>
+              <span class="status-pill ${status.className}">${escapeHtml(status.label)}</span>
+            </div>
+            <div class="health-track"><span style="width:${Math.max(account.averageProgress, account.reportReady ? 100 : 0)}%"></span></div>
           </div>
-          <div class="health-track">
-            <span style="width:${agency.healthPct}%"></span>
-          </div>
-          <div class="health-labels">
-            <span><i>●</i> ${agency.healthyCount} healthy</span>
-            <span class="risk"><i>●</i> ${agency.riskCount} at risk</span>
-          </div>
-        </div>
 
-        <div class="card-foot">
-          <span class="since">since ${agency.createdAt}</span>
-          <button class="mini-btn" data-delete-id="${agency.id}">Delete</button>
-          <a class="mini-btn" href="/platform/?admin=1&tenant=${encodeURIComponent(agency.id)}" data-admin-view>◉ Dashboard</a>
-          <a class="mini-btn primary" href="/platform/?admin=1&tenant=${encodeURIComponent(agency.id)}" data-admin-view>Manage →</a>
-        </div>
-      </article>
-    `).join('');
+          <div class="card-foot">
+            <span class="since">since ${escapeHtml(formatDate(account.createdAt))}</span>
+            <button class="mini-btn" data-delete-id="${escapeHtml(account.id)}">Delete</button>
+            <a class="mini-btn" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>◉ Dashboard</a>
+            <a class="mini-btn primary" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>Manage →</a>
+          </div>
+        </article>`;
+    }).join('');
 
-    // Attach delete handlers
-    grid.querySelectorAll('[data-delete-id]').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const id = btn.dataset.deleteId;
-        if (!confirm('Are you sure you want to remove this agency tenant?')) return;
-        await deleteAgency(id);
+    grid.querySelectorAll('[data-delete-id]').forEach(button => {
+      button.addEventListener('click', async () => {
+        const id = button.dataset.deleteId;
+        if (!confirm('Are you sure you want to remove this diagnostic account?')) return;
+        await deleteAccount(id);
       });
     });
   }
 
-  function renderPerformanceMetrics(agencies) {
-    const metricGrid = document.querySelector('#metricGrid');
-    if (!metricGrid) return;
+  function renderOwnerArchetypeTable(items) {
+    const body = document.querySelector('#ownerArchetypeRows');
+    const empty = document.querySelector('#ownerArchetypeEmpty');
+    const count = document.querySelector('#ownerArchetypeCount');
+    if (!body) return;
+    if (count) count.textContent = `${items.length} unpaid ${items.length === 1 ? 'lead' : 'leads'}`;
 
-    const totalAgencies = agencies.length;
-    const totalAccounts = agencies.reduce((acc, a) => acc + (a.accountsCount || 0), 0);
-    const totalMRR = agencies.reduce((acc, a) => acc + (a.mrr || 0), 0);
-    const avgHealth = totalAgencies > 0 ? Math.round(agencies.reduce((acc, a) => acc + (a.healthPct || 0), 0) / totalAgencies) : 0;
-    const totalIntegrations = agencies.reduce((acc, a) => acc + (a.integrationsCount || 0), 0);
+    if (!items.length) {
+      body.innerHTML = '';
+      if (empty) empty.hidden = false;
+      return;
+    }
+    if (empty) empty.hidden = true;
 
-    metricGrid.innerHTML = `
-      <article class="platform-metric">
-        <label>▥ Agencies</label>
-        <strong>${totalAgencies}</strong>
-      </article>
-      <article class="platform-metric">
-        <label>♙ Accounts</label>
-        <strong>${totalAccounts}</strong>
-      </article>
-      <article class="platform-metric">
-        <label>$ Total MRR</label>
-        <strong>${formatCurrency(totalMRR)}</strong>
-      </article>
-      <article class="platform-metric amber">
-        <label>〽 Avg Health</label>
-        <strong>${avgHealth}%</strong>
-      </article>
-      <article class="platform-metric">
-        <label>♧ Integrations live</label>
-        <strong>${totalIntegrations}</strong>
-      </article>
-    `;
+    body.innerHTML = items.map(account => {
+      const url = normalizeUrl(account.agencyUrl);
+      return `
+        <tr>
+          <td data-label="Name"><strong>${escapeHtml(account.name)}</strong>${account.archetypeTitle ? `<span class="table-sub">${escapeHtml(account.archetypeTitle)}</span>` : ''}</td>
+          <td data-label="URL">${url ? `<a class="table-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(displayUrl(account.agencyUrl))}</a>` : '—'}</td>
+          <td data-label="Email"><a class="table-link" href="mailto:${escapeHtml(account.email)}">${escapeHtml(account.email || '—')}</a></td>
+          <td data-label="Date of Visit"><span>${escapeHtml(formatDate(account.visitDate, true))}</span></td>
+          <td data-label="View Report"><button class="mini-btn primary report-btn" data-view-owner-report="${escapeHtml(account.id)}">View Report</button></td>
+        </tr>`;
+    }).join('');
+
+    body.querySelectorAll('[data-view-owner-report]').forEach(button => {
+      button.addEventListener('click', () => openOwnerReport(button.dataset.viewOwnerReport, button));
+    });
   }
 
-  function renderRollupTable(agencies, filterText = '', sortOption = 'mrr-desc') {
+  async function openOwnerReport(id, button) {
+    const account = ownerArchetypes.find(item => item.id === id) || allAccounts.find(item => item.id === id);
+    if (!account?.reportData?.answers) {
+      alert('This Owner Archetype record does not contain enough questionnaire data to rebuild the PDF report.');
+      return;
+    }
+
+    const original = button.textContent;
+    button.disabled = true;
+    button.textContent = 'Preparing…';
+    window.CC_ARCHETYPE_REPORT_OVERRIDE = account.reportData;
+    try {
+      const opened = await window.CCArchetypePDF?.openPdf?.();
+      if (!opened) alert('The Owner Archetype PDF could not be prepared. Please try again.');
+    } catch (error) {
+      console.warn('Admin Owner Archetype report failed.', error);
+      alert('The Owner Archetype PDF could not be prepared. Please try again.');
+    } finally {
+      window.CC_ARCHETYPE_REPORT_OVERRIDE = null;
+      button.disabled = false;
+      button.textContent = original;
+    }
+  }
+
+  function renderPerformanceMetrics(items) {
+    const grid = document.querySelector('#metricGrid');
+    if (!grid) return;
+
+    const total = items.length;
+    const generated = items.filter(item => item.reportReady).length;
+    const inProgress = items.filter(item => !item.reportReady && (item.completeCount > 0 || item.averageProgress > 0)).length;
+    const integrations = items.filter(item => item.integrationsComplete).length;
+    const avgProgress = total ? Math.round(items.reduce((sum, item) => sum + item.averageProgress, 0) / total) : 0;
+
+    grid.innerHTML = `
+      <article class="platform-metric"><label>▥ Diagnostics</label><strong>${total}</strong></article>
+      <article class="platform-metric"><label>✓ Scorecards Ready</label><strong>${generated}</strong></article>
+      <article class="platform-metric"><label>↻ In Progress</label><strong>${inProgress}</strong></article>
+      <article class="platform-metric amber"><label>〽 Avg Analysis</label><strong>${avgProgress}%</strong></article>
+      <article class="platform-metric"><label>♧ Integrations Complete</label><strong>${integrations}</strong></article>`;
+  }
+
+  function renderRollupTable(items, filterText = '', sortOption = 'progress-desc') {
     const container = document.querySelector('#rollupTableContainer');
     if (!container) return;
 
-    let filtered = agencies.filter(agency => {
-      if (!filterText) return true;
-      const q = filterText.toLowerCase();
-      return (
-        agency.agencyName.toLowerCase().includes(q) ||
-        agency.ownerEmail.toLowerCase().includes(q) ||
-        (agency.archetypeTitle && agency.archetypeTitle.toLowerCase().includes(q))
-      );
-    });
+    const query = filterText.trim().toLowerCase();
+    const filtered = items.filter(account => !query || [account.agencyName, account.name, account.email, account.archetypeTitle]
+      .some(value => String(value || '').toLowerCase().includes(query)));
 
-    // Apply Sorting
     filtered.sort((a, b) => {
-      if (sortOption === 'mrr-desc') return (b.mrr || 0) - (a.mrr || 0);
-      if (sortOption === 'health-desc') return (b.healthPct || 0) - (a.healthPct || 0);
+      if (sortOption === 'progress-desc') return b.averageProgress - a.averageProgress;
+      if (sortOption === 'status-desc') return Number(b.reportReady) - Number(a.reportReady) || b.completeCount - a.completeCount;
       if (sortOption === 'name-asc') return a.agencyName.localeCompare(b.agencyName);
-      if (sortOption === 'accounts-desc') return (b.accountsCount || 0) - (a.accountsCount || 0);
-      if (sortOption === 'date-desc') return (b.createdAt || '').localeCompare(a.createdAt || '');
+      if (sortOption === 'date-desc') return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
       return 0;
     });
 
-    const totalMRR = agencies.reduce((acc, a) => acc + (a.mrr || 0), 0) || 1;
-
     if (!filtered.length) {
       container.innerHTML = `
-        <div class="roll-row header">
-          <span>Agency</span><span>Accounts</span><span>MRR share</span><span>Health</span><span>Action</span>
-        </div>
-        <div style="padding:40px;text-align:center;color:#8995a4;">
-          No matching agency tenants found.
-        </div>
-      `;
+        <div class="roll-row diagnostic header"><span>Diagnostic</span><span>Assessments</span><span>Analysis</span><span>Status</span><span>Action</span></div>
+        <div class="admin-table-empty">No matching diagnostic accounts found.</div>`;
       return;
     }
 
     container.innerHTML = `
-      <div class="roll-row header">
-        <span>Agency</span><span>Accounts</span><span>MRR share</span><span>Health</span><span>Action</span>
-      </div>
-      ${filtered.map(agency => {
-        const sharePct = Math.min(100, Math.round(((agency.mrr || 0) / totalMRR) * 100));
+      <div class="roll-row diagnostic header"><span>Diagnostic</span><span>Assessments</span><span>Analysis</span><span>Status</span><span>Action</span></div>
+      ${filtered.map(account => {
+        const status = diagnosticStatus(account);
         return `
-          <div class="roll-row" data-name="${agency.agencyName.toLowerCase()}">
+          <div class="roll-row diagnostic">
             <div class="roll-agency">
-              <span class="agency-icon">
-                <svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg>
-              </span>
-              <div>
-                <h3>${agency.agencyName} <span class="plan">${agency.plan}</span></h3>
-                <p>${agency.integrationsCount} integrations · ${agency.ownerEmail}</p>
-                ${agency.archetypeTitle ? `<div class="archetype-pill">⚡ ${agency.archetypeTitle}</div>` : ''}
-              </div>
+              <span class="agency-icon"><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg></span>
+              <div><h3>${escapeHtml(account.agencyName)} <span class="plan">Diagnostic</span></h3><p>${escapeHtml(account.email)}</p>${account.archetypeTitle ? `<div class="archetype-pill">⚡ ${escapeHtml(account.archetypeTitle)}</div>` : ''}</div>
             </div>
-            <strong>${agency.accountsCount}</strong>
-            <div>
-              <div class="mrr-share">
-                <span>share</span><strong>${formatCurrency(agency.mrr)}</strong>
-              </div>
-              <div class="mrr-share">
-                <div class="bar"><span style="width:${sharePct}%"></span></div>
-              </div>
-            </div>
-            <div class="health-inline">
-              <div class="bar"><span style="width:${agency.healthPct}%"></span></div>
-              <span>${agency.healthPct}%</span>
-              <small>✓${agency.healthyCount}&nbsp;&nbsp;!${agency.riskCount}</small>
-            </div>
-            <div class="action-icons">
-              <a class="circle-btn" data-admin-view href="/platform/?admin=1&tenant=${encodeURIComponent(agency.id)}" title="Peek Dashboard">◉</a>
-              <a class="circle-btn primary" data-admin-view href="/platform/?admin=1&tenant=${encodeURIComponent(agency.id)}" title="Manage Agency">→</a>
-            </div>
-          </div>
-        `;
-      }).join('')}
-    `;
+            <strong>${account.completeCount}/3</strong>
+            <div class="progress-cell"><div class="bar"><span style="width:${account.averageProgress}%"></span></div><span>${account.averageProgress}%</span></div>
+            <div><span class="status-pill ${status.className}">${escapeHtml(status.label)}</span></div>
+            <div class="action-icons"><a class="circle-btn" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}" title="Open Dashboard">◉</a><a class="circle-btn primary" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}" title="Manage Diagnostic">→</a></div>
+          </div>`;
+      }).join('')}`;
   }
 
-  async function deleteAgency(id) {
-    // 1. Try DB deletion
-    try {
-      await fetch(`/api/accounts?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-    } catch (e) {
-      console.warn('DB delete fallback warning:', e);
+  async function deleteAccount(id) {
+    const response = await fetch(`${ACCOUNT_API}?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      alert(payload.error || 'The diagnostic could not be deleted.');
+      return;
     }
-
-    // 2. Remove from stateAgencies
-    stateAgencies = stateAgencies.filter(a => a.id !== id);
-
-    // 3. Remove from LocalStorage ccAccounts
-    const localAccounts = safeJson(localStorage.getItem('ccAccounts'), []) || [];
-    const updatedLocal = localAccounts.filter(a => a.id !== id && a.email !== id);
-    localStorage.setItem('ccAccounts', JSON.stringify(updatedLocal));
-
-    // Re-render views
-    renderAgenciesGrid(stateAgencies);
-    renderPerformanceMetrics(stateAgencies);
-    renderRollupTable(stateAgencies);
+    await refresh();
   }
 
-  async function init() {
-    // Sidebar Mobile Toggle
+  function wireShell() {
     const side = document.querySelector('.admin-side');
     const overlay = document.querySelector('.admin-overlay');
     document.querySelector('.admin-mobile')?.addEventListener('click', () => {
@@ -392,102 +339,99 @@
       side?.classList.remove('open');
       overlay?.classList.remove('open');
     });
+  }
 
-    // New Agency Modal Triggers
+  function wireNewDiagnostic() {
     const modal = document.querySelector('#newAgencyModal');
-    document.querySelectorAll('[data-new-agency]').forEach(btn => {
-      btn.addEventListener('click', () => modal?.classList.add('open'));
-    });
-    document.querySelectorAll('[data-close-modal]').forEach(btn => {
-      btn.addEventListener('click', () => modal?.classList.remove('open'));
-    });
+    const form = document.querySelector('#newAgencyForm');
+    document.querySelectorAll('[data-new-agency]').forEach(button => button.addEventListener('click', () => modal?.classList.add('open')));
+    document.querySelectorAll('[data-close-modal]').forEach(button => button.addEventListener('click', () => modal?.classList.remove('open')));
 
-    // New Agency Form Submission
-    const newAgencyForm = document.querySelector('#newAgencyForm');
-    newAgencyForm?.addEventListener('submit', async (e) => {
-      e.preventDefault();
+    form?.addEventListener('submit', async event => {
+      event.preventDefault();
       const name = document.querySelector('#newAgencyName')?.value.trim();
       const email = document.querySelector('#newAgencyEmail')?.value.trim();
       const website = document.querySelector('#newAgencyWebsite')?.value.trim();
-      const plan = document.querySelector('#newAgencyPlan')?.value || 'Growth';
-      const mrr = Number(document.querySelector('#newAgencyMRR')?.value) || 5000;
+      if (!name || !email || !website) return;
 
-      if (!name || !email) return;
-
-      const newAgencyPayload = {
-        name,
-        email,
-        agencyUrl: website || `${name.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`,
-        agencyName: name,
-        journey: plan.toLowerCase(),
-        source: 'admin-console'
-      };
-
-      // Try Backend POST
-      let createdAccount = null;
+      const submit = form.querySelector('button[type="submit"]');
+      submit.disabled = true;
+      const original = submit.textContent;
+      submit.textContent = 'Creating…';
       try {
-        const res = await fetch('/api/accounts', {
+        const response = await fetch(ACCOUNT_API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newAgencyPayload)
+          body: JSON.stringify({
+            name,
+            email,
+            agencyUrl: website,
+            agencyName: name,
+            journey: 'diagnostic',
+            source: 'admin-console'
+          })
         });
-        if (res.ok) {
-          const payload = await res.json();
-          createdAccount = payload.account;
-        }
-      } catch (err) {
-        console.warn('Backend creation failed, creating locally', err);
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Unable to create diagnostic.');
+        modal?.classList.remove('open');
+        form.reset();
+        await refresh();
+      } catch (error) {
+        alert(error.message || 'Unable to create diagnostic.');
+      } finally {
+        submit.disabled = false;
+        submit.textContent = original;
       }
-
-      const newNorm = normalizeAccount(createdAccount || {
-        ...newAgencyPayload,
-        mrr,
-        plan,
-        accountsCount: 3,
-        integrationsCount: 4,
-        healthPct: 80,
-        createdAt: new Date().toISOString().split('T')[0]
-      });
-
-      // Update Local Storage
-      const localAccounts = safeJson(localStorage.getItem('ccAccounts'), []) || [];
-      localAccounts.push(newNorm);
-      localStorage.setItem('ccAccounts', JSON.stringify(localAccounts));
-
-      // Append to stateAgencies
-      stateAgencies.unshift(newNorm);
-
-      // Re-render
-      renderAgenciesGrid(stateAgencies);
-      renderPerformanceMetrics(stateAgencies);
-      renderRollupTable(stateAgencies);
-
-      // Close Modal and Reset Form
-      modal?.classList.remove('open');
-      newAgencyForm.reset();
     });
-
-    // Search and Sort Event Listeners for Performance View
-    const searchInput = document.querySelector('#agencySearch');
-    const sortSelect = document.querySelector('#agencySort');
-
-    const updateRollup = () => {
-      renderRollupTable(stateAgencies, searchInput?.value || '', sortSelect?.value || 'mrr-desc');
-    };
-
-    searchInput?.addEventListener('input', updateRollup);
-    sortSelect?.addEventListener('change', updateRollup);
-
-    // Initial Data Fetch & Initial Render
-    await fetchAllAgencies();
-    renderAgenciesGrid(stateAgencies);
-    renderPerformanceMetrics(stateAgencies);
-    renderRollupTable(stateAgencies);
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
+  function wirePerformanceFilters() {
+    const search = document.querySelector('#agencySearch');
+    const sort = document.querySelector('#agencySort');
+    const update = () => renderRollupTable(diagnostics, search?.value || '', sort?.value || 'progress-desc');
+    search?.addEventListener('input', update);
+    sort?.addEventListener('change', update);
   }
+
+  function renderCurrentPage() {
+    renderDiagnosticsGrid(diagnostics);
+    renderOwnerArchetypeTable(ownerArchetypes);
+    renderPerformanceMetrics(diagnostics);
+    const search = document.querySelector('#agencySearch');
+    const sort = document.querySelector('#agencySort');
+    renderRollupTable(diagnostics, search?.value || '', sort?.value || 'progress-desc');
+  }
+
+  async function refresh() {
+    try {
+      await fetchAccounts();
+      renderCurrentPage();
+      document.querySelectorAll('[data-admin-updated]').forEach(node => {
+        node.textContent = `Updated ${new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date())}`;
+      });
+    } catch (error) {
+      console.error('Admin data refresh failed.', error);
+      document.querySelectorAll('[data-admin-error]').forEach(node => {
+        node.hidden = false;
+        node.textContent = 'Live admin data could not be loaded. Refresh the page to try again.';
+      });
+    }
+  }
+
+  async function init() {
+    wireShell();
+    wireNewDiagnostic();
+    wirePerformanceFilters();
+    await refresh();
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') refresh();
+    });
+    setInterval(() => {
+      if (document.visibilityState === 'visible') refresh();
+    }, REFRESH_MS);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();

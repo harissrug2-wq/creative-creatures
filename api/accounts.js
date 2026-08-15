@@ -7,7 +7,7 @@ const json = (res, status, payload) => {
 
 const clean = value => String(value ?? '').trim();
 const lower = value => clean(value).toLowerCase();
-const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,archetype_result,report_data,diagnostic_state,created_at,updated_at';
+const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
 
 const EMPTY_DIAGNOSTIC_STATE = {
   indexes: {},
@@ -79,6 +79,7 @@ function publicAccount(row) {
     agency_url_normalized: row.agency_url_normalized,
     agency_name: row.agency_name,
     journey: row.journey,
+    source: row.source,
     archetype_result: row.archetype_result || {},
     report_data: row.report_data || {},
     diagnostic_state: row.diagnostic_state || {},
