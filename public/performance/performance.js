@@ -402,14 +402,18 @@
       }
 
       const diagnosticState=window.CCDiagnostic?.getState?.()||{};
-      if(diagnosticState.allComplete&&window.CCScorecard?.generate){
+      // Retakes should keep the existing regenerate-in-place behavior so a
+      // completed scorecard is refreshed immediately. First-time completion
+      // returns to Diagnostic so the approved Generate My Agency Scorecard
+      // action and processing screen remain part of the journey.
+      if(IS_RETAKE&&diagnosticState.allComplete&&window.CCScorecard?.generate){
         window.CCScorecard.clear?.();
         await window.CCScorecard.generate();
         window.CCDiagnostic?.completeReportGeneration?.();
         if(window.CCAccount?.syncDiagnosticState){
           await window.CCAccount.syncDiagnosticState(window.CCDiagnostic.serialize(),{throwOnError:true});
         }
-        location.href=IS_RETAKE?'/agency-scorecard/?updated=performance':'/agency-scorecard/?generated=performance';
+        location.href='/agency-scorecard/?updated=performance';
         return;
       }
 

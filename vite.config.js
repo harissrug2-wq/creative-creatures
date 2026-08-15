@@ -12,6 +12,7 @@ export default defineConfig({
       input: {
         home: resolve(__dirname, 'index.html'),
         login: page('login'),
+        signIn: page('sign-in'),
         admin: page('admin'),
         adminPerformance: resolve(__dirname, 'admin', 'performance', 'index.html'),
         platform: page('platform'),
