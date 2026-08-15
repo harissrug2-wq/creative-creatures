@@ -15,6 +15,9 @@ create table if not exists public.accounts (
   archetype_result jsonb not null default '{}'::jsonb,
   report_data jsonb not null default '{}'::jsonb,
   diagnostic_state jsonb not null default '{}'::jsonb,
+  password_hash text,
+  password_set_at timestamptz,
+  credentials_sent_at timestamptz,
   last_lookup_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
@@ -22,6 +25,9 @@ create table if not exists public.accounts (
 
 alter table public.accounts add column if not exists report_data jsonb not null default '{}'::jsonb;
 alter table public.accounts add column if not exists diagnostic_state jsonb not null default '{}'::jsonb;
+alter table public.accounts add column if not exists password_hash text;
+alter table public.accounts add column if not exists password_set_at timestamptz;
+alter table public.accounts add column if not exists credentials_sent_at timestamptz;
 
 create unique index if not exists accounts_email_unique_idx on public.accounts (email_normalized);
 create unique index if not exists accounts_agency_url_unique_idx on public.accounts (agency_url_normalized);

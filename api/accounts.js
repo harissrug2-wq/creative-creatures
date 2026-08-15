@@ -1,3 +1,4 @@
+import { requireAdmin } from './session-utils.js';
 const json = (res, status, payload) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -127,6 +128,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       if (req.query?.all === 'true' || req.query?.all === '1' || req.query?.list === '1') {
+        if (!requireAdmin(req)) return json(res, 401, { error: 'Admin authentication required.' });
         const rows = await supabaseRequest(config, `accounts?select=${SELECT}&order=created_at.desc`);
         return json(res, 200, { accounts: (Array.isArray(rows) ? rows : []).map(publicAccount) });
       }
@@ -147,6 +149,7 @@ export default async function handler(req, res) {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
 
     if (req.method === 'DELETE') {
+      if (!requireAdmin(req)) return json(res, 401, { error: 'Admin authentication required.' });
       const id = clean(req.query?.id || body.id);
       if (!id) return json(res, 422, { error: 'Account ID is required.' });
       await supabaseRequest(config, `accounts?id=eq.${id}`, { method: 'DELETE' });
@@ -154,6 +157,7 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      if (String(body.source || '').toLowerCase() === 'admin-console' && !requireAdmin(req)) return json(res, 401, { error: 'Admin authentication required.' });
       const name = clean(body.name || `${body.firstName || ''} ${body.lastName || ''}`);
       const email = lower(body.email);
       const agencyUrl = clean(body.agencyUrl || body.agency_url);

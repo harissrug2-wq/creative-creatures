@@ -14,6 +14,7 @@ export default defineConfig({
         login: page('login'),
         signIn: page('sign-in'),
         admin: page('admin'),
+        adminLogin: resolve(__dirname, 'admin', 'login', 'index.html'),
         adminOwnerArchetypes: resolve(__dirname, 'admin', 'owner-archetypes', 'index.html'),
         adminPerformance: resolve(__dirname, 'admin', 'performance', 'index.html'),
         platform: page('platform'),

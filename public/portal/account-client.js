@@ -271,6 +271,37 @@
     throw new Error('No matching account was found.');
   }
 
+
+  async function lookupOwnerArchetypeLead({ name, email, agencyUrl }) {
+    const params = new URLSearchParams();
+    if (name) params.set('name', String(name).trim());
+    if (email) params.set('email', String(email).trim());
+    if (agencyUrl) params.set('agencyUrl', String(agencyUrl).trim());
+    if (!params.toString()) throw new Error('Enter a name, email address, or agency URL.');
+    const result = await request(`${OWNER_LEAD_API_BASE}?${params.toString()}`);
+    return Array.isArray(result.leads) ? result.leads : [];
+  }
+
+  function useOwnerArchetypeLead(lead) {
+    if (!lead) return null;
+    resetAccountScopedState();
+    return saveAccount({
+      id: `lead-${lead.id}`,
+      lead_id: lead.id,
+      lead_only: true,
+      backend_saved: true,
+      name: lead.name,
+      email: lead.email,
+      agency_url: lead.agency_url,
+      agency_name: lead.agency_name,
+      journey: 'diagnostic',
+      source: 'owner-archetype',
+      archetype_result: lead.archetype_result || {},
+      report_data: lead.report_data || {},
+      diagnostic_state: cleanDiagnosticState()
+    }, { forceReset: true, replaceDiagnostic: true });
+  }
+
   function currentDiagnosticPayload(state) {
     const diagnostic = state || window.CCDiagnostic?.serialize?.() || {};
     return {
@@ -342,6 +373,8 @@
     createAccount,
     createOwnerArchetypeLead,
     lookupAccount,
+    lookupOwnerArchetypeLead,
+    useOwnerArchetypeLead,
     syncDiagnosticState,
     resetAccountScopedState,
     sameAccount,

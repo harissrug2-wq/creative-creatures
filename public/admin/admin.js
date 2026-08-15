@@ -136,8 +136,9 @@
   async function fetchAccounts() {
     const [accountsResponse, leadsResponse] = await Promise.all([
       fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' }),
-      fetch(OWNER_LEAD_API, { cache: 'no-store' })
+      fetch(`${OWNER_LEAD_API}?all=true`, { cache: 'no-store' })
     ]);
+    if (accountsResponse.status === 401 || leadsResponse.status === 401) { location.href='/admin/login/'; throw new Error('Admin session expired.'); }
     if (!accountsResponse.ok) {
       const payload = await accountsResponse.json().catch(() => ({}));
       throw new Error(payload.error || 'Unable to load admin diagnostics.');
@@ -358,6 +359,7 @@
   }
 
   function wireShell() {
+    document.querySelectorAll('.admin-profile').forEach(profile=>profile.addEventListener('click',()=>{ if(confirm('Sign out of the Creative Creatures admin?')) window.CCAdminAuth?.logout?.(); }));
     const side = document.querySelector('.admin-side');
     const overlay = document.querySelector('.admin-overlay');
     document.querySelector('.admin-mobile')?.addEventListener('click', () => {

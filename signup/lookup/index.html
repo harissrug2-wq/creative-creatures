@@ -25,7 +25,7 @@
           <div class="field"><label for="lookupUrl">Agency URL</label><input id="lookupUrl" name="agencyUrl" inputmode="url" placeholder="https://directingdesign.com"></div>
         </div>
         <button class="cc-btn cc-btn-primary" id="lookupSubmit" type="submit">This is Me! Continue →</button>
-        <div class="cc-error" id="lookupError" role="alert"></div><div class="cc-success" id="lookupSuccess"></div>
+        <div class="cc-error" id="lookupError" role="alert"></div><div class="cc-success" id="lookupSuccess"></div><div id="lookupResults" class="lookup-results"></div>
       </form>
     </section>
     <section class="lookup-panel lookup-why" id="noPanel" hidden>
@@ -43,22 +43,22 @@
     cta.addEventListener('click',()=>localStorage.setItem('ccProgramPath',destination));
     function select(mode){const yes=mode==='yes';yesOption.classList.toggle('selected',yes);noOption.classList.toggle('selected',!yes);yesPanel.hidden=!yes;noPanel.hidden=yes;cta.hidden=yes;}
     yesOption.onclick=()=>select('yes');noOption.onclick=()=>select('no');
+    const resultsNode=document.getElementById('lookupResults');
+    const esc=v=>String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function chooseLead(lead){window.CCAccount.useOwnerArchetypeLead(lead);localStorage.setItem('ccProgramPath','diagnostic');localStorage.removeItem('ccSignedIn');location.href='/payment/';}
     document.getElementById('lookupForm').addEventListener('submit',async e=>{
       e.preventDefault();const btn=document.getElementById('lookupSubmit'),err=document.getElementById('lookupError'),ok=document.getElementById('lookupSuccess');
-      const form=new FormData(e.currentTarget),email=String(form.get('email')||'').trim(),agencyUrl=String(form.get('agencyUrl')||'').trim();err.classList.remove('show');ok.classList.remove('show');
-      if(!email&&!agencyUrl){err.textContent='Enter your email address or agency URL.';err.classList.add('show');return;}
-      btn.disabled=true;btn.textContent='Finding account…';
+      const form=new FormData(e.currentTarget),name=String(form.get('name')||'').trim(),email=String(form.get('email')||'').trim(),agencyUrl=String(form.get('agencyUrl')||'').trim();err.classList.remove('show');ok.classList.remove('show');resultsNode.innerHTML='';
+      if(!name&&!email&&!agencyUrl){err.textContent='Enter your name, email address, or agency URL.';err.classList.add('show');return;}
+      btn.disabled=true;btn.textContent='Finding report…';
       try{
-        await window.CCAccount.lookupAccount({name:form.get('name'),email,agencyUrl});localStorage.setItem('ccProgramPath',destination);localStorage.setItem('ccSignedIn','true');
-        ok.textContent='Account found.';ok.classList.add('show');
-        let target=window.CCAccount.destinationPath(destination);
-        if(destination==='diagnostic'){
-          const paid=localStorage.getItem('ccPaymentComplete')==='true'||localStorage.getItem('agencyPaymentComplete')==='true';
-          const integrations=localStorage.getItem('agencyIntegrationsComplete')==='true';
-          target=!paid?'/payment/':!integrations?'/integrations/':'/diagnostic/';
-        }
-        setTimeout(()=>location.href=target,350);
-      }catch(error){err.textContent=error?.message==='Enter an email address or agency URL.'?error.message:'We could not find an account using those details. Check the email or agency URL.';err.classList.add('show');}
+        const leads=await window.CCAccount.lookupOwnerArchetypeLead({name,email,agencyUrl});
+        if(!leads.length)throw new Error('No unpaid Owner Archetype report was found using those details.');
+        if(leads.length===1){ok.textContent='Owner Archetype report found. Taking you to payment…';ok.classList.add('show');setTimeout(()=>chooseLead(leads[0]),250);return;}
+        ok.textContent='We found more than one matching report. Choose yours below.';ok.classList.add('show');
+        resultsNode.innerHTML=leads.map((lead,index)=>`<button type="button" class="lookup-result-card" data-lead-index="${index}"><strong>${esc(lead.name)}</strong><span>${esc(lead.email)}</span><small>${esc(lead.agency_url)}</small><b>Use this report →</b></button>`).join('');
+        resultsNode.querySelectorAll('[data-lead-index]').forEach(node=>node.addEventListener('click',()=>chooseLead(leads[Number(node.dataset.leadIndex)])));
+      }catch(error){err.textContent=error?.message||'We could not find an Owner Archetype report using those details.';err.classList.add('show');}
       finally{btn.disabled=false;btn.textContent='This is Me! Continue →';}
     });
   </script>
