@@ -7,6 +7,7 @@
 
   const ACCOUNT_API_BASE = String(window.CC_ACCOUNT_API_BASE || '/api/accounts').replace(/\/+$/, '');
   const DIAGNOSTIC_API_BASE = String(window.CC_DIAGNOSTIC_API_BASE || '/api/diagnostic-state').replace(/\/+$/, '');
+  const OWNER_LEAD_API_BASE = String(window.CC_OWNER_LEAD_API_BASE || '/api/owner-archetype-leads').replace(/\/+$/, '');
 
   function safeJson(value, fallback = null) {
     try { return JSON.parse(value); } catch { return fallback; }
@@ -180,6 +181,19 @@
     };
   }
 
+
+  async function createOwnerArchetypeLead(payload) {
+    const previous = getAccount();
+    const candidate = provisionalAccount(payload);
+    const isNewIdentity = !previous || !sameAccount(previous, candidate);
+    if (isNewIdentity) resetAccountScopedState();
+    const localAccount = saveAccount({ ...candidate, id: candidate.id || `local-${Date.now()}`, backend_saved: false, lead_only: true, diagnostic_state: cleanDiagnosticState() }, { replaceDiagnostic: isNewIdentity });
+    const result = await request(OWNER_LEAD_API_BASE, { method: 'POST', body: JSON.stringify(payload) });
+    if (result?.alreadyActivated && result.account) return saveAccount({ ...result.account, backend_saved: true, lead_only: false }, { replaceDiagnostic: false });
+    if (result?.lead) return saveAccount({ ...localAccount, lead_id: result.lead.id, backend_saved: true, lead_only: true, report_data: result.lead.report_data || localAccount.report_data, archetype_result: result.lead.archetype_result || localAccount.archetype_result });
+    return localAccount;
+  }
+
   async function createAccount(payload) {
     const previous = getAccount();
     const candidate = provisionalAccount(payload);
@@ -326,12 +340,14 @@
     saveAccount,
     hydrateAccount,
     createAccount,
+    createOwnerArchetypeLead,
     lookupAccount,
     syncDiagnosticState,
     resetAccountScopedState,
     sameAccount,
     destinationPath,
     accountApiBase: ACCOUNT_API_BASE,
-    diagnosticApiBase: DIAGNOSTIC_API_BASE
+    diagnosticApiBase: DIAGNOSTIC_API_BASE,
+    ownerLeadApiBase: OWNER_LEAD_API_BASE
   };
 })();

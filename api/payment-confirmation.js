@@ -1,54 +1,18 @@
 import { escapeHtml, sendEmail, validEmail } from './email-service.js';
-
 const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(payload))};
-const clean=value=>String(value??'').trim();
-function supabaseConfig(){const url=clean(process.env.SUPABASE_URL).replace(/\/+$/,'');const serviceRole=clean(process.env.SUPABASE_SERVICE_ROLE_KEY);return url&&serviceRole?{url,serviceRole}:null}
-
-async function request(config,path,options={}){
-  const response=await fetch(`${config.url}/rest/v1/${path}`,{...options,headers:{apikey:config.serviceRole,'Content-Type':'application/json',...(options.headers||{})}});
-  const text=await response.text();let payload=null;try{payload=text?JSON.parse(text):null}catch{payload=text}
-  if(!response.ok){const error=new Error(payload?.message||payload?.hint||'Database request failed.');error.status=response.status;throw error}
-  return payload;
-}
-
-async function verifyRecipient({accountId,email}){
-  const config=supabaseConfig();if(!config)return false;
-  const params=new URLSearchParams({select:'id,name,email,agency_name,diagnostic_state',limit:'1'});
-  if(accountId&&!String(accountId).startsWith('local-'))params.set('id',`eq.${accountId}`);else params.set('email_normalized',`eq.${String(email).toLowerCase()}`);
-  const rows=await request(config,`accounts?${params.toString()}`);
-  const row=Array.isArray(rows)?rows[0]:null;
-  if(!row||String(row.email||'').trim().toLowerCase()!==String(email).trim().toLowerCase())return false;
-  return {config,row};
-}
-
-async function markPaymentComplete(config,row,completedAt){
-  const current=row?.diagnostic_state&&typeof row.diagnostic_state==='object'?row.diagnostic_state:{};
-  const diagnosticState={...current,paymentComplete:true,paymentCompletedAt:completedAt,updatedAt:new Date().toISOString()};
-  const params=new URLSearchParams({id:`eq.${row.id}`});
-  await request(config,`accounts?${params.toString()}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({diagnostic_state:diagnosticState,updated_at:new Date().toISOString()})});
-  return diagnosticState;
-}
-
-export default async function handler(req,res){
-  res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');if(req.method==='OPTIONS')return json(res,204,{});if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
-  try{
-    const body=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});
-    const to=clean(body.to).toLowerCase();if(!validEmail(to))return json(res,422,{error:'A valid account email is required.'});
-    const verified=await verifyRecipient({accountId:clean(body.accountId),email:to});
-    if(!verified)return json(res,403,{error:'The confirmation recipient could not be verified.',code:'ACCOUNT_EMAIL_MISMATCH'});
-    const {config,row:account}=verified;
-    const displayName=clean(account.name)||'Agency Owner';const agencyName=clean(account.agency_name)||'your agency';const completedAt=clean(body.completedAt)||new Date().toISOString();
-
-    // Payment activation is persisted before email delivery. This makes the
-    // admin Owner Archetype -> Diagnostics transition authoritative even if
-    // email delivery is temporarily unavailable.
-    await markPaymentComplete(config,account,completedAt);
-
-    const result=await sendEmail({to,subject:'Creative Creatures - Agency Diagnostic confirmation',text:`Hi ${displayName},\n\nYour Agency Diagnostic activation for ${agencyName} has been recorded.\n\nThis environment currently uses a simulated checkout, so no real card charge was processed.\n\nContinue into your Creative Creatures workspace to complete integrations and your diagnostic.\n\nRecorded at: ${completedAt}`,html:`<div style="font-family:Inter,Arial,sans-serif;color:#111218;line-height:1.6;max-width:620px;margin:auto"><p style="font-size:13px;color:#6f7480;text-transform:uppercase;letter-spacing:.08em">Creative Creatures</p><h1 style="font-size:28px;line-height:1.2">Agency Diagnostic confirmation</h1><p>Hi ${escapeHtml(displayName)},</p><p>Your Agency Diagnostic activation for <strong>${escapeHtml(agencyName)}</strong> has been recorded.</p><div style="margin:22px 0;padding:16px 18px;background:#f7f7f5;border:1px solid #e5e5e2;border-radius:12px"><strong>Demo checkout notice</strong><br>This environment currently uses a simulated checkout, so no real card charge was processed.</div><p>Continue into your Creative Creatures workspace to complete integrations and your diagnostic.</p><p style="font-size:12px;color:#777">Recorded at ${escapeHtml(completedAt)}</p></div>`});
-    return json(res,200,{sent:true,activated:true,id:result.id});
-  }catch(error){
-    console.error('payment confirmation email error',{code:error?.code,status:error?.status,message:error?.message});
-    const status=error?.code==='EMAIL_NOT_CONFIGURED'?503:502;
-    return json(res,status,{error:error?.code==='EMAIL_NOT_CONFIGURED'?'Email delivery is not configured.':'The confirmation email could not be sent.',code:error?.code||'PAYMENT_EMAIL_ERROR'});
-  }
-}
+const clean=v=>String(v??'').trim();const lower=v=>clean(v).toLowerCase();
+function cfg(){const url=clean(process.env.SUPABASE_URL).replace(/\/+$/,'');const key=clean(process.env.SUPABASE_SERVICE_ROLE_KEY);return url&&key?{url,key}:null}
+async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${path}`,{...options,headers:{apikey:c.key,'Content-Type':'application/json',...(options.headers||{})}});const t=await r.text();let p=null;try{p=t?JSON.parse(t):null}catch{p=t}if(!r.ok){const e=new Error(p?.message||p?.hint||'Database request failed.');e.status=r.status;throw e}return p}
+async function one(c,path){const rows=await db(c,path);return Array.isArray(rows)?rows[0]:null}
+async function findLead(c,email,leadId){if(leadId)return one(c,`owner_archetype_leads?select=*&id=eq.${encodeURIComponent(leadId)}&limit=1`);return one(c,`owner_archetype_leads?select=*&email_normalized=eq.${encodeURIComponent(email)}&converted_at=is.null&order=created_at.desc&limit=1`)}
+async function findAccounts(c,email,url){const [a,b]=await Promise.all([one(c,`accounts?select=*&email_normalized=eq.${encodeURIComponent(email)}&limit=1`),url?one(c,`accounts?select=*&agency_url_normalized=eq.${encodeURIComponent(url)}&limit=1`):null]);const map=new Map();[a,b].filter(Boolean).forEach(x=>map.set(x.id,x));return [...map.values()]}
+async function convertLead(c,lead,completedAt){const existing=await findAccounts(c,lead.email_normalized,lead.agency_url_normalized);if(existing.length>1){const e=new Error('The email and agency URL belong to different diagnostic accounts.');e.status=409;throw e}
+ const paymentState={indexes:{},count:0,allComplete:false,reportReady:false,paymentComplete:true,paymentCompletedAt:completedAt,updatedAt:new Date().toISOString()};let account;
+ if(existing[0]){const current=existing[0].diagnostic_state&&typeof existing[0].diagnostic_state==='object'?existing[0].diagnostic_state:{};const patch={archetype_answers:lead.archetype_answers||existing[0].archetype_answers||{},archetype_result:lead.archetype_result||existing[0].archetype_result||{},report_data:lead.report_data||existing[0].report_data||{},diagnostic_state:{...current,paymentComplete:true,paymentCompletedAt:completedAt,updatedAt:new Date().toISOString()},journey:'diagnostic',updated_at:new Date().toISOString()};const rows=await db(c,`accounts?id=eq.${existing[0].id}&select=*`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});account=Array.isArray(rows)?rows[0]:rows;
+ }else{const record={name:lead.name,name_normalized:lead.name_normalized,email:lead.email,email_normalized:lead.email_normalized,agency_url:lead.agency_url,agency_url_normalized:lead.agency_url_normalized,agency_name:lead.agency_name,journey:'diagnostic',source:'owner-archetype',archetype_answers:lead.archetype_answers||{},archetype_result:lead.archetype_result||{},report_data:lead.report_data||{},diagnostic_state:paymentState,updated_at:new Date().toISOString()};const rows=await db(c,'accounts?select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(record)});account=Array.isArray(rows)?rows[0]:rows}
+ await db(c,`owner_archetype_leads?id=eq.${lead.id}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({converted_account_id:account.id,converted_at:completedAt,payment_completed_at:completedAt,updated_at:new Date().toISOString()})});return account}
+function publicAccount(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_url,agency_name:a.agency_name,journey:a.journey,source:a.source,archetype_result:a.archetype_result||{},report_data:a.report_data||{},diagnostic_state:a.diagnostic_state||{},created_at:a.created_at,updated_at:a.updated_at}:null}
+export default async function handler(req,res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');if(req.method==='OPTIONS')return json(res,204,{});if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});try{const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const to=lower(b.to);if(!validEmail(to))return json(res,422,{error:'A valid account email is required.'});const c=cfg();if(!c)return json(res,503,{error:'Account database is not configured.'});const lead=await findLead(c,to,clean(b.leadId));if(!lead)return json(res,404,{error:'No unpaid Owner Archetype lead was found for this email.',code:'OWNER_LEAD_NOT_FOUND'});if(lower(lead.email)!==to)return json(res,403,{error:'The payment email does not match the Owner Archetype lead.'});const completedAt=clean(b.completedAt)||new Date().toISOString();const account=await convertLead(c,lead,completedAt);
+ let sent=false,emailId=null,emailError=null;try{const result=await sendEmail({to,subject:'Creative Creatures - Agency Diagnostic confirmation',text:`Hi ${clean(account.name)||'Agency Owner'},\n\nYour Agency Diagnostic activation for ${clean(account.agency_name)||'your agency'} has been recorded.\n\nThis environment currently uses a simulated checkout, so no real card charge was processed.\n\nContinue into your Creative Creatures workspace to complete integrations and your diagnostic.\n\nRecorded at: ${completedAt}`,html:`<div style="font-family:Inter,Arial,sans-serif;color:#111218;line-height:1.6;max-width:620px;margin:auto"><p style="font-size:13px;color:#6f7480;text-transform:uppercase;letter-spacing:.08em">Creative Creatures</p><h1 style="font-size:28px;line-height:1.2">Agency Diagnostic confirmation</h1><p>Hi ${escapeHtml(clean(account.name)||'Agency Owner')},</p><p>Your Agency Diagnostic activation for <strong>${escapeHtml(clean(account.agency_name)||'your agency')}</strong> has been recorded.</p><p>Continue into your Creative Creatures workspace to complete integrations and your diagnostic.</p></div>`});sent=true;emailId=result.id}catch(e){emailError=e?.code||'PAYMENT_EMAIL_ERROR';console.warn('Payment activation succeeded but confirmation email failed.',{code:emailError,message:e?.message})}
+ return json(res,200,{activated:true,sent,id:emailId,emailError,account:publicAccount(account)});
+}catch(e){console.error('payment confirmation error',e);return json(res,e.status===409?409:500,{error:e.message||'Payment activation could not be completed.',code:'PAYMENT_ACTIVATION_ERROR'})}}

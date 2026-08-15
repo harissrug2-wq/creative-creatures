@@ -448,8 +448,8 @@
       : (window.CCAccount?.destinationPath
         ? window.CCAccount.destinationPath(destination)
         : (destination === 'platform' ? '/platform/' : '/accelerator/'));
-    const sync = window.CCAccount?.createAccount
-      ? window.CCAccount.createAccount(syncPayload).catch(() => null)
+    const sync = window.CCAccount?.createOwnerArchetypeLead
+      ? window.CCAccount.createOwnerArchetypeLead(syncPayload).catch(error => { console.error('Owner Archetype lead save failed.', error); return null; })
       : Promise.resolve(null);
     Promise.race([sync, new Promise(resolve => setTimeout(resolve, 2500))])
       .finally(() => setTimeout(() => { location.href = destinationPath; }, 350));

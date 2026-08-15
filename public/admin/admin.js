@@ -1,5 +1,6 @@
 (() => {
   const ACCOUNT_API = '/api/accounts';
+  const OWNER_LEAD_API = '/api/owner-archetype-leads';
   const REFRESH_MS = 60000;
 
   const safeJson = (value, fallback = null) => {
@@ -107,19 +108,47 @@
     };
   }
 
+
+  function normalizeLead(item) {
+    if (!item) return null;
+    const report = item.report_data && typeof item.report_data === 'object' ? item.report_data : {};
+    const archetype = item.archetype_result && typeof item.archetype_result === 'object' ? item.archetype_result : {};
+    const visitDate = report.completedAt || report.completed_at || item.created_at || item.updated_at || null;
+    return {
+      ...item,
+      id: String(item.id || ''),
+      name: String(item.name || `${report.firstName || ''} ${report.lastName || ''}`).trim() || 'Agency Owner',
+      email: String(item.email || report.email || '').trim(),
+      agencyName: String(item.agency_name || report.agencyName || '').trim() || 'Agency',
+      agencyUrl: String(item.agency_url || report.agencyWebsite || '').trim(),
+      archetypeTitle: String(archetype.title || report.archetypeTitle || '').trim(),
+      reportData: report,
+      visitDate,
+      createdAt: item.created_at || visitDate,
+      updatedAt: item.updated_at || visitDate
+    };
+  }
+
   let allAccounts = [];
   let diagnostics = [];
   let ownerArchetypes = [];
 
   async function fetchAccounts() {
-    const response = await fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' });
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload.error || 'Unable to load admin accounts.');
+    const [accountsResponse, leadsResponse] = await Promise.all([
+      fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' }),
+      fetch(OWNER_LEAD_API, { cache: 'no-store' })
+    ]);
+    if (!accountsResponse.ok) {
+      const payload = await accountsResponse.json().catch(() => ({}));
+      throw new Error(payload.error || 'Unable to load admin diagnostics.');
     }
-    const payload = await response.json();
-    allAccounts = (Array.isArray(payload.accounts) ? payload.accounts : []).map(normalizeAccount).filter(Boolean);
-    ownerArchetypes = allAccounts.filter(isOwnerArchetypeLead);
+    if (!leadsResponse.ok) {
+      const payload = await leadsResponse.json().catch(() => ({}));
+      throw new Error(payload.error || 'Unable to load Owner Archetype leads.');
+    }
+    const [accountsPayload, leadsPayload] = await Promise.all([accountsResponse.json(), leadsResponse.json()]);
+    allAccounts = (Array.isArray(accountsPayload.accounts) ? accountsPayload.accounts : []).map(normalizeAccount).filter(Boolean);
+    ownerArchetypes = (Array.isArray(leadsPayload.leads) ? leadsPayload.leads : []).map(normalizeLead).filter(Boolean);
     diagnostics = allAccounts.filter(account => account.journey === 'diagnostic' && isActivatedDiagnostic(account));
     return { allAccounts, diagnostics, ownerArchetypes };
   }
@@ -236,7 +265,7 @@
   }
 
   async function openOwnerReport(id, button) {
-    const account = ownerArchetypes.find(item => item.id === id) || allAccounts.find(item => item.id === id);
+    const account = ownerArchetypes.find(item => item.id === id);
     if (!account?.reportData?.answers) {
       alert('This Owner Archetype record does not contain enough questionnaire data to rebuild the PDF report.');
       return;
