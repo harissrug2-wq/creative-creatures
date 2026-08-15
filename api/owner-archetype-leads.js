@@ -1,4 +1,4 @@
-import { requireAdmin } from './session-utils.js';
+import { requireAdmin } from '../lib/session-utils.js';
 const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(payload))};
 const clean=v=>String(v??'').trim();const lower=v=>clean(v).toLowerCase();
 const SELECT='id,name,email,agency_url,agency_url_normalized,agency_name,journey,source,archetype_result,report_data,converted_account_id,converted_at,payment_completed_at,created_at,updated_at';

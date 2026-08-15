@@ -1,4 +1,4 @@
-import { accountSessionSecret, clearSessionCookie, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from './session-utils.js';
+import { accountSessionSecret, clearSessionCookie, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
 const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(payload))};
 const clean=v=>String(v??'').trim();const lower=v=>clean(v).toLowerCase();
 function cfg(){const url=clean(process.env.SUPABASE_URL).replace(/\/+$/,'');const key=clean(process.env.SUPABASE_SERVICE_ROLE_KEY);return url&&key?{url,key}:null}

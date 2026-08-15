@@ -4,6 +4,14 @@
   "trailingSlash": true,
   "rewrites": [
     {
+      "source": "/api/email-status",
+      "destination": "/api/email-report?mode=status"
+    },
+    {
+      "source": "/api/email-status/",
+      "destination": "/api/email-report?mode=status"
+    },
+    {
       "source": "/owner-archetype/assessment/",
       "destination": "/owner-archetype/"
     },

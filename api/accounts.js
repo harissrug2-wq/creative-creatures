@@ -1,4 +1,4 @@
-import { requireAdmin } from './session-utils.js';
+import { requireAdmin } from '../lib/session-utils.js';
 const json = (res, status, payload) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');

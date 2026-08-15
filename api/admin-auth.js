@@ -1,4 +1,4 @@
-import { adminSessionSecret, clearSessionCookie, parseCookies, setSessionCookie, signSession, verifySession } from './session-utils.js';
+import { adminSessionSecret, clearSessionCookie, parseCookies, setSessionCookie, signSession, verifySession } from '../lib/session-utils.js';
 import crypto from 'node:crypto';
 const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(payload))};
 const clean=v=>String(v??'').trim();
