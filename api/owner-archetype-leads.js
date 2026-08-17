@@ -9,10 +9,20 @@ async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${pat
 function pub(r,accountIds=null){const accountExists=Boolean(r?.converted_account_id&&(accountIds?accountIds.has(r.converted_account_id):true));return r?{id:r.id,name:r.name,email:r.email,agency_url:r.agency_url,agency_url_normalized:r.agency_url_normalized,agency_name:r.agency_name,journey:r.journey,source:r.source,archetype_result:r.archetype_result||{},report_data:r.report_data||{},converted_account_id:r.converted_account_id,converted_at:r.converted_at,payment_completed_at:r.payment_completed_at,account_exists:accountExists,is_paid:accountExists&&Boolean(r.payment_completed_at||r.converted_at),created_at:r.created_at,updated_at:r.updated_at}:null}
 async function attachAccountState(c,rows){const list=Array.isArray(rows)?rows:[];const ids=[...new Set(list.map(r=>r.converted_account_id).filter(Boolean))];if(!ids.length)return list.map(r=>pub(r,new Set()));const filter=encodeURIComponent(`(${ids.join(',')})`);const accounts=await db(c,`accounts?select=id&id=in.${filter}`);const accountIds=new Set((Array.isArray(accounts)?accounts:[]).map(a=>a.id));return list.map(r=>pub(r,accountIds))}
 async function loadAdminHistory(c){
-  const [leadRows,accountRows]=await Promise.all([
-    db(c,`owner_archetype_leads?select=${SELECT}&name_normalized=ilike.*&order=created_at.desc&limit=1000`),
-    db(c,'accounts?select=id,name,email,agency_url,agency_url_normalized,agency_name,journey,source,archetype_result,report_data,diagnostic_state,created_at,updated_at&source=eq.owner-archetype&order=created_at.desc')
-  ]);
+  // Use an explicit non-null primary-key filter instead of ilike.*. Every
+  // persisted lead has an id, so this reliably returns the complete table
+  // while still using the same PostgREST endpoint that public lookup uses.
+  const leadRows=await db(c,`owner_archetype_leads?select=${SELECT}&id=not.is.null&order=created_at.desc&limit=1000`);
+
+  // Account history is supplemental. A problem reading converted accounts
+  // must never hide valid Owner Archetype lead rows from the admin table.
+  let accountRows=[];
+  try{
+    const rows=await db(c,'accounts?select=id,name,email,agency_url,agency_url_normalized,agency_name,journey,source,archetype_result,report_data,diagnostic_state,created_at,updated_at&source=eq.owner-archetype&order=created_at.desc');
+    accountRows=Array.isArray(rows)?rows:[];
+  }catch(error){
+    console.warn('Owner Archetype admin account merge skipped:',error?.message||error);
+  }
   const history=new Map();
   for(const account of (Array.isArray(accountRows)?accountRows:[])){
     const state=account?.diagnostic_state||{};
@@ -41,7 +51,7 @@ export default async function handler(req,res){res.setHeader('Access-Control-All
    if(all){
      if(!requireAdmin(req))return json(res,401,{error:'Admin authentication required.'});
      const leads=await loadAdminHistory(c);
-     return json(res,200,{leads});
+     return json(res,200,{leads,count:leads.length,source:'admin_history'});
    }
    const email=lower(req.query?.email),url=normalizeUrl(req.query?.agencyUrl||req.query?.agency_url),name=lower(req.query?.name);
    if(!email&&!url&&!name)return json(res,422,{error:'Enter a name, email address, or agency URL.'});
@@ -54,7 +64,7 @@ export default async function handler(req,res){res.setHeader('Access-Control-All
  if(b.action==='admin_history'){
    if(!requireAdmin(req))return json(res,401,{error:'Admin authentication required.'});
    const leads=await loadAdminHistory(c);
-   return json(res,200,{leads});
+   return json(res,200,{leads,count:leads.length,source:'admin_history'});
  }const name=clean(b.name||`${b.firstName||''} ${b.lastName||''}`);const email=lower(b.email);const agencyUrl=clean(b.agencyUrl||b.agency_url);const normalized=normalizeUrl(agencyUrl);if(!name||!email||!normalized)return json(res,422,{error:'Name, email, and agency URL are required.'});if(!/^\S+@\S+\.\S+$/.test(email))return json(res,422,{error:'Enter a valid email address.'});
  const accountRows=await db(c,`accounts?select=id,name,email,agency_url,agency_name,diagnostic_state&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);const existingAccount=Array.isArray(accountRows)?accountRows[0]:null;const s=existingAccount?.diagnostic_state||{};if(existingAccount&&(s.paymentComplete===true||s.integrationsComplete===true||s.reportReady===true||s.allComplete===true||Number(s.count||0)>0))return json(res,200,{alreadyActivated:true,account:existingAccount});
  const record={name,name_normalized:lower(name),email,email_normalized:email,agency_url:agencyUrl,agency_url_normalized:normalized,agency_name:clean(b.agencyName||b.agency_name)||deriveName(agencyUrl),journey:'diagnostic',source:'owner-archetype',archetype_answers:b.archetypeAnswers||b.archetype_answers||{},archetype_result:b.archetypeResult||b.archetype_result||{},report_data:b.reportData||b.report_data||{},converted_account_id:null,converted_at:null,payment_completed_at:null,updated_at:new Date().toISOString()};
