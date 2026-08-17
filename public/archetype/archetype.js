@@ -354,6 +354,58 @@
     return Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b))[0] || 'B';
   }
 
+  function ownerLeadPayloadFromReport(report, destination = 'diagnostic') {
+    return {
+      name: `${report?.firstName || ''} ${report?.lastName || ''}`.trim() || 'Agency Owner',
+      firstName: report?.firstName || '',
+      lastName: report?.lastName || '',
+      email: String(report?.email || '').trim().toLowerCase(),
+      agencyUrl: report?.agencyWebsite || '',
+      agencyName: report?.agencyName || agencyNameFromWebsite(report?.agencyWebsite || ''),
+      journey: destination,
+      source: 'owner-archetype',
+      archetypeAnswers: report?.answers || {},
+      archetypeResult: {
+        key: report?.archetypeKey || '',
+        title: report?.archetypeTitle || '',
+        primaryConstraint: report?.primaryConstraint || '',
+        desiredPath: report?.desiredPath || ''
+      },
+      reportData: report || {},
+      diagnosticState: { indexes: {}, count: 0, allComplete: false, reportReady: false }
+    };
+  }
+
+  async function persistOwnerLead(payload, attempts = 3) {
+    let lastError = null;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        if (window.CCAccount?.createOwnerArchetypeLead) {
+          const result = await window.CCAccount.createOwnerArchetypeLead(payload);
+          localStorage.setItem('ownerArchetypeLeadSaved', 'true');
+          localStorage.removeItem('ownerArchetypeLeadError');
+          return result;
+        }
+        const response = await fetch('/api/owner-archetype-leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || 'Owner Archetype history could not be saved.');
+        localStorage.setItem('ownerArchetypeLeadSaved', 'true');
+        localStorage.removeItem('ownerArchetypeLeadError');
+        return data;
+      } catch (error) {
+        lastError = error;
+        if (attempt < attempts) await new Promise(resolve => setTimeout(resolve, 450 * attempt));
+      }
+    }
+    localStorage.setItem('ownerArchetypeLeadSaved', 'false');
+    localStorage.setItem('ownerArchetypeLeadError', String(lastError?.message || 'Owner Archetype history could not be saved.'));
+    throw lastError || new Error('Owner Archetype history could not be saved.');
+  }
+
   function completeAssessment(answers, ownerEmail) {
     const key = determineArchetype(answers);
     const archetype = ARCHETYPES[key];
@@ -424,52 +476,47 @@
           <p>We are saving your Owner Identity result and preparing your Agency Diagnostic workspace.</p>
         </section>
       </main>`;
-    const syncPayload = {
-      name: account.displayName,
-      firstName: report.firstName,
-      lastName: report.lastName,
-      email: ownerEmail,
-      agencyUrl: report.agencyWebsite,
-      agencyName: report.agencyName,
-      journey: destination,
-      source: 'owner-archetype',
-      archetypeAnswers: report.answers,
-      archetypeResult: {
-        key: report.archetypeKey,
-        title: report.archetypeTitle,
-        primaryConstraint: report.primaryConstraint,
-        desiredPath: report.desiredPath
-      },
-      reportData: report,
-      diagnosticState: { indexes: {}, count: 0, allComplete: false, reportReady: false }
-    };
+    const syncPayload = ownerLeadPayloadFromReport(report, destination);
     const destinationPath = destination === 'diagnostic'
       ? `/owner-archetype/report/${encodeURIComponent(reportToken)}/`
       : (window.CCAccount?.destinationPath
         ? window.CCAccount.destinationPath(destination)
         : (destination === 'platform' ? '/platform/' : '/accelerator/'));
-    const sync = window.CCAccount?.createOwnerArchetypeLead
-      ? window.CCAccount.createOwnerArchetypeLead(syncPayload).catch(error => { console.error('Owner Archetype lead save failed.', error); return null; })
-      : Promise.resolve(null);
+    (async () => {
+      try {
+        await persistOwnerLead(syncPayload);
+      } catch (error) {
+        console.error('Owner Archetype lead save failed.', error);
+        app.innerHTML = `
+          <main class="processing-screen">
+            ${logo()}
+            <section class="processing-card">
+              <h1>We could not save your Owner Archetype history.</h1>
+              <p>${escapeHtml(error?.message || 'Please retry the save before continuing.')}</p>
+              <button class="nav-btn primary" id="retryOwnerLeadSave" type="button">Retry Save →</button>
+            </section>
+          </main>`;
+        document.querySelector('#retryOwnerLeadSave')?.addEventListener('click', () => completeAssessment(answers, ownerEmail));
+        return;
+      }
 
-    localStorage.setItem('ownerArchetypeEmailStatus', 'sending');
-    const delivery = window.CCArchetypePDF?.emailReport
-      ? window.CCArchetypePDF.emailReport(ownerEmail)
-          .then(() => {
-            localStorage.setItem('ownerArchetypeEmailStatus', 'sent');
-            localStorage.removeItem('ownerArchetypeEmailError');
-            return true;
-          })
-          .catch(error => {
-            console.error('Owner Identity report email failed.', error);
-            localStorage.setItem('ownerArchetypeEmailStatus', 'failed');
-            localStorage.setItem('ownerArchetypeEmailError', String(error?.message || 'Email delivery failed.'));
-            return false;
-          })
-      : Promise.resolve(false);
-
-    Promise.allSettled([sync, delivery])
-      .finally(() => setTimeout(() => { location.href = destinationPath; }, 350));
+      localStorage.setItem('ownerArchetypeEmailStatus', 'sending');
+      if (window.CCArchetypePDF?.emailReport) {
+        try {
+          await window.CCArchetypePDF.emailReport(ownerEmail);
+          localStorage.setItem('ownerArchetypeEmailStatus', 'sent');
+          localStorage.removeItem('ownerArchetypeEmailError');
+        } catch (error) {
+          console.error('Owner Identity report email failed.', error);
+          localStorage.setItem('ownerArchetypeEmailStatus', 'failed');
+          localStorage.setItem('ownerArchetypeEmailError', String(error?.message || 'Email delivery failed.'));
+        }
+      } else {
+        localStorage.setItem('ownerArchetypeEmailStatus', 'failed');
+        localStorage.setItem('ownerArchetypeEmailError', 'Email delivery service is unavailable.');
+      }
+      setTimeout(() => { location.href = destinationPath; }, 350);
+    })();
   }
 
   function report(token) {
@@ -491,6 +538,14 @@
     if (!data) {
       app.innerHTML = `<main class="report-page">${logo()}<section class="missing-report"><h1>Your report is not available in this browser.</h1><p>Retake the questionnaire to create a new Owner Identity Report.</p><a class="nav-btn primary" href="/owner-archetype/assessment?retake=1">Retake quiz</a></section></main>`;
       return;
+    }
+
+    // Repair older/browser-only completions automatically. This is intentionally
+    // fire-and-forget on the report screen: it restores admin history without
+    // blocking the user from viewing their existing report.
+    if (data.email && data.agencyWebsite && data.answers && localStorage.getItem('ownerArchetypeLeadSaved') !== 'true') {
+      persistOwnerLead(ownerLeadPayloadFromReport(data, localStorage.getItem('ccProgramPath') || 'diagnostic'), 2)
+        .catch(error => console.warn('Owner Archetype history recovery failed.', error));
     }
 
     const summaryView = new URLSearchParams(location.search).get('view') === 'summary';

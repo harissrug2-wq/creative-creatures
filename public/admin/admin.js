@@ -141,7 +141,7 @@
       document.querySelector('#agencyRollup')
     );
 
-    const accountPromise = (needsDiagnostics || needsOwnerHistory)
+    const accountPromise = needsDiagnostics
       ? fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' })
       : Promise.resolve(null);
     const leadPromise = needsOwnerHistory
@@ -160,7 +160,7 @@
     let accountError = null;
     let leadError = null;
 
-    if (needsDiagnostics || needsOwnerHistory) {
+    if (needsDiagnostics) {
       if (!accountsResponse?.ok) {
         const payload = await accountsResponse?.json().catch(() => ({})) || {};
         accountError = new Error(payload.error || `Unable to load Diagnostics (${accountsResponse?.status || 'network error'}).`);
@@ -181,22 +181,16 @@
         leadRecords = (Array.isArray(payload.leads) ? payload.leads : []).map(normalizeLead).filter(Boolean);
       }
 
-      const historicalOwnerAccounts = allAccounts.filter(account => String(account.source || '').toLowerCase() === 'owner-archetype');
-      const ownerHistory = new Map();
-      historicalOwnerAccounts.forEach(account => ownerHistory.set(String(account.email || account.id).toLowerCase(), account));
-      leadRecords.forEach(lead => ownerHistory.set(String(lead.email || lead.id).toLowerCase(), lead));
-      ownerArchetypes = [...ownerHistory.values()].sort((a,b) => new Date(b.visitDate || b.createdAt || 0) - new Date(a.visitDate || a.createdAt || 0));
+      // The Owner Archetype API already returns the complete questionnaire
+      // history merged across lead records and converted diagnostic accounts.
+      ownerArchetypes = leadRecords.sort((a,b) => new Date(b.visitDate || b.createdAt || 0) - new Date(a.visitDate || a.createdAt || 0));
     }
 
     // Diagnostics and Performance must not be blanked just because the
     // Owner Archetype endpoint has a problem. Only fail the current page when
     // the dataset that page actually needs could not be loaded.
     if (needsDiagnostics && accountError) throw accountError;
-    if (needsOwnerHistory && accountError && leadError) throw new Error(`${accountError.message} ${leadError.message}`);
-
-    if (needsOwnerHistory && (accountError || leadError)) {
-      console.warn('Admin Owner Archetype history loaded partially.', accountError || leadError);
-    }
+    if (needsOwnerHistory && leadError) throw leadError;
 
     return { allAccounts, diagnostics, ownerArchetypes };
   }

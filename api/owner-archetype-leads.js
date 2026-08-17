@@ -11,7 +11,35 @@ async function attachAccountState(c,rows){const list=Array.isArray(rows)?rows:[]
 export default async function handler(req,res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');if(req.method==='OPTIONS')return json(res,204,{});const c=cfg();if(!c)return json(res,503,{error:'Lead database is not configured.'});try{
  if(req.method==='GET'){
    const all=req.query?.all==='true'||req.query?.all==='1';
-   if(all){if(!requireAdmin(req))return json(res,401,{error:'Admin authentication required.'});const rows=await db(c,`owner_archetype_leads?select=${SELECT}&order=created_at.desc`);return json(res,200,{leads:(Array.isArray(rows)?rows:[]).map(pub)})}
+   if(all){
+     if(!requireAdmin(req))return json(res,401,{error:'Admin authentication required.'});
+     const [leadRows,accountRows]=await Promise.all([
+       db(c,`owner_archetype_leads?select=${SELECT}&order=created_at.desc`),
+       db(c,'accounts?select=id,name,email,agency_url,agency_url_normalized,agency_name,journey,source,archetype_result,report_data,diagnostic_state,created_at,updated_at&source=eq.owner-archetype&order=created_at.desc')
+     ]);
+     const history=new Map();
+     for(const account of (Array.isArray(accountRows)?accountRows:[])){
+       const state=account?.diagnostic_state||{};
+       const paid=state.paymentComplete===true||state.integrationsComplete===true||state.reportReady===true||state.allComplete===true||Number(state.count||0)>0;
+       const row={
+         id:`account:${account.id}`,
+         name:account.name,email:account.email,agency_url:account.agency_url,agency_url_normalized:account.agency_url_normalized,
+         agency_name:account.agency_name,journey:account.journey,source:account.source,archetype_result:account.archetype_result||{},report_data:account.report_data||{},
+         converted_account_id:account.id,converted_at:paid?(account.updated_at||account.created_at):null,payment_completed_at:paid?(account.updated_at||account.created_at):null,
+         created_at:account.created_at,updated_at:account.updated_at,account_exists:true,is_paid:paid
+       };
+       const key=lower(account.email)||`account:${account.id}`;
+       history.set(key,row);
+     }
+     for(const lead of (Array.isArray(leadRows)?leadRows:[])){
+       const key=lower(lead.email)||`lead:${lead.id}`;
+       const existing=history.get(key);
+       const row=pub(lead);
+       history.set(key,existing?{...existing,...row,account_exists:Boolean(existing.account_exists||row.account_exists),is_paid:Boolean(existing.is_paid||row.is_paid),converted_account_id:row.converted_account_id||existing.converted_account_id,converted_at:row.converted_at||existing.converted_at,payment_completed_at:row.payment_completed_at||existing.payment_completed_at}:row);
+     }
+     const leads=[...history.values()].sort((a,b)=>new Date(b.created_at||b.updated_at||0)-new Date(a.created_at||a.updated_at||0));
+     return json(res,200,{leads});
+   }
    const email=lower(req.query?.email),url=normalizeUrl(req.query?.agencyUrl||req.query?.agency_url),name=lower(req.query?.name);
    if(!email&&!url&&!name)return json(res,422,{error:'Enter a name, email address, or agency URL.'});
    const filters=[];if(email)filters.push(`email_normalized.eq.${email}`);if(url)filters.push(`agency_url_normalized.eq.${url}`);if(name)filters.push(`name_normalized.ilike.*${name.replace(/[,*()]/g,'')}*`);
