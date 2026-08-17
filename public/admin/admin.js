@@ -134,7 +134,7 @@
   let ownerArchetypes = [];
 
   async function fetchAccounts() {
-    const needsOwnerHistory = Boolean(document.querySelector('#ownerArchetypeTable'));
+    const needsOwnerHistory = Boolean(document.querySelector('#ownerArchetypeRows'));
     const needsDiagnostics = Boolean(
       document.querySelector('#agencyGrid') ||
       document.querySelector('#platformMetrics') ||
