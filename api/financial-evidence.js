@@ -279,7 +279,7 @@ const schemas = {
       netIncomeYTD: nullableNumber(),
       explicitEBITDA: nullableNumber()
     },
-    required: ['currency', 'confidence', 'warnings', 'periodLabel', 'revenueTTM', 'revenueYTD', 'cogsTTM', 'grossProfitTTM', 'operatingExpensesTTM', 'netIncomeTTM', 'netIncomeYTD', 'explicitEBITDA']
+    required: ['currency','confidence','warnings','periodLabel','revenueTTM','revenueYTD','cogsTTM','grossProfitTTM','operatingExpensesTTM','netIncomeTTM','netIncomeYTD','explicitEBITDA']
   },
   balance_sheet: {
     type: 'object', additionalProperties: false,
@@ -294,7 +294,7 @@ const schemas = {
       totalLiabilities: nullableNumber(),
       totalDebt: nullableNumber()
     },
-    required: ['currency', 'confidence', 'warnings', 'asOfDate', 'cash', 'accountsReceivable', 'currentAssets', 'currentLiabilities', 'totalAssets', 'totalLiabilities', 'totalDebt']
+    required: ['currency','confidence','warnings','asOfDate','cash','accountsReceivable','currentAssets','currentLiabilities','totalAssets','totalLiabilities','totalDebt']
   },
   ar_aging: {
     type: 'object', additionalProperties: false,
@@ -308,7 +308,7 @@ const schemas = {
       days61to90: nullableNumber(),
       days90Plus: nullableNumber()
     },
-    required: ['currency', 'confidence', 'warnings', 'asOfDate', 'totalAR', 'currentAR', 'days1to30', 'days31to60', 'days61to90', 'days90Plus']
+    required: ['currency','confidence','warnings','asOfDate','totalAR','currentAR','days1to30','days31to60','days61to90','days90Plus']
   },
   client_revenue: {
     type: 'object', additionalProperties: false,
@@ -321,11 +321,11 @@ const schemas = {
         items: {
           type: 'object', additionalProperties: false,
           properties: { name: { type: 'string' }, revenue: { type: 'number' } },
-          required: ['name', 'revenue']
+          required: ['name','revenue']
         }
       }
     },
-    required: ['currency', 'confidence', 'warnings', 'periodLabel', 'totalRevenue', 'clients']
+    required: ['currency','confidence','warnings','periodLabel','totalRevenue','clients']
   },
   service_revenue_mix: {
     type: 'object', additionalProperties: false,
@@ -344,11 +344,11 @@ const schemas = {
             revenue: nullableNumber(),
             percent: nullableNumber()
           },
-          required: ['name', 'revenue', 'percent']
+          required: ['name','revenue','percent']
         }
       }
     },
-    required: ['currency', 'confidence', 'warnings', 'periodLabel', 'totalRevenue', 'recurringRevenue', 'projectRevenue', 'services']
+    required: ['currency','confidence','warnings','periodLabel','totalRevenue','recurringRevenue','projectRevenue','services']
   }
 };
 
@@ -387,7 +387,7 @@ function deriveMetrics(evidenceType, data) {
 
   if (evidenceType === 'ar_aging') {
     const total = finite(out.totalAR);
-    const overdue = ['days1to30', 'days31to60', 'days61to90', 'days90Plus']
+    const overdue = ['days1to30','days31to60','days61to90','days90Plus']
       .map(key => finite(out[key]))
       .filter(value => value !== null)
       .reduce((sum, value) => sum + value, 0);
@@ -636,7 +636,7 @@ async function extractEvidence(config, body) {
     await saveEvidence(config, run.id, evidence.evidence_type, {
       extraction_status: error.code === 'OPENAI_NOT_CONFIGURED' ? 'uploaded' : 'failed',
       extraction_error: clean(error.message).slice(0, 1200)
-    }).catch(() => { });
+    }).catch(() => {});
     throw error;
   }
 }
@@ -686,33 +686,33 @@ async function saveSde(config, body) {
 const MANUAL_FIELDS = {
   profit_loss: {
     strings: ['currency', 'periodLabel'],
-    numbers: ['revenueTTM', 'revenueYTD', 'cogsTTM', 'grossProfitTTM', 'operatingExpensesTTM', 'netIncomeTTM', 'netIncomeYTD', 'explicitEBITDA', 'revenueGrowthPercent', 'netIncomeGrowthPercent', 'grossProfitGrowthPercent', 'profitConversionPercent'],
-    levels: ['marginStabilityLevel', 'growthConsistencyLevel', 'revenuePredictabilityLevel']
+    numbers: ['revenueTTM','revenueYTD','cogsTTM','grossProfitTTM','operatingExpensesTTM','netIncomeTTM','netIncomeYTD','explicitEBITDA','revenueGrowthPercent','netIncomeGrowthPercent','grossProfitGrowthPercent','profitConversionPercent'],
+    levels: ['marginStabilityLevel','growthConsistencyLevel','revenuePredictabilityLevel']
   },
   balance_sheet: {
     strings: ['currency', 'asOfDate'],
-    numbers: ['cash', 'accountsReceivable', 'currentAssets', 'currentLiabilities', 'totalAssets', 'totalLiabilities', 'totalDebt', 'monthlyOperatingExpenses', 'ebitdaTTM'],
+    numbers: ['cash','accountsReceivable','currentAssets','currentLiabilities','totalAssets','totalLiabilities','totalDebt','monthlyOperatingExpenses','ebitdaTTM'],
     levels: ['operatingCashFlowLevel']
   },
   ar_aging: {
     strings: ['currency', 'asOfDate'],
-    numbers: ['totalAR', 'currentAR', 'days1to30', 'days31to60', 'days61to90', 'days90Plus', 'collectionRatePercent'],
+    numbers: ['totalAR','currentAR','days1to30','days31to60','days61to90','days90Plus','collectionRatePercent'],
     levels: []
   },
   client_revenue: {
     strings: ['currency', 'periodLabel'],
-    numbers: ['totalRevenue', 'topClientRevenue', 'topClientPercent', 'top5Percent', 'clientCount', 'averageClientRevenue', 'averageClientTenureMonths'],
-    levels: ['revenueDiversificationLevel', 'contractDurationLevel']
+    numbers: ['totalRevenue','topClientRevenue','topClientPercent','top5Percent','clientCount','averageClientRevenue','averageClientTenureMonths'],
+    levels: ['revenueDiversificationLevel','contractDurationLevel']
   },
   service_revenue_mix: {
     strings: ['currency', 'periodLabel'],
-    numbers: ['totalRevenue', 'recurringRevenue', 'projectRevenue', 'recurringRevenuePercent', 'projectRevenuePercent', 'topServicePercent'],
+    numbers: ['totalRevenue','recurringRevenue','projectRevenue','recurringRevenuePercent','projectRevenuePercent','topServicePercent'],
     levels: []
   },
   sde: {
     strings: [],
-    numbers: ['adjustedSDE', 'capitalInvested', 'incrementalOperatingProfit', 'reinvestmentRatePercent'],
-    levels: ['technologyInvestmentLevel', 'talentInvestmentLevel', 'retainedEarningsGrowthLevel']
+    numbers: ['adjustedSDE','capitalInvested','incrementalOperatingProfit','reinvestmentRatePercent'],
+    levels: ['technologyInvestmentLevel','talentInvestmentLevel','retainedEarningsGrowthLevel']
   }
 };
 
@@ -851,11 +851,11 @@ function scoreGrowth(value) {
   return 4;
 }
 
-function scoreGrossMargin(value) { return scoreBands(value, [30, 40, 50, 60]); }
-function scoreNetMargin(value) { return scoreBands(value, [5, 10, 15, 20]); }
-function scoreSdeMargin(value) { return scoreBands(value, [10, 15, 20, 25]); }
-function scoreProfitConversion(value) { return scoreBands(value, [5, 10, 20, 30]); }
-function scoreRecurring(value) { return scoreBands(value, [20, 40, 60, 80]); }
+function scoreGrossMargin(value) { return scoreBands(value, [30,40,50,60]); }
+function scoreNetMargin(value) { return scoreBands(value, [5,10,15,20]); }
+function scoreSdeMargin(value) { return scoreBands(value, [10,15,20,25]); }
+function scoreProfitConversion(value) { return scoreBands(value, [5,10,20,30]); }
+function scoreRecurring(value) { return scoreBands(value, [20,40,60,80]); }
 function scoreClientConcentration(value) {
   const number = finite(value);
   if (number === null) return null;
@@ -892,7 +892,7 @@ function scoreCurrentRatio(value) {
   if (number <= 2) return 3;
   return 4;
 }
-function scoreCollectionRate(value) { return scoreBands(value, [50, 70, 85, 95]); }
+function scoreCollectionRate(value) { return scoreBands(value, [50,70,85,95]); }
 function scoreDebtRatio(value) {
   const number = finite(value);
   if (number === null) return null;
@@ -911,7 +911,7 @@ function scoreReturnOnCapital(value) {
   if (number < 30) return 3;
   return 4;
 }
-function scoreReinvestmentRate(value) { return scoreBands(value, [10, 25, 40, 60]); }
+function scoreReinvestmentRate(value) { return scoreBands(value, [10,25,40,60]); }
 
 function metricRecord(key, label, rawValue, score, weight) {
   return {
@@ -985,45 +985,45 @@ function buildPerformanceModel(rows) {
     : null;
 
   const profitability = categoryModel('profitability', 'Profitability', [
-    metricRecord('grossMargin', 'Gross Margin', grossMargin, scoreGrossMargin(grossMargin), 20),
-    metricRecord('netMargin', 'Net Margin', netMargin, scoreNetMargin(netMargin), 25),
-    metricRecord('sdeMargin', 'EBITDA / SDE Margin', sdeMargin, scoreSdeMargin(sdeMargin), 20),
-    metricRecord('marginStability', 'Margin Stability', pnl.marginStabilityLevel, clampLevel(pnl.marginStabilityLevel), 15),
-    metricRecord('grossProfitGrowth', 'Gross Profit Growth', pnl.grossProfitGrowthPercent, scoreGrowth(pnl.grossProfitGrowthPercent), 10),
-    metricRecord('profitConversion', 'Profit Conversion', pnl.profitConversionPercent, scoreProfitConversion(pnl.profitConversionPercent), 10)
+    metricRecord('grossMargin','Gross Margin',grossMargin,scoreGrossMargin(grossMargin),20),
+    metricRecord('netMargin','Net Margin',netMargin,scoreNetMargin(netMargin),25),
+    metricRecord('sdeMargin','EBITDA / SDE Margin',sdeMargin,scoreSdeMargin(sdeMargin),20),
+    metricRecord('marginStability','Margin Stability',pnl.marginStabilityLevel,clampLevel(pnl.marginStabilityLevel),15),
+    metricRecord('grossProfitGrowth','Gross Profit Growth',pnl.grossProfitGrowthPercent,scoreGrowth(pnl.grossProfitGrowthPercent),10),
+    metricRecord('profitConversion','Profit Conversion',pnl.profitConversionPercent,scoreProfitConversion(pnl.profitConversionPercent),10)
   ]);
 
   const growth = categoryModel('growth', 'Growth Performance', [
-    metricRecord('revenueGrowth', 'Revenue Growth', pnl.revenueGrowthPercent, scoreGrowth(pnl.revenueGrowthPercent), 30),
-    metricRecord('netIncomeGrowth', 'Net Income Growth', pnl.netIncomeGrowthPercent, scoreGrowth(pnl.netIncomeGrowthPercent), 30),
-    metricRecord('growthConsistency', 'Growth Consistency', pnl.growthConsistencyLevel, clampLevel(pnl.growthConsistencyLevel), 20),
-    metricRecord('revenuePredictability', 'Revenue Predictability', pnl.revenuePredictabilityLevel, clampLevel(pnl.revenuePredictabilityLevel), 20)
+    metricRecord('revenueGrowth','Revenue Growth',pnl.revenueGrowthPercent,scoreGrowth(pnl.revenueGrowthPercent),30),
+    metricRecord('netIncomeGrowth','Net Income Growth',pnl.netIncomeGrowthPercent,scoreGrowth(pnl.netIncomeGrowthPercent),30),
+    metricRecord('growthConsistency','Growth Consistency',pnl.growthConsistencyLevel,clampLevel(pnl.growthConsistencyLevel),20),
+    metricRecord('revenuePredictability','Revenue Predictability',pnl.revenuePredictabilityLevel,clampLevel(pnl.revenuePredictabilityLevel),20)
   ]);
 
   const topClientPercent = finite(client.topClientPercent) ?? finite(client.largestClientPercent);
   const recurringRevenuePercent = finite(service.recurringRevenuePercent);
   const revenueQuality = categoryModel('revenueQuality', 'Revenue Quality', [
-    metricRecord('recurringRevenue', 'Recurring Revenue', recurringRevenuePercent, scoreRecurring(recurringRevenuePercent), 25),
-    metricRecord('clientConcentration', 'Largest Client Concentration', topClientPercent, scoreClientConcentration(topClientPercent), 25),
-    metricRecord('revenueDiversification', 'Revenue Diversification', client.revenueDiversificationLevel, clampLevel(client.revenueDiversificationLevel), 20),
-    metricRecord('averageClientTenure', 'Average Client Tenure', client.averageClientTenureMonths, scoreClientTenure(client.averageClientTenureMonths), 15),
-    metricRecord('contractDuration', 'Contract Duration', client.contractDurationLevel, clampLevel(client.contractDurationLevel), 15)
+    metricRecord('recurringRevenue','Recurring Revenue',recurringRevenuePercent,scoreRecurring(recurringRevenuePercent),25),
+    metricRecord('clientConcentration','Largest Client Concentration',topClientPercent,scoreClientConcentration(topClientPercent),25),
+    metricRecord('revenueDiversification','Revenue Diversification',client.revenueDiversificationLevel,clampLevel(client.revenueDiversificationLevel),20),
+    metricRecord('averageClientTenure','Average Client Tenure',client.averageClientTenureMonths,scoreClientTenure(client.averageClientTenureMonths),15),
+    metricRecord('contractDuration','Contract Duration',client.contractDurationLevel,clampLevel(client.contractDurationLevel),15)
   ]);
 
   const cash = categoryModel('cash', 'Cash Performance', [
-    metricRecord('cashReserve', 'Cash Reserve (months)', cashReserveMonths, scoreCashReserve(cashReserveMonths), 25),
-    metricRecord('operatingCashFlow', 'Operating Cash Flow', balance.operatingCashFlowLevel, clampLevel(balance.operatingCashFlowLevel), 25),
-    metricRecord('currentRatio', 'Current Ratio', currentRatio, scoreCurrentRatio(currentRatio), 20),
-    metricRecord('accountsReceivable', 'Collected Within 30 Days', ar.collectionRatePercent, scoreCollectionRate(ar.collectionRatePercent), 15),
-    metricRecord('debtPosition', 'Debt-to-EBITDA', debtToEbitda, scoreDebtRatio(debtToEbitda), 15)
+    metricRecord('cashReserve','Cash Reserve (months)',cashReserveMonths,scoreCashReserve(cashReserveMonths),25),
+    metricRecord('operatingCashFlow','Operating Cash Flow',balance.operatingCashFlowLevel,clampLevel(balance.operatingCashFlowLevel),25),
+    metricRecord('currentRatio','Current Ratio',currentRatio,scoreCurrentRatio(currentRatio),20),
+    metricRecord('accountsReceivable','Collected Within 30 Days',ar.collectionRatePercent,scoreCollectionRate(ar.collectionRatePercent),15),
+    metricRecord('debtPosition','Debt-to-EBITDA',debtToEbitda,scoreDebtRatio(debtToEbitda),15)
   ]);
 
   const capital = categoryModel('capital', 'Capital Allocation', [
-    metricRecord('returnOnCapital', 'Return on Capital / ROIC-Lite', roicLite, scoreReturnOnCapital(roicLite), 30),
-    metricRecord('reinvestmentRate', 'Reinvestment Rate', sde.reinvestmentRatePercent, scoreReinvestmentRate(sde.reinvestmentRatePercent), 20),
-    metricRecord('technologyInvestment', 'Technology Investment', sde.technologyInvestmentLevel, clampLevel(sde.technologyInvestmentLevel), 15),
-    metricRecord('talentInvestment', 'Talent Investment', sde.talentInvestmentLevel, clampLevel(sde.talentInvestmentLevel), 15),
-    metricRecord('retainedEarningsGrowth', 'Retained Earnings Growth', sde.retainedEarningsGrowthLevel, clampLevel(sde.retainedEarningsGrowthLevel), 20)
+    metricRecord('returnOnCapital','Return on Capital / ROIC-Lite',roicLite,scoreReturnOnCapital(roicLite),30),
+    metricRecord('reinvestmentRate','Reinvestment Rate',sde.reinvestmentRatePercent,scoreReinvestmentRate(sde.reinvestmentRatePercent),20),
+    metricRecord('technologyInvestment','Technology Investment',sde.technologyInvestmentLevel,clampLevel(sde.technologyInvestmentLevel),15),
+    metricRecord('talentInvestment','Talent Investment',sde.talentInvestmentLevel,clampLevel(sde.talentInvestmentLevel),15),
+    metricRecord('retainedEarningsGrowth','Retained Earnings Growth',sde.retainedEarningsGrowthLevel,clampLevel(sde.retainedEarningsGrowthLevel),20)
   ]);
 
   const categories = { profitability, growth, revenueQuality, cash, capital };
@@ -1156,7 +1156,7 @@ async function refreshDiagnosticStateAfterPerformance(config, account, run, mode
   });
   const rows = await supabaseRequest(config, `index_results?${params.toString()}`);
   const map = Object.fromEntries((Array.isArray(rows) ? rows : []).map(row => [row.index_type, row]));
-  const allComplete = ['strength', 'independence', 'performance'].every(index => map[index]?.complete === true && finite(map[index]?.score) !== null);
+  const allComplete = ['strength','independence','performance'].every(index => map[index]?.complete === true && finite(map[index]?.score) !== null);
   const now = new Date().toISOString();
   const current = account.diagnostic_state && typeof account.diagnostic_state === 'object' ? account.diagnostic_state : {};
   const indexes = { ...(current.indexes || {}) };
@@ -1166,7 +1166,7 @@ async function refreshDiagnosticStateAfterPerformance(config, account, run, mode
     score: model.score,
     details: model.details
   };
-  const count = ['strength', 'independence', 'performance'].filter(index => index === 'performance' || indexes[index]?.complete === true || map[index]?.complete === true).length;
+  const count = ['strength','independence','performance'].filter(index => index === 'performance' || indexes[index]?.complete === true || map[index]?.complete === true).length;
   const state = {
     ...current,
     indexes,

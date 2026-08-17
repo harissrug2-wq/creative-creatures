@@ -149,7 +149,15 @@
     }
     const [accountsPayload, leadsPayload] = await Promise.all([accountsResponse.json(), leadsResponse.json()]);
     allAccounts = (Array.isArray(accountsPayload.accounts) ? accountsPayload.accounts : []).map(normalizeAccount).filter(Boolean);
-    ownerArchetypes = (Array.isArray(leadsPayload.leads) ? leadsPayload.leads : []).map(normalizeLead).filter(Boolean);
+    const leadRecords = (Array.isArray(leadsPayload.leads) ? leadsPayload.leads : []).map(normalizeLead).filter(Boolean);
+    const historicalOwnerAccounts = allAccounts.filter(account => String(account.source || '').toLowerCase() === 'owner-archetype');
+    // Owner Archetype is a permanent questionnaire history. Start with paid/
+    // activated account records so older customers remain visible, then let
+    // the dedicated lead record override the same email when both exist.
+    const ownerHistory = new Map();
+    historicalOwnerAccounts.forEach(account => ownerHistory.set(String(account.email || account.id).toLowerCase(), account));
+    leadRecords.forEach(lead => ownerHistory.set(String(lead.email || lead.id).toLowerCase(), lead));
+    ownerArchetypes = [...ownerHistory.values()].sort((a,b) => new Date(b.visitDate || b.createdAt || 0) - new Date(a.visitDate || a.createdAt || 0));
     diagnostics = allAccounts.filter(account => account.journey === 'diagnostic' && isActivatedDiagnostic(account));
     return { allAccounts, diagnostics, ownerArchetypes };
   }
@@ -239,7 +247,7 @@
     const empty = document.querySelector('#ownerArchetypeEmpty');
     const count = document.querySelector('#ownerArchetypeCount');
     if (!body) return;
-    if (count) count.textContent = `${items.length} unpaid ${items.length === 1 ? 'lead' : 'leads'}`;
+    if (count) count.textContent = `${items.length} ${items.length === 1 ? 'record' : 'records'}`;
 
     if (!items.length) {
       body.innerHTML = '';

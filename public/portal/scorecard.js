@@ -95,7 +95,7 @@
     <div class="section-title"><div><div class="section-kicker">Section 02</div><h2>Three Index Reports</h2></div><p>Reports appear here only after all three indexes are complete and generated.</p></div>
     <section class="index-grid">${cards}</section>
     <div class="section-title"><div><div class="section-kicker">Section 03</div><h2>Issues &amp; Opportunities</h2></div><p>Prioritized from the lowest-scoring capabilities across all three indices.</p></div>
-    <section class="insight-grid"><article class="insight-card"><h3>Key issues</h3><div class="insight-list">${issueRows}</div></article><article class="insight-card"><h3>Biggest opportunities</h3><div class="insight-list">${opportunityRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues or opportunities.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">Create 90 Day Rock(s)</button></div>
+    <section class="insight-grid"><article class="insight-card"><h3>Key issues</h3><div class="insight-list">${issueRows}</div></article><article class="insight-card"><h3>Biggest opportunities</h3><div class="insight-list">${opportunityRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues or opportunities.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button" disabled aria-disabled="true">Create 90 Day Rock(s)</button></div>
     <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Agency Valuation</h2></div><p>Calculated from the approved Agency Valuation™ methodology and current diagnostic evidence.</p></div>
     ${valuationHtml}<div class="define-goals-wrap"><a class="define-goals-cta" href="/agency-goals/">Define Agency Goals →</a></div>`;
   const saveRocks = async candidates => {
@@ -110,7 +110,18 @@
       status: 'Not started'
     })));
   };
-  root.querySelectorAll('[data-rock-candidate]').forEach(input=>input.addEventListener('change',()=>input.closest('.selectable-insight')?.classList.toggle('selected',input.checked)));
+  const updateRockButtonState=()=>{
+    const button=root.querySelector('#createSelectedRocks');
+    if(!button)return;
+    const hasSelection=Boolean(root.querySelector('[data-rock-candidate]:checked:not(:disabled)'));
+    button.disabled=!hasSelection;
+    button.setAttribute('aria-disabled',hasSelection?'false':'true');
+  };
+  root.querySelectorAll('[data-rock-candidate]').forEach(input=>input.addEventListener('change',()=>{
+    input.closest('.selectable-insight')?.classList.toggle('selected',input.checked);
+    updateRockButtonState();
+  }));
+  updateRockButtonState();
   root.querySelector('#createSelectedRocks')?.addEventListener('click',async event=>{
     const chosen=[...root.querySelectorAll('[data-rock-candidate]:checked')].map(input=>rockCandidates[input.dataset.rockCandidate]);
     const note=root.querySelector('#rockSelectionNote');
@@ -135,7 +146,7 @@
     } catch(error) {
       note.textContent=error.message||'The 90 Day Rocks could not be saved.';
     } finally {
-      setTimeout(()=>{button.textContent='Create 90 Day Rock(s)';button.disabled=false;},1500);
+      setTimeout(()=>{button.textContent='Create 90 Day Rock(s)';updateRockButtonState();},1500);
     }
   });
   root.querySelector('#createSingleRock')?.addEventListener('click',async event=>{

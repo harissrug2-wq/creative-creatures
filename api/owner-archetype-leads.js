@@ -10,7 +10,7 @@ function pub(r){return r?{id:r.id,name:r.name,email:r.email,agency_url:r.agency_
 export default async function handler(req,res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');if(req.method==='OPTIONS')return json(res,204,{});const c=cfg();if(!c)return json(res,503,{error:'Lead database is not configured.'});try{
  if(req.method==='GET'){
    const all=req.query?.all==='true'||req.query?.all==='1';
-   if(all){if(!requireAdmin(req))return json(res,401,{error:'Admin authentication required.'});const rows=await db(c,`owner_archetype_leads?select=${SELECT}&converted_at=is.null&order=created_at.desc`);return json(res,200,{leads:(Array.isArray(rows)?rows:[]).map(pub)})}
+   if(all){if(!requireAdmin(req))return json(res,401,{error:'Admin authentication required.'});const rows=await db(c,`owner_archetype_leads?select=${SELECT}&order=created_at.desc`);return json(res,200,{leads:(Array.isArray(rows)?rows:[]).map(pub)})}
    const email=lower(req.query?.email),url=normalizeUrl(req.query?.agencyUrl||req.query?.agency_url),name=lower(req.query?.name);
    if(!email&&!url&&!name)return json(res,422,{error:'Enter a name, email address, or agency URL.'});
    const filters=[];if(email)filters.push(`email_normalized.eq.${email}`);if(url)filters.push(`agency_url_normalized.eq.${url}`);if(name)filters.push(`name_normalized.ilike.*${name.replace(/[,*()]/g,'')}*`);

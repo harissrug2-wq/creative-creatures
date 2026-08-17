@@ -149,6 +149,13 @@
           </main>
         </div>
       </div>
+      <div class="performance-extraction-overlay" id="performanceExtractionOverlay" aria-hidden="true">
+        <div class="performance-extraction-modal" role="status" aria-live="polite">
+          <div class="performance-extraction-spinner" aria-hidden="true"></div>
+          <h2>Automatic extraction in progress</h2>
+          <p>We’re securely reading your PDF and extracting the financial values. Please wait—this page will unlock automatically when the analysis is complete.</p>
+        </div>
+      </div>
     </div>`;
 
   const host=document.querySelector('#sectionHost');
@@ -169,6 +176,16 @@
     document.querySelector('#progressText').textContent=`${count} / ${sections.length} complete`;
     document.querySelector('#progressFill').style.width=`${Math.round(count/sections.length*100)}%`;
     document.querySelector('#sectionLabel').textContent=currentIsReview()?'Review':'Financial Evidence';
+  }
+
+  function updateExtractionOverlay(){
+    const overlay=document.querySelector('#performanceExtractionOverlay');
+    if(!overlay)return;
+    const busy=Object.values(state.uploadState||{}).some(value=>value==='uploading'||value==='extracting');
+    overlay.classList.toggle('show',busy);
+    overlay.setAttribute('aria-hidden',busy?'false':'true');
+    document.documentElement.classList.toggle('performance-extraction-locked',busy);
+    document.body.classList.toggle('performance-extraction-locked',busy);
   }
 
   function extractionLabel(meta){
@@ -379,7 +396,11 @@
     document.querySelectorAll('[data-file]').forEach(input=>input.addEventListener('change',()=>{const file=input.files?.[0];if(!file)return;const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');if(!isPdf){state.documents[section.id]={...fileMeta(file),extractionStatus:'failed',extractionError:'Only PDF reports can be uploaded.'};persist();render();return;}handleUpload(section,file);}));
     document.querySelectorAll('[data-retry]').forEach(btn=>btn.addEventListener('click',()=>retryAnalysis(section)));
     if(section.type==='sde'){
-      document.querySelectorAll('[data-addback]').forEach(input=>input.addEventListener('change',()=>{state.addbacks[input.dataset.addback]=input.checked;if(input.dataset.addback==='distributions')document.querySelector('#ownershipField')?.classList.toggle('show',input.checked);persist();}));
+      document.querySelectorAll('[data-addback]').forEach(input=>input.addEventListener('change',()=>{
+        state.addbacks[input.dataset.addback]=input.checked;
+        persist();
+        render();
+      }));
       document.querySelector('#ownershipPercent')?.addEventListener('input',event=>{state.ownershipPercent=event.target.value;persist();});
     }
     bindManual(section);
@@ -443,7 +464,7 @@
     }
   }
 
-  function render(){renderNav();updateProgress();renderSection();persist();}
+  function render(){renderNav();updateProgress();renderSection();updateExtractionOverlay();persist();}
 
   function hydrateEvidenceRow(row){
     const section=sectionByEvidenceType(row.evidence_type);if(!section)return;
