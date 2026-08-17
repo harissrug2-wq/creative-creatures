@@ -24,8 +24,8 @@
           <div class="lookup-or"><span>or</span></div>
           <div class="field"><label for="lookupUrl">Agency URL</label><input id="lookupUrl" name="agencyUrl" inputmode="url" placeholder="https://directingdesign.com"></div>
         </div>
-        <button class="cc-btn cc-btn-primary" id="lookupSubmit" type="submit">This is Me! Continue →</button>
-        <div class="cc-error" id="lookupError" role="alert"></div><div class="cc-success" id="lookupSuccess"></div>
+        <button class="cc-btn cc-btn-primary" id="lookupSubmit" type="submit">Find My Report →</button>
+        <div class="cc-error" id="lookupError" role="alert"></div><div class="cc-success" id="lookupSuccess"></div><div id="lookupResults" class="lookup-results"></div>
       </form>
     </section>
     <section class="lookup-panel lookup-why" id="noPanel" hidden>
@@ -35,7 +35,7 @@
     <a class="cc-btn cc-btn-primary lookup-cta" id="archetypeCta" href="/owner-archetype/assessment/" hidden>Start My Identity (Archetype) Assessment</a>
     <a class="lookup-back" href="/login/">← Back</a>
   </main>
-  <script src="/portal/diagnostic-state.js"></script><script src="/portal/account-client.js"></script>
+  <script src="/portal/diagnostic-state.js"></script><script src="/portal/account-client.js"></script><script src="/portal/archetype-pdf.js"></script>
   <script>
     const params=new URLSearchParams(location.search),destination=params.get('destination')||'diagnostic';
     const yesOption=document.getElementById('yesOption'),noOption=document.getElementById('noOption'),yesPanel=document.getElementById('yesPanel'),noPanel=document.getElementById('noPanel'),cta=document.getElementById('archetypeCta');
@@ -43,23 +43,49 @@
     cta.addEventListener('click',()=>localStorage.setItem('ccProgramPath',destination));
     function select(mode){const yes=mode==='yes';yesOption.classList.toggle('selected',yes);noOption.classList.toggle('selected',!yes);yesPanel.hidden=!yes;noPanel.hidden=yes;cta.hidden=yes;}
     yesOption.onclick=()=>select('yes');noOption.onclick=()=>select('no');
+    const resultsNode=document.getElementById('lookupResults');
+    const esc=v=>String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function selectLead(lead){
+      window.CCAccount.useOwnerArchetypeLead(lead);
+      localStorage.setItem('ccProgramPath','diagnostic');
+      localStorage.removeItem('ccSignedIn');
+      return lead;
+    }
+    async function viewLeadReport(lead,button){
+      selectLead(lead);
+      const original=button?.textContent||'View Report';
+      if(button){button.disabled=true;button.textContent='Preparing Report…';}
+      try{
+        if(!window.CCArchetypePDF?.openPdf) throw new Error('The PDF report viewer is unavailable.');
+        const opened=await window.CCArchetypePDF.openPdf();
+        if(!opened) throw new Error('We could not open this report. Please try again.');
+      }catch(error){
+        const err=document.getElementById('lookupError');
+        err.textContent=error?.message||'We could not open this report. Please try again.';
+        err.classList.add('show');
+      }finally{
+        if(button){button.disabled=false;button.textContent=original;}
+      }
+    }
+    function proceedToPayment(lead){selectLead(lead);location.href='/payment/';}
+    function renderLeadResults(leads){
+      resultsNode.innerHTML=leads.map((lead,index)=>`<article class="lookup-result-card" data-lead-index="${index}"><div class="lookup-result-info"><strong>${esc(lead.name)}</strong><span>${esc(lead.email)}</span><small>${esc(lead.agency_url)}</small></div><div class="lookup-result-actions"><button type="button" class="cc-btn cc-btn-secondary" data-view-lead="${index}">View Report</button><button type="button" class="cc-btn cc-btn-primary" data-pay-lead="${index}">Proceed to Payment</button></div></article>`).join('');
+      resultsNode.querySelectorAll('[data-view-lead]').forEach(node=>node.addEventListener('click',()=>viewLeadReport(leads[Number(node.dataset.viewLead)],node)));
+      resultsNode.querySelectorAll('[data-pay-lead]').forEach(node=>node.addEventListener('click',()=>proceedToPayment(leads[Number(node.dataset.payLead)])));
+    }
     document.getElementById('lookupForm').addEventListener('submit',async e=>{
       e.preventDefault();const btn=document.getElementById('lookupSubmit'),err=document.getElementById('lookupError'),ok=document.getElementById('lookupSuccess');
-      const form=new FormData(e.currentTarget),email=String(form.get('email')||'').trim(),agencyUrl=String(form.get('agencyUrl')||'').trim();err.classList.remove('show');ok.classList.remove('show');
-      if(!email&&!agencyUrl){err.textContent='Enter your email address or agency URL.';err.classList.add('show');return;}
-      btn.disabled=true;btn.textContent='Finding account…';
+      const form=new FormData(e.currentTarget),name=String(form.get('name')||'').trim(),email=String(form.get('email')||'').trim(),agencyUrl=String(form.get('agencyUrl')||'').trim();err.classList.remove('show');ok.classList.remove('show');resultsNode.innerHTML='';
+      if(!name&&!email&&!agencyUrl){err.textContent='Enter your name, email address, or agency URL.';err.classList.add('show');return;}
+      btn.disabled=true;btn.textContent='Finding report…';
       try{
-        await window.CCAccount.lookupAccount({name:form.get('name'),email,agencyUrl});localStorage.setItem('ccProgramPath',destination);localStorage.setItem('ccSignedIn','true');
-        ok.textContent='Account found.';ok.classList.add('show');
-        let target=window.CCAccount.destinationPath(destination);
-        if(destination==='diagnostic'){
-          const paid=localStorage.getItem('ccPaymentComplete')==='true'||localStorage.getItem('agencyPaymentComplete')==='true';
-          const integrations=localStorage.getItem('agencyIntegrationsComplete')==='true';
-          target=!paid?'/payment/':!integrations?'/integrations/':'/diagnostic/';
-        }
-        setTimeout(()=>location.href=target,350);
-      }catch(error){err.textContent=error?.message==='Enter an email address or agency URL.'?error.message:'We could not find an account using those details. Check the email or agency URL.';err.classList.add('show');}
-      finally{btn.disabled=false;btn.textContent='This is Me! Continue →';}
+        const leads=await window.CCAccount.lookupOwnerArchetypeLead({name,email,agencyUrl});
+        if(!leads.length)throw new Error('No unpaid Owner Archetype report was found using those details.');
+        if(leads.length===1){ok.textContent='Owner Archetype report found. View your report or continue to payment when you are ready.';ok.classList.add('show');renderLeadResults(leads);return;}
+        ok.textContent='We found more than one matching report. Choose the correct report below.';ok.classList.add('show');
+        renderLeadResults(leads);
+      }catch(error){err.textContent=error?.message||'We could not find an Owner Archetype report using those details.';err.classList.add('show');}
+      finally{btn.disabled=false;btn.textContent='Find My Report →';}
     });
   </script>
 </body></html>

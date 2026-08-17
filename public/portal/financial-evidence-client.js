@@ -67,6 +67,8 @@
       const text = await response.text().catch(() => '');
       const error = new Error(text || 'The PDF could not be uploaded to secure storage.');
       error.status = response.status;
+      error.code = 'STORAGE_UPLOAD_FAILED';
+      error.phase = 'storage';
       throw error;
     }
     return true;
@@ -84,16 +86,26 @@
     });
   }
 
-  async function uploadPdf(evidenceType, file) {
-    const prepared = await prepareUpload(evidenceType, file);
-    await putSignedFile(prepared.signedUploadUrl, file);
+  async function uploadPrepared(prepared, evidenceType, file) {
+    if (!prepared?.evidence?.id) {
+      const error = new Error('The financial evidence row was not created. The PDF was not uploaded.');
+      error.code = 'EVIDENCE_ROW_NOT_CREATED';
+      error.phase = 'database';
+      throw error;
+    }
+    try {
+      await putSignedFile(prepared.signedUploadUrl, file);
+    } catch (error) {
+      error.evidence = prepared.evidence;
+      throw error;
+    }
 
     try {
-      const extracted = await extract(prepared.evidence?.id, evidenceType);
-      return { ...extracted, uploaded: true, extractionError: null };
+      const extracted = await extract(prepared.evidence.id, evidenceType);
+      return { ...extracted, uploaded: true, prepared: true, extractionError: null };
     } catch (error) {
-      // Upload success is independent from optional AI extraction. If the
-      // extractor is unavailable, Step 6B manual fields remain fully usable.
+      // Storage success is independent from optional AI extraction. Preserve
+      // the database row so the user can retry extraction without re-uploading.
       let evidence = prepared.evidence || null;
       try {
         const current = await list();
@@ -101,10 +113,16 @@
       } catch {}
       return {
         uploaded: true,
+        prepared: true,
         evidence,
         extractionError: { message: error.message, code: error.code || null, status: error.status || null }
       };
     }
+  }
+
+  async function uploadPdf(evidenceType, file) {
+    const prepared = await prepareUpload(evidenceType, file);
+    return uploadPrepared(prepared, evidenceType, file);
   }
 
   async function retryExtraction(evidenceId, evidenceType) {
@@ -151,6 +169,8 @@
     maxFileBytes: MAX_FILE_BYTES,
     accountIdentity,
     list,
+    prepareUpload,
+    uploadPrepared,
     uploadPdf,
     retryExtraction,
     saveManual,

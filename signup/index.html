@@ -32,17 +32,17 @@
         <span class="choose-path">Choose this path</span>
       </button>
 
-      <button type="button" class="journey-option" data-destination="accelerator" aria-pressed="false">
+      <button type="button" class="journey-option temporarily-locked" data-destination="accelerator" aria-pressed="false" aria-disabled="true">
         <span class="journey-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3.5 19v-2.2A4.8 4.8 0 0 1 8.3 12h1.4a4.8 4.8 0 0 1 4.8 4.8V19"/><path d="M17 7a3 3 0 0 1 0 6M18 19v-2a4.5 4.5 0 0 0-2.5-4"/></svg></span>
-        <h2>Breakthrough Accelerator</h2><div class="journey-price">$4,500 · PER PERSON · 90 DAYS</div>
+        <span class="temporary-lock-pill">Temporarily locked</span><h2>Breakthrough Accelerator</h2><div class="journey-price">$4,500 · PER PERSON · 90 DAYS</div>
         <p class="journey-description">The same diagnostic in a 90-day peer cohort.</p>
         <ul><li><i class="orange-check">✓</i><span>Owner archetype + team &amp; leadership review</span></li><li><i class="orange-check">✓</i><span>14-point risk assessment and valuation</span></li><li><i class="orange-check">✓</i><span>Back office systems performance analysis</span></li><li><i class="orange-check">✓</i><span>90-day + 1-year strategic roadmap</span></li></ul>
         <span class="choose-path">Choose this path</span>
       </button>
 
-      <button type="button" class="journey-option portal-option" data-destination="platform" aria-pressed="false">
+      <button type="button" class="journey-option portal-option temporarily-locked" data-destination="platform" aria-pressed="false" aria-disabled="true">
         <span class="journey-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></span>
-        <h2>Platform &amp; Partner Portal</h2><div class="journey-price">UNLOCKS AFTER THE DIAGNOSTIC</div>
+        <span class="temporary-lock-pill">Temporarily locked</span><h2>Platform &amp; Partner Portal</h2><div class="journey-price">UNLOCKS AFTER THE DIAGNOSTIC</div>
         <p class="journey-description">Run the plan day to day — goals, rocks, weekly L10s, and live KPIs across every department.</p>
         <ul><li><i class="purple-check">✓</i><span>Full agency workspace + department dashboards</span></li><li><i class="purple-check">✓</i><span>Annual goals cascaded to quarters and weeks</span></li><li><i class="purple-check">✓</i><span>Weekly L10 cadence with auto agendas</span></li><li><i class="purple-check">✓</i><span>Back office integrations &amp; intelligence layer</span></li></ul>
         <div class="portal-lock-note"><span>♙</span><span>Starts with the Agency Diagnostic — it produces the scorecard the portal runs on.</span></div>
@@ -57,7 +57,7 @@
   </main>
 
   <script>
-  (()=>{let selected='';const cards=[...document.querySelectorAll('.journey-option')],continueBtn=document.getElementById('journeyContinue');const select=card=>{selected=card.dataset.destination;cards.forEach(item=>{const active=item===card;item.classList.toggle('selected',active);item.setAttribute('aria-pressed',String(active))});continueBtn.disabled=false};cards.forEach(card=>card.addEventListener('click',()=>select(card)));continueBtn.addEventListener('click',()=>{if(!selected)return;localStorage.setItem('ccProgramPath',selected);location.href=`/signup/lookup/?destination=${encodeURIComponent(selected)}`})})();
+  (()=>{let selected='';const cards=[...document.querySelectorAll('.journey-option')],continueBtn=document.getElementById('journeyContinue');const select=card=>{if(card.classList.contains('temporarily-locked'))return;selected=card.dataset.destination;cards.forEach(item=>{const active=item===card;item.classList.toggle('selected',active);item.setAttribute('aria-pressed',String(active))});continueBtn.disabled=false};cards.forEach(card=>card.addEventListener('click',()=>select(card)));continueBtn.addEventListener('click',()=>{if(selected!=='diagnostic')return;localStorage.setItem('ccProgramPath','diagnostic');location.href='/signup/lookup/?destination=diagnostic'})})();
   </script>
 </body>
 </html>

@@ -34,6 +34,11 @@
   };
 
   function localReport() {
+    // Admin Owner Archetype table can supply a database-backed report without
+    // replacing the admin browser's current account/localStorage context.
+    const override = window.CC_ARCHETYPE_REPORT_OVERRIDE;
+    if (override?.answers) return override;
+
     const direct = readJSON('ownerArchetypeReportData');
     if (direct?.answers) return direct;
 

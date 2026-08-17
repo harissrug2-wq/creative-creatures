@@ -1,9 +1,11 @@
-import { escapeHtml, sendEmail, validEmail } from './email-service.js';
+import { emailStatus, escapeHtml, sendEmail, validEmail } from '../lib/email-service.js';
 const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(payload))};
 const clean=value=>String(value??'').trim();
 export default async function handler(req,res){
-  res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');
-  if(req.method==='OPTIONS')return json(res,204,{});if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
+  res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');
+  if(req.method==='OPTIONS')return json(res,204,{});
+  if(req.method==='GET' && (String(req.query?.mode||'')==='status' || req.url?.includes('mode=status'))) return json(res,200,emailStatus());
+  if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
   try{
     const body=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const to=clean(body.to);if(!validEmail(to))return json(res,422,{error:'Enter a valid email address.'});
     const title=clean(body.title)||'Creative Creatures Report';const summary=clean(body.summary);const filename=clean(body.filename)||'creative-creatures-report.pdf';const attachments=body.pdfBase64?[{filename,content:clean(body.pdfBase64)}]:undefined;

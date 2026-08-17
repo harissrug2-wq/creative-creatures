@@ -18,12 +18,18 @@
   </section>
   <section class="cc-card integration-strip"><div><h3>Integrations feed your scoring</h3><p>Connect the tools you declared during onboarding so the diagnostic can pull real numbers.</p></div><a class="small-outline" href="/integrations/">Go to Integrations →</a></section>
 </main>
-<script src="/portal/diagnostic-state.js"></script><script src="/portal/account-client.js"></script><script src="/portal/app-shell.js"></script>
+<script src="/portal/diagnostic-state.js"></script><script src="/portal/account-client.js"></script><script src="/portal/app-shell.js"></script><script src="/portal/archetype-pdf.js"></script>
 <script>(()=>{
   const state=window.CCDiagnostic.getState();
   if(!state.ownerComplete){location.replace('/signup/lookup/?destination=diagnostic');return;}
   const ownerReportUrl=window.CCDiagnostic.reportUrl();
-  document.getElementById('viewArchetypeReport').href=`${ownerReportUrl}${ownerReportUrl.includes('?')?'&':'?'}view=summary`;
+  const viewArchetypeReport=document.getElementById('viewArchetypeReport');
+  viewArchetypeReport.href=ownerReportUrl;
+  viewArchetypeReport.addEventListener('click',event=>{
+    if(!window.CCArchetypePDF?.openPdf)return;
+    event.preventDefault();
+    window.CCArchetypePDF.openPdf({fallbackUrl:ownerReportUrl});
+  });
   const analysisCount=1+state.count;
   document.getElementById('progressCount').textContent=`${analysisCount} / 4`;
   document.getElementById('progressBar').style.width=`${analysisCount/4*100}%`;
