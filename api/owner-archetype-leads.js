@@ -10,7 +10,7 @@ function pub(r,accountIds=null){const accountExists=Boolean(r?.converted_account
 async function attachAccountState(c,rows){const list=Array.isArray(rows)?rows:[];const ids=[...new Set(list.map(r=>r.converted_account_id).filter(Boolean))];if(!ids.length)return list.map(r=>pub(r,new Set()));const filter=encodeURIComponent(`(${ids.join(',')})`);const accounts=await db(c,`accounts?select=id&id=in.${filter}`);const accountIds=new Set((Array.isArray(accounts)?accounts:[]).map(a=>a.id));return list.map(r=>pub(r,accountIds))}
 async function loadAdminHistory(c){
   const [leadRows,accountRows]=await Promise.all([
-    db(c,`owner_archetype_leads?select=${SELECT}&order=created_at.desc`),
+    db(c,`owner_archetype_leads?select=${SELECT}&name_normalized=ilike.*&order=created_at.desc&limit=1000`),
     db(c,'accounts?select=id,name,email,agency_url,agency_url_normalized,agency_name,journey,source,archetype_result,report_data,diagnostic_state,created_at,updated_at&source=eq.owner-archetype&order=created_at.desc')
   ]);
   const history=new Map();
