@@ -145,7 +145,7 @@
       ? fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' })
       : Promise.resolve(null);
     const leadPromise = needsOwnerHistory
-      ? fetch(`${OWNER_LEAD_API}?all=true`, { cache: 'no-store' })
+      ? fetch(OWNER_LEAD_API, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin_history' }) })
       : Promise.resolve(null);
 
     const [accountResult, leadResult] = await Promise.allSettled([accountPromise, leadPromise]);
