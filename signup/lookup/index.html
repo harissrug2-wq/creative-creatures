@@ -68,10 +68,12 @@
       }
     }
     function proceedToPayment(lead){selectLead(lead);location.href='/payment/';}
+    function loginToDiagnostic(lead){const email=String(lead?.email||'').trim();location.href='/login/'+(email?`?email=${encodeURIComponent(email)}`:'');}
     function renderLeadResults(leads){
-      resultsNode.innerHTML=leads.map((lead,index)=>`<article class="lookup-result-card" data-lead-index="${index}"><div class="lookup-result-info"><strong>${esc(lead.name)}</strong><span>${esc(lead.email)}</span><small>${esc(lead.agency_url)}</small></div><div class="lookup-result-actions"><button type="button" class="cc-btn cc-btn-secondary" data-view-lead="${index}">View Report</button><button type="button" class="cc-btn cc-btn-primary" data-pay-lead="${index}">Proceed to Payment</button></div></article>`).join('');
+      resultsNode.innerHTML=leads.map((lead,index)=>{const paid=lead.is_paid===true&&lead.account_exists===true;return `<article class="lookup-result-card" data-lead-index="${index}"><div class="lookup-result-info"><strong>${esc(lead.name)}</strong><span>${esc(lead.email)}</span><small>${esc(lead.agency_url)}</small></div><div class="lookup-result-actions"><button type="button" class="cc-btn cc-btn-secondary" data-view-lead="${index}">View Report</button>${paid?`<button type="button" class="cc-btn cc-btn-primary" data-login-lead="${index}">Login</button>`:`<button type="button" class="cc-btn cc-btn-primary" data-pay-lead="${index}">Proceed to Payment</button>`}</div></article>`}).join('');
       resultsNode.querySelectorAll('[data-view-lead]').forEach(node=>node.addEventListener('click',()=>viewLeadReport(leads[Number(node.dataset.viewLead)],node)));
       resultsNode.querySelectorAll('[data-pay-lead]').forEach(node=>node.addEventListener('click',()=>proceedToPayment(leads[Number(node.dataset.payLead)])));
+      resultsNode.querySelectorAll('[data-login-lead]').forEach(node=>node.addEventListener('click',()=>loginToDiagnostic(leads[Number(node.dataset.loginLead)])));
     }
     document.getElementById('lookupForm').addEventListener('submit',async e=>{
       e.preventDefault();const btn=document.getElementById('lookupSubmit'),err=document.getElementById('lookupError'),ok=document.getElementById('lookupSuccess');
@@ -80,8 +82,8 @@
       btn.disabled=true;btn.textContent='Finding report…';
       try{
         const leads=await window.CCAccount.lookupOwnerArchetypeLead({name,email,agencyUrl});
-        if(!leads.length)throw new Error('No unpaid Owner Archetype report was found using those details.');
-        if(leads.length===1){ok.textContent='Owner Archetype report found. View your report or continue to payment when you are ready.';ok.classList.add('show');renderLeadResults(leads);return;}
+        if(!leads.length)throw new Error('No Owner Archetype report was found using those details.');
+        if(leads.length===1){const paid=leads[0].is_paid===true&&leads[0].account_exists===true;ok.textContent=paid?'Owner Archetype report found. Your Agency Diagnostic account is already active.':'Owner Archetype report found. View your report or continue to payment when you are ready.';ok.classList.add('show');renderLeadResults(leads);return;}
         ok.textContent='We found more than one matching report. Choose the correct report below.';ok.classList.add('show');
         renderLeadResults(leads);
       }catch(error){err.textContent=error?.message||'We could not find an Owner Archetype report using those details.';err.classList.add('show');}
