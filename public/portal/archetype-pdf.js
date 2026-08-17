@@ -311,6 +311,42 @@
     });
   }
 
+  async function emailReport(email) {
+    const recipient = String(email || '').trim().toLowerCase();
+    if (!/^\S+@\S+\.\S+$/.test(recipient)) {
+      throw new Error('A valid email address is required to email the report.');
+    }
+
+    const token = await ensureReportToken();
+    const pdfBlob = await fetchPdfBlob(token);
+    const pdfBase64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error('The Owner Identity PDF could not be prepared for email.'));
+      reader.onload = () => resolve(String(reader.result || '').split(',')[1] || '');
+      reader.readAsDataURL(pdfBlob);
+    });
+
+    if (!pdfBase64) throw new Error('The Owner Identity PDF could not be prepared for email.');
+
+    const response = await fetch('/api/email-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: recipient,
+        title: 'Your Owner Identity Report',
+        summary: 'Your Creative Creatures Owner Identity Report is attached.',
+        filename: 'creative-creatures-owner-identity-report.pdf',
+        pdfBase64
+      })
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      throw new Error(payload?.error || 'The Owner Identity report email could not be sent.');
+    }
+
+    return { token, emailId: payload?.id || null };
+  }
+
   async function openPdf({ fallbackUrl = '' } = {}) {
     /* Open synchronously so popup blockers do not block the PDF viewer. */
     const popup = window.open('about:blank', '_blank');
@@ -365,6 +401,7 @@
   window.CCArchetypePDF = {
     API_BASE,
     ensureReportToken,
+    emailReport,
     openPdf,
     clearRemoteCache
   };

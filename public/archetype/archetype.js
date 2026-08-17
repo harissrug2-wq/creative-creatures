@@ -451,7 +451,24 @@
     const sync = window.CCAccount?.createOwnerArchetypeLead
       ? window.CCAccount.createOwnerArchetypeLead(syncPayload).catch(error => { console.error('Owner Archetype lead save failed.', error); return null; })
       : Promise.resolve(null);
-    Promise.race([sync, new Promise(resolve => setTimeout(resolve, 2500))])
+
+    localStorage.setItem('ownerArchetypeEmailStatus', 'sending');
+    const delivery = window.CCArchetypePDF?.emailReport
+      ? window.CCArchetypePDF.emailReport(ownerEmail)
+          .then(() => {
+            localStorage.setItem('ownerArchetypeEmailStatus', 'sent');
+            localStorage.removeItem('ownerArchetypeEmailError');
+            return true;
+          })
+          .catch(error => {
+            console.error('Owner Identity report email failed.', error);
+            localStorage.setItem('ownerArchetypeEmailStatus', 'failed');
+            localStorage.setItem('ownerArchetypeEmailError', String(error?.message || 'Email delivery failed.'));
+            return false;
+          })
+      : Promise.resolve(false);
+
+    Promise.allSettled([sync, delivery])
       .finally(() => setTimeout(() => { location.href = destinationPath; }, 350));
   }
 
@@ -510,6 +527,10 @@
     const firstName = data.firstName || localStorage.getItem('ccOwnerFirstName') || 'there';
     const agencyUrl = data.agencyWebsite || localStorage.getItem('ccAgencyWebsite') || 'your agency';
     const email = data.email || localStorage.getItem('ccOwnerEmail') || 'your email address';
+    const emailStatus = localStorage.getItem('ownerArchetypeEmailStatus') || 'unknown';
+    const emailMessage = emailStatus === 'sent'
+      ? `<h2>We have emailed your detailed Owner Identity Report to ${escapeHtml(email)}</h2><p>Check your inbox and your spam/junk folders just in case.</p>`
+      : `<h2>Your detailed Owner Identity Report is ready.</h2><p>We could not confirm email delivery to ${escapeHtml(email)}. You can view the report now or retry the email.</p><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="nav-btn" id="viewIdentityPdf" type="button">View Report</button><button class="nav-btn primary" id="retryIdentityEmail" type="button">Email Report Again</button></div><p id="identityEmailRetryStatus" style="margin-top:10px"></p>`;
     app.innerHTML = `
       <main class="report-page identity-report-page">
         ${logo()}
@@ -523,8 +544,7 @@
           <p class="identity-lead">You have taken an important step toward improving how you lead ${escapeHtml(agencyUrl)}</p>
           <div class="identity-email-card">
             <span>Your Owner Identity Report</span>
-            <h2>We have emailed your detailed Owner Identity Report to ${escapeHtml(email)}</h2>
-            <p>Check your inbox and your spam/junk folders just in case.</p>
+            ${emailMessage}
           </div>
           <section class="identity-next-step">
             <span class="identity-section-label">Your Next Step</span>
@@ -562,6 +582,29 @@
           </article>
         </section>
       </main>`;
+    document.getElementById('viewIdentityPdf')?.addEventListener('click', () => {
+      window.CCArchetypePDF?.openPdf?.({ fallbackUrl: location.href });
+    });
+    document.getElementById('retryIdentityEmail')?.addEventListener('click', async event => {
+      const button = event.currentTarget;
+      const status = document.getElementById('identityEmailRetryStatus');
+      button.disabled = true;
+      button.textContent = 'Sending…';
+      if (status) status.textContent = '';
+      try {
+        await window.CCArchetypePDF.emailReport(email);
+        localStorage.setItem('ownerArchetypeEmailStatus', 'sent');
+        if (status) status.textContent = `Report sent to ${email}.`;
+        button.textContent = 'Sent ✓';
+      } catch (error) {
+        localStorage.setItem('ownerArchetypeEmailStatus', 'failed');
+        localStorage.setItem('ownerArchetypeEmailError', String(error?.message || 'Email delivery failed.'));
+        if (status) status.textContent = error?.message || 'The email could not be sent.';
+        button.disabled = false;
+        button.textContent = 'Email Report Again';
+      }
+    });
+
     document.querySelector('#continueIdentity')?.addEventListener('click', () => {
       const offer = document.querySelector('#diagnosticOffer');
       offer.hidden = false;

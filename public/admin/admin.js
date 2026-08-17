@@ -134,31 +134,70 @@
   let ownerArchetypes = [];
 
   async function fetchAccounts() {
-    const [accountsResponse, leadsResponse] = await Promise.all([
-      fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' }),
-      fetch(`${OWNER_LEAD_API}?all=true`, { cache: 'no-store' })
-    ]);
-    if (accountsResponse.status === 401 || leadsResponse.status === 401) { location.href='/admin/login/'; throw new Error('Admin session expired.'); }
-    if (!accountsResponse.ok) {
-      const payload = await accountsResponse.json().catch(() => ({}));
-      throw new Error(payload.error || 'Unable to load admin diagnostics.');
+    const needsOwnerHistory = Boolean(document.querySelector('#ownerArchetypeTable'));
+    const needsDiagnostics = Boolean(
+      document.querySelector('#agencyGrid') ||
+      document.querySelector('#platformMetrics') ||
+      document.querySelector('#agencyRollup')
+    );
+
+    const accountPromise = (needsDiagnostics || needsOwnerHistory)
+      ? fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' })
+      : Promise.resolve(null);
+    const leadPromise = needsOwnerHistory
+      ? fetch(`${OWNER_LEAD_API}?all=true`, { cache: 'no-store' })
+      : Promise.resolve(null);
+
+    const [accountResult, leadResult] = await Promise.allSettled([accountPromise, leadPromise]);
+    const accountsResponse = accountResult.status === 'fulfilled' ? accountResult.value : null;
+    const leadsResponse = leadResult.status === 'fulfilled' ? leadResult.value : null;
+
+    if (accountsResponse?.status === 401 || leadsResponse?.status === 401) {
+      location.href = '/admin/login/';
+      throw new Error('Admin session expired.');
     }
-    if (!leadsResponse.ok) {
-      const payload = await leadsResponse.json().catch(() => ({}));
-      throw new Error(payload.error || 'Unable to load Owner Archetype leads.');
+
+    let accountError = null;
+    let leadError = null;
+
+    if (needsDiagnostics || needsOwnerHistory) {
+      if (!accountsResponse?.ok) {
+        const payload = await accountsResponse?.json().catch(() => ({})) || {};
+        accountError = new Error(payload.error || `Unable to load Diagnostics (${accountsResponse?.status || 'network error'}).`);
+      } else {
+        const payload = await accountsResponse.json();
+        allAccounts = (Array.isArray(payload.accounts) ? payload.accounts : []).map(normalizeAccount).filter(Boolean);
+        diagnostics = allAccounts.filter(account => account.journey === 'diagnostic' && isActivatedDiagnostic(account));
+      }
     }
-    const [accountsPayload, leadsPayload] = await Promise.all([accountsResponse.json(), leadsResponse.json()]);
-    allAccounts = (Array.isArray(accountsPayload.accounts) ? accountsPayload.accounts : []).map(normalizeAccount).filter(Boolean);
-    const leadRecords = (Array.isArray(leadsPayload.leads) ? leadsPayload.leads : []).map(normalizeLead).filter(Boolean);
-    const historicalOwnerAccounts = allAccounts.filter(account => String(account.source || '').toLowerCase() === 'owner-archetype');
-    // Owner Archetype is a permanent questionnaire history. Start with paid/
-    // activated account records so older customers remain visible, then let
-    // the dedicated lead record override the same email when both exist.
-    const ownerHistory = new Map();
-    historicalOwnerAccounts.forEach(account => ownerHistory.set(String(account.email || account.id).toLowerCase(), account));
-    leadRecords.forEach(lead => ownerHistory.set(String(lead.email || lead.id).toLowerCase(), lead));
-    ownerArchetypes = [...ownerHistory.values()].sort((a,b) => new Date(b.visitDate || b.createdAt || 0) - new Date(a.visitDate || a.createdAt || 0));
-    diagnostics = allAccounts.filter(account => account.journey === 'diagnostic' && isActivatedDiagnostic(account));
+
+    let leadRecords = [];
+    if (needsOwnerHistory) {
+      if (!leadsResponse?.ok) {
+        const payload = await leadsResponse?.json().catch(() => ({})) || {};
+        leadError = new Error(payload.error || `Unable to load Owner Archetype history (${leadsResponse?.status || 'network error'}).`);
+      } else {
+        const payload = await leadsResponse.json();
+        leadRecords = (Array.isArray(payload.leads) ? payload.leads : []).map(normalizeLead).filter(Boolean);
+      }
+
+      const historicalOwnerAccounts = allAccounts.filter(account => String(account.source || '').toLowerCase() === 'owner-archetype');
+      const ownerHistory = new Map();
+      historicalOwnerAccounts.forEach(account => ownerHistory.set(String(account.email || account.id).toLowerCase(), account));
+      leadRecords.forEach(lead => ownerHistory.set(String(lead.email || lead.id).toLowerCase(), lead));
+      ownerArchetypes = [...ownerHistory.values()].sort((a,b) => new Date(b.visitDate || b.createdAt || 0) - new Date(a.visitDate || a.createdAt || 0));
+    }
+
+    // Diagnostics and Performance must not be blanked just because the
+    // Owner Archetype endpoint has a problem. Only fail the current page when
+    // the dataset that page actually needs could not be loaded.
+    if (needsDiagnostics && accountError) throw accountError;
+    if (needsOwnerHistory && accountError && leadError) throw new Error(`${accountError.message} ${leadError.message}`);
+
+    if (needsOwnerHistory && (accountError || leadError)) {
+      console.warn('Admin Owner Archetype history loaded partially.', accountError || leadError);
+    }
+
     return { allAccounts, diagnostics, ownerArchetypes };
   }
 
@@ -445,6 +484,7 @@
     try {
       await fetchAccounts();
       renderCurrentPage();
+      document.querySelectorAll('[data-admin-error]').forEach(node => { node.hidden = true; node.textContent = ''; });
       document.querySelectorAll('[data-admin-updated]').forEach(node => {
         node.textContent = `Updated ${new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date())}`;
       });
@@ -452,7 +492,7 @@
       console.error('Admin data refresh failed.', error);
       document.querySelectorAll('[data-admin-error]').forEach(node => {
         node.hidden = false;
-        node.textContent = 'Live admin data could not be loaded. Refresh the page to try again.';
+        node.textContent = error?.message || 'Live admin data could not be loaded. Refresh the page to try again.';
       });
     }
   }
