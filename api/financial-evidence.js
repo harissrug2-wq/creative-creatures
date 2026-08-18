@@ -277,9 +277,33 @@ const schemas = {
       operatingExpensesTTM: nullableNumber(),
       netIncomeTTM: nullableNumber(),
       netIncomeYTD: nullableNumber(),
-      explicitEBITDA: nullableNumber()
+      explicitEBITDA: nullableNumber(),
+      priorRevenueTTM: nullableNumber(),
+      priorCogsTTM: nullableNumber(),
+      priorGrossProfitTTM: nullableNumber(),
+      priorNetIncomeTTM: nullableNumber(),
+      currentTtmStart: nullableString(),
+      currentTtmEnd: nullableString(),
+      priorTtmStart: nullableString(),
+      priorTtmEnd: nullableString(),
+      monthlyPeriods: {
+        type: 'array',
+        items: {
+          type: 'object', additionalProperties: false,
+          properties: {
+            period: { type: 'string' },
+            isPartial: { type: 'boolean' },
+            revenue: nullableNumber(),
+            cogs: nullableNumber(),
+            grossProfit: nullableNumber(),
+            netIncome: nullableNumber()
+          },
+          required: ['period','isPartial','revenue','cogs','grossProfit','netIncome']
+        }
+      },
+      partialPeriodsIgnored: { type: 'array', items: { type: 'string' } }
     },
-    required: ['currency','confidence','warnings','periodLabel','revenueTTM','revenueYTD','cogsTTM','grossProfitTTM','operatingExpensesTTM','netIncomeTTM','netIncomeYTD','explicitEBITDA']
+    required: ['currency','confidence','warnings','periodLabel','revenueTTM','revenueYTD','cogsTTM','grossProfitTTM','operatingExpensesTTM','netIncomeTTM','netIncomeYTD','explicitEBITDA','priorRevenueTTM','priorCogsTTM','priorGrossProfitTTM','priorNetIncomeTTM','currentTtmStart','currentTtmEnd','priorTtmStart','priorTtmEnd','monthlyPeriods','partialPeriodsIgnored']
   },
   balance_sheet: {
     type: 'object', additionalProperties: false,
@@ -353,12 +377,14 @@ const schemas = {
 };
 
 const instructions = {
-  profit_loss: 'Extract the agency Profit & Loss financial values. Prefer Trailing Twelve Months (TTM). If the document contains exactly 12 clearly labeled monthly values, you may sum them for TTM. Do not estimate missing values.',
+  profit_loss: 'Extract the agency Profit & Loss financial values and the complete monthly series when shown. Identify the latest 24 COMPLETE calendar months, excluding any partial month/date-range period. Current TTM is the most recent 12 complete months; Prior TTM is the immediately preceding 12 complete months. Never sum 24 months into a TTM total. If the report provides explicit TTM totals, also extract them, but preserve the monthly rows so the server can verify the arithmetic. Do not estimate missing values.',
   balance_sheet: 'Extract balance-sheet values from the most relevant/latest period shown. Do not estimate missing values.',
   ar_aging: 'Extract Accounts Receivable aging totals and aging buckets from the latest report period. Do not estimate missing values.',
   client_revenue: 'Extract each client and its revenue for the stated report period. Use only client revenue explicitly supported by the document.',
   service_revenue_mix: 'Extract revenue by service. Only classify recurring versus project revenue when the document explicitly supports that classification.'
 };
+
+const roundMoney2 = value => Math.round(Number(value) * 100) / 100;
 
 function deriveMetrics(evidenceType, data) {
   const out = { ...data };
@@ -367,14 +393,85 @@ function deriveMetrics(evidenceType, data) {
     : null;
 
   if (evidenceType === 'profit_loss') {
+    const rawPeriods = Array.isArray(out.monthlyPeriods) ? out.monthlyPeriods : [];
+    const completePeriods = rawPeriods
+      .filter(row => row && row.isPartial !== true && clean(row.period))
+      .map(row => ({
+        ...row,
+        revenue: finite(row.revenue),
+        cogs: finite(row.cogs),
+        grossProfit: finite(row.grossProfit),
+        netIncome: finite(row.netIncome)
+      }));
+
+    const sum = (rows, key) => rows.length && rows.every(row => finite(row[key]) !== null)
+      ? roundMoney2(rows.reduce((total, row) => total + Number(row[key]), 0))
+      : null;
+    const last24 = completePeriods.length >= 24 ? completePeriods.slice(-24) : [];
+    const prior12 = last24.length === 24 ? last24.slice(0, 12) : [];
+    const current12 = last24.length === 24 ? last24.slice(12) : (completePeriods.length >= 12 ? completePeriods.slice(-12) : []);
+
+    const calculatedCurrent = {
+      revenue: sum(current12, 'revenue'),
+      cogs: sum(current12, 'cogs'),
+      grossProfit: sum(current12, 'grossProfit'),
+      netIncome: sum(current12, 'netIncome')
+    };
+    if (calculatedCurrent.grossProfit === null && calculatedCurrent.revenue !== null && calculatedCurrent.cogs !== null) {
+      calculatedCurrent.grossProfit = roundMoney2(calculatedCurrent.revenue - calculatedCurrent.cogs);
+    }
+    const calculatedPrior = {
+      revenue: sum(prior12, 'revenue'),
+      cogs: sum(prior12, 'cogs'),
+      grossProfit: sum(prior12, 'grossProfit'),
+      netIncome: sum(prior12, 'netIncome')
+    };
+    if (calculatedPrior.grossProfit === null && calculatedPrior.revenue !== null && calculatedPrior.cogs !== null) {
+      calculatedPrior.grossProfit = roundMoney2(calculatedPrior.revenue - calculatedPrior.cogs);
+    }
+
+    // Prefer deterministic sums from 12 complete monthly rows. Fall back to
+    // explicit totals only when the source does not expose a complete series.
+    out.revenueTTM = calculatedCurrent.revenue ?? finite(out.revenueTTM);
+    out.cogsTTM = calculatedCurrent.cogs ?? finite(out.cogsTTM);
+    out.grossProfitTTM = calculatedCurrent.grossProfit ?? finite(out.grossProfitTTM);
+    out.netIncomeTTM = calculatedCurrent.netIncome ?? finite(out.netIncomeTTM);
+    out.priorRevenueTTM = calculatedPrior.revenue ?? finite(out.priorRevenueTTM);
+    out.priorCogsTTM = calculatedPrior.cogs ?? finite(out.priorCogsTTM);
+    out.priorGrossProfitTTM = calculatedPrior.grossProfit ?? finite(out.priorGrossProfitTTM);
+    out.priorNetIncomeTTM = calculatedPrior.netIncome ?? finite(out.priorNetIncomeTTM);
+
+    if (current12.length === 12) {
+      out.currentTtmStart = clean(current12[0].period) || out.currentTtmStart || null;
+      out.currentTtmEnd = clean(current12[11].period) || out.currentTtmEnd || null;
+    }
+    if (prior12.length === 12) {
+      out.priorTtmStart = clean(prior12[0].period) || out.priorTtmStart || null;
+      out.priorTtmEnd = clean(prior12[11].period) || out.priorTtmEnd || null;
+    }
+
     const revenue = finite(out.revenueTTM);
     const cogs = finite(out.cogsTTM);
     let gross = finite(out.grossProfitTTM);
-    if (gross === null && revenue !== null && cogs !== null) gross = revenue - cogs;
+    if (gross === null && revenue !== null && cogs !== null) gross = roundMoney2(revenue - cogs);
     out.grossProfitTTM = gross;
     out.cogsPercent = revenue !== null && cogs !== null ? pct(cogs, revenue) : null;
     out.grossMarginPercent = revenue !== null && gross !== null ? pct(gross, revenue) : null;
     out.netMargin = revenue !== null && finite(out.netIncomeTTM) !== null ? pct(Number(out.netIncomeTTM), revenue) : null;
+
+    const priorRevenue = finite(out.priorRevenueTTM);
+    const priorGross = finite(out.priorGrossProfitTTM);
+    const priorNet = finite(out.priorNetIncomeTTM);
+    const currentNet = finite(out.netIncomeTTM);
+    const deltaRevenue = revenue !== null && priorRevenue !== null ? revenue - priorRevenue : null;
+    out.revenueGrowthPercent = priorRevenue && revenue !== null ? pct(revenue - priorRevenue, priorRevenue) : finite(out.revenueGrowthPercent);
+    out.grossProfitGrowthPercent = priorGross && gross !== null ? pct(gross - priorGross, priorGross) : finite(out.grossProfitGrowthPercent);
+    out.netIncomeGrowthPercent = priorNet && currentNet !== null ? pct(currentNet - priorNet, priorNet) : finite(out.netIncomeGrowthPercent);
+    out.profitConversionPercent = deltaRevenue && currentNet !== null && priorNet !== null
+      ? pct(currentNet - priorNet, deltaRevenue)
+      : finite(out.profitConversionPercent);
+    out.monthlyPeriods = rawPeriods;
+    out.ttmCalculationSource = current12.length === 12 ? '12_complete_months' : 'explicit_report_totals';
   }
 
   if (evidenceType === 'balance_sheet') {
@@ -464,7 +561,9 @@ async function extractWithOpenAI({ evidenceType, fileUrl, filename }) {
     '- Percentages must be numeric percentage points, e.g. 24.5 rather than 0.245.',
     '- Use null when a requested value is not present or cannot be calculated exactly from visible values.',
     '- Confidence is extraction confidence (0-100), not a business-performance score.',
-    '- Put ambiguity, missing periods, or suspicious report structure in warnings.'
+    '- Put ambiguity, missing periods, or suspicious report structure in warnings.',
+    evidenceType === 'profit_loss' ? '- For P&L reports, read month headers carefully. A partial period such as Aug 1-4 is NOT a complete month and must be marked isPartial=true and excluded from both TTM windows.' : '',
+    evidenceType === 'profit_loss' ? '- Return monthlyPeriods in chronological order (oldest to newest). Do not combine months or duplicate subtotal/TTM columns as months.' : ''
   ].join('\n');
 
   const response = await fetch('https://api.openai.com/v1/responses', {

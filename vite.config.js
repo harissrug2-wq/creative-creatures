@@ -5,8 +5,24 @@ import { resolve } from 'node:path';
 
 const page = (name) => resolve(__dirname, name, 'index.html');
 
+const pageLoaderPlugin = {
+  name: 'creative-creatures-page-loader',
+  transformIndexHtml() {
+    return [
+      { tag: 'link', attrs: { rel: 'stylesheet', href: '/shared/page-loader.css' }, injectTo: 'head' },
+      {
+        tag: 'div',
+        attrs: { id: 'ccPageLoader', role: 'status', 'aria-live': 'polite', 'aria-hidden': 'false' },
+        children: '<div class="cc-loader-card"><div class="cc-loader-mark"><span class="cc-loader-orbit"></span><img src="/favicon.svg" alt=""></div><div class="cc-loader-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><div class="cc-loader-copy"><strong>Creative Creatures</strong><span data-loader-copy>Loading your agency workspace…</span></div></div>',
+        injectTo: 'body-prepend'
+      },
+      { tag: 'script', attrs: { src: '/shared/page-loader.js' }, injectTo: 'body-prepend' }
+    ];
+  }
+};
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), pageLoaderPlugin],
   build: {
     rollupOptions: {
       input: {

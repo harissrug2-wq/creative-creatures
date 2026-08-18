@@ -97,12 +97,14 @@ function revenueQualityEvidence(performance) {
     topClientPercent: firstNumber([financials, details, concentrationMetric], [
       'topClientPercent', 'largestClientPercent', 'top_client_percent', 'value'
     ]),
-    diversificationLevel: firstNumber([details, diversificationMetric], [
-      'revenueDiversificationLevel', 'financials.revenueDiversificationLevel', 'value', 'score'
-    ]),
-    contractDurationLevel: firstNumber([details, contractMetric], [
-      'contractDurationLevel', 'financials.contractDurationLevel', 'value', 'score'
-    ]),
+    // Keep qualitative levels scoped to their actual metric row. Do not fall
+    // through to details.score, which is the overall Performance score.
+    diversificationLevel: firstNumber([details], [
+      'revenueDiversificationLevel', 'financials.revenueDiversificationLevel'
+    ]) ?? firstNumber([diversificationMetric], ['value']),
+    contractDurationLevel: firstNumber([details], [
+      'contractDurationLevel', 'financials.contractDurationLevel'
+    ]) ?? firstNumber([contractMetric], ['value']),
     categoryScore: firstNumber([category], ['categoryScore', 'score']),
     coverage: firstNumber([category], ['coverage'])
   };
@@ -114,32 +116,32 @@ export function revenueQualityMultipleAdjustment(evidence = {}) {
   const diversification = finite(evidence.diversificationLevel);
   const contractDuration = finite(evidence.contractDurationLevel);
 
+  // Agency Valuation(TM) gives two explicit cases: a +0.25 premium for high
+  // recurring revenue + diversified clients + long-term contracts, and a
+  // -0.25 discount for heavy project work or client concentration. Existing
+  // Performance rubric thresholds are used to translate those descriptions.
+  const heavyProjectWork = recurring !== null && recurring < 40;
+  const concentrated = concentration !== null && concentration > 30;
+  if (heavyProjectWork || concentrated) {
+    return { adjustment: -0.25, classification: 'discount', missing: [] };
+  }
+
+  const highRecurring = recurring !== null && recurring >= 80;
+  const diversified = (diversification !== null && diversification >= 3)
+    || (concentration !== null && concentration < 15);
+  const longTermContracts = contractDuration !== null && contractDuration >= 3;
+  if (highRecurring && diversified && longTermContracts) {
+    return { adjustment: 0.25, classification: 'premium', missing: [] };
+  }
+
+  // If recurring revenue and concentration are both known and neither explicit
+  // premium/discount case applies, the adjustment is neutral. This prevents
+  // valuation from being blocked by optional qualitative fields while still
+  // refusing to guess when core revenue-quality evidence is absent.
   const missing = [];
   if (recurring === null) missing.push('recurring revenue %');
   if (concentration === null) missing.push('largest client concentration %');
-  if (diversification === null) missing.push('revenue diversification');
-  if (contractDuration === null) missing.push('contract duration');
-  if (missing.length) {
-    return { adjustment: null, classification: 'insufficient_evidence', missing };
-  }
-
-  // The approved methodology specifies a +0.25 premium for high recurring
-  // revenue + diversified clients + long-term contracts, and a -0.25 discount
-  // for heavy project work or client concentration. The existing Performance
-  // rubric supplies the thresholds used here; anything between those cases is
-  // neutral (no multiple adjustment).
-  const premium = recurring >= 80
-    && concentration < 15
-    && diversification >= 3
-    && contractDuration >= 3;
-
-  const discount = recurring < 40
-    || concentration > 30
-    || diversification <= 1
-    || contractDuration <= 0;
-
-  if (premium) return { adjustment: 0.25, classification: 'premium', missing: [] };
-  if (discount) return { adjustment: -0.25, classification: 'discount', missing: [] };
+  if (missing.length) return { adjustment: null, classification: 'insufficient_evidence', missing };
   return { adjustment: 0.00, classification: 'neutral', missing: [] };
 }
 
@@ -157,9 +159,14 @@ export function buildValuationSnapshot(indexRows = [], options = {}) {
   const performanceScore = finite(performance.score);
   const strengthScore = finite(strength.score);
   const independenceScore = finite(independence.score);
+  const performanceCategories = performance?.category_scores && typeof performance.category_scores === 'object'
+    ? performance.category_scores
+    : (performanceDetails.categoryScores && typeof performanceDetails.categoryScores === 'object' ? performanceDetails.categoryScores : {});
+  const capitalCategory = performanceCategories.capital || {};
+  const roicMetric = revenueMetric(capitalCategory, 'returnOnCapital');
   const roicLite = firstNumber([performanceDetails], [
     'roicLite', 'roic_lite', 'financials.roicLite', 'financials.roic_lite'
-  ]);
+  ]) ?? firstNumber([roicMetric], ['value']);
   const revenueQuality = revenueQualityEvidence(performance);
   const revenueQualityResult = revenueQualityMultipleAdjustment(revenueQuality);
 
