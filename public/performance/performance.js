@@ -205,7 +205,8 @@
   function uploadBody(section){
     const meta=state.documents[section.id];
     const status=meta?extractionLabel({...meta,sectionId:section.id}):null;
-    const canRetry=meta?.evidenceId && ['failed','uploaded'].includes(meta.extractionStatus||meta.extraction_status||'');
+    const extractionStatus=meta?.extractionStatus||meta?.extraction_status||'';
+    const canRetry=meta?.evidenceId && ['failed','uploaded','processed'].includes(extractionStatus);
     return `<div class="evidence-upload ${meta?'received':''}">
       <div class="upload-mark">${meta?checkIcon:'<span>↑</span>'}</div>
       <div class="upload-copy">
@@ -216,7 +217,7 @@
         ${meta?.extractionError?`<div class="extraction-error">${esc(meta.extractionError)}</div>`:''}
         <div class="upload-actions">
           <label class="upload-button">${meta?'Replace PDF':'Choose PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
-          ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry automated extraction</button>`:''}
+          ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">${extractionStatus==='processed'?'Recalculate values':'Retry automated extraction'}</button>`:''}
         </div>
       </div>
     </div>

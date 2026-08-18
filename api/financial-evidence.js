@@ -301,9 +301,12 @@ const schemas = {
           required: ['period','isPartial','revenue','cogs','grossProfit','netIncome']
         }
       },
-      partialPeriodsIgnored: { type: 'array', items: { type: 'string' } }
+      partialPeriodsIgnored: { type: 'array', items: { type: 'string' } },
+      marginStabilityLevel: { type: ['number','null'], minimum: 0, maximum: 4 },
+      growthConsistencyLevel: { type: ['number','null'], minimum: 0, maximum: 4 },
+      revenuePredictabilityLevel: { type: ['number','null'], minimum: 0, maximum: 4 }
     },
-    required: ['currency','confidence','warnings','periodLabel','revenueTTM','revenueYTD','cogsTTM','grossProfitTTM','operatingExpensesTTM','netIncomeTTM','netIncomeYTD','explicitEBITDA','priorRevenueTTM','priorCogsTTM','priorGrossProfitTTM','priorNetIncomeTTM','currentTtmStart','currentTtmEnd','priorTtmStart','priorTtmEnd','monthlyPeriods','partialPeriodsIgnored']
+    required: ['currency','confidence','warnings','periodLabel','revenueTTM','revenueYTD','cogsTTM','grossProfitTTM','operatingExpensesTTM','netIncomeTTM','netIncomeYTD','explicitEBITDA','priorRevenueTTM','priorCogsTTM','priorGrossProfitTTM','priorNetIncomeTTM','currentTtmStart','currentTtmEnd','priorTtmStart','priorTtmEnd','monthlyPeriods','partialPeriodsIgnored','marginStabilityLevel','growthConsistencyLevel','revenuePredictabilityLevel']
   },
   balance_sheet: {
     type: 'object', additionalProperties: false,
@@ -386,6 +389,65 @@ const instructions = {
 
 const roundMoney2 = value => Math.round(Number(value) * 100) / 100;
 
+const MONTHS = {jan:0,january:0,feb:1,february:1,mar:2,march:2,apr:3,april:3,may:4,jun:5,june:5,jul:6,july:6,aug:7,august:7,sep:8,sept:8,september:8,oct:9,october:9,nov:10,november:10,dec:11,december:11};
+
+function parseMonthlyPeriod(value) {
+  const raw = clean(value);
+  if (!raw) return null;
+  const lowered = raw.toLowerCase();
+  // Reject obvious subtotal/aggregate columns even if the model mistakenly put
+  // them into monthlyPeriods.
+  if (/\b(total|ttm|ytd|year\s*to\s*date|trailing|rolling|average|avg)\b/i.test(raw)) return null;
+
+  let match = lowered.match(/\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s*[\-\/, ]+\s*(20\d{2}|19\d{2})\b/i);
+  if (match) {
+    const month = MONTHS[match[1].toLowerCase()];
+    const year = Number(match[2]);
+    if (month !== undefined) return { timestamp: Date.UTC(year, month, 1), key: `${year}-${String(month+1).padStart(2,'0')}` };
+  }
+  match = lowered.match(/\b(20\d{2}|19\d{2})[\-\/](0?[1-9]|1[0-2])(?:[\-\/]\d{1,2})?\b/);
+  if (match) {
+    const year = Number(match[1]);
+    const month = Number(match[2])-1;
+    return { timestamp: Date.UTC(year, month, 1), key: `${year}-${String(month+1).padStart(2,'0')}` };
+  }
+  match = lowered.match(/\b(0?[1-9]|1[0-2])[\-\/](20\d{2}|19\d{2})\b/);
+  if (match) {
+    const month = Number(match[1])-1;
+    const year = Number(match[2]);
+    return { timestamp: Date.UTC(year, month, 1), key: `${year}-${String(month+1).padStart(2,'0')}` };
+  }
+  return null;
+}
+
+function normalizeMonthlyPeriods(rows) {
+  const parsed = [];
+  for (let index = 0; index < rows.length; index += 1) {
+    const row = rows[index];
+    if (!row || row.isPartial === true || !clean(row.period)) continue;
+    const parsedPeriod = parseMonthlyPeriod(row.period);
+    if (!parsedPeriod) continue;
+    parsed.push({
+      ...row,
+      _timestamp: parsedPeriod.timestamp,
+      _periodKey: parsedPeriod.key,
+      _sourceIndex: index,
+      revenue: finite(row.revenue),
+      cogs: finite(row.cogs),
+      grossProfit: finite(row.grossProfit),
+      netIncome: finite(row.netIncome)
+    });
+  }
+  // Keep the most complete row when the same month appears more than once.
+  const scoreRow = row => ['revenue','cogs','grossProfit','netIncome'].reduce((score,key)=>score+(finite(row[key])!==null?1:0),0);
+  const byMonth = new Map();
+  for (const row of parsed) {
+    const existing = byMonth.get(row._periodKey);
+    if (!existing || scoreRow(row) > scoreRow(existing) || (scoreRow(row) === scoreRow(existing) && row._sourceIndex > existing._sourceIndex)) byMonth.set(row._periodKey, row);
+  }
+  return [...byMonth.values()].sort((a,b)=>a._timestamp-b._timestamp);
+}
+
 function deriveMetrics(evidenceType, data) {
   const out = { ...data };
   const pct = (part, whole) => whole && Number.isFinite(part) && Number.isFinite(whole)
@@ -394,15 +456,9 @@ function deriveMetrics(evidenceType, data) {
 
   if (evidenceType === 'profit_loss') {
     const rawPeriods = Array.isArray(out.monthlyPeriods) ? out.monthlyPeriods : [];
-    const completePeriods = rawPeriods
-      .filter(row => row && row.isPartial !== true && clean(row.period))
-      .map(row => ({
-        ...row,
-        revenue: finite(row.revenue),
-        cogs: finite(row.cogs),
-        grossProfit: finite(row.grossProfit),
-        netIncome: finite(row.netIncome)
-      }));
+    // Never trust model ordering. Financial PDFs often list the newest month
+    // first. Parse each month, deduplicate, and sort chronologically here.
+    const completePeriods = normalizeMonthlyPeriods(rawPeriods);
 
     const sum = (rows, key) => rows.length && rows.every(row => finite(row[key]) !== null)
       ? roundMoney2(rows.reduce((total, row) => total + Number(row[key]), 0))
@@ -470,8 +526,11 @@ function deriveMetrics(evidenceType, data) {
     out.profitConversionPercent = deltaRevenue && currentNet !== null && priorNet !== null
       ? pct(currentNet - priorNet, deltaRevenue)
       : finite(out.profitConversionPercent);
-    out.monthlyPeriods = rawPeriods;
-    out.ttmCalculationSource = current12.length === 12 ? '12_complete_months' : 'explicit_report_totals';
+    out.marginStabilityLevel = clampLevel(out.marginStabilityLevel);
+    out.growthConsistencyLevel = clampLevel(out.growthConsistencyLevel);
+    out.revenuePredictabilityLevel = clampLevel(out.revenuePredictabilityLevel);
+    out.monthlyPeriods = completePeriods.map(({_timestamp,_periodKey,_sourceIndex,...row}) => row);
+    out.ttmCalculationSource = current12.length === 12 ? '12_complete_months_sorted_by_date' : 'explicit_report_totals';
   }
 
   if (evidenceType === 'balance_sheet') {
@@ -563,7 +622,13 @@ async function extractWithOpenAI({ evidenceType, fileUrl, filename }) {
     '- Confidence is extraction confidence (0-100), not a business-performance score.',
     '- Put ambiguity, missing periods, or suspicious report structure in warnings.',
     evidenceType === 'profit_loss' ? '- For P&L reports, read month headers carefully. A partial period such as Aug 1-4 is NOT a complete month and must be marked isPartial=true and excluded from both TTM windows.' : '',
-    evidenceType === 'profit_loss' ? '- Return monthlyPeriods in chronological order (oldest to newest). Do not combine months or duplicate subtotal/TTM columns as months.' : ''
+    evidenceType === 'profit_loss' ? '- Return every visible COMPLETE monthly column in monthlyPeriods. Exclude subtotal columns such as Total, TTM, YTD, Average, or Year-to-Date from monthlyPeriods.' : '',
+    evidenceType === 'profit_loss' ? '- The server will sort months itself, but each period label MUST include both month and year (example: Jul 2026). Do not omit the year.' : '',
+    evidenceType === 'profit_loss' ? '- Net Income means the report bottom-line net income / net operating income for that month, NOT gross profit and NOT revenue minus COGS. Use null if that bottom-line value cannot be read. Never use 0 as a missing-value placeholder.' : '',
+    evidenceType === 'profit_loss' ? '- Classify marginStabilityLevel, growthConsistencyLevel, and revenuePredictabilityLevel on the 0-4 Agency Performance rubric using the visible 24-month evidence. Use null only if there is insufficient evidence.' : '',
+    evidenceType === 'profit_loss' ? '- Margin Stability: 0 declining/highly volatile; 1 flat or volatile; 2 stable with occasional fluctuations; 3 consistently stable; 4 stable and improving over 24 months.' : '',
+    evidenceType === 'profit_loss' ? '- Growth Consistency: 0 revenue declining; 1 highly inconsistent; 2 stable with fluctuations; 3 consistently growing; 4 consistently growing with accelerating profit.' : '',
+    evidenceType === 'profit_loss' ? '- Revenue Predictability: 0 extremely volatile; 1 high variability; 2 moderate consistency; 3 predictable; 4 highly predictable recurring growth.' : ''
   ].join('\n');
 
   const response = await fetch('https://api.openai.com/v1/responses', {
