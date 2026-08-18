@@ -164,9 +164,29 @@ export function buildValuationSnapshot(indexRows = [], options = {}) {
     : (performanceDetails.categoryScores && typeof performanceDetails.categoryScores === 'object' ? performanceDetails.categoryScores : {});
   const capitalCategory = performanceCategories.capital || {};
   const roicMetric = revenueMetric(capitalCategory, 'returnOnCapital');
-  const roicLite = firstNumber([performanceDetails], [
+  const reportedRoicLite = firstNumber([performanceDetails], [
     'roicLite', 'roic_lite', 'financials.roicLite', 'financials.roic_lite'
   ]) ?? firstNumber([roicMetric], ['value']);
+
+  // Backward-compatible fallback for completed Performance snapshots created
+  // before Owner/Investor ROIC-Lite was stored.
+  const totalAssets = firstNumber([performanceDetails], ['financials.totalAssets', 'totalAssets']);
+  const totalLiabilities = firstNumber([performanceDetails], ['financials.totalLiabilities', 'totalLiabilities']);
+  const totalDebt = firstNumber([performanceDetails], ['financials.totalDebt', 'totalDebt']);
+  const cashAmount = firstNumber([performanceDetails], ['financials.cash', 'cash']);
+  const ownerEquity = totalAssets !== null && totalLiabilities !== null
+    ? round2(totalAssets - totalLiabilities)
+    : null;
+  const ownerInvestorInvestedCapital = ownerEquity !== null && cashAmount !== null
+    ? round2(ownerEquity + (totalDebt ?? 0) - cashAmount)
+    : null;
+  const derivedOwnerInvestorRoicLite = adjustedSDE !== null && ownerInvestorInvestedCapital !== null && ownerInvestorInvestedCapital > 0
+    ? round2((adjustedSDE / ownerInvestorInvestedCapital) * 100)
+    : null;
+  const roicLite = reportedRoicLite ?? derivedOwnerInvestorRoicLite;
+  const roicLiteSource = reportedRoicLite !== null
+    ? (getPath(performanceDetails, 'roicLiteSource') || getPath(performanceDetails, 'financials.roicLiteSource') || 'performance')
+    : (derivedOwnerInvestorRoicLite !== null ? 'owner_investor' : null);
   const revenueQuality = revenueQualityEvidence(performance);
   const revenueQualityResult = revenueQualityMultipleAdjustment(revenueQuality);
 
@@ -196,6 +216,10 @@ export function buildValuationSnapshot(indexRows = [], options = {}) {
       strengthScore,
       independenceScore,
       roicLite,
+      roicLiteSource,
+      ownerInvestorRoicLite: firstNumber([performanceDetails], ['ownerInvestorRoicLite', 'financials.ownerInvestorRoicLite']) ?? derivedOwnerInvestorRoicLite,
+      ownerInvestorInvestedCapital: firstNumber([performanceDetails], ['ownerInvestorInvestedCapital', 'financials.ownerInvestorInvestedCapital']) ?? ownerInvestorInvestedCapital,
+      ownerEquity: firstNumber([performanceDetails], ['ownerEquity', 'financials.ownerEquity']) ?? ownerEquity,
       revenueQuality
     },
     evidenceGaps: [...new Set(evidenceGaps)],

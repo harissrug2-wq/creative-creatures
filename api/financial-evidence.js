@@ -1175,9 +1175,32 @@ function buildPerformanceModel(rows) {
     : null;
   const capitalInvested = finite(sde.capitalInvested);
   const incrementalOperatingProfit = finite(sde.incrementalOperatingProfit);
-  const roicLite = capitalInvested !== null && capitalInvested !== 0 && incrementalOperatingProfit !== null
+  const primaryRoicLite = capitalInvested !== null && capitalInvested > 0 && incrementalOperatingProfit !== null
     ? round2((incrementalOperatingProfit / capitalInvested) * 100)
     : null;
+
+  // Owner/Investor ROIC-Lite fallback (small-business investor lens, not GAAP/NOPAT ROIC).
+  // Owner equity = Total assets - Total liabilities.
+  // Invested capital = Owner equity + interest-bearing debt - cash.
+  // Return = Adjusted SDE because Agency Valuation is explicitly SDE-based.
+  const totalAssets = finite(balance.totalAssets);
+  const totalLiabilities = finite(balance.totalLiabilities);
+  const totalDebt = finite(balance.totalDebt);
+  const cashAmount = finite(balance.cash);
+  const ownerEquity = totalAssets !== null && totalLiabilities !== null
+    ? roundMoney2(totalAssets - totalLiabilities)
+    : null;
+  const ownerInvestorInvestedCapital = ownerEquity !== null && cashAmount !== null
+    ? roundMoney2(ownerEquity + (totalDebt ?? 0) - cashAmount)
+    : null;
+  const ownerInvestorRoicLite = adjustedSDE !== null && ownerInvestorInvestedCapital !== null && ownerInvestorInvestedCapital > 0
+    ? round2((adjustedSDE / ownerInvestorInvestedCapital) * 100)
+    : null;
+
+  const roicLite = primaryRoicLite ?? ownerInvestorRoicLite;
+  const roicLiteSource = primaryRoicLite !== null
+    ? 'capital_allocation'
+    : (ownerInvestorRoicLite !== null ? 'owner_investor' : null);
 
   const profitability = categoryModel('profitability', 'Profitability', [
     metricRecord('grossMargin','Gross Margin',grossMargin,scoreGrossMargin(grossMargin),20),
@@ -1290,10 +1313,23 @@ function buildPerformanceModel(rows) {
       recurringRevenuePercent,
       topClientPercent,
       roicLite,
+      roicLiteSource,
+      primaryRoicLite,
+      ownerInvestorRoicLite,
+      ownerInvestorInvestedCapital,
+      ownerEquity,
+      totalAssets,
+      totalLiabilities,
+      totalDebt,
+      cash: cashAmount,
       reinvestmentRatePercent: finite(sde.reinvestmentRatePercent)
     },
     adjustedSDE,
     roicLite,
+    roicLiteSource,
+    ownerInvestorRoicLite,
+    ownerInvestorInvestedCapital,
+    ownerEquity,
     evidenceLevel: allVerified ? 'Verified financial evidence' : 'Manual evidence with uploaded financial reports',
     evidence: { files },
     missingEvidence,
