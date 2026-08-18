@@ -319,9 +319,12 @@ const schemas = {
       currentLiabilities: nullableNumber(),
       totalAssets: nullableNumber(),
       totalLiabilities: nullableNumber(),
-      totalDebt: nullableNumber()
+      totalDebt: nullableNumber(),
+      monthlyOperatingExpenses: nullableNumber(),
+      ebitdaTTM: nullableNumber(),
+      operatingCashFlowLevel: { type: ['number','null'], minimum: 0, maximum: 4 }
     },
-    required: ['currency','confidence','warnings','asOfDate','cash','accountsReceivable','currentAssets','currentLiabilities','totalAssets','totalLiabilities','totalDebt']
+    required: ['currency','confidence','warnings','asOfDate','cash','accountsReceivable','currentAssets','currentLiabilities','totalAssets','totalLiabilities','totalDebt','monthlyOperatingExpenses','ebitdaTTM','operatingCashFlowLevel']
   },
   ar_aging: {
     type: 'object', additionalProperties: false,
@@ -333,9 +336,10 @@ const schemas = {
       days1to30: nullableNumber(),
       days31to60: nullableNumber(),
       days61to90: nullableNumber(),
-      days90Plus: nullableNumber()
+      days90Plus: nullableNumber(),
+      collectionRatePercent: nullableNumber()
     },
-    required: ['currency','confidence','warnings','asOfDate','totalAR','currentAR','days1to30','days31to60','days61to90','days90Plus']
+    required: ['currency','confidence','warnings','asOfDate','totalAR','currentAR','days1to30','days31to60','days61to90','days90Plus','collectionRatePercent']
   },
   client_revenue: {
     type: 'object', additionalProperties: false,
@@ -343,6 +347,10 @@ const schemas = {
       ...commonProperties,
       periodLabel: nullableString(),
       totalRevenue: nullableNumber(),
+      topClientPercent: nullableNumber(),
+      averageClientTenureMonths: nullableNumber(),
+      revenueDiversificationLevel: { type: ['number','null'], minimum: 0, maximum: 4 },
+      contractDurationLevel: { type: ['number','null'], minimum: 0, maximum: 4 },
       clients: {
         type: 'array',
         items: {
@@ -352,7 +360,7 @@ const schemas = {
         }
       }
     },
-    required: ['currency','confidence','warnings','periodLabel','totalRevenue','clients']
+    required: ['currency','confidence','warnings','periodLabel','totalRevenue','topClientPercent','averageClientTenureMonths','revenueDiversificationLevel','contractDurationLevel','clients']
   },
   service_revenue_mix: {
     type: 'object', additionalProperties: false,
@@ -362,6 +370,8 @@ const schemas = {
       totalRevenue: nullableNumber(),
       recurringRevenue: nullableNumber(),
       projectRevenue: nullableNumber(),
+      recurringRevenuePercent: nullableNumber(),
+      projectRevenuePercent: nullableNumber(),
       services: {
         type: 'array',
         items: {
@@ -375,16 +385,16 @@ const schemas = {
         }
       }
     },
-    required: ['currency','confidence','warnings','periodLabel','totalRevenue','recurringRevenue','projectRevenue','services']
+    required: ['currency','confidence','warnings','periodLabel','totalRevenue','recurringRevenue','projectRevenue','recurringRevenuePercent','projectRevenuePercent','services']
   }
 };
 
 const instructions = {
   profit_loss: 'Extract the agency Profit & Loss financial values and the complete monthly series when shown. Identify the latest 24 COMPLETE calendar months, excluding any partial month/date-range period. Current TTM is the most recent 12 complete months; Prior TTM is the immediately preceding 12 complete months. Never sum 24 months into a TTM total. If the report provides explicit TTM totals, also extract them, but preserve the monthly rows so the server can verify the arithmetic. Do not estimate missing values.',
-  balance_sheet: 'Extract balance-sheet values from the most relevant/latest period shown. Do not estimate missing values.',
-  ar_aging: 'Extract Accounts Receivable aging totals and aging buckets from the latest report period. Do not estimate missing values.',
-  client_revenue: 'Extract each client and its revenue for the stated report period. Use only client revenue explicitly supported by the document.',
-  service_revenue_mix: 'Extract revenue by service. Only classify recurring versus project revenue when the document explicitly supports that classification.'
+  balance_sheet: 'Extract balance-sheet values from the most relevant/latest period shown. Also extract average monthly operating expenses, EBITDA TTM, and operating cash-flow trend only when those values or comparative evidence are explicitly present in the uploaded report. Do not estimate missing values.',
+  ar_aging: 'Extract Accounts Receivable aging totals and aging buckets from the latest report period. If the report does not state a collection-within-30-days percentage, leave collectionRatePercent null; the server will derive the <=30-day AR share from the aging buckets when possible. Do not estimate missing values.',
+  client_revenue: 'Extract each client and its revenue for the stated report period. Also extract average client tenure and contract-duration evidence only when explicitly present. Use only client revenue explicitly supported by the document. Classify revenueDiversificationLevel 0-4 from the visible client distribution using the Agency Performance rubric.',
+  service_revenue_mix: 'Extract revenue by service. Extract recurring/project percentages when the report explicitly labels revenue as recurring, retainer, subscription, project, one-time, or equivalent. Otherwise keep recurring/project values null rather than guessing.'
 };
 
 const roundMoney2 = value => Math.round(Number(value) * 100) / 100;
@@ -463,7 +473,12 @@ function deriveMetrics(evidenceType, data) {
     const sum = (rows, key) => rows.length && rows.every(row => finite(row[key]) !== null)
       ? roundMoney2(rows.reduce((total, row) => total + Number(row[key]), 0))
       : null;
-    const last24 = completePeriods.length >= 24 ? completePeriods.slice(-24) : [];
+    const consecutive = rows => rows.every((row,index) => index === 0 || row._timestamp === Date.UTC(new Date(rows[index-1]._timestamp).getUTCFullYear(), new Date(rows[index-1]._timestamp).getUTCMonth() + 1, 1));
+    const last24Candidate = completePeriods.length >= 24 ? completePeriods.slice(-24) : [];
+    const last24 = last24Candidate.length === 24 && consecutive(last24Candidate) ? last24Candidate : [];
+    if (completePeriods.length >= 24 && !last24.length) {
+      out.warnings = [...(Array.isArray(out.warnings)?out.warnings:[]), 'The extracted monthly series contains a date gap; explicit report totals were retained instead of creating a false TTM window.'];
+    }
     const prior12 = last24.length === 24 ? last24.slice(0, 12) : [];
     const current12 = last24.length === 24 ? last24.slice(12) : (completePeriods.length >= 12 ? completePeriods.slice(-12) : []);
 
@@ -543,11 +558,18 @@ function deriveMetrics(evidenceType, data) {
 
   if (evidenceType === 'ar_aging') {
     const total = finite(out.totalAR);
-    const overdue = ['days1to30','days31to60','days61to90','days90Plus']
-      .map(key => finite(out[key]))
-      .filter(value => value !== null)
-      .reduce((sum, value) => sum + value, 0);
-    out.overduePercent = total !== null && total !== 0 ? pct(overdue, total) : null;
+    const current = finite(out.currentAR);
+    const d1to30 = finite(out.days1to30);
+    const d31to60 = finite(out.days31to60);
+    const d61to90 = finite(out.days61to90);
+    const d90plus = finite(out.days90Plus);
+    const knownAged = [d1to30,d31to60,d61to90,d90plus].filter(value => value !== null);
+    const overdue = knownAged.length ? knownAged.reduce((sum, value) => sum + value, 0) : null;
+    out.overduePercent = total !== null && total !== 0 && overdue !== null ? pct(overdue, total) : null;
+    if (finite(out.collectionRatePercent) === null && total !== null && total > 0) {
+      const within30 = [current,d1to30].filter(value => value !== null);
+      if (within30.length) out.collectionRatePercent = pct(within30.reduce((sum,value)=>sum+value,0), total);
+    }
   }
 
   if (evidenceType === 'client_revenue') {
@@ -564,6 +586,8 @@ function deriveMetrics(evidenceType, data) {
     out.topClientPercent = total && top !== null ? pct(top, total) : finite(out.topClientPercent);
     out.top5Percent = total && clients.length ? pct(topFive, total) : finite(out.top5Percent);
     out.averageClientRevenue = total !== null && clients.length ? Math.round((total / clients.length) * 100) / 100 : finite(out.averageClientRevenue);
+    out.revenueDiversificationLevel = clampLevel(out.revenueDiversificationLevel);
+    out.contractDurationLevel = clampLevel(out.contractDurationLevel);
   }
 
   if (evidenceType === 'service_revenue_mix') {
@@ -582,6 +606,8 @@ function deriveMetrics(evidenceType, data) {
     const project = finite(out.projectRevenue);
     out.recurringRevenuePercent = total && recurring !== null ? pct(recurring, total) : finite(out.recurringRevenuePercent);
     out.projectRevenuePercent = total && project !== null ? pct(project, total) : finite(out.projectRevenuePercent);
+    if (finite(out.recurringRevenuePercent) !== null && finite(out.projectRevenuePercent) === null) out.projectRevenuePercent = round2(100 - Number(out.recurringRevenuePercent));
+    if (finite(out.projectRevenuePercent) !== null && finite(out.recurringRevenuePercent) === null) out.recurringRevenuePercent = round2(100 - Number(out.projectRevenuePercent));
   }
 
   return out;
@@ -621,6 +647,10 @@ async function extractWithOpenAI({ evidenceType, fileUrl, filename }) {
     '- Use null when a requested value is not present or cannot be calculated exactly from visible values.',
     '- Confidence is extraction confidence (0-100), not a business-performance score.',
     '- Put ambiguity, missing periods, or suspicious report structure in warnings.',
+    evidenceType === 'balance_sheet' ? '- Never treat total liabilities as debt. TotalDebt must include only debt-bearing obligations supported by the report.' : '',
+    evidenceType === 'ar_aging' ? '- Keep every aging bucket separate. Do not put 0 for a bucket that is unreadable; use null.' : '',
+    evidenceType === 'client_revenue' ? '- Sort/return all visible clients. Do not collapse multiple clients into an Other row unless the document itself does.' : '',
+    evidenceType === 'service_revenue_mix' ? '- Recurring/project classification must follow labels in the report; do not infer recurrence from a service name alone.' : '',
     evidenceType === 'profit_loss' ? '- For P&L reports, read month headers carefully. A partial period such as Aug 1-4 is NOT a complete month and must be marked isPartial=true and excluded from both TTM windows.' : '',
     evidenceType === 'profit_loss' ? '- Return every visible COMPLETE monthly column in monthlyPeriods. Exclude subtotal columns such as Total, TTM, YTD, Average, or Year-to-Date from monthlyPeriods.' : '',
     evidenceType === 'profit_loss' ? '- The server will sort months itself, but each period label MUST include both month and year (example: Jul 2026). Do not omit the year.' : '',
@@ -1130,8 +1160,9 @@ function buildPerformanceModel(rows) {
   const netMargin = finite(pnl.netMargin) ?? pctOf(netIncome, revenue);
   const adjustedSDE = finite(sde.adjustedSDE);
   const sdeMargin = pctOf(adjustedSDE, revenue);
-  const cashReserveMonths = finite(balance.monthlyOperatingExpenses) && finite(balance.cash) !== null
-    ? round2(Number(balance.cash) / Number(balance.monthlyOperatingExpenses))
+  const monthlyOperatingExpenses = finite(balance.monthlyOperatingExpenses) ?? (finite(pnl.operatingExpensesTTM) !== null ? round2(Number(pnl.operatingExpensesTTM) / 12) : null);
+  const cashReserveMonths = monthlyOperatingExpenses && finite(balance.cash) !== null
+    ? round2(Number(balance.cash) / Number(monthlyOperatingExpenses))
     : null;
   const currentRatio = finite(balance.currentRatio) ?? (
     finite(balance.currentAssets) !== null && finite(balance.currentLiabilities) !== null && Number(balance.currentLiabilities) !== 0
@@ -1252,6 +1283,7 @@ function buildPerformanceModel(rows) {
       netMargin,
       adjustedSDE,
       sdeMarginPercent: sdeMargin,
+      monthlyOperatingExpenses,
       cashReserveMonths,
       currentRatio,
       debtToEbitda,

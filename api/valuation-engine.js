@@ -170,13 +170,19 @@ export function buildValuationSnapshot(indexRows = [], options = {}) {
   const revenueQuality = revenueQualityEvidence(performance);
   const revenueQualityResult = revenueQualityMultipleAdjustment(revenueQuality);
 
+  // The valuation document still produces an estimate when some supporting
+  // evidence is missing; it lowers confidence rather than declaring the
+  // valuation impossible. Only the earnings base and the three index scores
+  // are hard blockers. Missing optional adjustments are neutral (0.00) and
+  // are disclosed as evidence gaps instead of being fabricated.
   const missingInputs = [];
   if (adjustedSDE === null || adjustedSDE <= 0) missingInputs.push('positive Adjusted SDE');
   if (performanceScore === null) missingInputs.push('Agency Performance Index score');
   if (strengthScore === null) missingInputs.push('Agency Strength Index score');
   if (independenceScore === null) missingInputs.push('Owner Independence Index score');
-  if (roicLite === null) missingInputs.push('ROIC-Lite');
-  missingInputs.push(...revenueQualityResult.missing);
+  const evidenceGaps = [];
+  if (roicLite === null) evidenceGaps.push('ROIC-Lite');
+  evidenceGaps.push(...revenueQualityResult.missing);
 
   const calculatedAt = options.calculatedAt || new Date().toISOString();
   const common = {
@@ -192,6 +198,7 @@ export function buildValuationSnapshot(indexRows = [], options = {}) {
       roicLite,
       revenueQuality
     },
+    evidenceGaps: [...new Set(evidenceGaps)],
     confidence: null,
     confidenceNote: 'The approved valuation document does not define a numeric valuation-confidence formula, so no confidence percentage is fabricated.'
   };
@@ -219,8 +226,8 @@ export function buildValuationSnapshot(indexRows = [], options = {}) {
   const adjustments = {
     strength: strengthMultipleAdjustment(strengthScore),
     ownerIndependence: independenceMultipleAdjustment(independenceScore),
-    roicLite: roicLiteMultipleAdjustment(roicLite),
-    revenueQuality: revenueQualityResult.adjustment
+    roicLite: roicLite === null ? 0.00 : roicLiteMultipleAdjustment(roicLite),
+    revenueQuality: revenueQualityResult.adjustment === null ? 0.00 : revenueQualityResult.adjustment
   };
   const finalMultiple = round2(baseMultiple
     + adjustments.strength
@@ -231,7 +238,7 @@ export function buildValuationSnapshot(indexRows = [], options = {}) {
 
   return {
     ...common,
-    status: 'complete',
+    status: evidenceGaps.length ? 'complete_with_evidence_gaps' : 'complete',
     available: true,
     missingInputs: [],
     baseMultiple,

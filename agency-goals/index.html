@@ -117,6 +117,23 @@
   </div>
 
 
+  <div class="modal-backdrop" id="rockModal">
+    <section class="modal">
+      <h2>Add 90-Day Priority</h2>
+      <p>Create a manual Rock. Scorecard issues and opportunities can also be converted directly from the Agency Scorecard.</p>
+      <div class="form-grid">
+        <div class="field full"><label>Priority title</label><input id="rockTitle" maxlength="160" placeholder="e.g. Delegate pricing authority"></div>
+        <div class="field full"><label>Description / Done looks like</label><textarea id="rockDescription" placeholder="Describe the measurable outcome"></textarea></div>
+        <div class="field"><label>Owner</label><input id="rockOwner" value="Agency Owner" placeholder="Owner name"></div>
+        <div class="field"><label>Due date</label><input id="rockDueDate" type="date"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="button" data-close-rock>Cancel</button>
+        <button class="button primary" id="saveRock">Create Priority</button>
+      </div>
+    </section>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="/portal/diagnostic-state.js"></script>
@@ -125,6 +142,7 @@
   <script src="/portal/app-shell.js"></script>
   <script>
   (async () => {
+    const releasePageLoader = window.CCPageLoader?.hold?.('Loading Agency Goals…') || (()=>{});
     const app = document.querySelector('#goalsApp');
     const esc = v => String(v ?? '').replace(/[&<>'"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[ch]));
     const show = id => document.querySelector(id)?.classList.add('show');
@@ -138,7 +156,7 @@
       window.__t = setTimeout(() => t.classList.remove('show'), 3000);
     };
 
-    app.innerHTML = '<div class="wrap"><section class="card" style="padding:28px;text-align:center;color:#687385">Loading Agency Goals…</section></div>';
+    app.innerHTML = '';
 
     let model;
     try {
@@ -155,6 +173,7 @@
             <a class="button primary" href="/diagnostic/?locked=goals">Return to Diagnostic</a>
           </div>
         </section>`;
+      releasePageLoader();
       return;
     }
 
@@ -315,10 +334,10 @@
         <section class="card rocks">
           <div class="rocks-head">
             <h3>90-Day Priorities</h3>
-            <button class="button" id="addPriority" type="button" aria-describedby="addPriorityHint">＋ Add a New Priority</button>
+            <button class="button primary" id="addPriority" type="button">＋ Add a New Priority</button>
           </div>
           <div id="rockList">
-            ${rocks.length ? rocks.map(rockRow).join('') : '<div class="empty-rocks" id="addPriorityHint">Select Issues & Opportunities from the Agency Scorecard to create 90-Day Priorities. Manual priorities require a Fractional Executive.</div>'}
+            ${rocks.length ? rocks.map(rockRow).join('') : '<div class="empty-rocks">No 90-Day Priorities yet. Create one here or select Issues & Opportunities from the Agency Scorecard.</div>'}
           </div>
         </section>
 
@@ -515,8 +534,43 @@
       }));
     });
 
+    const defaultRockDue = () => {
+      const date = new Date();
+      date.setDate(date.getDate() + 90);
+      return date.toISOString().slice(0, 10);
+    };
     document.querySelector('#addPriority').addEventListener('click', () => {
-      showToast('A Fractional Executive is required to add a new manual 90-Day Priority. You can still create Rocks from Issues & Opportunities on the Agency Scorecard.');
+      document.querySelector('#rockTitle').value = '';
+      document.querySelector('#rockDescription').value = '';
+      document.querySelector('#rockOwner').value = 'Agency Owner';
+      document.querySelector('#rockDueDate').value = defaultRockDue();
+      show('#rockModal');
+    });
+    document.querySelectorAll('[data-close-rock]').forEach(button => button.addEventListener('click', () => hide('#rockModal')));
+    document.querySelector('#saveRock').addEventListener('click', async () => {
+      const title = document.querySelector('#rockTitle').value.trim();
+      if (!title) { showToast('Enter a priority title.'); return; }
+      const button = document.querySelector('#saveRock');
+      button.disabled = true;
+      try {
+        const sourceKey = `manual:${Date.now()}:${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80)}`;
+        await window.CCGoals.createRocks([{
+          sourceType: 'manual',
+          sourceKey,
+          title,
+          description: document.querySelector('#rockDescription').value.trim(),
+          owner: document.querySelector('#rockOwner').value.trim() || 'Agency Owner',
+          dueDate: document.querySelector('#rockDueDate').value || defaultRockDue(),
+          status: 'Not started'
+        }]);
+        hide('#rockModal');
+        showToast('90-Day Priority created.');
+        setTimeout(() => location.reload(), 250);
+      } catch (error) {
+        showToast(error.message || 'Priority could not be created.');
+      } finally {
+        button.disabled = false;
+      }
     });
 
     document.querySelector('#finishGoals').addEventListener('click', async () => {
@@ -552,6 +606,7 @@
       });
     }
     styleStatuses();
+    requestAnimationFrame(()=>requestAnimationFrame(releasePageLoader));
   })();
   </script>
 </body>

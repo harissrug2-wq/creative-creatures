@@ -1,4 +1,5 @@
 (async () => {
+  const releasePageLoader = window.CCPageLoader?.hold?.('Loading Agency Scorecard…') || (()=>{});
   const root = document.getElementById('scorecardRoot');
   const state = window.CCDiagnostic?.getState?.();
   const esc = window.CCReports.esc;
@@ -32,6 +33,7 @@
 
   if (!model) {
     root.innerHTML = `<section class="scorecard-empty"><h1>Your Agency Scorecard is still locked</h1><p>Complete all three indexes and generate the diagnostic before opening any report.</p>${databaseError ? `<p>${esc(databaseError.message || 'The saved scorecard is not available yet.')}</p>` : ''}<a class="cc-btn cc-btn-primary" href="/diagnostic/">Return to Diagnostic</a></section>`;
+    releasePageLoader();
     return;
   }
   const reportOrder = ['performance','strength','independence'];
@@ -82,8 +84,11 @@
   }).join('');
   const perf = model.reports.performance;
   const valuation = model.valuation && typeof model.valuation === 'object' ? model.valuation : null;
+  const valuationGapCopy = Array.isArray(valuation?.evidenceGaps) && valuation.evidenceGaps.length
+    ? `<small style="display:block;margin-top:8px;color:#7a8493">Provisional adjustment: ${esc(valuation.evidenceGaps.join(', '))} not yet measured, so those missing adjustments are held at 0.00× rather than blocking the estimate.</small>`
+    : '';
   const valuationHtml = valuation?.available
-    ? `<section class="valuation-note"><div><h3>Estimated Enterprise Value</h3><p>Adjusted SDE ${money(valuation.adjustedSDE)} × ${Number(valuation.finalMultiple).toFixed(2)}×. Multiple: ${Number(valuation.baseMultiple).toFixed(2)}× base, ${Number(valuation.adjustments?.strength || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.strength || 0).toFixed(2)} Strength, ${Number(valuation.adjustments?.ownerIndependence || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.ownerIndependence || 0).toFixed(2)} Owner Independence, ${Number(valuation.adjustments?.roicLite || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.roicLite || 0).toFixed(2)} ROIC-Lite, ${Number(valuation.adjustments?.revenueQuality || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.revenueQuality || 0).toFixed(2)} Revenue Quality.</p></div><strong>${money(valuation.enterpriseValue)}<small>${Number(valuation.finalMultiple).toFixed(2)}× Adjusted SDE</small></strong></section>`
+    ? `<section class="valuation-note"><div><h3>Estimated Enterprise Value</h3><p>Adjusted SDE ${money(valuation.adjustedSDE)} × ${Number(valuation.finalMultiple).toFixed(2)}×. Multiple: ${Number(valuation.baseMultiple).toFixed(2)}× base, ${Number(valuation.adjustments?.strength || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.strength || 0).toFixed(2)} Strength, ${Number(valuation.adjustments?.ownerIndependence || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.ownerIndependence || 0).toFixed(2)} Owner Independence, ${Number(valuation.adjustments?.roicLite || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.roicLite || 0).toFixed(2)} ROIC-Lite, ${Number(valuation.adjustments?.revenueQuality || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.revenueQuality || 0).toFixed(2)} Revenue Quality.</p>${valuationGapCopy}</div><strong>${money(valuation.enterpriseValue)}<small>${Number(valuation.finalMultiple).toFixed(2)}× Adjusted SDE</small></strong></section>`
     : `<section class="valuation-note"><div><h3>Enterprise Valuation needs more evidence</h3><p>${esc((valuation?.missingInputs || ['Approved valuation inputs']).join(', '))}. The platform leaves valuation blank until the approved methodology can be applied end to end.</p></div><strong>Not available<small>${perf.adjustedSDE === null ? 'Adjusted SDE unavailable' : `Adjusted SDE ${money(perf.adjustedSDE)}`}</small></strong></section>`;
   root.innerHTML = `
     <header class="scorecard-header"><div><span class="eyebrow">✣ Owner briefing</span><h1>Agency Scorecard</h1><p>Executive view of the Agency Owner Freedom Index, three index reports, confidence, validation, and the highest-return next moves.</p></div><div class="scorecard-meta">Archetype · <strong>${esc(model.archetype)}</strong><br>Generated · <strong>${model.generatedAt ? new Date(model.generatedAt).toLocaleDateString() : 'Today'}</strong></div></header>
@@ -95,7 +100,7 @@
     <div class="section-title"><div><div class="section-kicker">Section 02</div><h2>Three Index Reports</h2></div><p>Reports appear here only after all three indexes are complete and generated.</p></div>
     <section class="index-grid">${cards}</section>
     <div class="section-title"><div><div class="section-kicker">Section 03</div><h2>Issues &amp; Opportunities</h2></div><p>Prioritized from the lowest-scoring capabilities across all three indices.</p></div>
-    <section class="insight-grid"><article class="insight-card"><h3>Key issues</h3><div class="insight-list">${issueRows}</div></article><article class="insight-card"><h3>Biggest opportunities</h3><div class="insight-list">${opportunityRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues or opportunities.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button" disabled aria-disabled="true">Create 90 Day Rock(s)</button></div>
+    <section class="insight-grid"><article class="insight-card"><h3>Key issues</h3><div class="insight-list">${issueRows}</div></article><article class="insight-card"><h3>Biggest opportunities</h3><div class="insight-list">${opportunityRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues or opportunities.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">Create 90 Day Rock(s)</button></div>
     <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Agency Valuation</h2></div><p>Calculated from the approved Agency Valuation™ methodology and current diagnostic evidence.</p></div>
     ${valuationHtml}<div class="define-goals-wrap"><a class="define-goals-cta" href="/agency-goals/">Define Agency Goals →</a></div>`;
   const saveRocks = async candidates => {
@@ -110,18 +115,7 @@
       status: 'Not started'
     })));
   };
-  const updateRockButtonState=()=>{
-    const button=root.querySelector('#createSelectedRocks');
-    if(!button)return;
-    const hasSelection=Boolean(root.querySelector('[data-rock-candidate]:checked:not(:disabled)'));
-    button.disabled=!hasSelection;
-    button.setAttribute('aria-disabled',hasSelection?'false':'true');
-  };
-  root.querySelectorAll('[data-rock-candidate]').forEach(input=>input.addEventListener('change',()=>{
-    input.closest('.selectable-insight')?.classList.toggle('selected',input.checked);
-    updateRockButtonState();
-  }));
-  updateRockButtonState();
+  root.querySelectorAll('[data-rock-candidate]').forEach(input=>input.addEventListener('change',()=>input.closest('.selectable-insight')?.classList.toggle('selected',input.checked)));
   root.querySelector('#createSelectedRocks')?.addEventListener('click',async event=>{
     const chosen=[...root.querySelectorAll('[data-rock-candidate]:checked')].map(input=>rockCandidates[input.dataset.rockCandidate]);
     const note=root.querySelector('#rockSelectionNote');
@@ -146,7 +140,7 @@
     } catch(error) {
       note.textContent=error.message||'The 90 Day Rocks could not be saved.';
     } finally {
-      setTimeout(()=>{button.textContent='Create 90 Day Rock(s)';updateRockButtonState();},1500);
+      setTimeout(()=>{button.textContent='Create 90 Day Rock(s)';button.disabled=false;},1500);
     }
   });
   root.querySelector('#createSingleRock')?.addEventListener('click',async event=>{
@@ -166,4 +160,5 @@
 
   root.querySelectorAll('[data-download]').forEach(button => button.addEventListener('click', () => window.CCReports.downloadReport(button.dataset.download)));
   root.querySelectorAll('[data-email]').forEach(button => button.addEventListener('click', () => window.CCReports.openEmailDialog(button.dataset.email)));
+  requestAnimationFrame(()=>requestAnimationFrame(releasePageLoader));
 })();
