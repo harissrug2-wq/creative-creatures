@@ -1,12 +1,12 @@
 (() => {
   const IS_RETAKE = new URLSearchParams(window.location.search).get('retake') === '1';
   const sections = [
-    {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Upload your PDF report, then confirm the financial values below. Manual values are used when automated extraction is unavailable.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
-    {id:'balanceSheet',evidenceType:'balance_sheet',title:'Balance Sheet',short:'Balance Sheet',type:'upload',copy:'Upload your balance sheet PDF, then confirm the balance-sheet and cash values used for scoring.',requirements:['PDF report','Current assets and liabilities','Cash / debt evidence']},
-    {id:'arAgingDoc',evidenceType:'ar_aging',title:'Accounts Receivable Aging Report',short:'A/R Aging',type:'upload',copy:'Upload the most recent A/R Aging Report and confirm the collection-rate value below.',requirements:['Most recent A/R Aging Report','PDF format']},
+    {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Sync from QuickBooks on the Integrations page or upload a PDF, then confirm the financial values below.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
+    {id:'balanceSheet',evidenceType:'balance_sheet',title:'Balance Sheet',short:'Balance Sheet',type:'upload',copy:'Sync from QuickBooks or upload your balance sheet PDF, then confirm the balance-sheet and cash values used for scoring.',requirements:['PDF report','Current assets and liabilities','Cash / debt evidence']},
+    {id:'arAgingDoc',evidenceType:'ar_aging',title:'Accounts Receivable Aging Report',short:'A/R Aging',type:'upload',copy:'Sync A/R Aging from QuickBooks or upload the most recent report, then confirm the collection-rate value below.',requirements:['Most recent A/R Aging Report','PDF format']},
     {id:'sde',evidenceType:'sde',title:'SDE & Capital Allocation',short:'SDE + Capital',type:'sde',copy:'Confirm owner benefits, Adjusted SDE, and how capital was reinvested during the last year.'},
-    {id:'clientRevenue',evidenceType:'client_revenue',title:'Client Revenue Report',short:'Client Revenue',type:'upload',copy:'Upload a client revenue report for the last 12 months and confirm the concentration values below.',requirements:['Complete client list','Revenue per client','Last 12 months','PDF format']},
-    {id:'serviceRevenue',evidenceType:'service_revenue_mix',title:'Service Revenue Mix',short:'Service Mix',type:'upload',copy:'Upload revenue by service and confirm how much revenue is recurring versus project-based.',requirements:['Revenue by service','Recurring / project mix','PDF format']}
+    {id:'clientRevenue',evidenceType:'client_revenue',title:'Client Revenue Report',short:'Client Revenue',type:'upload',copy:'Sync client sales from QuickBooks or upload a 12-month client revenue report, then confirm concentration values.',requirements:['Complete client list','Revenue per client','Last 12 months','PDF format']},
+    {id:'serviceRevenue',evidenceType:'service_revenue_mix',title:'Service Revenue Mix',short:'Service Mix',type:'upload',copy:'Sync service sales from QuickBooks or upload revenue by service, then confirm recurring versus project-based revenue.',requirements:['Revenue by service','Recurring / project mix','PDF format']}
   ];
 
   const benefits = [
@@ -149,13 +149,6 @@
           </main>
         </div>
       </div>
-      <div class="performance-extraction-overlay" id="performanceExtractionOverlay" aria-hidden="true">
-        <div class="performance-extraction-modal" role="status" aria-live="polite">
-          <div class="performance-extraction-spinner" aria-hidden="true"></div>
-          <h2>Automatic extraction in progress</h2>
-          <p>We’re securely reading your PDF and extracting the financial values. Please wait—this page will unlock automatically when the analysis is complete.</p>
-        </div>
-      </div>
     </div>`;
 
   const host=document.querySelector('#sectionHost');
@@ -178,16 +171,6 @@
     document.querySelector('#sectionLabel').textContent=currentIsReview()?'Review':'Financial Evidence';
   }
 
-  function updateExtractionOverlay(){
-    const overlay=document.querySelector('#performanceExtractionOverlay');
-    if(!overlay)return;
-    const busy=Object.values(state.uploadState||{}).some(value=>value==='uploading'||value==='extracting');
-    overlay.classList.toggle('show',busy);
-    overlay.setAttribute('aria-hidden',busy?'false':'true');
-    document.documentElement.classList.toggle('performance-extraction-locked',busy);
-    document.body.classList.toggle('performance-extraction-locked',busy);
-  }
-
   function extractionLabel(meta){
     const transient=state.uploadState[meta?.sectionId||''];
     if(transient==='uploading')return {className:'processing',text:'Uploading securely…'};
@@ -197,16 +180,14 @@
     if(model==='manual_entry')return {className:'complete',text:'Manual values saved'};
     if(status==='processed')return {className:'complete',text:'Automated values available'};
     if(status==='processing')return {className:'processing',text:'Trying automated extraction…'};
-    if(status==='failed'&&!meta?.evidenceId)return {className:'warning',text:'Upload was not saved · retry PDF upload'};
     if(status==='failed')return {className:'warning',text:'Automated extraction unavailable · use manual values'};
-    return {className:'pending',text:meta?.evidenceId?'PDF record saved · confirm values below':'Preparing PDF…'};
+    return {className:'pending',text:'PDF stored · confirm values below'};
   }
 
   function uploadBody(section){
     const meta=state.documents[section.id];
     const status=meta?extractionLabel({...meta,sectionId:section.id}):null;
-    const extractionStatus=meta?.extractionStatus||meta?.extraction_status||'';
-    const canRetry=meta?.evidenceId && ['failed','uploaded','processed'].includes(extractionStatus);
+    const canRetry=meta?.evidenceId && ['failed','uploaded'].includes(meta.extractionStatus||meta.extraction_status||'');
     return `<div class="evidence-upload ${meta?'received':''}">
       <div class="upload-mark">${meta?checkIcon:'<span>↑</span>'}</div>
       <div class="upload-copy">
@@ -214,10 +195,9 @@
         <p>${esc(section.copy)}</p>
         ${meta?`<div class="uploaded-file"><strong>${esc(meta.name)}</strong>${meta.size?`<span>${formatSize(meta.size)}</span>`:''}</div>`:''}
         ${status?`<div class="extraction-status ${status.className}">${esc(status.text)}</div>`:''}
-        ${meta?.extractionError?`<div class="extraction-error">${esc(meta.extractionError)}</div>`:''}
         <div class="upload-actions">
           <label class="upload-button">${meta?'Replace PDF':'Choose PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
-          ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">${extractionStatus==='processed'?'Recalculate values':'Retry automated extraction'}</button>`:''}
+          ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry automated extraction</button>`:''}
         </div>
       </div>
     </div>
@@ -295,7 +275,7 @@
 
   function sectionMissing(section){
     const missing=[];
-    if(section.type!=='sde'&&!state.documents[section.id])missing.push('Upload the PDF report');
+    if(section.type!=='sde'&&!state.documents[section.id])missing.push('Sync QuickBooks or upload the PDF report');
     const values=manualFor(section);
     (fieldGroups[section.id]||[]).filter(field=>field.required).forEach(field=>{if(!hasNumber(values[field.key]))missing.push(field.label);});
     return missing;
@@ -334,34 +314,18 @@
   }
 
   async function handleUpload(section,file){
-    if(!window.CCFinancialEvidence?.prepareUpload||!window.CCFinancialEvidence?.uploadPrepared){
-      state.documents[section.id]={...fileMeta(file),extractionStatus:'failed',extractionError:'Financial evidence upload service is not loaded. Refresh the page and try again.'};persist();render();return;
-    }
+    if(!window.CCFinancialEvidence?.uploadPdf){state.documents[section.id]={...fileMeta(file),extractionStatus:'uploaded'};persist();render();return;}
     if(file.size>window.CCFinancialEvidence.maxFileBytes){state.documents[section.id]={...fileMeta(file),extractionStatus:'failed',extractionError:'PDF must be 4 MB or smaller.'};persist();render();return;}
 
     state.documents[section.id]={...fileMeta(file)};
     state.uploadState[section.id]='uploading';persist();render();
     try{
-      // Phase 1: persist the financial_evidence row BEFORE any storage or AI
-      // work. If this fails, stop immediately and show the real backend error.
-      const prepared=await window.CCFinancialEvidence.prepareUpload(section.evidenceType,file);
-      const preparedRow=prepared?.evidence;
-      if(!preparedRow?.id)throw Object.assign(new Error('Supabase did not create the financial_evidence row.'),{code:'EVIDENCE_ROW_NOT_CREATED',phase:'database'});
-      state.documents[section.id]={name:preparedRow.file_name||file.name,size:Number(preparedRow.file_size_bytes)||file.size,type:preparedRow.mime_type||file.type||'application/pdf',receivedAt:preparedRow.updated_at||new Date().toISOString(),evidenceId:preparedRow.id,storagePath:preparedRow.storage_path||null,extractionStatus:preparedRow.extraction_status||'uploaded',extractionModel:preparedRow.extraction_model||null,extractionError:'',extractedAt:preparedRow.extracted_at||null};
-      persist();render();
-
-      // Phase 2 + 3: upload the bytes, then ask OpenAI to extract. A failure
-      // here must never erase the row created above.
-      state.uploadState[section.id]='extracting';persist();render();
-      const result=await window.CCFinancialEvidence.uploadPrepared(prepared,section.evidenceType,file);
-      const row=result?.evidence||preparedRow;
-      state.documents[section.id]={name:row.file_name||file.name,size:Number(row.file_size_bytes)||file.size,type:row.mime_type||file.type||'application/pdf',receivedAt:row.updated_at||new Date().toISOString(),evidenceId:row.id||preparedRow.id,storagePath:row.storage_path||preparedRow.storage_path||null,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:result?.extractionError?.message||row.extraction_error||'',extractedAt:row.extracted_at||null};
+      const result=await window.CCFinancialEvidence.uploadPdf(section.evidenceType,file);
+      const row=result?.evidence||{};
+      state.documents[section.id]={name:row.file_name||file.name,size:Number(row.file_size_bytes)||file.size,type:row.mime_type||file.type||'application/pdf',receivedAt:row.updated_at||new Date().toISOString(),evidenceId:row.id||null,storagePath:row.storage_path||null,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:result?.extractionError?.message||row.extraction_error||'',extractedAt:row.extracted_at||null};
       if(row.extracted_data&&typeof row.extracted_data==='object')state.manual[section.id]={...manualFor(section),...row.extracted_data};
-    }catch(error){
-      const existing=state.documents[section.id]||fileMeta(file);
-      state.documents[section.id]={...existing,extractionStatus:'failed',extractionError:error.message||'Upload failed before the financial evidence record could be saved.'};
-      state.remoteError=error.message||'Financial evidence upload failed.';
-    } finally{delete state.uploadState[section.id];persist();render();}
+    }catch(error){state.documents[section.id]={...state.documents[section.id],extractionStatus:'failed',extractionError:error.message||'Upload failed.'};}
+    finally{delete state.uploadState[section.id];persist();render();}
   }
 
   async function retryAnalysis(section){
@@ -397,11 +361,7 @@
     document.querySelectorAll('[data-file]').forEach(input=>input.addEventListener('change',()=>{const file=input.files?.[0];if(!file)return;const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');if(!isPdf){state.documents[section.id]={...fileMeta(file),extractionStatus:'failed',extractionError:'Only PDF reports can be uploaded.'};persist();render();return;}handleUpload(section,file);}));
     document.querySelectorAll('[data-retry]').forEach(btn=>btn.addEventListener('click',()=>retryAnalysis(section)));
     if(section.type==='sde'){
-      document.querySelectorAll('[data-addback]').forEach(input=>input.addEventListener('change',()=>{
-        state.addbacks[input.dataset.addback]=input.checked;
-        persist();
-        render();
-      }));
+      document.querySelectorAll('[data-addback]').forEach(input=>input.addEventListener('change',()=>{state.addbacks[input.dataset.addback]=input.checked;if(input.dataset.addback==='distributions')document.querySelector('#ownershipField')?.classList.toggle('show',input.checked);persist();}));
       document.querySelector('#ownershipPercent')?.addEventListener('input',event=>{state.ownershipPercent=event.target.value;persist();});
     }
     bindManual(section);
@@ -442,18 +402,14 @@
       }
 
       const diagnosticState=window.CCDiagnostic?.getState?.()||{};
-      // Retakes should keep the existing regenerate-in-place behavior so a
-      // completed scorecard is refreshed immediately. First-time completion
-      // returns to Diagnostic so the approved Generate My Agency Scorecard
-      // action and processing screen remain part of the journey.
-      if(IS_RETAKE&&diagnosticState.allComplete&&window.CCScorecard?.generate){
+      if(diagnosticState.allComplete&&window.CCScorecard?.generate){
         window.CCScorecard.clear?.();
         await window.CCScorecard.generate();
         window.CCDiagnostic?.completeReportGeneration?.();
         if(window.CCAccount?.syncDiagnosticState){
           await window.CCAccount.syncDiagnosticState(window.CCDiagnostic.serialize(),{throwOnError:true});
         }
-        location.href='/agency-scorecard/?updated=performance';
+        location.href=IS_RETAKE?'/agency-scorecard/?updated=performance':'/agency-scorecard/?generated=performance';
         return;
       }
 
@@ -465,7 +421,7 @@
     }
   }
 
-  function render(){renderNav();updateProgress();renderSection();updateExtractionOverlay();persist();}
+  function render(){renderNav();updateProgress();renderSection();persist();}
 
   function hydrateEvidenceRow(row){
     const section=sectionByEvidenceType(row.evidence_type);if(!section)return;

@@ -1,66 +1,143 @@
-import crypto from 'node:crypto';
-import { sendEmail, escapeHtml } from '../lib/email-service.js';
-import { accountSessionSecret, clearSessionCookie, hashPassword, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
+import { accountSessionSecret, clearSessionCookie, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
+import {
+  createQuickBooksAuthorizationUrl,
+  decryptQuickBooksToken,
+  encryptQuickBooksToken,
+  exchangeQuickBooksCode,
+  fetchArAgingEvidence,
+  fetchBalanceSheetEvidence,
+  fetchClientRevenueEvidence,
+  fetchProfitLossEvidence,
+  fetchServiceRevenueEvidence,
+  getQuickBooksCompanyInfo,
+  quickBooksConfig,
+  refreshQuickBooksTokens,
+  revokeQuickBooksToken,
+  verifyQuickBooksOAuthState
+} from '../lib/quickbooks.js';
+
 const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(payload))};
 const clean=v=>String(v??'').trim();const lower=v=>clean(v).toLowerCase();
 function cfg(){const url=clean(process.env.SUPABASE_URL).replace(/\/+$/,'');const key=clean(process.env.SUPABASE_SERVICE_ROLE_KEY);return url&&key?{url,key}:null}
-async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${path}`,{...options,headers:{apikey:c.key,'Content-Type':'application/json',...(options.headers||{})}});const t=await r.text();let p=null;try{p=t?JSON.parse(t):null}catch{p=t}if(!r.ok){const e=new Error(p?.message||p?.hint||'Database request failed.');e.status=r.status;throw e}return p}
-const SELECT='id,name,email,agency_url,agency_name,journey,source,archetype_result,report_data,diagnostic_state,password_hash,password_reset_token_hash,password_reset_expires_at,created_at,updated_at';
+async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${path}`,{...options,headers:{apikey:c.key,'Content-Type':'application/json',...(options.headers||{})}});const t=await r.text();let p=null;try{p=t?JSON.parse(t):null}catch{p=t}if(!r.ok){const e=new Error(p?.message||p?.hint||'Database request failed.');e.status=r.status;e.payload=p;throw e}return p}
+const SELECT='id,name,email,agency_url,agency_name,journey,source,archetype_result,report_data,diagnostic_state,password_hash,created_at,updated_at';
 function pub(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_url,agency_name:a.agency_name,journey:a.journey,source:a.source,archetype_result:a.archetype_result||{},report_data:a.report_data||{},diagnostic_state:a.diagnostic_state||{},created_at:a.created_at,updated_at:a.updated_at}:null}
 async function findById(c,id){const rows=await db(c,`accounts?select=${SELECT}&id=eq.${encodeURIComponent(id)}&limit=1`);return Array.isArray(rows)?rows[0]:null}
-const tokenHash=token=>crypto.createHash('sha256').update(String(token)).digest('hex');
-function requestOrigin(req){const proto=clean(req.headers?.['x-forwarded-proto'])||'https';const host=clean(req.headers?.['x-forwarded-host']||req.headers?.host)||'app.creativecreatures.org';return `${proto}://${host}`}
-async function beginPasswordReset(c,req,email){
-  const rows=await db(c,`accounts?select=id,name,email,email_normalized,password_hash&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);const account=Array.isArray(rows)?rows[0]:null;
-  // Never reveal whether an email exists.
-  if(!account||!account.password_hash)return;
-  const token=crypto.randomBytes(32).toString('hex');const hash=tokenHash(token);const expiresAt=new Date(Date.now()+60*60*1000).toISOString();
-  await db(c,`accounts?id=eq.${encodeURIComponent(account.id)}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({password_reset_token_hash:hash,password_reset_expires_at:expiresAt,updated_at:new Date().toISOString()})});
-  const origin=requestOrigin(req);const link=`${origin}/login/?reset=${encodeURIComponent(token)}&email=${encodeURIComponent(account.email||email)}`;const firstName=clean(account.name).split(/\s+/)[0]||'there';
-  await sendEmail({
-    to:account.email||email,
-    subject:'Reset your Creative Creatures password',
-    text:`Hi ${firstName},\n\nUse this secure link to reset your Creative Creatures password. The link expires in 60 minutes:\n${link}\n\nIf you did not request this reset, you can ignore this email.`,
-    html:`<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#171820"><h2 style="margin-bottom:12px">Reset your password</h2><p>Hi ${escapeHtml(firstName)},</p><p>Use the button below to choose a new password for your Creative Creatures account.</p><p style="margin:28px 0"><a href="${escapeHtml(link)}" style="display:inline-block;background:#2929ed;color:#fff;text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:700">Reset password</a></p><p style="font-size:13px;color:#667085">This link expires in 60 minutes. If you did not request a reset, you can ignore this email.</p></div>`
-  });
+
+function currentSession(req, secret){
+  const session=verifySession(parseCookies(req).cc_account_session,secret);
+  return session?.role==='account'&&session?.accountId?session:null;
 }
-async function completePasswordReset(c,token,password){
-  if(password.length<10)throw Object.assign(new Error('Use at least 10 characters for your new password.'),{status:422});
-  const hash=tokenHash(token);const now=new Date().toISOString();
-  const rows=await db(c,`accounts?select=${SELECT}&password_reset_token_hash=eq.${encodeURIComponent(hash)}&password_reset_expires_at=gt.${encodeURIComponent(now)}&limit=1`);const account=Array.isArray(rows)?rows[0]:null;
-  if(!account)throw Object.assign(new Error('This password reset link is invalid or has expired.'),{status:400});
-  const updated=await db(c,`accounts?id=eq.${encodeURIComponent(account.id)}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({password_hash:hashPassword(password),password_set_at:now,password_reset_token_hash:null,password_reset_expires_at:null,updated_at:now})});
-  return Array.isArray(updated)&&updated[0]?updated[0]:account;
+
+const QB_SELECT='id,account_id,realm_id,company_name,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,refresh_token_expires_at,scope,status,last_synced_at,last_sync_error,created_at,updated_at';
+async function getQuickBooksConnection(c,accountId){const rows=await db(c,`quickbooks_connections?select=${QB_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
+function publicQuickBooksConnection(row){return row?{connected:row.status==='connected',realmId:row.realm_id,companyName:row.company_name||'',status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}: {connected:false,status:'disconnected',realmId:null,companyName:'',lastSyncedAt:null,lastSyncError:''}}
+async function saveQuickBooksConnection(c,accountId,patch){
+  const existing=await getQuickBooksConnection(c,accountId);const now=new Date().toISOString();
+  if(existing){const rows=await db(c,`quickbooks_connections?id=eq.${encodeURIComponent(existing.id)}&select=${QB_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}
+  const rows=await db(c,`quickbooks_connections?select=${QB_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null
 }
+async function deleteQuickBooksConnection(c,accountId){await db(c,`quickbooks_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
+
+function tokenDates(tokens){const now=Date.now();return{access_token_expires_at:new Date(now+(Number(tokens.expires_in)||3600)*1000).toISOString(),refresh_token_expires_at:tokens.x_refresh_token_expires_in?new Date(now+Number(tokens.x_refresh_token_expires_in)*1000).toISOString():null}}
+async function ensureQuickBooksAccess(c,connection){
+  const qbc=quickBooksConfig();if(!qbc)throw new Error('QuickBooks is not configured.');
+  const expiresAt=Date.parse(connection.access_token_expires_at||'');
+  if(Number.isFinite(expiresAt)&&expiresAt>Date.now()+120000){return{connection,accessToken:decryptQuickBooksToken(connection.access_token_encrypted,qbc.encryptionSecret)}}
+  const refreshToken=decryptQuickBooksToken(connection.refresh_token_encrypted,qbc.encryptionSecret);
+  const tokens=await refreshQuickBooksTokens(refreshToken);
+  const updated=await saveQuickBooksConnection(c,connection.account_id,{access_token_encrypted:encryptQuickBooksToken(tokens.access_token,qbc.encryptionSecret),refresh_token_encrypted:encryptQuickBooksToken(tokens.refresh_token||refreshToken,qbc.encryptionSecret),...tokenDates(tokens),scope:tokens.scope||connection.scope||'com.intuit.quickbooks.accounting',status:'connected',last_sync_error:null});
+  return{connection:updated,accessToken:tokens.access_token};
+}
+
+async function getOrCreateCurrentRun(c,accountId){
+  let rows=await db(c,`diagnostic_runs?select=id,account_id,status,is_current&account_id=eq.${encodeURIComponent(accountId)}&is_current=eq.true&limit=1`);
+  if(Array.isArray(rows)&&rows[0])return rows[0];
+  rows=await db(c,'diagnostic_runs?select=id,account_id,status,is_current',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'in_progress',is_current:true})});
+  return Array.isArray(rows)?rows[0]:rows;
+}
+async function saveQuickBooksEvidence(c,runId,evidenceType,data){
+  const select='id,diagnostic_run_id,evidence_type,file_name,file_size_bytes,storage_path,mime_type,extraction_status,extraction_model,extraction_error,extracted_at,extracted_data,validation_status,created_at,updated_at';
+  const rows=await db(c,`financial_evidence?select=${select}&diagnostic_run_id=eq.${encodeURIComponent(runId)}&evidence_type=eq.${encodeURIComponent(evidenceType)}&order=updated_at.desc&limit=1`);
+  const existing=Array.isArray(rows)?rows[0]||null:null;const now=new Date().toISOString();
+  const label={profit_loss:'Profit & Loss',balance_sheet:'Balance Sheet',ar_aging:'A/R Aging',client_revenue:'Client Revenue',service_revenue_mix:'Service Revenue Mix'}[evidenceType]||'Financial Evidence';
+  const patch={file_name:`QuickBooks Online · ${label}`,file_size_bytes:null,storage_path:null,mime_type:'application/vnd.intuit.quickbooks.report+json',extraction_status:'processed',extraction_model:'quickbooks-online-api',extraction_error:null,extracted_at:now,extracted_data:data||{},validation_status:'verified',updated_at:now};
+  if(existing){const updated=await db(c,`financial_evidence?id=eq.${encodeURIComponent(existing.id)}&select=${select}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});return Array.isArray(updated)?updated[0]||existing:existing}
+  const created=await db(c,`financial_evidence?select=${select}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({diagnostic_run_id:runId,evidence_type:evidenceType,...patch,created_at:now})});return Array.isArray(created)?created[0]||null:null
+}
+
+async function syncQuickBooks(c,accountId){
+  const connection=await getQuickBooksConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect QuickBooks before syncing.'),{status:409});
+  const {connection:refreshed,accessToken}=await ensureQuickBooksAccess(c,connection);const realmId=refreshed.realm_id;
+  try{
+    const [pnl,balance,ar,clients,services]=await Promise.all([
+      fetchProfitLossEvidence({realmId,accessToken}),fetchBalanceSheetEvidence({realmId,accessToken}),fetchArAgingEvidence({realmId,accessToken}),fetchClientRevenueEvidence({realmId,accessToken}),fetchServiceRevenueEvidence({realmId,accessToken})
+    ]);
+    if(pnl?.monthlyOperatingExpenses!==null&&pnl?.monthlyOperatingExpenses!==undefined&&balance?.monthlyOperatingExpenses==null)balance.monthlyOperatingExpenses=pnl.monthlyOperatingExpenses;
+    const run=await getOrCreateCurrentRun(c,accountId);
+    const evidence=[];
+    evidence.push(await saveQuickBooksEvidence(c,run.id,'profit_loss',pnl));
+    evidence.push(await saveQuickBooksEvidence(c,run.id,'balance_sheet',balance));
+    evidence.push(await saveQuickBooksEvidence(c,run.id,'ar_aging',ar));
+    evidence.push(await saveQuickBooksEvidence(c,run.id,'client_revenue',clients));
+    evidence.push(await saveQuickBooksEvidence(c,run.id,'service_revenue_mix',services));
+    const synced=await saveQuickBooksConnection(c,accountId,{status:'connected',last_synced_at:new Date().toISOString(),last_sync_error:null});
+    return{connection:publicQuickBooksConnection(synced),evidence:evidence.filter(Boolean),warnings:[...(balance?.warnings||[]),...(services?.warnings||[])]};
+  }catch(error){await saveQuickBooksConnection(c,accountId,{last_sync_error:error.message||'QuickBooks sync failed.'}).catch(()=>null);throw error}
+}
+
 export default async function handler(req,res){
   res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');
   if(req.method==='OPTIONS')return json(res,204,{});
   const c=cfg();const secret=accountSessionSecret();if(!c||!secret)return json(res,503,{error:'Account authentication is not configured.'});
   try{
     if(req.method==='DELETE'){clearSessionCookie(res,'cc_account_session');return json(res,200,{success:true})}
+    const session=currentSession(req,secret);
+    const action=clean(req.query?.action);
     if(req.method==='GET'){
-      const session=verifySession(parseCookies(req).cc_account_session,secret);
-      if(!session?.accountId)return json(res,401,{authenticated:false});
+      if(action==='quickbooks_connect'){
+        if(!session)return json(res,401,{error:'Sign in before connecting QuickBooks.'});
+        if(!quickBooksConfig())return json(res,503,{error:'QuickBooks environment variables are not configured.'});
+        return json(res,200,{authorizationUrl:createQuickBooksAuthorizationUrl(session.accountId)});
+      }
+      if(action==='quickbooks_status'){
+        if(!session)return json(res,401,{error:'Sign in before viewing QuickBooks status.'});
+        const connection=await getQuickBooksConnection(c,session.accountId);
+        return json(res,200,{connection:publicQuickBooksConnection(connection),environment:quickBooksConfig()?.environment||null});
+      }
+      if(!session)return json(res,401,{authenticated:false});
       const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});
       return json(res,200,{authenticated:true,account:pub(account)});
     }
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
-    const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const action=clean(b.action)||'login';
-    if(action==='forgot_password'){
-      const email=lower(b.email);if(!email||!/^\S+@\S+\.\S+$/.test(email))return json(res,422,{error:'Enter a valid email address.'});
-      try{await beginPasswordReset(c,req,email)}catch(error){console.error('password reset email error',error)}
-      return json(res,200,{success:true,message:'If an account exists for that email, a password reset link has been sent.'});
+    const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const bodyAction=clean(b.action);
+
+    if(bodyAction==='quickbooks_callback'){
+      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect QuickBooks.'});
+      const code=clean(b.code),realmId=clean(b.realmId||b.realm_id),state=clean(b.state);
+      if(!code||!realmId||!state)return json(res,422,{error:'QuickBooks did not return the required authorization values.'});
+      if(!verifyQuickBooksOAuthState(state,session.accountId))return json(res,403,{error:'QuickBooks authorization state is invalid or expired.'});
+      const qbc=quickBooksConfig();const tokens=await exchangeQuickBooksCode(code);
+      let companyName='';try{const company=await getQuickBooksCompanyInfo({realmId,accessToken:tokens.access_token});companyName=clean(company?.CompanyName)}catch{}
+      const saved=await saveQuickBooksConnection(c,session.accountId,{realm_id:realmId,company_name:companyName,access_token_encrypted:encryptQuickBooksToken(tokens.access_token,qbc.encryptionSecret),refresh_token_encrypted:encryptQuickBooksToken(tokens.refresh_token,qbc.encryptionSecret),...tokenDates(tokens),scope:tokens.scope||'com.intuit.quickbooks.accounting',status:'connected',last_sync_error:null});
+      return json(res,200,{connected:true,connection:publicQuickBooksConnection(saved)});
     }
-    if(action==='reset_password'){
-      const token=clean(b.token),password=clean(b.password);if(!token||!password)return json(res,422,{error:'Reset token and new password are required.'});
-      const account=await completePasswordReset(c,token,password);const sessionToken=signSession({role:'account',accountId:account.id,email:account.email},secret,30*24*60*60);setSessionCookie(res,'cc_account_session',sessionToken,30*24*60*60);
-      return json(res,200,{success:true,authenticated:true,account:pub(account)});
+    if(bodyAction==='quickbooks_sync'){
+      if(!session)return json(res,401,{error:'Sign in before syncing QuickBooks.'});
+      const result=await syncQuickBooks(c,session.accountId);return json(res,200,{success:true,...result});
     }
+    if(bodyAction==='quickbooks_disconnect'){
+      if(!session)return json(res,401,{error:'Sign in before disconnecting QuickBooks.'});
+      const connection=await getQuickBooksConnection(c,session.accountId);
+      if(connection){const qbc=quickBooksConfig();if(qbc){try{const refresh=decryptQuickBooksToken(connection.refresh_token_encrypted,qbc.encryptionSecret);await revokeQuickBooksToken(refresh)}catch{}}await deleteQuickBooksConnection(c,session.accountId)}
+      return json(res,200,{success:true,connection:publicQuickBooksConnection(null)});
+    }
+
     const email=lower(b.email),password=clean(b.password);
     if(!email||!password)return json(res,422,{error:'Email and password are required.'});
     const rows=await db(c,`accounts?select=${SELECT}&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);const account=Array.isArray(rows)?rows[0]:null;
     if(!account||!account.password_hash||!verifyPassword(password,account.password_hash))return json(res,401,{error:'Invalid email or password.'});
     const token=signSession({role:'account',accountId:account.id,email:account.email},secret,30*24*60*60);setSessionCookie(res,'cc_account_session',token,30*24*60*60);
     return json(res,200,{authenticated:true,account:pub(account)});
-  }catch(e){console.error('account auth error',e);return json(res,e.status||500,{error:e.message||'Unable to process this request right now.'})}
+  }catch(e){console.error('account auth error',e);const status=[400,401,403,404,409,422].includes(Number(e.status))?Number(e.status):500;return json(res,status,{error:e.message||'Unable to process the account request right now.',code:e.code||'ACCOUNT_AUTH_ERROR'})}
 }
