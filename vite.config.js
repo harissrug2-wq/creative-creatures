@@ -46,6 +46,7 @@ export default defineConfig({
         agencyGoals: page('agency-goals'),
         integrations: page('integrations'),
         quickbooksCallback: resolve(__dirname, 'integrations', 'quickbooks', 'callback', 'index.html'),
+        googleCalendarCallback: resolve(__dirname, 'integrations', 'google-calendar', 'callback', 'index.html'),
         independenceIndex: page('independence-index'),
         agencyStrengthIndex: page('agency-strength-index'),
         agencyPerformanceIndex: page('agency-performance-index'),

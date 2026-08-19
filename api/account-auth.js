@@ -1,5 +1,20 @@
 import { accountSessionSecret, clearSessionCookie, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
 import {
+  createGoogleCalendarAuthorizationUrl,
+  createGoogleCalendarEvent,
+  decryptGoogleCalendarToken,
+  deleteGoogleCalendarEvent,
+  encryptGoogleCalendarToken,
+  exchangeGoogleCalendarCode,
+  googleCalendarConfig,
+  listGoogleCalendarEvents,
+  listGoogleCalendars,
+  refreshGoogleCalendarTokens,
+  revokeGoogleCalendarToken,
+  updateGoogleCalendarEvent,
+  verifyGoogleCalendarOAuthState
+} from '../lib/google-calendar.js';
+import {
   createQuickBooksAuthorizationUrl,
   decryptQuickBooksToken,
   encryptQuickBooksToken,
@@ -49,6 +64,29 @@ async function ensureQuickBooksAccess(c,connection){
   const updated=await saveQuickBooksConnection(c,connection.account_id,{access_token_encrypted:encryptQuickBooksToken(tokens.access_token,qbc.encryptionSecret),refresh_token_encrypted:encryptQuickBooksToken(tokens.refresh_token||refreshToken,qbc.encryptionSecret),...tokenDates(tokens),scope:tokens.scope||connection.scope||'com.intuit.quickbooks.accounting',status:'connected',last_sync_error:null});
   return{connection:updated,accessToken:tokens.access_token};
 }
+
+
+const GC_SELECT='id,account_id,calendar_id,calendar_summary,connected_email,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scope,status,last_error,created_at,updated_at';
+async function getGoogleCalendarConnection(c,accountId){const rows=await db(c,`google_calendar_connections?select=${GC_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
+function publicGoogleCalendarConnection(row){return row?{connected:row.status==='connected',calendarId:row.calendar_id||'primary',calendarSummary:row.calendar_summary||'',connectedEmail:row.connected_email||'',status:row.status||'connected',lastError:row.last_error||'',updatedAt:row.updated_at||null}:{connected:false,status:'disconnected',calendarId:'primary',calendarSummary:'',connectedEmail:'',lastError:''}}
+async function saveGoogleCalendarConnection(c,accountId,patch){
+  const existing=await getGoogleCalendarConnection(c,accountId);const now=new Date().toISOString();
+  if(existing){const rows=await db(c,`google_calendar_connections?id=eq.${encodeURIComponent(existing.id)}&select=${GC_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}
+  const rows=await db(c,`google_calendar_connections?select=${GC_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,calendar_id:'primary',status:'connected',...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null
+}
+async function deleteGoogleCalendarConnection(c,accountId){await db(c,`google_calendar_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
+function googleTokenDates(tokens){const now=Date.now();return{access_token_expires_at:new Date(now+(Number(tokens.expires_in)||3600)*1000).toISOString()}}
+async function ensureGoogleCalendarAccess(c,connection){
+  const gcc=googleCalendarConfig();if(!gcc)throw new Error('Google Calendar is not configured.');
+  const expiresAt=Date.parse(connection.access_token_expires_at||'');
+  if(Number.isFinite(expiresAt)&&expiresAt>Date.now()+120000){return{connection,accessToken:decryptGoogleCalendarToken(connection.access_token_encrypted,gcc.encryptionSecret)}}
+  if(!connection.refresh_token_encrypted)throw Object.assign(new Error('Google Calendar access expired. Reconnect Google Calendar.'),{status:401});
+  const refreshToken=decryptGoogleCalendarToken(connection.refresh_token_encrypted,gcc.encryptionSecret);
+  const tokens=await refreshGoogleCalendarTokens(refreshToken);
+  const updated=await saveGoogleCalendarConnection(c,connection.account_id,{access_token_encrypted:encryptGoogleCalendarToken(tokens.access_token,gcc.encryptionSecret),refresh_token_encrypted:connection.refresh_token_encrypted,...googleTokenDates(tokens),scope:tokens.scope||connection.scope||gcc.scopes.join(' '),status:'connected',last_error:null});
+  return{connection:updated,accessToken:tokens.access_token};
+}
+async function googleConnectionAccess(c,accountId){const connection=await getGoogleCalendarConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Google Calendar first.'),{status:409});return ensureGoogleCalendarAccess(c,connection)}
 
 async function getOrCreateCurrentRun(c,accountId){
   let rows=await db(c,`diagnostic_runs?select=id,account_id,status,is_current&account_id=eq.${encodeURIComponent(accountId)}&is_current=eq.true&limit=1`);
@@ -105,6 +143,16 @@ export default async function handler(req,res){
         const connection=await getQuickBooksConnection(c,session.accountId);
         return json(res,200,{connection:publicQuickBooksConnection(connection),environment:quickBooksConfig()?.environment||null});
       }
+      if(action==='google_calendar_connect'){
+        if(!session)return json(res,401,{error:'Sign in before connecting Google Calendar.'});
+        if(!googleCalendarConfig())return json(res,503,{error:'Google Calendar environment variables are not configured.'});
+        return json(res,200,{authorizationUrl:createGoogleCalendarAuthorizationUrl(session.accountId)});
+      }
+      if(action==='google_calendar_status'){
+        if(!session)return json(res,401,{error:'Sign in before viewing Google Calendar status.'});
+        const connection=await getGoogleCalendarConnection(c,session.accountId);
+        return json(res,200,{connection:publicGoogleCalendarConnection(connection)});
+      }
       if(!session)return json(res,401,{authenticated:false});
       const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});
       return json(res,200,{authenticated:true,account:pub(account)});
@@ -131,6 +179,57 @@ export default async function handler(req,res){
       const connection=await getQuickBooksConnection(c,session.accountId);
       if(connection){const qbc=quickBooksConfig();if(qbc){try{const refresh=decryptQuickBooksToken(connection.refresh_token_encrypted,qbc.encryptionSecret);await revokeQuickBooksToken(refresh)}catch{}}await deleteQuickBooksConnection(c,session.accountId)}
       return json(res,200,{success:true,connection:publicQuickBooksConnection(null)});
+    }
+
+    if(bodyAction==='google_calendar_callback'){
+      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Google Calendar.'});
+      const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'Google Calendar did not return the required authorization values.'});
+      if(!verifyGoogleCalendarOAuthState(state,session.accountId))return json(res,403,{error:'Google Calendar authorization state is invalid or expired.'});
+      const gcc=googleCalendarConfig();const tokens=await exchangeGoogleCalendarCode(code);
+      if(!tokens.refresh_token){const existing=await getGoogleCalendarConnection(c,session.accountId);if(!existing?.refresh_token_encrypted)return json(res,409,{error:'Google did not return a refresh token. Revoke Creative Creatures access in your Google Account and connect again.'});}
+      const accessToken=tokens.access_token;const calendars=await listGoogleCalendars({accessToken});const primary=calendars.find(item=>item.primary)||calendars.find(item=>['owner','writer'].includes(item.accessRole))||calendars[0]||null;
+      const existing=await getGoogleCalendarConnection(c,session.accountId);
+      const saved=await saveGoogleCalendarConnection(c,session.accountId,{calendar_id:primary?.id||existing?.calendar_id||'primary',calendar_summary:primary?.summary||existing?.calendar_summary||'Primary calendar',connected_email:primary?.primary?primary.id:(existing?.connected_email||''),access_token_encrypted:encryptGoogleCalendarToken(accessToken,gcc.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptGoogleCalendarToken(tokens.refresh_token,gcc.encryptionSecret):existing?.refresh_token_encrypted,...googleTokenDates(tokens),scope:tokens.scope||gcc.scopes.join(' '),status:'connected',last_error:null});
+      return json(res,200,{connected:true,connection:publicGoogleCalendarConnection(saved),calendars});
+    }
+    if(bodyAction==='google_calendar_list'){
+      if(!session)return json(res,401,{error:'Sign in before viewing Google calendars.'});
+      const {connection,accessToken}=await googleConnectionAccess(c,session.accountId);const calendars=await listGoogleCalendars({accessToken});
+      return json(res,200,{connection:publicGoogleCalendarConnection(connection),calendars});
+    }
+    if(bodyAction==='google_calendar_select'){
+      if(!session)return json(res,401,{error:'Sign in before selecting a Google calendar.'});
+      const calendarId=clean(b.calendarId);if(!calendarId)return json(res,422,{error:'Choose a calendar.'});
+      const {connection,accessToken}=await googleConnectionAccess(c,session.accountId);const calendars=await listGoogleCalendars({accessToken});const selected=calendars.find(item=>item.id===calendarId);if(!selected)return json(res,404,{error:'That Google calendar is no longer available.'});
+      if(!['owner','writer'].includes(selected.accessRole))return json(res,403,{error:'Choose a Google calendar where you can create and edit events.'});
+      const saved=await saveGoogleCalendarConnection(c,session.accountId,{calendar_id:selected.id,calendar_summary:selected.summary,connected_email:selected.primary?selected.id:connection.connected_email,status:'connected',last_error:null});
+      return json(res,200,{success:true,connection:publicGoogleCalendarConnection(saved),calendars});
+    }
+    if(bodyAction==='google_calendar_events'){
+      if(!session)return json(res,401,{error:'Sign in before viewing Google Calendar events.'});
+      const {connection,accessToken}=await googleConnectionAccess(c,session.accountId);const events=await listGoogleCalendarEvents({accessToken,calendarId:connection.calendar_id||'primary',maxResults:b.maxResults||20,timeMin:clean(b.timeMin)||undefined,timeMax:clean(b.timeMax)||undefined});
+      return json(res,200,{connection:publicGoogleCalendarConnection(connection),events});
+    }
+    if(bodyAction==='google_calendar_create_event'){
+      if(!session)return json(res,401,{error:'Sign in before creating Calendar events.'});
+      const {connection,accessToken}=await googleConnectionAccess(c,session.accountId);const event=await createGoogleCalendarEvent({accessToken,calendarId:connection.calendar_id||'primary',event:b.event||{}});
+      return json(res,200,{success:true,event});
+    }
+    if(bodyAction==='google_calendar_update_event'){
+      if(!session)return json(res,401,{error:'Sign in before updating Calendar events.'});
+      const {connection,accessToken}=await googleConnectionAccess(c,session.accountId);const event=await updateGoogleCalendarEvent({accessToken,calendarId:connection.calendar_id||'primary',eventId:clean(b.eventId),event:b.event||{}});
+      return json(res,200,{success:true,event});
+    }
+    if(bodyAction==='google_calendar_delete_event'){
+      if(!session)return json(res,401,{error:'Sign in before deleting Calendar events.'});
+      const {connection,accessToken}=await googleConnectionAccess(c,session.accountId);await deleteGoogleCalendarEvent({accessToken,calendarId:connection.calendar_id||'primary',eventId:clean(b.eventId)});
+      return json(res,200,{success:true});
+    }
+    if(bodyAction==='google_calendar_disconnect'){
+      if(!session)return json(res,401,{error:'Sign in before disconnecting Google Calendar.'});
+      const connection=await getGoogleCalendarConnection(c,session.accountId);
+      if(connection){const gcc=googleCalendarConfig();if(gcc){try{const token=connection.refresh_token_encrypted?decryptGoogleCalendarToken(connection.refresh_token_encrypted,gcc.encryptionSecret):decryptGoogleCalendarToken(connection.access_token_encrypted,gcc.encryptionSecret);await revokeGoogleCalendarToken(token)}catch{}}await deleteGoogleCalendarConnection(c,session.accountId)}
+      return json(res,200,{success:true,connection:publicGoogleCalendarConnection(null)});
     }
 
     const email=lower(b.email),password=clean(b.password);
