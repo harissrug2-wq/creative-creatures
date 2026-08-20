@@ -1,5 +1,17 @@
 import { accountSessionSecret, clearSessionCookie, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
 import {
+  createGoogleDriveAuthorizationUrl,
+  decryptGoogleDriveToken,
+  encryptGoogleDriveToken,
+  exchangeGoogleDriveCode,
+  getGoogleDriveAbout,
+  getGoogleDriveFiles,
+  googleDriveConfig,
+  refreshGoogleDriveTokens,
+  revokeGoogleDriveToken,
+  verifyGoogleDriveOAuthState
+} from '../lib/google-drive.js';
+import {
   createGoogleCalendarAuthorizationUrl,
   createGoogleCalendarEvent,
   decryptGoogleCalendarToken,
@@ -88,6 +100,30 @@ async function ensureGoogleCalendarAccess(c,connection){
 }
 async function googleConnectionAccess(c,accountId){const connection=await getGoogleCalendarConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Google Calendar first.'),{status:409});return ensureGoogleCalendarAccess(c,connection)}
 
+
+
+const GD_SELECT='id,account_id,connected_email,connected_name,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scope,selected_items,status,last_refreshed_at,last_error,created_at,updated_at';
+async function getGoogleDriveConnection(c,accountId){const rows=await db(c,`google_drive_connections?select=${GD_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
+function publicGoogleDriveConnection(row){return row?{connected:row.status==='connected',connectedEmail:row.connected_email||'',connectedName:row.connected_name||'',selectedItems:Array.isArray(row.selected_items)?row.selected_items:[],selectedCount:Array.isArray(row.selected_items)?row.selected_items.length:0,status:row.status||'connected',lastRefreshedAt:row.last_refreshed_at||null,lastError:row.last_error||'',updatedAt:row.updated_at||null}:{connected:false,connectedEmail:'',connectedName:'',selectedItems:[],selectedCount:0,status:'disconnected',lastRefreshedAt:null,lastError:''}}
+async function saveGoogleDriveConnection(c,accountId,patch){
+  const existing=await getGoogleDriveConnection(c,accountId);const now=new Date().toISOString();
+  if(existing){const rows=await db(c,`google_drive_connections?id=eq.${encodeURIComponent(existing.id)}&select=${GD_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}
+  const rows=await db(c,`google_drive_connections?select=${GD_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',selected_items:[],...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null
+}
+async function deleteGoogleDriveConnection(c,accountId){await db(c,`google_drive_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
+function googleDriveTokenDates(tokens){return{access_token_expires_at:new Date(Date.now()+(Number(tokens.expires_in)||3600)*1000).toISOString()}}
+async function ensureGoogleDriveAccess(c,connection){
+  const gdc=googleDriveConfig();if(!gdc)throw new Error('Google Drive is not configured.');
+  const expiresAt=Date.parse(connection.access_token_expires_at||'');
+  if(Number.isFinite(expiresAt)&&expiresAt>Date.now()+120000){return{connection,accessToken:decryptGoogleDriveToken(connection.access_token_encrypted,gdc.encryptionSecret)}}
+  if(!connection.refresh_token_encrypted)throw Object.assign(new Error('Google Drive access expired. Reconnect Google Drive.'),{status:401});
+  const refreshToken=decryptGoogleDriveToken(connection.refresh_token_encrypted,gdc.encryptionSecret);const tokens=await refreshGoogleDriveTokens(refreshToken);
+  const updated=await saveGoogleDriveConnection(c,connection.account_id,{access_token_encrypted:encryptGoogleDriveToken(tokens.access_token,gdc.encryptionSecret),refresh_token_encrypted:connection.refresh_token_encrypted,...googleDriveTokenDates(tokens),scope:tokens.scope||connection.scope||gdc.scopes.join(' '),status:'connected',last_error:null});
+  return{connection:updated,accessToken:tokens.access_token};
+}
+async function googleDriveConnectionAccess(c,accountId){const connection=await getGoogleDriveConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Google Drive first.'),{status:409});return ensureGoogleDriveAccess(c,connection)}
+function sanitizePickerItems(items){return(Array.isArray(items)?items:[]).map(item=>({id:clean(item?.id),name:clean(item?.name)||'Untitled',mimeType:clean(item?.mimeType),isFolder:Boolean(item?.isFolder||item?.mimeType==='application/vnd.google-apps.folder'),modifiedTime:item?.modifiedTime||null,createdTime:item?.createdTime||null,size:Number.isFinite(Number(item?.size))?Number(item.size):null,webViewLink:clean(item?.webViewLink),iconLink:clean(item?.iconLink),thumbnailLink:clean(item?.thumbnailLink),owners:Array.isArray(item?.owners)?item.owners.map(o=>({displayName:clean(o?.displayName),emailAddress:clean(o?.emailAddress)})):[],parents:Array.isArray(item?.parents)?item.parents.map(clean).filter(Boolean):[],trashed:Boolean(item?.trashed)})).filter(item=>item.id).slice(0,100)}
+
 async function getOrCreateCurrentRun(c,accountId){
   let rows=await db(c,`diagnostic_runs?select=id,account_id,status,is_current&account_id=eq.${encodeURIComponent(accountId)}&is_current=eq.true&limit=1`);
   if(Array.isArray(rows)&&rows[0])return rows[0];
@@ -143,6 +179,17 @@ export default async function handler(req,res){
         const connection=await getQuickBooksConnection(c,session.accountId);
         return json(res,200,{connection:publicQuickBooksConnection(connection),environment:quickBooksConfig()?.environment||null});
       }
+
+      if(action==='google_drive_connect'){
+        if(!session)return json(res,401,{error:'Sign in before connecting Google Drive.'});
+        if(!googleDriveConfig())return json(res,503,{error:'Google Drive environment variables are not configured.'});
+        return json(res,200,{authorizationUrl:createGoogleDriveAuthorizationUrl(session.accountId)});
+      }
+      if(action==='google_drive_status'){
+        if(!session)return json(res,401,{error:'Sign in before viewing Google Drive status.'});
+        const connection=await getGoogleDriveConnection(c,session.accountId);const config=googleDriveConfig();
+        return json(res,200,{connection:publicGoogleDriveConnection(connection),picker:connection?.status==='connected'&&config?{apiKey:config.pickerApiKey,appId:config.projectNumber}:null});
+      }
       if(action==='google_calendar_connect'){
         if(!session)return json(res,401,{error:'Sign in before connecting Google Calendar.'});
         if(!googleCalendarConfig())return json(res,503,{error:'Google Calendar environment variables are not configured.'});
@@ -179,6 +226,48 @@ export default async function handler(req,res){
       const connection=await getQuickBooksConnection(c,session.accountId);
       if(connection){const qbc=quickBooksConfig();if(qbc){try{const refresh=decryptQuickBooksToken(connection.refresh_token_encrypted,qbc.encryptionSecret);await revokeQuickBooksToken(refresh)}catch{}}await deleteQuickBooksConnection(c,session.accountId)}
       return json(res,200,{success:true,connection:publicQuickBooksConnection(null)});
+    }
+
+
+
+    if(bodyAction==='google_drive_callback'){
+      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Google Drive.'});
+      const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'Google Drive did not return the required authorization values.'});
+      if(!verifyGoogleDriveOAuthState(state,session.accountId))return json(res,403,{error:'Google Drive authorization state is invalid or expired.'});
+      const gdc=googleDriveConfig();const tokens=await exchangeGoogleDriveCode(code);const existing=await getGoogleDriveConnection(c,session.accountId);
+      if(!tokens.refresh_token&&!existing?.refresh_token_encrypted)return json(res,409,{error:'Google did not return a refresh token. Revoke Creative Creatures access in your Google Account and connect again.'});
+      let identity={displayName:'',email:''};try{identity=await getGoogleDriveAbout({accessToken:tokens.access_token})}catch{}
+      const saved=await saveGoogleDriveConnection(c,session.accountId,{connected_email:identity.email||existing?.connected_email||'',connected_name:identity.displayName||existing?.connected_name||'',access_token_encrypted:encryptGoogleDriveToken(tokens.access_token,gdc.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptGoogleDriveToken(tokens.refresh_token,gdc.encryptionSecret):existing?.refresh_token_encrypted,...googleDriveTokenDates(tokens),scope:tokens.scope||gdc.scopes.join(' '),selected_items:Array.isArray(existing?.selected_items)?existing.selected_items:[],status:'connected',last_error:null});
+      return json(res,200,{connected:true,connection:publicGoogleDriveConnection(saved)});
+    }
+    if(bodyAction==='google_drive_picker_token'){
+      if(!session)return json(res,401,{error:'Sign in before opening Google Drive.'});
+      const {connection,accessToken}=await googleDriveConnectionAccess(c,session.accountId);const config=googleDriveConfig();
+      return json(res,200,{connection:publicGoogleDriveConnection(connection),accessToken,picker:{apiKey:config.pickerApiKey,appId:config.projectNumber}});
+    }
+    if(bodyAction==='google_drive_save_selection'){
+      if(!session)return json(res,401,{error:'Sign in before saving Google Drive files.'});
+      const {connection,accessToken}=await googleDriveConnectionAccess(c,session.accountId);const requestedIds=[...new Set((Array.isArray(b.fileIds)?b.fileIds:[]).map(clean).filter(Boolean))].slice(0,100);
+      if(!requestedIds.length)return json(res,422,{error:'Select at least one Google Drive file or folder.'});
+      const refreshed=await getGoogleDriveFiles({accessToken,fileIds:requestedIds});const usable=refreshed.filter(item=>!item.unavailable&&!item.trashed);const current=sanitizePickerItems(connection.selected_items);const merged=new Map(current.map(item=>[item.id,item]));usable.forEach(item=>merged.set(item.id,item));
+      const saved=await saveGoogleDriveConnection(c,session.accountId,{selected_items:[...merged.values()].slice(0,100),last_refreshed_at:new Date().toISOString(),last_error:null,status:'connected'});
+      return json(res,200,{success:true,connection:publicGoogleDriveConnection(saved),unavailable:refreshed.filter(item=>item.unavailable)});
+    }
+    if(bodyAction==='google_drive_refresh'){
+      if(!session)return json(res,401,{error:'Sign in before refreshing Google Drive files.'});
+      const {connection,accessToken}=await googleDriveConnectionAccess(c,session.accountId);const ids=sanitizePickerItems(connection.selected_items).map(item=>item.id);const refreshed=ids.length?await getGoogleDriveFiles({accessToken,fileIds:ids}):[];const unavailable=refreshed.filter(item=>item.unavailable);const usable=sanitizePickerItems(refreshed.filter(item=>!item.unavailable&&!item.trashed));
+      const saved=await saveGoogleDriveConnection(c,session.accountId,{selected_items:usable,last_refreshed_at:new Date().toISOString(),last_error:unavailable.length?`${unavailable.length} selected item(s) are no longer available to Creative Creatures.`:null,status:'connected'});
+      return json(res,200,{success:true,connection:publicGoogleDriveConnection(saved),unavailable});
+    }
+    if(bodyAction==='google_drive_remove_item'){
+      if(!session)return json(res,401,{error:'Sign in before updating Google Drive files.'});const fileId=clean(b.fileId);if(!fileId)return json(res,422,{error:'Google Drive file ID is required.'});
+      const connection=await getGoogleDriveConnection(c,session.accountId);if(!connection)return json(res,409,{error:'Connect Google Drive first.'});const selected=sanitizePickerItems(connection.selected_items).filter(item=>item.id!==fileId);const saved=await saveGoogleDriveConnection(c,session.accountId,{selected_items:selected,last_refreshed_at:new Date().toISOString(),last_error:null});
+      return json(res,200,{success:true,connection:publicGoogleDriveConnection(saved)});
+    }
+    if(bodyAction==='google_drive_disconnect'){
+      if(!session)return json(res,401,{error:'Sign in before disconnecting Google Drive.'});const connection=await getGoogleDriveConnection(c,session.accountId);
+      if(connection){const gdc=googleDriveConfig();if(gdc){try{const token=connection.refresh_token_encrypted?decryptGoogleDriveToken(connection.refresh_token_encrypted,gdc.encryptionSecret):decryptGoogleDriveToken(connection.access_token_encrypted,gdc.encryptionSecret);await revokeGoogleDriveToken(token)}catch{}}await deleteGoogleDriveConnection(c,session.accountId)}
+      return json(res,200,{success:true,connection:publicGoogleDriveConnection(null)});
     }
 
     if(bodyAction==='google_calendar_callback'){
