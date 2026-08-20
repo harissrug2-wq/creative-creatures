@@ -85,6 +85,24 @@
       </div>
     </section>
 
+
+    <section class="qb-card" id="hubspotCard">
+      <div class="gdrive-logo" style="background:#fff1e8;color:#ff5c35">H</div>
+      <div class="qb-copy">
+        <h2>HubSpot</h2>
+        <p>Connect your HubSpot portal to view CRM contacts, companies, deals, pipelines and sales activity inside Creative Creatures.</p>
+        <div class="qb-meta"><span class="qb-status" id="hubspotStatus">Checking connection…</span><span id="hubspotAccount"></span><span id="hubspotSynced"></span></div>
+        <div class="qb-sync-note">Read-only CRM connection. Creative Creatures does not modify HubSpot records.</div>
+        <div class="qb-error" id="hubspotError"></div><div class="qb-success" id="hubspotSuccess"></div>
+      </div>
+      <div class="qb-actions">
+        <button class="button primary small" id="hubspotConnect">Connect HubSpot</button>
+        <button class="button small" id="hubspotManage" style="display:none">Manage CRM</button>
+        <button class="button small" id="hubspotSync" style="display:none">Sync Now</button>
+        <button class="button danger small" id="hubspotDisconnect" style="display:none">Disconnect</button>
+      </div>
+    </section>
+
     <section class="category-grid" id="categoryGrid"></section>
     
     <section class="request-card">
@@ -177,6 +195,29 @@
       <div class="qb-error" id="gdriveModalError"></div>
       <div class="gdrive-items" id="gdriveItems"><div class="gdrive-empty">No Drive files selected yet.</div></div>
       <div class="modal-actions" style="margin-top:20px"><button class="button" id="gdriveClose">Close</button></div>
+    </section>
+  </div>
+
+
+  <div class="modal-backdrop" id="hubspotModal">
+    <section class="modal" style="width:min(920px,100%)">
+      <h2>HubSpot CRM</h2>
+      <p>Live CRM data from the HubSpot portal connected to this Creative Creatures account.</p>
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0">
+        <div class="queued" style="margin:0"><div><strong id="hubspotContactsCount">0</strong><span>Contacts loaded</span></div></div>
+        <div class="queued" style="margin:0"><div><strong id="hubspotCompaniesCount">0</strong><span>Companies loaded</span></div></div>
+        <div class="queued" style="margin:0"><div><strong id="hubspotDealsCount">0</strong><span>Deals loaded</span></div></div>
+        <div class="queued" style="margin:0"><div><strong id="hubspotPipelinesCount">0</strong><span>Pipelines</span></div></div>
+      </div>
+      <div class="qb-error" id="hubspotModalError"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="button small" data-hubspot-tab="deals">Deals</button>
+        <button class="button small" data-hubspot-tab="contacts">Contacts</button>
+        <button class="button small" data-hubspot-tab="companies">Companies</button>
+        <button class="button small" data-hubspot-tab="pipelines">Pipelines</button>
+      </div>
+      <div id="hubspotData" style="max-height:430px;overflow:auto;border:1px solid #e6e7eb;border-radius:14px;padding:12px"><div class="gcal-empty">Loading HubSpot data…</div></div>
+      <div class="modal-actions" style="margin-top:20px"><button class="button" id="hubspotClose">Close</button></div>
     </section>
   </div>
 
@@ -324,6 +365,22 @@
     gdriveEls.manage.onclick=()=>{show('#gdriveModal');renderDriveItems();};document.querySelector('#gdriveClose').onclick=()=>hide('#gdriveModal');gdriveEls.choose.onclick=openGoogleDrivePicker;gdriveEls.refresh.onclick=refreshGoogleDrive;
     gdriveEls.disconnect.onclick=async()=>{if(!confirm('Disconnect Google Drive from this agency? Saved Drive selections will be removed from Creative Creatures. Original files remain in Google Drive.'))return;gdriveEls.disconnect.disabled=true;gdriveEls.error.textContent='';try{const result=await gdriveRequest('google_drive_disconnect');renderGoogleDrive(result.connection);gdriveEls.success.textContent='Google Drive disconnected.';selected.delete('Google Drive');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='Google Drive');if(input)input.checked=false;update();}catch(error){gdriveEls.error.textContent=error.message;}finally{gdriveEls.disconnect.disabled=false;}};
     loadGoogleDriveStatus().then(()=>{const params=new URLSearchParams(location.search);if(params.get('google_drive')==='connected'&&gdriveConnection?.connected){history.replaceState({},'',location.pathname);gdriveEls.success.textContent='Google Drive connected. Choose the files or folders Creative Creatures may access.';show('#gdriveModal');renderDriveItems();}});
+
+
+    // HubSpot multi-tenant OAuth + CRM dashboard
+    const hubspotEls={status:document.querySelector('#hubspotStatus'),account:document.querySelector('#hubspotAccount'),synced:document.querySelector('#hubspotSynced'),error:document.querySelector('#hubspotError'),success:document.querySelector('#hubspotSuccess'),connect:document.querySelector('#hubspotConnect'),manage:document.querySelector('#hubspotManage'),sync:document.querySelector('#hubspotSync'),disconnect:document.querySelector('#hubspotDisconnect'),modalError:document.querySelector('#hubspotModalError'),data:document.querySelector('#hubspotData')};
+    let hubspotConnection=null,hubspotData={contacts:[],companies:[],deals:[],pipelines:[]},hubspotTab='deals';
+    const hubspotRequest=async(action,data={})=>{const response=await fetch('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'HubSpot request failed.');return payload;};
+    const hubspotGet=async action=>{const response=await fetch(`/api/account-auth?action=${encodeURIComponent(action)}`);const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'HubSpot request failed.');return payload;};
+    function renderHubSpot(connection){hubspotConnection=connection||{connected:false};const connected=hubspotConnection.connected===true;hubspotEls.status.textContent=connected?'Connected ✓':'Not connected';hubspotEls.status.classList.toggle('connected',connected);hubspotEls.account.textContent=connected?(hubspotConnection.hubDomain||hubspotConnection.connectedEmail||(hubspotConnection.portalId?`Portal ${hubspotConnection.portalId}`:'HubSpot connected')):'';hubspotEls.synced.textContent=connected&&hubspotConnection.lastSyncedAt?`Last synced ${new Date(hubspotConnection.lastSyncedAt).toLocaleString()}`:'';hubspotEls.connect.style.display=connected?'none':'inline-flex';hubspotEls.manage.style.display=connected?'inline-flex':'none';hubspotEls.sync.style.display=connected?'inline-flex':'none';hubspotEls.disconnect.style.display=connected?'inline-flex':'none';hubspotEls.error.textContent=hubspotConnection.lastSyncError||'';}
+    async function loadHubSpotStatus(){try{const result=await hubspotGet('hubspot_status');renderHubSpot(result.connection);if(result.connection?.connected){selected.add('HubSpot');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='HubSpot');if(input)input.checked=true;update();}}catch(error){hubspotEls.status.textContent='Sign in required';hubspotEls.error.textContent=error.message;}}
+    const money=value=>{const n=Number(value);return Number.isFinite(n)?new Intl.NumberFormat(undefined,{style:'currency',currency:hubspotConnection?.companyCurrency||'USD',maximumFractionDigits:0}).format(n):'—'};
+    function renderHubSpotData(){document.querySelector('#hubspotContactsCount').textContent=hubspotData.contacts.length;document.querySelector('#hubspotCompaniesCount').textContent=hubspotData.companies.length;document.querySelector('#hubspotDealsCount').textContent=hubspotData.deals.length;document.querySelector('#hubspotPipelinesCount').textContent=hubspotData.pipelines.length;let rows='';if(hubspotTab==='deals')rows=hubspotData.deals.map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc(x.properties?.dealname||'Untitled deal')}</div><div class="gdrive-item-meta">${money(x.properties?.amount)} · Stage ${esc(x.properties?.dealstage||'—')} · Pipeline ${esc(x.properties?.pipeline||'—')}${x.properties?.closedate?` · Close ${esc(new Date(x.properties.closedate).toLocaleDateString())}`:''}</div></div></article>`).join('');if(hubspotTab==='contacts')rows=hubspotData.contacts.map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc([x.properties?.firstname,x.properties?.lastname].filter(Boolean).join(' ')||x.properties?.email||'Unnamed contact')}</div><div class="gdrive-item-meta">${esc(x.properties?.email||'No email')}${x.properties?.company?` · ${esc(x.properties.company)}`:''}${x.properties?.lifecyclestage?` · ${esc(x.properties.lifecyclestage)}`:''}</div></div></article>`).join('');if(hubspotTab==='companies')rows=hubspotData.companies.map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc(x.properties?.name||'Unnamed company')}</div><div class="gdrive-item-meta">${esc(x.properties?.domain||'No domain')}${x.properties?.industry?` · ${esc(x.properties.industry)}`:''}${x.properties?.annualrevenue?` · ${money(x.properties.annualrevenue)}`:''}</div></div></article>`).join('');if(hubspotTab==='pipelines')rows=hubspotData.pipelines.map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc(x.label||x.id)}</div><div class="gdrive-item-meta">${Number(x.stages?.length||0)} stage${Number(x.stages?.length||0)===1?'':'s'} · ${(x.stages||[]).map(s=>esc(s.label)).join(' → ')}</div></div></article>`).join('');hubspotEls.data.innerHTML=rows||'<div class="gcal-empty">No records returned for this section.</div>';}
+    async function loadHubSpotDashboard(showModal=true){hubspotEls.modalError.textContent='';hubspotEls.sync.disabled=true;hubspotEls.sync.textContent='Syncing…';try{const result=await hubspotRequest('hubspot_dashboard');hubspotData={contacts:result.contacts||[],companies:result.companies||[],deals:result.deals||[],pipelines:result.pipelines||[]};renderHubSpot(result.connection);renderHubSpotData();hubspotEls.success.textContent='HubSpot CRM data synced.';if(result.warnings?.length)hubspotEls.modalError.textContent=result.warnings.join(' · ');if(showModal)show('#hubspotModal');}catch(error){hubspotEls.modalError.textContent=error.message;hubspotEls.error.textContent=error.message;if(showModal)show('#hubspotModal');}finally{hubspotEls.sync.disabled=false;hubspotEls.sync.textContent='Sync Now';}}
+    hubspotEls.connect.onclick=async()=>{hubspotEls.error.textContent='';hubspotEls.success.textContent='';hubspotEls.connect.disabled=true;try{const result=await hubspotGet('hubspot_connect');if(!result.authorizationUrl)throw new Error('HubSpot authorization URL was not returned.');location.href=result.authorizationUrl;}catch(error){hubspotEls.error.textContent=error.message;hubspotEls.connect.disabled=false;}};
+    hubspotEls.manage.onclick=()=>loadHubSpotDashboard(true);hubspotEls.sync.onclick=()=>loadHubSpotDashboard(false);document.querySelector('#hubspotClose').onclick=()=>hide('#hubspotModal');document.querySelectorAll('[data-hubspot-tab]').forEach(btn=>btn.onclick=()=>{hubspotTab=btn.dataset.hubspotTab;renderHubSpotData();});
+    hubspotEls.disconnect.onclick=async()=>{if(!confirm('Disconnect HubSpot from this Creative Creatures account? HubSpot records will not be deleted.'))return;hubspotEls.disconnect.disabled=true;hubspotEls.error.textContent='';try{const result=await hubspotRequest('hubspot_disconnect');renderHubSpot(result.connection);hubspotData={contacts:[],companies:[],deals:[],pipelines:[]};hubspotEls.success.textContent='HubSpot disconnected.';selected.delete('HubSpot');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='HubSpot');if(input)input.checked=false;update();}catch(error){hubspotEls.error.textContent=error.message;}finally{hubspotEls.disconnect.disabled=false;}};
+    loadHubSpotStatus().then(()=>{const params=new URLSearchParams(location.search);if(params.get('hubspot')==='connected'&&hubspotConnection?.connected){history.replaceState({},'',location.pathname);hubspotEls.success.textContent='HubSpot connected successfully.';loadHubSpotDashboard(true);}});
 
     const categories = Object.keys(catalog);
     document.querySelector('#categorySelect').innerHTML = categories.map(x => `<option>${x}</option>`).join('');

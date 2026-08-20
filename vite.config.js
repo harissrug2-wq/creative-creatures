@@ -48,6 +48,7 @@ export default defineConfig({
         quickbooksCallback: resolve(__dirname, 'integrations', 'quickbooks', 'callback', 'index.html'),
         googleCalendarCallback: resolve(__dirname, 'integrations', 'google-calendar', 'callback', 'index.html'),
         googleDriveCallback: resolve(__dirname, 'integrations', 'google-drive', 'callback', 'index.html'),
+        hubspotCallback: resolve(__dirname, 'integrations', 'hubspot', 'callback', 'index.html'),
         independenceIndex: page('independence-index'),
         agencyStrengthIndex: page('agency-strength-index'),
         agencyPerformanceIndex: page('agency-performance-index'),
