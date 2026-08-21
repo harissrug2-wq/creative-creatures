@@ -65,6 +65,7 @@ export default defineConfig({
         googleCalendarCallback: resolve(__dirname, 'integrations', 'google-calendar', 'callback', 'index.html'),
         googleDriveCallback: resolve(__dirname, 'integrations', 'google-drive', 'callback', 'index.html'),
         hubspotCallback: resolve(__dirname, 'integrations', 'hubspot', 'callback', 'index.html'),
+        slackCallback: resolve(__dirname, 'integrations', 'slack', 'callback', 'index.html'),
         independenceIndex: page('independence-index'),
         agencyStrengthIndex: page('agency-strength-index'),
         agencyPerformanceIndex: page('agency-performance-index'),

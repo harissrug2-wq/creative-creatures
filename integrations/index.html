@@ -103,6 +103,24 @@
       </div>
     </section>
 
+
+    <section class="qb-card" id="slackCard">
+      <div class="gdrive-logo" style="background:#f4f1ff;color:#4a154b">S</div>
+      <div class="qb-copy">
+        <h2>Slack</h2>
+        <p>Connect the agency Slack workspace to view users and accessible public/private channels inside Creative Creatures.</p>
+        <div class="qb-meta"><span class="qb-status" id="slackStatus">Checking connection…</span><span id="slackWorkspace"></span><span id="slackSynced"></span></div>
+        <div class="qb-sync-note">Workspace overview only. Message history is not requested or read.</div>
+        <div class="qb-error" id="slackError"></div><div class="qb-success" id="slackSuccess"></div>
+      </div>
+      <div class="qb-actions">
+        <button class="button primary small" id="slackConnect">Connect Slack</button>
+        <button class="button small" id="slackManage" style="display:none">Manage Workspace</button>
+        <button class="button small" id="slackSync" style="display:none">Sync Now</button>
+        <button class="button danger small" id="slackDisconnect" style="display:none">Disconnect</button>
+      </div>
+    </section>
+
     <section class="category-grid" id="categoryGrid"></section>
     
     <section class="request-card">
@@ -195,6 +213,26 @@
       <div class="qb-error" id="gdriveModalError"></div>
       <div class="gdrive-items" id="gdriveItems"><div class="gdrive-empty">No Drive files selected yet.</div></div>
       <div class="modal-actions" style="margin-top:20px"><button class="button" id="gdriveClose">Close</button></div>
+    </section>
+  </div>
+
+
+  <div class="modal-backdrop" id="slackModal">
+    <section class="modal" style="width:min(900px,100%)">
+      <h2>Slack Workspace</h2>
+      <p>Live workspace information for the Slack workspace connected to this Creative Creatures account. Message content is not accessed.</p>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0">
+        <div class="queued" style="margin:0"><div><strong id="slackUsersCount">0</strong><span>Users loaded</span></div></div>
+        <div class="queued" style="margin:0"><div><strong id="slackChannelsCount">0</strong><span>Channels visible</span></div></div>
+        <div class="queued" style="margin:0"><div><strong id="slackPrivateCount">0</strong><span>Private channels accessible</span></div></div>
+      </div>
+      <div class="qb-error" id="slackModalError"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <button class="button small" data-slack-tab="channels">Channels</button>
+        <button class="button small" data-slack-tab="users">Users</button>
+      </div>
+      <div id="slackData" style="max-height:430px;overflow:auto;border:1px solid #e6e7eb;border-radius:14px;padding:12px"><div class="gcal-empty">Loading Slack workspace…</div></div>
+      <div class="modal-actions" style="margin-top:20px"><button class="button" id="slackClose">Close</button></div>
     </section>
   </div>
 
@@ -381,6 +419,19 @@
     hubspotEls.manage.onclick=()=>loadHubSpotDashboard(true);hubspotEls.sync.onclick=()=>loadHubSpotDashboard(false);document.querySelector('#hubspotClose').onclick=()=>hide('#hubspotModal');document.querySelectorAll('[data-hubspot-tab]').forEach(btn=>btn.onclick=()=>{hubspotTab=btn.dataset.hubspotTab;renderHubSpotData();});
     hubspotEls.disconnect.onclick=async()=>{if(!confirm('Disconnect HubSpot from this Creative Creatures account? HubSpot records will not be deleted.'))return;hubspotEls.disconnect.disabled=true;hubspotEls.error.textContent='';try{const result=await hubspotRequest('hubspot_disconnect');renderHubSpot(result.connection);hubspotData={contacts:[],companies:[],deals:[],pipelines:[]};hubspotEls.success.textContent='HubSpot disconnected.';selected.delete('HubSpot');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='HubSpot');if(input)input.checked=false;update();}catch(error){hubspotEls.error.textContent=error.message;}finally{hubspotEls.disconnect.disabled=false;}};
     loadHubSpotStatus().then(()=>{const params=new URLSearchParams(location.search);if(params.get('hubspot')==='connected'&&hubspotConnection?.connected){history.replaceState({},'',location.pathname);hubspotEls.success.textContent='HubSpot connected successfully.';loadHubSpotDashboard(true);}});
+\n\n    // Slack multi-tenant OAuth + workspace dashboard
+    const slackEls={status:document.querySelector('#slackStatus'),workspace:document.querySelector('#slackWorkspace'),synced:document.querySelector('#slackSynced'),error:document.querySelector('#slackError'),success:document.querySelector('#slackSuccess'),connect:document.querySelector('#slackConnect'),manage:document.querySelector('#slackManage'),sync:document.querySelector('#slackSync'),disconnect:document.querySelector('#slackDisconnect'),modalError:document.querySelector('#slackModalError'),data:document.querySelector('#slackData')};
+    let slackConnection=null,slackData={users:[],channels:[]},slackTab='channels';
+    const slackRequest=async(action,data={})=>{const response=await fetch('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'Slack request failed.');return payload;};
+    const slackGet=async action=>{const response=await fetch(`/api/account-auth?action=${encodeURIComponent(action)}`);const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'Slack request failed.');return payload;};
+    function renderSlack(connection){slackConnection=connection||{connected:false};const connected=slackConnection.connected===true;slackEls.status.textContent=connected?'Connected ✓':'Not connected';slackEls.status.classList.toggle('connected',connected);slackEls.workspace.textContent=connected?(slackConnection.teamName||(slackConnection.teamId?`Workspace ${slackConnection.teamId}`:'Slack connected')):'';slackEls.synced.textContent=connected&&slackConnection.lastSyncedAt?`Last synced ${new Date(slackConnection.lastSyncedAt).toLocaleString()}`:'';slackEls.connect.style.display=connected?'none':'inline-flex';slackEls.manage.style.display=connected?'inline-flex':'none';slackEls.sync.style.display=connected?'inline-flex':'none';slackEls.disconnect.style.display=connected?'inline-flex':'none';slackEls.error.textContent=slackConnection.lastSyncError||'';}
+    async function loadSlackStatus(){try{const result=await slackGet('slack_status');renderSlack(result.connection);if(result.connection?.connected){selected.add('Slack');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='Slack');if(input)input.checked=true;update();}}catch(error){slackEls.status.textContent='Sign in required';slackEls.error.textContent=error.message;}}
+    function renderSlackData(){const users=slackData.users||[],channels=slackData.channels||[];document.querySelector('#slackUsersCount').textContent=users.length;document.querySelector('#slackChannelsCount').textContent=channels.length;document.querySelector('#slackPrivateCount').textContent=channels.filter(x=>x.isPrivate).length;let rows='';if(slackTab==='channels')rows=channels.map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name"># ${esc(x.name||'unnamed-channel')}</div><div class="gdrive-item-meta">${x.isPrivate?'Private':'Public'}${x.isMember?' · App is a member':''}${x.numMembers?` · ${Number(x.numMembers)} members`:''}${x.purpose?` · ${esc(x.purpose)}`:''}</div></div></article>`).join('');else rows=users.filter(x=>!x.deleted).map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc(x.displayName||x.realName||x.name||'Unnamed user')}</div><div class="gdrive-item-meta">${esc(x.email||x.name||'')}${x.isOwner?' · Owner':x.isAdmin?' · Admin':''}${x.isBot?' · Bot':''}</div></div></article>`).join('');slackEls.data.innerHTML=rows||'<div class="gcal-empty">No records returned for this section.</div>';}
+    async function loadSlackDashboard(showModal=true){slackEls.modalError.textContent='';slackEls.sync.disabled=true;slackEls.sync.textContent='Syncing…';try{const result=await slackRequest('slack_dashboard');slackData={users:result.users||[],channels:result.channels||[]};renderSlack(result.connection);renderSlackData();slackEls.success.textContent='Slack workspace synced.';if(result.warnings?.length)slackEls.modalError.textContent=result.warnings.join(' · ');if(showModal)show('#slackModal');}catch(error){slackEls.modalError.textContent=error.message;slackEls.error.textContent=error.message;if(showModal)show('#slackModal');}finally{slackEls.sync.disabled=false;slackEls.sync.textContent='Sync Now';}}
+    slackEls.connect.onclick=async()=>{slackEls.error.textContent='';slackEls.success.textContent='';slackEls.connect.disabled=true;try{const result=await slackGet('slack_connect');if(!result.authorizationUrl)throw new Error('Slack authorization URL was not returned.');location.href=result.authorizationUrl;}catch(error){slackEls.error.textContent=error.message;slackEls.connect.disabled=false;}};
+    slackEls.manage.onclick=()=>loadSlackDashboard(true);slackEls.sync.onclick=()=>loadSlackDashboard(false);document.querySelector('#slackClose').onclick=()=>hide('#slackModal');document.querySelectorAll('[data-slack-tab]').forEach(btn=>btn.onclick=()=>{slackTab=btn.dataset.slackTab;renderSlackData();});
+    slackEls.disconnect.onclick=async()=>{if(!confirm('Disconnect Slack from this Creative Creatures account? Slack workspace data will not be deleted.'))return;slackEls.disconnect.disabled=true;slackEls.error.textContent='';try{const result=await slackRequest('slack_disconnect');renderSlack(result.connection);slackData={users:[],channels:[]};slackEls.success.textContent='Slack disconnected.';selected.delete('Slack');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='Slack');if(input)input.checked=false;update();}catch(error){slackEls.error.textContent=error.message;}finally{slackEls.disconnect.disabled=false;}};
+    loadSlackStatus().then(()=>{const params=new URLSearchParams(location.search);if(params.get('slack')==='connected'&&slackConnection?.connected){history.replaceState({},'',location.pathname);slackEls.success.textContent='Slack connected successfully.';loadSlackDashboard(true);}});
 
     const categories = Object.keys(catalog);
     document.querySelector('#categorySelect').innerHTML = categories.map(x => `<option>${x}</option>`).join('');
