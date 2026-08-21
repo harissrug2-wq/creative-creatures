@@ -153,7 +153,9 @@ async function ensureGoogleDriveAccess(c,connection){
 }
 async function googleDriveConnectionAccess(c,accountId){const connection=await getGoogleDriveConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Google Drive first.'),{status:409});return ensureGoogleDriveAccess(c,connection)}
 function sanitizePickerItems(items){return(Array.isArray(items)?items:[]).map(item=>({id:clean(item?.id),name:clean(item?.name)||'Untitled',mimeType:clean(item?.mimeType),isFolder:Boolean(item?.isFolder||item?.mimeType==='application/vnd.google-apps.folder'),modifiedTime:item?.modifiedTime||null,createdTime:item?.createdTime||null,size:Number.isFinite(Number(item?.size))?Number(item.size):null,webViewLink:clean(item?.webViewLink),iconLink:clean(item?.iconLink),thumbnailLink:clean(item?.thumbnailLink),owners:Array.isArray(item?.owners)?item.owners.map(o=>({displayName:clean(o?.displayName),emailAddress:clean(o?.emailAddress)})):[],parents:Array.isArray(item?.parents)?item.parents.map(clean).filter(Boolean):[],trashed:Boolean(item?.trashed)})).filter(item=>item.id).slice(0,100)}
-\n\nconst SLACK_SELECT='id,account_id,team_id,team_name,team_domain,enterprise_id,enterprise_name,bot_user_id,connected_user_id,access_token_encrypted,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
+
+
+const SLACK_SELECT='id,account_id,team_id,team_name,team_domain,enterprise_id,enterprise_name,bot_user_id,connected_user_id,access_token_encrypted,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
 async function getSlackConnection(c,accountId){const rows=await db(c,`slack_connections?select=${SLACK_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
 function publicSlackConnection(row){return row?{connected:row.status==='connected',teamId:row.team_id||'',teamName:row.team_name||'',teamDomain:row.team_domain||'',enterpriseId:row.enterprise_id||'',enterpriseName:row.enterprise_name||'',botUserId:row.bot_user_id||'',connectedUserId:row.connected_user_id||'',scopes:Array.isArray(row.scopes)?row.scopes:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,teamId:'',teamName:'',teamDomain:'',enterpriseId:'',enterpriseName:'',botUserId:'',connectedUserId:'',scopes:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
 async function saveSlackConnection(c,accountId,patch){const existing=await getSlackConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`slack_connections?id=eq.${encodeURIComponent(existing.id)}&select=${SLACK_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`slack_connections?select=${SLACK_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
@@ -260,7 +262,8 @@ export default async function handler(req,res){
     const session=currentSession(req,secret);
     const action=clean(req.query?.action);
     if(req.method==='GET'){
-\n      if(action==='slack_connect'){
+
+      if(action==='slack_connect'){
         if(!session)return json(res,401,{error:'Sign in before connecting Slack.'});
         if(!slackConfig())return json(res,503,{error:'Slack environment variables are not configured.'});
         return json(res,200,{authorizationUrl:createSlackAuthorizationUrl(session.accountId)});
@@ -329,7 +332,8 @@ export default async function handler(req,res){
       const account=await completePasswordReset(c,token,password);const sessionToken=signSession({role:'account',accountId:account.id,email:account.email},secret,30*24*60*60);setSessionCookie(res,'cc_account_session',sessionToken,30*24*60*60);
       return json(res,200,{success:true,authenticated:true,account:pub(account)});
     }
-\n    if(bodyAction==='slack_callback'){
+
+    if(bodyAction==='slack_callback'){
       if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Slack.'});
       const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'Slack did not return the required authorization values.'});
       if(!verifySlackOAuthState(state,session.accountId))return json(res,403,{error:'Slack authorization state is invalid or expired.'});
