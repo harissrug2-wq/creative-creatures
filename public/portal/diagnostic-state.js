@@ -264,6 +264,17 @@
     if (source.integrationsComplete === true || source.integrations_complete === true) localStorage.setItem('agencyIntegrationsComplete','true');
     else if (options.replace === true) localStorage.removeItem('agencyIntegrationsComplete');
 
+    const selectedTools = Array.isArray(source.selectedTools)
+      ? source.selectedTools
+      : Array.isArray(source.selected_tools)
+        ? source.selected_tools
+        : null;
+    if (selectedTools) {
+      localStorage.setItem('agencySelectedTools', JSON.stringify([...new Set(selectedTools.map(value => String(value || '').trim()).filter(Boolean))]));
+    } else if (options.replace === true) {
+      localStorage.removeItem('agencySelectedTools');
+    }
+
     if (source.goalsComplete === true || source.goals_complete === true) localStorage.setItem('agencyGoalsComplete','true');
     else if (options.replace === true) localStorage.removeItem('agencyGoalsComplete');
 
@@ -280,6 +291,7 @@
       generatedAt: state.generatedAt,
       paymentComplete: localStorage.getItem('ccPaymentComplete') === 'true' || localStorage.getItem('agencyPaymentComplete') === 'true',
       integrationsComplete: localStorage.getItem('agencyIntegrationsComplete') === 'true',
+      selectedTools: safeJson(localStorage.getItem('agencySelectedTools'), []),
       goalsComplete: localStorage.getItem('agencyGoalsComplete') === 'true',
       updatedAt: localStorage.getItem('ccDiagnosticUpdatedAt') || new Date().toISOString()
     };

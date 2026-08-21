@@ -32,7 +32,7 @@
       Boolean(state.performance),
       Boolean(state.reportReady)
     ];
-    const labels = ['Identity Assessment','Payment','Integrations','Operations','Owner Dependency','Financial Performance','Diagnostic Ready'];
+    const labels = ['Identity Assessment','Payment','Integration Information','Operations','Owner Dependency','Financial Performance','Diagnostic Ready'];
     const current = done.findIndex(value => !value);
     return `<section class="diagnostic-status" aria-label="Agency Diagnostic progress">${labels.map((label,index) => {
       const cls = done[index] ? 'complete' : index === current ? 'current' : 'future';
@@ -84,7 +84,7 @@
         ['Integrations','/integrations/',true,'integrations'],['Diagnostic','/diagnostic/',true,'diagnostic'],['Agency Scorecard','/agency-scorecard/',state.reportReady,'scorecard'],['Agency Goals','/agency-goals/',goalsReady,'goals'],['Monitor','/platform/',monitorReady,'monitor'],['Portal','#',false,'portal']
       ];
       const paid = bool('ccPaymentComplete') || bool('agencyPaymentComplete');
-      if (paid && !state.reportReady) status = diagnosticStatus(state);
+      if (paid && !state.reportReady && active !== 'integrations') status = diagnosticStatus(state);
     }
 
     el.innerHTML = `

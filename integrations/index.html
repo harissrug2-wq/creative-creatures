@@ -3,361 +3,95 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="description" content="Select the back-office software used by your agency.">
+  <meta name="description" content="Manage the integrations selected for your Creative Creatures agency workspace.">
   <title>Integrations · Creative Creatures</title>
   <link rel="icon" href="/favicon.svg">
   <link rel="stylesheet" href="/portal/base.css">
   <style>
-    :root{--line:#e4e4df;--blue:#272cf3;--blue-soft:#eef0ff;--green:#109b4b;--green-soft:#eaf8ef;--muted:#5d6878;--bg:#fafaf8}
-    *{box-sizing:border-box}body{background:var(--bg)}
-    .wrap{width:calc(100% - 40px);margin:0 auto;padding:40px 0 72px}
-    .head-badge{display:inline-block;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:5px 12px;border-radius:999px;margin-bottom:12px}
-    .head{display:flex;justify-content:space-between;align-items:flex-end;gap:28px;margin-bottom:32px}.head h1{font-size:38px;line-height:1.07;letter-spacing:-.045em;margin:0 0 10px}.head p{font-size:16px;line-height:1.55;color:var(--muted);margin:0;max-width:790px}.summary{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;min-width:220px}.summary strong{display:block;font-size:22px;margin-bottom:4px}.summary span{font-size:12px;color:#8792a3}
-    .category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.category{background:#fff;border:1px solid var(--line);border-radius:16px;padding:22px;box-shadow:0 2px 10px rgba(0,0,0,.02)}.category h2{font-size:18px;margin:0 0 5px}.category>p{font-size:13px;color:var(--muted);margin:0 0 16px}.tools{display:flex;flex-wrap:wrap;gap:10px}.tool{position:relative;display:inline-flex;align-items:center;gap:9px;border:1px solid var(--line);background:#fbfbfa;border-radius:10px;padding:11px 14px;font-size:14px;color:#465161;cursor:pointer;transition:all .15s ease}.tool input{position:absolute;opacity:0}.tool:has(input:checked){border-color:#8e91ff;background:var(--blue-soft);color:#2227d8;box-shadow:0 0 0 1px rgba(39,44,243,.08)}.check{width:18px;height:18px;border:1px solid #bcc2cb;border-radius:4px;display:grid;place-items:center;font-size:11px}.tool:has(input:checked) .check{background:var(--blue);border-color:var(--blue);color:#fff}.tool:has(input:checked) .check:after{content:'✓'}
-    .footer{margin-top:32px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px 24px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:0 4px 16px rgba(0,0,0,.03)}.footer-copy{font-size:14px;color:var(--muted);line-height:1.5}.footer-copy strong{display:block;color:#1b2028;font-size:16px;margin-bottom:3px}.actions{display:flex;gap:12px}.button{min-height:52px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:0 24px;font-size:15px;font-weight:700;color:#4b5665;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;transition:all .2s ease}.button.primary{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 20px rgba(39,44,243,.2)}.button.primary:hover{background:#1d21d4;transform:translateY(-1px)}
-    .modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.45);backdrop-filter:blur(3px);z-index:200;display:none;place-items:center;padding:20px}.modal-backdrop.show{display:grid}.modal{width:min(560px,100%);background:#fff;border-radius:20px;border:1px solid var(--line);box-shadow:0 24px 70px rgba(0,0,0,.18);padding:32px}.modal h2{font-size:26px;letter-spacing:-.03em;margin:0 0 10px}.modal p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 24px}.queued{display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:center;border:1px solid #b9e0c7;background:#f8fdf9;border-radius:14px;padding:16px;margin:20px 0}.queued i{width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:18px}.queued strong{display:block;font-size:14px}.queued span{font-size:12px;color:var(--muted)}.modal-actions{display:flex;justify-content:flex-end;gap:12px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:12px;font-weight:600}.field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff;font-size:13px;outline:none}.field input:focus,.field select:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}.request-card{margin-top:24px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:20px}.request-card h3{font-size:16px;margin:0 0 4px}.request-card p{font-size:13px;color:var(--muted);margin:0}
-    .qb-card{margin:0 0 24px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:22px 24px;display:grid;grid-template-columns:56px minmax(0,1fr) auto;gap:18px;align-items:center;box-shadow:0 4px 16px rgba(0,0,0,.03)}.qb-logo{width:56px;height:56px;border-radius:15px;background:#edf8f1;color:#1a8a45;display:grid;place-items:center;font-size:22px;font-weight:900}.qb-copy h2{font-size:18px;margin:0 0 4px}.qb-copy p{font-size:13px;color:var(--muted);margin:0 0 8px}.qb-meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:#778396}.qb-status{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;background:#f1f2f5;color:#647080;font-weight:700}.qb-status.connected{background:var(--green-soft);color:var(--green)}.qb-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}.qb-error{margin-top:9px;font-size:12px;color:#a63333}.qb-success{margin-top:9px;font-size:12px;color:var(--green)}.button.small{min-height:42px;padding:0 16px;font-size:13px}.button.danger{color:#a63333}.button[disabled]{opacity:.55;cursor:not-allowed;transform:none!important}.qb-sync-note{font-size:12px;color:#7b8797;margin-top:8px}
-
-    .gcal-logo{width:56px;height:56px;border-radius:15px;background:#eef4ff;color:#1a73e8;display:grid;place-items:center;font-size:18px;font-weight:900}.gdrive-logo{width:56px;height:56px;border-radius:15px;background:#eef7ee;color:#188038;display:grid;place-items:center;font-size:20px;font-weight:900}.gdrive-items{display:grid;gap:10px;margin-top:16px}.gdrive-item{border:1px solid var(--line);border-radius:12px;padding:13px 14px;display:flex;gap:14px;justify-content:space-between;align-items:center;background:#fbfbfa}.gdrive-item-main{min-width:0}.gdrive-item-name{font-weight:700;font-size:14px;color:#222a35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gdrive-item-meta{font-size:12px;color:#728094;margin-top:4px}.gdrive-item-actions{display:flex;gap:8px;flex:none}.gdrive-empty{padding:18px;border:1px dashed var(--line);border-radius:12px;color:#7b8797;font-size:13px;text-align:center}.gcal-panel{display:none;grid-column:1/-1;border-top:1px solid var(--line);padding-top:18px;margin-top:2px}.gcal-panel.show{display:block}.gcal-toolbar{display:flex;gap:10px;align-items:end;flex-wrap:wrap}.gcal-toolbar .field{min-width:260px;flex:1}.gcal-events{display:grid;gap:10px;margin-top:16px}.gcal-event{border:1px solid var(--line);border-radius:12px;padding:13px 14px;display:flex;gap:14px;justify-content:space-between;align-items:center;background:#fbfbfa}.gcal-event-main{min-width:0}.gcal-event-title{font-weight:700;font-size:14px;color:#222a35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.gcal-event-time{font-size:12px;color:#728094;margin-top:4px}.gcal-event-actions{display:flex;gap:8px;flex:none}.gcal-empty{padding:18px;border:1px dashed var(--line);border-radius:12px;color:#7b8797;font-size:13px;text-align:center}.field textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff;font-size:13px;outline:none;min-height:92px;resize:vertical}.field textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}.inline-check{display:flex;align-items:center;gap:8px;font-size:13px;color:#4b5665}.inline-check input{width:auto}.event-date-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.event-date-grid.hidden{display:none}
-    @media(max-width:800px){.wrap{width:calc(100% - 26px);padding-top:28px}.head{align-items:flex-start;flex-direction:column}.summary{width:100%}.category-grid{grid-template-columns:1fr}.qb-card{grid-template-columns:48px 1fr}.qb-logo,.gcal-logo,.gdrive-logo{width:48px;height:48px}.qb-actions{grid-column:1/-1;justify-content:stretch}.qb-actions .button{flex:1}.footer,.request-card{align-items:flex-start;flex-direction:column}.actions,.actions .button,.request-card .button{width:100%}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}}
-      /* CC_SLACK_RESPONSIVE_V1 */
-    #slackModal{
-      padding:12px;
-      overflow-y:auto;
-      overscroll-behavior:contain;
-    }
-    #slackModal .modal{
-      width:min(900px,calc(100vw - 24px)) !important;
-      max-width:900px;
-      max-height:calc(100dvh - 24px);
-      overflow-y:auto;
-      overflow-x:hidden;
-      margin:auto;
-      padding:28px;
-    }
-    #slackModal #slackData{
-      max-height:min(430px,42dvh) !important;
-      overflow:auto !important;
-      -webkit-overflow-scrolling:touch;
-    }
-    #slackModal .gdrive-item{
-      min-width:0;
-    }
-    #slackModal .gdrive-item-main{
-      min-width:0;
-      overflow-wrap:anywhere;
-    }
-
-    @media(max-width:800px){
-      .category-grid{
-        grid-template-columns:1fr !important;
-      }
-
-      #slackModal{
-        place-items:start center;
-        padding:8px;
-      }
-      #slackModal .modal{
-        width:calc(100vw - 16px) !important;
-        max-height:calc(100dvh - 16px);
-        border-radius:16px;
-        padding:18px 16px;
-      }
-      #slackModal .modal > div[style*="grid-template-columns:repeat(3"]{
-        grid-template-columns:1fr !important;
-      }
-      #slackModal .queued{
-        min-width:0;
-      }
-      #slackModal #slackData{
-        max-height:45dvh !important;
-      }
-      #slackModal .modal-actions{
-        position:sticky;
-        bottom:0;
-        background:#fff;
-        padding-top:12px;
-        padding-bottom:2px;
-      }
-      #slackModal .modal-actions .button{
-        width:100%;
-      }
-    }
-
-    @media(max-width:480px){
-      #slackModal .modal{
-        padding:16px 12px;
-      }
-      #slackModal h2{
-        font-size:22px;
-      }
-      #slackModal #slackData{
-        max-height:40dvh !important;
-      }
-    }
+    :root{--bg:#f8f8f6;--card:#fff;--line:#e7e7e2;--text:#17191f;--muted:#758092;--blue:#272cf3;--green:#159a50;--green-soft:#edf9f1;--amber:#b77a00;--amber-soft:#fff8e5;--red:#c33b34;--red-soft:#fff1f0}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}
+    .page{width:calc(100% - 40px);margin:0 auto;padding:32px 0 80px}
+    .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:20px}
+    .hero h1{font-size:38px;letter-spacing:-.04em;margin:0 0 8px}.hero p{max-width:720px;color:#667386;font-size:14px;line-height:1.55;margin:0}
+    .btn{border:1px solid var(--line);background:#fff;color:#4c5969;border-radius:10px;min-height:40px;padding:0 16px;font-weight:750;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;white-space:nowrap}
+    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 16px rgba(39,44,243,.17)}.btn.danger{color:var(--red);border-color:#f0c9c5}.btn[disabled]{opacity:.55;cursor:not-allowed}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:20px 0 24px}
+    .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}.stat label{display:block;color:#7c8796;text-transform:uppercase;letter-spacing:.08em;font-size:10px;font-weight:800;margin-bottom:7px}.stat strong{display:block;font-size:30px;letter-spacing:-.04em;line-height:1}.stat small{display:block;color:#94a0ae;font-size:11px;margin-top:7px}.stat .green{color:var(--green)}.stat .amber{color:#b98300}
+    #emptyState{background:#fff;border:1px solid var(--line);border-radius:16px;padding:44px;text-align:center}.empty-icon{font-size:34px;margin-bottom:10px}#emptyState h2{margin:0 0 8px}#emptyState p{color:var(--muted);margin:0 auto 18px;max-width:560px}
+    .groups{display:grid;gap:16px}.group{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    .group-head{padding:15px 18px;border-bottom:1px solid #efefeb;display:flex;justify-content:space-between;gap:14px;align-items:center}.group-title{display:flex;align-items:center;gap:9px}.group-title h2{font-size:17px;margin:0}.group-tag{font-size:10px;border-radius:999px;padding:4px 8px;background:#edf8f1;color:#158347;border:1px solid #ccebd6}.group-feed{font-size:11px;color:#9aa5b2}
+    .integration-row{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;align-items:center;padding:15px 18px;border-top:1px solid #f0f0ed}.integration-row:first-of-type{border-top:0}
+    .logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:900;font-size:12px;color:#fff}
+    .row-main{min-width:0}.row-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.row-title strong{font-size:14px}.active-source{font-size:9px;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:3px 6px;background:#ecf9f0;color:#188549;border:1px solid #caecd5}
+    .row-copy{color:#7a8797;font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .status{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#f7f8f8;color:#718091;border-radius:999px;padding:6px 10px;font-size:11px;white-space:nowrap}.status:before{content:'';width:7px;height:7px;border-radius:50%;background:#aeb6c0}.status.connected{background:var(--green-soft);border-color:#d2ecda;color:#27804b}.status.connected:before{background:#22ad5a}.status.error{background:var(--red-soft);border-color:#f3d1ce;color:#a73a35}.status.error:before{background:#d45149}.status.provisioning{background:var(--amber-soft);border-color:#f3e1b0;color:#9b6e00}.status.provisioning:before{background:#e3a500}
+    .working{background:var(--amber-soft);border:1px solid #ecd59b;color:#946600;border-radius:999px;padding:7px 11px;font-size:11px}
+    .footnote{font-size:10px;color:#98a4b1;margin-top:18px}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.46);backdrop-filter:blur(3px);z-index:300;display:none;place-items:center;padding:16px;overflow-y:auto}.modal-backdrop.show{display:grid}
+    .modal{width:min(920px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.2)}
+    .modal h2{margin:0 0 7px;font-size:25px}.modal>p{margin:0 0 18px;color:var(--muted);line-height:1.5;font-size:13px}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;position:sticky;bottom:-26px;background:#fff;padding:12px 0 2px}
+    .modal-error{color:#a63333;font-size:12px;margin:10px 0}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.data-list{display:grid;gap:9px;max-height:430px;overflow:auto;border:1px solid #e6e7eb;border-radius:13px;padding:12px}.data-item{border:1px solid var(--line);border-radius:11px;padding:12px 13px;background:#fbfbfa}.data-item strong{display:block;font-size:13px}.data-item span{display:block;color:#728094;font-size:11px;margin-top:4px;overflow-wrap:anywhere}
+    .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.metric{border:1px solid #cde8d5;background:#f8fdf9;border-radius:12px;padding:14px}.metric strong{font-size:20px;display:block}.metric span{font-size:11px;color:#6f7d8d}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.field{display:grid;gap:5px;min-width:220px;flex:1}.field label{font-size:11px;font-weight:750}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:12px}.field textarea{min-height:85px;resize:vertical}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field.full{grid-column:1/-1}
+    @media(max-width:900px){.page{width:calc(100% - 26px);padding-top:24px}.hero{flex-direction:column}.hero .btn{width:100%}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-row{grid-template-columns:38px minmax(0,1fr)}.row-actions{grid-column:1/-1;justify-content:flex-start;padding-left:50px}.group-feed{display:none}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    @media(max-width:600px){.stats{grid-template-columns:1fr 1fr}.stat{padding:15px}.stat strong{font-size:25px}.group-head{align-items:flex-start}.integration-row{padding:14px}.row-actions{padding-left:0}.row-actions>*{flex:1}.row-actions .status{flex:0 0 100%;justify-content:center}.modal{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:18px 14px;border-radius:14px}.metric-grid,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions .btn{width:100%}.row-copy{white-space:normal}}
   </style>
 </head>
 <body>
   <div data-app-header="integrations"></div>
-  <main class="wrap">
-    <header class="head">
+  <main class="page">
+    <header class="hero">
       <div>
-        <span class="head-badge">Integrations</span>
-        <h1>Which Back Office Software Do You Use?</h1>
-        <p>As part of your Back Office Systems Analysis we need to know which software you use. This analysis takes the longest so we start here. Select all that apply.</p>
+        <h1>Integrations</h1>
+        <p>Connect the tools your agency uses. This dashboard is generated from the software selected in Integration Information, so each agency sees only its own relevant integration stack.</p>
       </div>
-      <aside class="summary">
-        <strong id="selectedCount">0 Tools Selected</strong>
-        <span>Your selections auto-save instantly.</span>
-      </aside>
+      <a class="btn primary" href="/integration-information/?request=1">＋ Request integration</a>
     </header>
 
-    <section class="qb-card" id="quickbooksCard">
-      <div class="qb-logo">qb</div>
-      <div class="qb-copy">
-        <h2>QuickBooks Online</h2>
-        <p>Connect accounting data directly to the Agency Performance Index. PDF upload remains available as a fallback.</p>
-        <div class="qb-meta"><span class="qb-status" id="qbStatus">Not connected</span><span id="qbCompany"></span><span id="qbSynced"></span></div>
-        <div class="qb-sync-note" id="qbNote">Syncs Profit & Loss, Balance Sheet, A/R Aging, Client Revenue and Service Revenue.</div>
-        <div class="qb-error" id="qbError"></div><div class="qb-success" id="qbSuccess"></div>
-      </div>
-      <div class="qb-actions">
-        <button class="button primary small" id="qbConnect">Connect QuickBooks</button>
-        <button class="button small" id="qbSync" style="display:none">Sync Now</button>
-        <button class="button danger small" id="qbDisconnect" style="display:none">Disconnect</button>
-      </div>
+    <section class="stats">
+      <article class="stat"><label>Connected</label><strong id="connectedStat">0 / 0</strong><small id="categoryStat">across 0 categories</small></article>
+      <article class="stat"><label>Healthy</label><strong class="green" id="healthyStat">0</strong><small>connected without errors</small></article>
+      <article class="stat"><label>Needs Attention</label><strong class="amber" id="attentionStat">0</strong><small>re-auth / errors</small></article>
+      <article class="stat"><label>Empty Categories</label><strong id="emptyStat">0</strong><small>selected categories only</small></article>
     </section>
 
-    <section class="qb-card" id="googleCalendarCard">
-      <div class="gcal-logo">31</div>
-      <div class="qb-copy">
-        <h2>Google Calendar</h2>
-        <p>Connect the agency calendar to view upcoming meetings and create, edit or cancel events from Creative Creatures.</p>
-        <div class="qb-meta"><span class="qb-status" id="gcalStatus">Not connected</span><span id="gcalAccount"></span><span id="gcalCalendar"></span></div>
-        <div class="qb-sync-note" id="gcalNote">Uses the selected Google calendar. Calendar events are read live from Google.</div>
-        <div class="qb-error" id="gcalError"></div><div class="qb-success" id="gcalSuccess"></div>
-      </div>
-      <div class="qb-actions">
-        <button class="button primary small" id="gcalConnect">Connect Google Calendar</button>
-        <button class="button small" id="gcalManage" style="display:none">Manage Calendar</button>
-        <button class="button danger small" id="gcalDisconnect" style="display:none">Disconnect</button>
-      </div>
+    <section id="emptyState" hidden>
+      <div class="empty-icon">⌁</div>
+      <h2>No integration tools selected yet</h2>
+      <p>Choose the software your agency uses first. Only those systems will appear on this dashboard.</p>
+      <a class="btn primary" href="/integration-information/">Open Integration Information</a>
     </section>
 
-    <section class="qb-card" id="googleDriveCard">
-      <div class="gdrive-logo">D</div>
-      <div class="qb-copy">
-        <h2>Google Drive</h2>
-        <p>Connect Drive and explicitly choose the files or folders Creative Creatures can use. Your full Drive is never automatically exposed.</p>
-        <div class="qb-meta"><span class="qb-status" id="gdriveStatus">Not connected</span><span id="gdriveAccount"></span><span id="gdriveSelected"></span></div>
-        <div class="qb-sync-note" id="gdriveNote">Uses Google Picker with the least-privilege drive.file scope.</div>
-        <div class="qb-error" id="gdriveError"></div><div class="qb-success" id="gdriveSuccess"></div>
-      </div>
-      <div class="qb-actions">
-        <button class="button primary small" id="gdriveConnect">Connect Google Drive</button>
-        <button class="button small" id="gdriveManage" style="display:none">Manage Files</button>
-        <button class="button danger small" id="gdriveDisconnect" style="display:none">Disconnect</button>
-      </div>
-    </section>
-
-
-    <section class="qb-card" id="hubspotCard">
-      <div class="gdrive-logo" style="background:#fff1e8;color:#ff5c35">H</div>
-      <div class="qb-copy">
-        <h2>HubSpot</h2>
-        <p>Connect your HubSpot portal to view CRM contacts, companies, deals, pipelines and sales activity inside Creative Creatures.</p>
-        <div class="qb-meta"><span class="qb-status" id="hubspotStatus">Not connected</span><span id="hubspotAccount"></span><span id="hubspotSynced"></span></div>
-        <div class="qb-sync-note">Read-only CRM connection. Creative Creatures does not modify HubSpot records.</div>
-        <div class="qb-error" id="hubspotError"></div><div class="qb-success" id="hubspotSuccess"></div>
-      </div>
-      <div class="qb-actions">
-        <button class="button primary small" id="hubspotConnect">Connect HubSpot</button>
-        <button class="button small" id="hubspotManage" style="display:none">Manage CRM</button>
-        <button class="button small" id="hubspotSync" style="display:none">Sync Now</button>
-        <button class="button danger small" id="hubspotDisconnect" style="display:none">Disconnect</button>
-      </div>
-    </section>
-
-
-    <section class="qb-card" id="slackCard">
-      <div class="gdrive-logo" style="background:#f4f1ff;color:#4a154b">S</div>
-      <div class="qb-copy">
-        <h2>Slack</h2>
-        <p>Connect the agency Slack workspace to view users and accessible public/private channels inside Creative Creatures.</p>
-        <div class="qb-meta"><span class="qb-status" id="slackStatus">Not connected</span><span id="slackWorkspace"></span><span id="slackSynced"></span></div>
-        <div class="qb-sync-note">Workspace overview only. Message history is not requested or read.</div>
-        <div class="qb-error" id="slackError"></div><div class="qb-success" id="slackSuccess"></div>
-      </div>
-      <div class="qb-actions">
-        <button class="button primary small" id="slackConnect">Connect Slack</button>
-        <button class="button small" id="slackManage" style="display:none">Manage Workspace</button>
-        <button class="button small" id="slackSync" style="display:none">Sync Now</button>
-        <button class="button danger small" id="slackDisconnect" style="display:none">Disconnect</button>
-      </div>
-    </section>
-
-    <section class="category-grid" id="categoryGrid"></section>
-    
-    <section class="request-card">
-      <div>
-        <h3>Don’t see a system you use?</h3>
-        <p>Submit the vendor and category. We will add it to the integration request queue.</p>
-      </div>
-      <button class="button" id="requestButton">Request Integration</button>
-    </section>
-
-    <footer class="footer">
-      <div class="footer-copy">
-        <strong id="summaryTitle">No systems selected yet</strong>
-        <span id="summaryCopy">If you skip selecting any systems, don’t worry, we’ll flag it as a data gap for you.</span>
-      </div>
-      <div class="actions">
-        <button class="button primary large" id="submitButton">Submit &amp; Next →</button>
-      </div>
-    </footer>
+    <section class="groups" id="groups"></section>
+    <p class="footnote">Connect → OAuth handshake → token stored for this agency account → explicit Sync Now where applicable. Financial data is not pushed into the Agency Performance Index until you trigger a sync.</p>
   </main>
 
-  <div class="modal-backdrop" id="thanksModal">
+  <div class="modal-backdrop" id="dataModal">
     <section class="modal">
-      <h2>Thank you - you’re off to the races!</h2>
-      <p>Now that we know which back office software you use, it’s time to take a look at where we are in the data gathering process before you take next steps.</p>
-      <div class="queued">
-        <i>✓</i>
-        <div>
-          <strong>Back Office Integrations Queued</strong>
-          <span id="queuedText">Your selected tools are saved.</span>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button class="button primary" id="nextButton">Next</button>
-      </div>
+      <h2 id="modalTitle">Integration</h2>
+      <p id="modalCopy"></p>
+      <div id="modalBody"></div>
+      <div class="modal-error" id="modalError"></div>
+      <div class="modal-actions"><button class="btn" id="modalClose">Close</button></div>
     </section>
   </div>
 
-  <div class="modal-backdrop" id="gcalModal">
-    <section class="modal" style="width:min(760px,100%)">
-      <h2>Google Calendar</h2>
-      <p>Choose the calendar Creative Creatures should use, then manage upcoming meetings.</p>
-      <div class="gcal-toolbar">
-        <div class="field"><label>Default calendar</label><select id="gcalCalendarSelect"></select></div>
-        <button class="button small" id="gcalSaveCalendar">Use this calendar</button>
-        <button class="button primary small" id="gcalNewEvent">+ New Event</button>
-      </div>
-      <div class="qb-error" id="gcalModalError"></div>
-      <div class="gcal-events" id="gcalEvents"><div class="gcal-empty">Loading upcoming events…</div></div>
-      <div class="modal-actions" style="margin-top:20px"><button class="button" id="gcalClose">Close</button></div>
-    </section>
-  </div>
-
-  <div class="modal-backdrop" id="gcalEventModal">
-    <section class="modal">
-      <h2 id="gcalEventHeading">Create Event</h2>
-      <p>Create the event on the selected Google calendar. Invitations are sent to attendees by Google.</p>
-      <input type="hidden" id="gcalEventId">
+  <div class="modal-backdrop" id="eventModal">
+    <section class="modal" style="width:min(620px,calc(100vw - 32px))">
+      <h2 id="eventHeading">Create Event</h2>
+      <p>Create or edit an event on the selected Google calendar.</p>
+      <input type="hidden" id="eventId">
       <div class="form-grid">
-        <div class="field full"><label>Title</label><input id="gcalEventTitle" placeholder="Meeting title"></div>
-        <div class="field full"><label class="inline-check"><input type="checkbox" id="gcalAllDay"> All-day event</label></div>
-        <div class="event-date-grid field full" id="gcalTimedFields">
-          <div class="field"><label>Start</label><input id="gcalStart" type="datetime-local"></div>
-          <div class="field"><label>End</label><input id="gcalEnd" type="datetime-local"></div>
-        </div>
-        <div class="event-date-grid field full hidden" id="gcalAllDayFields">
-          <div class="field"><label>Start date</label><input id="gcalStartDate" type="date"></div>
-          <div class="field"><label>End date</label><input id="gcalEndDate" type="date"></div>
-        </div>
-        <div class="field full"><label>Location</label><input id="gcalLocation" placeholder="Optional"></div>
-        <div class="field full"><label>Attendees</label><input id="gcalAttendees" placeholder="name@example.com, second@example.com"></div>
-        <div class="field full"><label>Description</label><textarea id="gcalDescription" placeholder="Optional meeting notes"></textarea></div>
+        <div class="field full"><label>Title</label><input id="eventTitle"></div>
+        <div class="field"><label>Start</label><input id="eventStart" type="datetime-local"></div>
+        <div class="field"><label>End</label><input id="eventEnd" type="datetime-local"></div>
+        <div class="field full"><label>Location</label><input id="eventLocation"></div>
+        <div class="field full"><label>Attendees</label><input id="eventAttendees" placeholder="name@example.com, second@example.com"></div>
+        <div class="field full"><label>Description</label><textarea id="eventDescription"></textarea></div>
       </div>
-      <div class="qb-error" id="gcalEventError"></div>
-      <div class="modal-actions" style="margin-top:20px">
-        <button class="button" id="gcalCancelEvent">Cancel</button>
-        <button class="button primary" id="gcalSaveEvent">Save Event</button>
-      </div>
-    </section>
-  </div>
-
-  <div class="modal-backdrop" id="gdriveModal">
-    <section class="modal" style="width:min(760px,100%)">
-      <h2>Google Drive</h2>
-      <p>Select only the files and folders this Creative Creatures account should be able to reference. Existing selections stay connected until you remove them.</p>
-      <div class="qb-actions" style="justify-content:flex-start;margin-bottom:8px">
-        <button class="button primary small" id="gdriveChoose">+ Choose Files / Folders</button>
-        <button class="button small" id="gdriveRefresh">Refresh Files</button>
-      </div>
-      <div class="qb-error" id="gdriveModalError"></div>
-      <div class="gdrive-items" id="gdriveItems"><div class="gdrive-empty">No Drive files selected yet.</div></div>
-      <div class="modal-actions" style="margin-top:20px"><button class="button" id="gdriveClose">Close</button></div>
-    </section>
-  </div>
-
-
-  <div class="modal-backdrop" id="slackModal">
-    <section class="modal" style="width:min(900px,100%)">
-      <h2>Slack Workspace</h2>
-      <p>Live workspace information for the Slack workspace connected to this Creative Creatures account. Message content is not accessed.</p>
-      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:16px 0">
-        <div class="queued" style="margin:0"><div><strong id="slackUsersCount">0</strong><span>Users loaded</span></div></div>
-        <div class="queued" style="margin:0"><div><strong id="slackChannelsCount">0</strong><span>Channels visible</span></div></div>
-        <div class="queued" style="margin:0"><div><strong id="slackPrivateCount">0</strong><span>Private channels accessible</span></div></div>
-      </div>
-      <div class="qb-error" id="slackModalError"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <button class="button small" data-slack-tab="channels">Channels</button>
-        <button class="button small" data-slack-tab="users">Users</button>
-      </div>
-      <div id="slackData" style="max-height:430px;overflow:auto;border:1px solid #e6e7eb;border-radius:14px;padding:12px"><div class="gcal-empty">Loading Slack workspace…</div></div>
-      <div class="modal-actions" style="margin-top:20px"><button class="button" id="slackClose">Close</button></div>
-    </section>
-  </div>
-
-
-  <div class="modal-backdrop" id="hubspotModal">
-    <section class="modal" style="width:min(920px,100%)">
-      <h2>HubSpot CRM</h2>
-      <p>Live CRM data from the HubSpot portal connected to this Creative Creatures account.</p>
-      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0">
-        <div class="queued" style="margin:0"><div><strong id="hubspotContactsCount">0</strong><span>Contacts loaded</span></div></div>
-        <div class="queued" style="margin:0"><div><strong id="hubspotCompaniesCount">0</strong><span>Companies loaded</span></div></div>
-        <div class="queued" style="margin:0"><div><strong id="hubspotDealsCount">0</strong><span>Deals loaded</span></div></div>
-        <div class="queued" style="margin:0"><div><strong id="hubspotPipelinesCount">0</strong><span>Pipelines</span></div></div>
-      </div>
-      <div class="qb-error" id="hubspotModalError"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <button class="button small" data-hubspot-tab="deals">Deals</button>
-        <button class="button small" data-hubspot-tab="contacts">Contacts</button>
-        <button class="button small" data-hubspot-tab="companies">Companies</button>
-        <button class="button small" data-hubspot-tab="pipelines">Pipelines</button>
-      </div>
-      <div id="hubspotData" style="max-height:430px;overflow:auto;border:1px solid #e6e7eb;border-radius:14px;padding:12px"><div class="gcal-empty">Loading HubSpot data…</div></div>
-      <div class="modal-actions" style="margin-top:20px"><button class="button" id="hubspotClose">Close</button></div>
-    </section>
-  </div>
-
-  <div class="modal-backdrop" id="requestModal">
-    <section class="modal">
-      <h2>Request an Integration</h2>
-      <p>We will record the request and confirm it for your diagnostic workspace.</p>
-      <div class="form-grid">
-        <div class="field"><label>First Name</label><input id="firstName"></div>
-        <div class="field"><label>Email</label><input id="email" type="email"></div>
-        <div class="field"><label>Back Office Category</label><select id="categorySelect"></select></div>
-        <div class="field"><label>Software Vendor Name</label><input id="vendorName" placeholder="Vendor name"></div>
-      </div>
-      <div class="modal-actions" style="margin-top:20px">
-        <button class="button" data-close-request>Cancel</button>
-        <button class="button primary" id="sendRequest">Submit Request</button>
-      </div>
-    </section>
-  </div>
-
-  <div class="modal-backdrop" id="requestThanks">
-    <section class="modal">
-      <h2>Thank you for submitting this!</h2>
-      <p>Your integration request has been recorded for this diagnostic session.</p>
-      <div class="modal-actions">
-        <button class="button primary" id="backIntegrations">Back to the platform</button>
-      </div>
+      <div class="modal-error" id="eventError"></div>
+      <div class="modal-actions"><button class="btn" id="eventCancel">Cancel</button><button class="btn primary" id="eventSave">Save Event</button></div>
     </section>
   </div>
 
@@ -366,184 +100,272 @@
   <script src="/portal/account-client.js"></script>
   <script src="/portal/app-shell.js"></script>
   <script>
-    const catalog = {
-      'CRM': ['GoHighLevel', 'HubSpot', 'Salesforce', 'Pipedrive', 'Keap', 'Zoho CRM'],
-      'Bookkeeping': ['QuickBooks Online', 'Xero', 'Sage', 'FreshBooks', 'NetSuite'],
-      'Project Management': ['ClickUp', 'Asana', 'Monday.com', 'Teamwork', 'Jira', 'Basecamp'],
-      'Communications': ['Slack', 'Microsoft Teams', 'Google Chat'],
-      'Calendar & Meetings': ['Google Calendar', 'Outlook Calendar', 'Zoom', 'Calendly'],
-      'Central Drive': ['Google Drive', 'Dropbox', 'OneDrive', 'Box'],
-      'HR & People': ['Gusto', 'BambooHR', 'Rippling', 'ADP', 'Justworks'],
-      'Billing': ['Stripe', 'Square', 'PayPal', 'Chargebee', 'Bill.com'],
-      'IT & Security': ['Keeper', 'Bitwarden', '1Password', 'Cloudflare', 'Okta']
+    const safeJson=(v,f)=>{try{return JSON.parse(v)??f}catch{return f}};
+    const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    const selected=Array.from(new Set(safeJson(localStorage.getItem('agencySelectedTools'),[]))).filter(Boolean);
+
+    const meta={
+      'QuickBooks Online':{group:'Finance & Billing',code:'QB',color:'#2ca01c',copy:'OAuth2 · P&L · A/R · expenses',status:'quickbooks_status',connect:'quickbooks_connect',sync:'quickbooks_sync',disconnect:'quickbooks_disconnect'},
+      'Xero':{group:'Finance & Billing',code:'Xe',color:'#13b5ea',copy:'Accounting · invoices · expenses'},
+      'Sage':{group:'Finance & Billing',code:'Sg',color:'#00a376',copy:'Accounting · reporting'},
+      'FreshBooks':{group:'Finance & Billing',code:'Fb',color:'#0075dd',copy:'Invoices · expenses · clients'},
+      'NetSuite':{group:'Finance & Billing',code:'Ns',color:'#425563',copy:'ERP · finance · reporting'},
+      'Stripe':{group:'Finance & Billing',code:'St',color:'#635bff',copy:'OAuth2 · charges · invoices · subscriptions'},
+      'Square':{group:'Finance & Billing',code:'Sq',color:'#111',copy:'Payments · customers · orders'},
+      'PayPal':{group:'Finance & Billing',code:'PP',color:'#0070ba',copy:'Payments · transactions'},
+      'Chargebee':{group:'Finance & Billing',code:'Cb',color:'#6c48ff',copy:'Subscriptions · invoices'},
+      'Bill.com':{group:'Finance & Billing',code:'Bi',color:'#0068ff',copy:'AP · AR · payments'},
+      'GoHighLevel':{group:'CRM',code:'GH',color:'#168ce5',copy:'OAuth2 · location-scoped · contacts · pipelines · calls'},
+      'HubSpot':{group:'CRM',code:'Hs',color:'#ff5c35',copy:'OAuth2 · contacts · deals · email events',status:'hubspot_status',connect:'hubspot_connect',sync:'hubspot_dashboard',disconnect:'hubspot_disconnect',manage:'hubspot'},
+      'Salesforce':{group:'CRM',code:'Sf',color:'#00a1e0',copy:'CRM · accounts · opportunities'},
+      'Pipedrive':{group:'CRM',code:'Pd',color:'#22a06b',copy:'Deals · contacts · activities'},
+      'Keap':{group:'CRM',code:'Kp',color:'#ff6b4a',copy:'Contacts · sales · automation'},
+      'Zoho CRM':{group:'CRM',code:'Zo',color:'#e94134',copy:'CRM · leads · deals'},
+      'ClickUp':{group:'Project Management',code:'Cu',color:'#7b68ee',copy:'OAuth2 · tasks · projects · time'},
+      'Asana':{group:'Project Management',code:'As',color:'#f06a6a',copy:'Projects · tasks · teams'},
+      'Monday.com':{group:'Project Management',code:'Mo',color:'#ff3d57',copy:'OAuth2 · boards · items · updates'},
+      'Teamwork':{group:'Project Management',code:'Tw',color:'#ef2929',copy:'API key · projects · tasks · time'},
+      'Jira':{group:'Project Management',code:'Ji',color:'#0052cc',copy:'Projects · issues · sprints'},
+      'Basecamp':{group:'Project Management',code:'Ba',color:'#63b954',copy:'Projects · to-dos · messages'},
+      'Slack':{group:'Communication',code:'Sl',color:'#4a154b',copy:'OAuth2 · channels · users · workspace',status:'slack_status',connect:'slack_connect',sync:'slack_dashboard',disconnect:'slack_disconnect',manage:'slack'},
+      'Microsoft Teams':{group:'Communication',code:'Ms',color:'#6264a7',copy:'Teams · channels · meetings'},
+      'Google Chat':{group:'Communication',code:'Gc',color:'#00ac47',copy:'Spaces · members · messages'},
+      'Google Calendar':{group:'Calendar & Meetings',code:'31',color:'#4285f4',copy:'OAuth2 · calendars · events',status:'google_calendar_status',connect:'google_calendar_connect',disconnect:'google_calendar_disconnect',manage:'calendar'},
+      'Outlook Calendar':{group:'Calendar & Meetings',code:'Oc',color:'#0078d4',copy:'Microsoft 365 · calendars · events'},
+      'Zoom':{group:'Calendar & Meetings',code:'Zm',color:'#2d8cff',copy:'Meetings · webinars · users'},
+      'Calendly':{group:'Calendar & Meetings',code:'Ca',color:'#006bff',copy:'Scheduling · event types · invitees'},
+      'Google Drive':{group:'Document Storage',code:'Dr',color:'#1a73e8',copy:'OAuth2 · files · folders · revisions',status:'google_drive_status',connect:'google_drive_connect',sync:'google_drive_refresh',disconnect:'google_drive_disconnect',manage:'drive'},
+      'Dropbox':{group:'Document Storage',code:'Db',color:'#0061ff',copy:'Files · folders · sharing'},
+      'OneDrive':{group:'Document Storage',code:'Od',color:'#0078d4',copy:'Files · folders · Microsoft 365'},
+      'Box':{group:'Document Storage',code:'Bx',color:'#0061d5',copy:'Files · folders · collaboration'},
+      'Gusto':{group:'HR & People',code:'Gu',color:'#f45d48',copy:'Payroll · people · benefits'},
+      'BambooHR':{group:'HR & People',code:'Bh',color:'#73bd43',copy:'Employees · time off · HRIS'},
+      'Rippling':{group:'HR & People',code:'Rp',color:'#f4cf00',copy:'People · payroll · devices'},
+      'ADP':{group:'HR & People',code:'AD',color:'#d0271d',copy:'Payroll · workforce · HR'},
+      'Justworks':{group:'HR & People',code:'Jw',color:'#f97316',copy:'Payroll · benefits · HR'},
+      'Keeper':{group:'IT & Security',code:'Ke',color:'#ffc400',copy:'Vault · security posture'},
+      'Bitwarden':{group:'IT & Security',code:'Bw',color:'#175ddc',copy:'Vault · organizations · security'},
+      '1Password':{group:'IT & Security',code:'1P',color:'#0a61ff',copy:'Vault · users · security'},
+      'Cloudflare':{group:'IT & Security',code:'Cf',color:'#f48120',copy:'DNS · security · traffic'},
+      'Okta':{group:'IT & Security',code:'Ok',color:'#007dc1',copy:'Identity · SSO · users'}
+    };
+    const groupFeeds={
+      'Finance & Billing':'feeds: Billing · Finance',
+      'CRM':'feeds: Marketing · Sales',
+      'Project Management':'feeds: Onboarding · Service Delivery · Client Success',
+      'Communication':'feeds: Communication · Client Success',
+      'Calendar & Meetings':'feeds: Scheduling · Operations',
+      'Document Storage':'feeds: SOPs',
+      'HR & People':'feeds: Talent · Operations',
+      'IT & Security':'feeds: Systems · Security'
     };
 
-    const saved = JSON.parse(localStorage.getItem('agencySelectedTools') || '[]');
-    const selected = new Set(saved);
-    const grid = document.querySelector('#categoryGrid');
-    grid.innerHTML = Object.entries(catalog).map(([category, tools]) => `
-      <article class="category">
-        <h2>${category}</h2>
-        <p>Select every system currently used by the agency.</p>
-        <div class="tools">
-          ${tools.map(tool => `
-            <label class="tool">
-              <input type="checkbox" value="${tool}" ${selected.has(tool) ? 'checked' : ''}>
-              <span class="check"></span>
-              <span>${tool}</span>
-            </label>
-          `).join('')}
-        </div>
-      </article>
-    `).join('');
+    const stateMap=new Map();
+    const groupsEl=document.querySelector('#groups');
+    const empty=document.querySelector('#emptyState');
+    const show=id=>document.querySelector(id)?.classList.add('show');
+    const hide=id=>document.querySelector(id)?.classList.remove('show');
 
-    const update = () => {
-      const items = [...document.querySelectorAll('.tool input:checked')].map(x => x.value);
-      localStorage.setItem('agencySelectedTools', JSON.stringify(items));
-      document.querySelector('#selectedCount').textContent = `${items.length} ${items.length === 1 ? 'Tool' : 'Tools'} Selected.`;
-      document.querySelector('#summaryTitle').textContent = items.length ? `${items.length} ${items.length === 1 ? 'Tool' : 'Tools'} Selected.` : 'No systems selected yet';
-      document.querySelector('#summaryCopy').textContent = items.length ? items.join(' · ') : 'If you skip selecting any systems, don’t worry, we’ll flag it as a data gap for you.';
-      return items;
-    };
-
-    document.querySelectorAll('.tool input').forEach(input => input.addEventListener('change', update));
-    update();
-
-    const show = id => document.querySelector(id).classList.add('show');
-    const hide = id => document.querySelector(id).classList.remove('show');
-
-    document.querySelector('#submitButton').onclick = () => {
-      const items = update();
-      localStorage.setItem('agencyIntegrationsComplete', 'true');
-      Promise.resolve(window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.())).catch(()=>null);
-      document.querySelector('#queuedText').textContent = items.length ? `${items.length} selected tools are queued.` : 'No tools selected; a data gap has been recorded.';
-      show('#thanksModal');
-    };
-
-    document.querySelector('#nextButton').onclick = () => location.href = '/diagnostic/';
-
-    async function fetchWithTimeout(url, options={}, timeoutMs=10000){
-      const controller=new AbortController();
-      const timer=setTimeout(()=>controller.abort(),timeoutMs);
-      try{return await fetch(url,{...options,signal:controller.signal});}
-      finally{clearTimeout(timer);}
+    async function apiGet(action){
+      const r=await fetch(`/api/account-auth?action=${encodeURIComponent(action)}`);
+      const p=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(p.error||'Integration request failed.');
+      return p;
+    }
+    async function apiPost(action,data={}){
+      const r=await fetch('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});
+      const p=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(p.error||'Integration request failed.');
+      return p;
+    }
+    function connectionFrom(payload){return payload?.connection||{connected:false}}
+    function statusLabel(tool){
+      const s=stateMap.get(tool);
+      if(!meta[tool]?.status)return ['provisioning','Provisioning — our team is on it'];
+      if(s?.loading)return ['','Checking…'];
+      if(s?.error)return ['error','Needs attention'];
+      if(s?.connected)return ['connected','Connected'];
+      return ['','Not connected'];
     }
 
-    const qbEls={status:document.querySelector('#qbStatus'),company:document.querySelector('#qbCompany'),synced:document.querySelector('#qbSynced'),note:document.querySelector('#qbNote'),error:document.querySelector('#qbError'),success:document.querySelector('#qbSuccess'),connect:document.querySelector('#qbConnect'),sync:document.querySelector('#qbSync'),disconnect:document.querySelector('#qbDisconnect')};
-    let qbConnection=null;
-    const qbRequest=async(url,options={})=>{const response=await fetchWithTimeout(url,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'QuickBooks request failed.');return payload;};
-    const qbDate=value=>value?new Date(value).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}):'';
-    function renderQuickBooks(connection){qbConnection=connection||{connected:false};const connected=qbConnection.connected===true;qbEls.status.textContent=connected?'Connected ✓':'Not connected';qbEls.status.classList.toggle('connected',connected);qbEls.company.textContent=connected?(qbConnection.companyName||`Company ${qbConnection.realmId||''}`):'';qbEls.synced.textContent=connected&&qbConnection.lastSyncedAt?`Last synced ${qbDate(qbConnection.lastSyncedAt)}`:'';qbEls.connect.style.display=connected?'none':'inline-flex';qbEls.sync.style.display=connected?'inline-flex':'none';qbEls.disconnect.style.display=connected?'inline-flex':'none';if(qbConnection.lastSyncError)qbEls.error.textContent=qbConnection.lastSyncError;}
-    async function loadQuickBooksStatus(){try{const result=await qbRequest('/api/account-auth?action=quickbooks_status');renderQuickBooks(result.connection);if(result.connection?.connected){selected.add('QuickBooks Online');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='QuickBooks Online');if(input)input.checked=true;update();}}catch(error){renderQuickBooks({connected:false});if(error?.name!=='AbortError'&&!String(error.message||'').toLowerCase().includes('sign in'))qbEls.error.textContent=error.message;}}
-    qbEls.connect.onclick=async()=>{qbEls.error.textContent='';qbEls.success.textContent='';qbEls.connect.disabled=true;try{const result=await qbRequest('/api/account-auth?action=quickbooks_connect');if(!result.authorizationUrl)throw new Error('QuickBooks authorization URL was not returned.');location.href=result.authorizationUrl;}catch(error){qbEls.error.textContent=error.message;qbEls.connect.disabled=false;}};
-    async function syncQuickBooks(){qbEls.error.textContent='';qbEls.success.textContent='';qbEls.sync.disabled=true;qbEls.sync.textContent='Syncing…';try{const result=await qbRequest('/api/account-auth',{method:'POST',body:JSON.stringify({action:'quickbooks_sync'})});renderQuickBooks(result.connection);qbEls.success.textContent=`QuickBooks financial evidence synced${result.warnings?.length?' with items to confirm manually.':'.'} Open Agency Performance to review the imported values.`;if(result.warnings?.length)qbEls.note.textContent=result.warnings.join(' ');return result;}catch(error){qbEls.error.textContent=error.message;throw error;}finally{qbEls.sync.disabled=false;qbEls.sync.textContent='Sync Now';}};
-    qbEls.sync.onclick=()=>syncQuickBooks().catch(()=>null);
-    qbEls.disconnect.onclick=async()=>{if(!confirm('Disconnect QuickBooks from this agency? Previously synced financial evidence will remain in the diagnostic until replaced.'))return;qbEls.error.textContent='';qbEls.disconnect.disabled=true;try{const result=await qbRequest('/api/account-auth',{method:'POST',body:JSON.stringify({action:'quickbooks_disconnect'})});renderQuickBooks(result.connection);qbEls.success.textContent='QuickBooks disconnected.';}catch(error){qbEls.error.textContent=error.message;}finally{qbEls.disconnect.disabled=false;}};
-    loadQuickBooksStatus().then(()=>{const params=new URLSearchParams(location.search);if(params.get('quickbooks')==='connected'&&qbConnection?.connected){history.replaceState({},'',location.pathname);qbEls.success.textContent='QuickBooks connected. Starting first financial sync…';syncQuickBooks().catch(()=>null);}});
-
-    const gcalEls={status:document.querySelector('#gcalStatus'),account:document.querySelector('#gcalAccount'),calendar:document.querySelector('#gcalCalendar'),note:document.querySelector('#gcalNote'),error:document.querySelector('#gcalError'),success:document.querySelector('#gcalSuccess'),connect:document.querySelector('#gcalConnect'),manage:document.querySelector('#gcalManage'),disconnect:document.querySelector('#gcalDisconnect'),select:document.querySelector('#gcalCalendarSelect'),events:document.querySelector('#gcalEvents'),modalError:document.querySelector('#gcalModalError')};
-    let gcalConnection=null,gcalCalendars=[],gcalEventCache=[];
-    const gcalRequest=async(action,payload={})=>{const response=await fetchWithTimeout('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...payload})});const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Google Calendar request failed.');return result;};
-    const gcalGet=async action=>{const response=await fetchWithTimeout(`/api/account-auth?action=${encodeURIComponent(action)}`);const result=await response.json().catch(()=>({}));if(!response.ok)throw new Error(result.error||'Google Calendar request failed.');return result;};
-    const esc=value=>String(value??'').replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
-    function renderGoogleCalendar(connection){gcalConnection=connection||{connected:false};const connected=gcalConnection.connected===true;gcalEls.status.textContent=connected?'Connected ✓':'Not connected';gcalEls.status.classList.toggle('connected',connected);gcalEls.account.textContent=connected&&gcalConnection.connectedEmail?gcalConnection.connectedEmail:'';gcalEls.calendar.textContent=connected&&gcalConnection.calendarSummary?`Calendar: ${gcalConnection.calendarSummary}`:'';gcalEls.connect.style.display=connected?'none':'inline-flex';gcalEls.manage.style.display=connected?'inline-flex':'none';gcalEls.disconnect.style.display=connected?'inline-flex':'none';if(gcalConnection.lastError)gcalEls.error.textContent=gcalConnection.lastError;}
-    async function loadGoogleCalendarStatus(){try{const result=await gcalGet('google_calendar_status');renderGoogleCalendar(result.connection);if(result.connection?.connected){selected.add('Google Calendar');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='Google Calendar');if(input)input.checked=true;update();}}catch(error){renderGoogleCalendar({connected:false});if(error?.name!=='AbortError'&&!String(error.message||'').toLowerCase().includes('sign in'))gcalEls.error.textContent=error.message;}}
-    gcalEls.connect.onclick=async()=>{gcalEls.error.textContent='';gcalEls.success.textContent='';gcalEls.connect.disabled=true;try{const result=await gcalGet('google_calendar_connect');if(!result.authorizationUrl)throw new Error('Google authorization URL was not returned.');location.href=result.authorizationUrl;}catch(error){gcalEls.error.textContent=error.message;gcalEls.connect.disabled=false;}};
-    function renderCalendarOptions(){gcalEls.select.innerHTML=gcalCalendars.filter(c=>['owner','writer'].includes(c.accessRole)).map(c=>`<option value="${esc(c.id)}" ${c.id===gcalConnection?.calendarId?'selected':''}>${esc(c.summary)}${c.primary?' (Primary)':''}</option>`).join('');}
-    function eventStart(event){return event?.start?.dateTime||event?.start?.date||'';}
-    function eventWhen(event){const raw=eventStart(event);if(!raw)return 'Time not available';if(event?.start?.date&&!event?.start?.dateTime)return new Date(`${raw}T00:00:00`).toLocaleDateString([], {dateStyle:'medium'})+' · All day';const date=new Date(raw);return Number.isNaN(date.getTime())?raw:date.toLocaleString([], {dateStyle:'medium',timeStyle:'short'});}
-    function renderEvents(){if(!gcalEventCache.length){gcalEls.events.innerHTML='<div class="gcal-empty">No upcoming events on this calendar.</div>';return;}gcalEls.events.innerHTML=gcalEventCache.map(event=>`<article class="gcal-event"><div class="gcal-event-main"><div class="gcal-event-title">${esc(event.summary)}</div><div class="gcal-event-time">${esc(eventWhen(event))}${event.location?` · ${esc(event.location)}`:''}</div></div><div class="gcal-event-actions"><button class="button small" data-gcal-edit="${esc(event.id)}">Edit</button><button class="button danger small" data-gcal-delete="${esc(event.id)}">Delete</button></div></article>`).join('');document.querySelectorAll('[data-gcal-edit]').forEach(btn=>btn.onclick=()=>openEventEditor(gcalEventCache.find(e=>e.id===btn.dataset.gcalEdit)));document.querySelectorAll('[data-gcal-delete]').forEach(btn=>btn.onclick=()=>deleteEvent(btn.dataset.gcalDelete));}
-    async function loadCalendarsAndEvents(){gcalEls.modalError.textContent='';gcalEls.events.innerHTML='<div class="gcal-empty">Loading upcoming events…</div>';try{const list=await gcalRequest('google_calendar_list');gcalCalendars=list.calendars||[];renderGoogleCalendar(list.connection);renderCalendarOptions();const eventResult=await gcalRequest('google_calendar_events',{maxResults:20});gcalEventCache=eventResult.events||[];renderEvents();}catch(error){gcalEls.modalError.textContent=error.message;gcalEls.events.innerHTML='<div class="gcal-empty">Unable to load events.</div>';}}
-    gcalEls.manage.onclick=()=>{show('#gcalModal');loadCalendarsAndEvents();};
-    document.querySelector('#gcalClose').onclick=()=>hide('#gcalModal');
-    document.querySelector('#gcalSaveCalendar').onclick=async()=>{const btn=document.querySelector('#gcalSaveCalendar');btn.disabled=true;gcalEls.modalError.textContent='';try{const result=await gcalRequest('google_calendar_select',{calendarId:gcalEls.select.value});renderGoogleCalendar(result.connection);gcalCalendars=result.calendars||gcalCalendars;renderCalendarOptions();gcalEls.success.textContent='Default Google calendar updated.';await loadCalendarsAndEvents();}catch(error){gcalEls.modalError.textContent=error.message;}finally{btn.disabled=false;}};
-    const toLocalInput=value=>{if(!value)return'';const d=new Date(value);if(Number.isNaN(d.getTime()))return'';const pad=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;};
-    function setAllDayMode(allDay){document.querySelector('#gcalAllDay').checked=allDay;document.querySelector('#gcalTimedFields').classList.toggle('hidden',allDay);document.querySelector('#gcalAllDayFields').classList.toggle('hidden',!allDay);}
-    document.querySelector('#gcalAllDay').onchange=e=>setAllDayMode(e.target.checked);
-    function openEventEditor(event=null){document.querySelector('#gcalEventHeading').textContent=event?'Edit Event':'Create Event';document.querySelector('#gcalEventId').value=event?.id||'';document.querySelector('#gcalEventTitle').value=event?.summary||'';document.querySelector('#gcalLocation').value=event?.location||'';document.querySelector('#gcalAttendees').value=(event?.attendees||[]).map(a=>a.email).filter(Boolean).join(', ');document.querySelector('#gcalDescription').value=event?.description||'';const allDay=Boolean(event?.start?.date&&!event?.start?.dateTime);setAllDayMode(allDay);if(allDay){document.querySelector('#gcalStartDate').value=event?.start?.date||'';document.querySelector('#gcalEndDate').value=event?.end?.date||'';}else{const start=event?.start?.dateTime||new Date(Date.now()+60*60*1000).toISOString();const end=event?.end?.dateTime||new Date(Date.now()+2*60*60*1000).toISOString();document.querySelector('#gcalStart').value=toLocalInput(start);document.querySelector('#gcalEnd').value=toLocalInput(end);}document.querySelector('#gcalEventError').textContent='';show('#gcalEventModal');}
-    document.querySelector('#gcalNewEvent').onclick=()=>openEventEditor();document.querySelector('#gcalCancelEvent').onclick=()=>hide('#gcalEventModal');
-    document.querySelector('#gcalSaveEvent').onclick=async()=>{const btn=document.querySelector('#gcalSaveEvent');btn.disabled=true;document.querySelector('#gcalEventError').textContent='';try{const allDay=document.querySelector('#gcalAllDay').checked;const event={summary:document.querySelector('#gcalEventTitle').value.trim(),location:document.querySelector('#gcalLocation').value.trim(),attendees:document.querySelector('#gcalAttendees').value,description:document.querySelector('#gcalDescription').value.trim(),allDay,timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC',...(allDay?{startDate:document.querySelector('#gcalStartDate').value,endDate:document.querySelector('#gcalEndDate').value}:{startDateTime:document.querySelector('#gcalStart').value,endDateTime:document.querySelector('#gcalEnd').value})};const eventId=document.querySelector('#gcalEventId').value;await gcalRequest(eventId?'google_calendar_update_event':'google_calendar_create_event',{eventId,event});hide('#gcalEventModal');gcalEls.success.textContent=eventId?'Google Calendar event updated.':'Google Calendar event created.';await loadCalendarsAndEvents();}catch(error){document.querySelector('#gcalEventError').textContent=error.message;}finally{btn.disabled=false;}};
-    async function deleteEvent(eventId){if(!confirm('Delete this Google Calendar event? Attendees may receive a cancellation notice.'))return;gcalEls.modalError.textContent='';try{await gcalRequest('google_calendar_delete_event',{eventId});gcalEls.success.textContent='Google Calendar event deleted.';await loadCalendarsAndEvents();}catch(error){gcalEls.modalError.textContent=error.message;}}
-    gcalEls.disconnect.onclick=async()=>{if(!confirm('Disconnect Google Calendar from this agency?'))return;gcalEls.disconnect.disabled=true;gcalEls.error.textContent='';try{const result=await gcalRequest('google_calendar_disconnect');renderGoogleCalendar(result.connection);gcalEls.success.textContent='Google Calendar disconnected.';}catch(error){gcalEls.error.textContent=error.message;}finally{gcalEls.disconnect.disabled=false;}};
-    loadGoogleCalendarStatus().then(()=>{const params=new URLSearchParams(location.search);if(params.get('google_calendar')==='connected'&&gcalConnection?.connected){history.replaceState({},'',location.pathname);gcalEls.success.textContent='Google Calendar connected successfully.';}});
-
-
-    const gdriveEls={status:document.querySelector('#gdriveStatus'),account:document.querySelector('#gdriveAccount'),selected:document.querySelector('#gdriveSelected'),note:document.querySelector('#gdriveNote'),error:document.querySelector('#gdriveError'),success:document.querySelector('#gdriveSuccess'),connect:document.querySelector('#gdriveConnect'),manage:document.querySelector('#gdriveManage'),disconnect:document.querySelector('#gdriveDisconnect'),items:document.querySelector('#gdriveItems'),modalError:document.querySelector('#gdriveModalError'),choose:document.querySelector('#gdriveChoose'),refresh:document.querySelector('#gdriveRefresh')};
-    let gdriveConnection=null,gdrivePickerConfig=null,gdrivePickerReady=false;
-    const gdriveRequest=async(action,data={})=>{const response=await fetchWithTimeout('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'Google Drive request failed.');return payload;};
-    const gdriveGet=async(action)=>{const response=await fetchWithTimeout(`/api/account-auth?action=${encodeURIComponent(action)}`);const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'Google Drive request failed.');return payload;};
-    const gdriveDate=value=>value?new Date(value).toLocaleString([], {dateStyle:'medium',timeStyle:'short'}):'';
-    const gdriveType=item=>item?.isFolder?'Folder':(item?.mimeType?.includes('google-apps.document')?'Google Doc':item?.mimeType?.includes('google-apps.spreadsheet')?'Google Sheet':item?.mimeType?.includes('google-apps.presentation')?'Google Slides':(item?.mimeType?.split('/').pop()||'File'));
-    function renderGoogleDrive(connection){gdriveConnection=connection||{connected:false,selectedItems:[]};const connected=gdriveConnection.connected===true;gdriveEls.status.textContent=connected?'Connected ✓':'Not connected';gdriveEls.status.classList.toggle('connected',connected);gdriveEls.account.textContent=connected?(gdriveConnection.connectedEmail||gdriveConnection.connectedName||'Google Drive connected'):'';gdriveEls.selected.textContent=connected?`${gdriveConnection.selectedCount||0} selected item${Number(gdriveConnection.selectedCount||0)===1?'':'s'}`:'';gdriveEls.connect.style.display=connected?'none':'inline-flex';gdriveEls.manage.style.display=connected?'inline-flex':'none';gdriveEls.disconnect.style.display=connected?'inline-flex':'none';gdriveEls.error.textContent=gdriveConnection.lastError||'';renderDriveItems();}
-    function renderDriveItems(){const items=Array.isArray(gdriveConnection?.selectedItems)?gdriveConnection.selectedItems:[];if(!items.length){gdriveEls.items.innerHTML='<div class="gdrive-empty">No Drive files or folders selected yet. Click “Choose Files / Folders”.</div>';return;}gdriveEls.items.innerHTML=items.map(item=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc(item.name||'Untitled')}</div><div class="gdrive-item-meta">${esc(gdriveType(item))}${item.modifiedTime?` · Updated ${esc(gdriveDate(item.modifiedTime))}`:''}${item.owners?.[0]?.displayName?` · ${esc(item.owners[0].displayName)}`:''}</div></div><div class="gdrive-item-actions">${item.webViewLink?`<a class="button small" href="${esc(item.webViewLink)}" target="_blank" rel="noopener">Open</a>`:''}<button class="button danger small" data-gdrive-remove="${esc(item.id)}">Remove</button></div></article>`).join('');document.querySelectorAll('[data-gdrive-remove]').forEach(btn=>btn.onclick=()=>removeDriveItem(btn.dataset.gdriveRemove));}
-    async function loadGoogleDriveStatus(){try{const result=await gdriveGet('google_drive_status');gdrivePickerConfig=result.picker||null;renderGoogleDrive(result.connection);if(result.connection?.connected){selected.add('Google Drive');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='Google Drive');if(input)input.checked=true;update();}}catch(error){renderGoogleDrive({connected:false});if(error?.name!=='AbortError'&&!String(error.message||'').toLowerCase().includes('sign in'))gdriveEls.error.textContent=error.message;}}
-    gdriveEls.connect.onclick=async()=>{gdriveEls.error.textContent='';gdriveEls.success.textContent='';gdriveEls.connect.disabled=true;try{const result=await gdriveGet('google_drive_connect');if(!result.authorizationUrl)throw new Error('Google Drive authorization URL was not returned.');location.href=result.authorizationUrl;}catch(error){gdriveEls.error.textContent=error.message;gdriveEls.connect.disabled=false;}};
-    function ensurePickerLibrary(){return new Promise((resolve,reject)=>{if(gdrivePickerReady&&window.google?.picker)return resolve();if(!window.gapi?.load)return reject(new Error('Google Picker library could not be loaded.'));gapi.load('picker',{callback:()=>{gdrivePickerReady=true;resolve();},onerror:()=>reject(new Error('Google Picker library could not be loaded.'))});});}
-    async function openGoogleDrivePicker(){gdriveEls.modalError.textContent='';gdriveEls.choose.disabled=true;try{const tokenResult=await gdriveRequest('google_drive_picker_token');gdrivePickerConfig=tokenResult.picker;await ensurePickerLibrary();const view=new google.picker.DocsView(google.picker.ViewId.DOCS).setIncludeFolders(true).setSelectFolderEnabled(true);const picker=new google.picker.PickerBuilder().addView(view).enableFeature(google.picker.Feature.MULTISELECT_ENABLED).setOAuthToken(tokenResult.accessToken).setDeveloperKey(gdrivePickerConfig.apiKey).setAppId(gdrivePickerConfig.appId).setCallback(async data=>{if(data.action!==google.picker.Action.PICKED)return;const ids=(data.docs||[]).map(doc=>doc.id).filter(Boolean);if(!ids.length)return;gdriveEls.modalError.textContent='';try{const saved=await gdriveRequest('google_drive_save_selection',{fileIds:ids});renderGoogleDrive(saved.connection);gdriveEls.success.textContent=`Saved ${ids.length} Google Drive selection${ids.length===1?'':'s'}.`;if(saved.unavailable?.length)gdriveEls.modalError.textContent=`${saved.unavailable.length} selected item(s) could not be read.`;}catch(error){gdriveEls.modalError.textContent=error.message;}}).build();picker.setVisible(true);}catch(error){gdriveEls.modalError.textContent=error.message;}finally{gdriveEls.choose.disabled=false;}}
-    async function refreshGoogleDrive(){gdriveEls.modalError.textContent='';gdriveEls.refresh.disabled=true;gdriveEls.refresh.textContent='Refreshing…';try{const result=await gdriveRequest('google_drive_refresh');renderGoogleDrive(result.connection);gdriveEls.success.textContent='Google Drive selections refreshed.';if(result.unavailable?.length)gdriveEls.modalError.textContent=`${result.unavailable.length} item(s) are no longer available and were removed from this list.`;}catch(error){gdriveEls.modalError.textContent=error.message;}finally{gdriveEls.refresh.disabled=false;gdriveEls.refresh.textContent='Refresh Files';}}
-    async function removeDriveItem(fileId){if(!confirm('Remove this item from Creative Creatures? The original Google Drive file will not be deleted.'))return;gdriveEls.modalError.textContent='';try{const result=await gdriveRequest('google_drive_remove_item',{fileId});renderGoogleDrive(result.connection);gdriveEls.success.textContent='Google Drive item removed from Creative Creatures.';}catch(error){gdriveEls.modalError.textContent=error.message;}}
-    gdriveEls.manage.onclick=()=>{show('#gdriveModal');renderDriveItems();};document.querySelector('#gdriveClose').onclick=()=>hide('#gdriveModal');gdriveEls.choose.onclick=openGoogleDrivePicker;gdriveEls.refresh.onclick=refreshGoogleDrive;
-    gdriveEls.disconnect.onclick=async()=>{if(!confirm('Disconnect Google Drive from this agency? Saved Drive selections will be removed from Creative Creatures. Original files remain in Google Drive.'))return;gdriveEls.disconnect.disabled=true;gdriveEls.error.textContent='';try{const result=await gdriveRequest('google_drive_disconnect');renderGoogleDrive(result.connection);gdriveEls.success.textContent='Google Drive disconnected.';selected.delete('Google Drive');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='Google Drive');if(input)input.checked=false;update();}catch(error){gdriveEls.error.textContent=error.message;}finally{gdriveEls.disconnect.disabled=false;}};
-    loadGoogleDriveStatus().then(()=>{const params=new URLSearchParams(location.search);if(params.get('google_drive')==='connected'&&gdriveConnection?.connected){history.replaceState({},'',location.pathname);gdriveEls.success.textContent='Google Drive connected. Choose the files or folders Creative Creatures may access.';show('#gdriveModal');renderDriveItems();}});
-
-
-    // HubSpot multi-tenant OAuth + CRM dashboard
-    const hubspotEls={status:document.querySelector('#hubspotStatus'),account:document.querySelector('#hubspotAccount'),synced:document.querySelector('#hubspotSynced'),error:document.querySelector('#hubspotError'),success:document.querySelector('#hubspotSuccess'),connect:document.querySelector('#hubspotConnect'),manage:document.querySelector('#hubspotManage'),sync:document.querySelector('#hubspotSync'),disconnect:document.querySelector('#hubspotDisconnect'),modalError:document.querySelector('#hubspotModalError'),data:document.querySelector('#hubspotData')};
-    let hubspotConnection=null,hubspotData={contacts:[],companies:[],deals:[],pipelines:[]},hubspotTab='deals';
-    const hubspotRequest=async(action,data={})=>{const response=await fetchWithTimeout('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'HubSpot request failed.');return payload;};
-    const hubspotGet=async action=>{const response=await fetchWithTimeout(`/api/account-auth?action=${encodeURIComponent(action)}`);const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'HubSpot request failed.');return payload;};
-    function renderHubSpot(connection){hubspotConnection=connection||{connected:false};const connected=hubspotConnection.connected===true;hubspotEls.status.textContent=connected?'Connected ✓':'Not connected';hubspotEls.status.classList.toggle('connected',connected);hubspotEls.account.textContent=connected?(hubspotConnection.hubDomain||hubspotConnection.connectedEmail||(hubspotConnection.portalId?`Portal ${hubspotConnection.portalId}`:'HubSpot connected')):'';hubspotEls.synced.textContent=connected&&hubspotConnection.lastSyncedAt?`Last synced ${new Date(hubspotConnection.lastSyncedAt).toLocaleString()}`:'';hubspotEls.connect.style.display=connected?'none':'inline-flex';hubspotEls.manage.style.display=connected?'inline-flex':'none';hubspotEls.sync.style.display=connected?'inline-flex':'none';hubspotEls.disconnect.style.display=connected?'inline-flex':'none';hubspotEls.error.textContent=hubspotConnection.lastSyncError||'';}
-    async function loadHubSpotStatus(){try{const result=await hubspotGet('hubspot_status');renderHubSpot(result.connection);if(result.connection?.connected){selected.add('HubSpot');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='HubSpot');if(input)input.checked=true;update();}}catch(error){renderHubSpot({connected:false});if(error?.name!=='AbortError'&&!String(error.message||'').toLowerCase().includes('sign in'))hubspotEls.error.textContent=error.message;}}
-    const money=value=>{const n=Number(value);return Number.isFinite(n)?new Intl.NumberFormat(undefined,{style:'currency',currency:hubspotConnection?.companyCurrency||'USD',maximumFractionDigits:0}).format(n):'—'};
-    function renderHubSpotData(){document.querySelector('#hubspotContactsCount').textContent=hubspotData.contacts.length;document.querySelector('#hubspotCompaniesCount').textContent=hubspotData.companies.length;document.querySelector('#hubspotDealsCount').textContent=hubspotData.deals.length;document.querySelector('#hubspotPipelinesCount').textContent=hubspotData.pipelines.length;let rows='';if(hubspotTab==='deals')rows=hubspotData.deals.map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc(x.properties?.dealname||'Untitled deal')}</div><div class="gdrive-item-meta">${money(x.properties?.amount)} · Stage ${esc(x.properties?.dealstage||'—')} · Pipeline ${esc(x.properties?.pipeline||'—')}${x.properties?.closedate?` · Close ${esc(new Date(x.properties.closedate).toLocaleDateString())}`:''}</div></div></article>`).join('');if(hubspotTab==='contacts')rows=hubspotData.contacts.map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc([x.properties?.firstname,x.properties?.lastname].filter(Boolean).join(' ')||x.properties?.email||'Unnamed contact')}</div><div class="gdrive-item-meta">${esc(x.properties?.email||'No email')}${x.properties?.company?` · ${esc(x.properties.company)}`:''}${x.properties?.lifecyclestage?` · ${esc(x.properties.lifecyclestage)}`:''}</div></div></article>`).join('');if(hubspotTab==='companies')rows=hubspotData.companies.map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc(x.properties?.name||'Unnamed company')}</div><div class="gdrive-item-meta">${esc(x.properties?.domain||'No domain')}${x.properties?.industry?` · ${esc(x.properties.industry)}`:''}${x.properties?.annualrevenue?` · ${money(x.properties.annualrevenue)}`:''}</div></div></article>`).join('');if(hubspotTab==='pipelines')rows=hubspotData.pipelines.map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc(x.label||x.id)}</div><div class="gdrive-item-meta">${Number(x.stages?.length||0)} stage${Number(x.stages?.length||0)===1?'':'s'} · ${(x.stages||[]).map(s=>esc(s.label)).join(' → ')}</div></div></article>`).join('');hubspotEls.data.innerHTML=rows||'<div class="gcal-empty">No records returned for this section.</div>';}
-    async function loadHubSpotDashboard(showModal=true){hubspotEls.modalError.textContent='';hubspotEls.sync.disabled=true;hubspotEls.sync.textContent='Syncing…';try{const result=await hubspotRequest('hubspot_dashboard');hubspotData={contacts:result.contacts||[],companies:result.companies||[],deals:result.deals||[],pipelines:result.pipelines||[]};renderHubSpot(result.connection);renderHubSpotData();hubspotEls.success.textContent='HubSpot CRM data synced.';if(result.warnings?.length)hubspotEls.modalError.textContent=result.warnings.join(' · ');if(showModal)show('#hubspotModal');}catch(error){hubspotEls.modalError.textContent=error.message;hubspotEls.error.textContent=error.message;if(showModal)show('#hubspotModal');}finally{hubspotEls.sync.disabled=false;hubspotEls.sync.textContent='Sync Now';}}
-    hubspotEls.connect.onclick=async()=>{hubspotEls.error.textContent='';hubspotEls.success.textContent='';hubspotEls.connect.disabled=true;try{const result=await hubspotGet('hubspot_connect');if(!result.authorizationUrl)throw new Error('HubSpot authorization URL was not returned.');location.href=result.authorizationUrl;}catch(error){hubspotEls.error.textContent=error.message;hubspotEls.connect.disabled=false;}};
-    hubspotEls.manage.onclick=()=>loadHubSpotDashboard(true);hubspotEls.sync.onclick=()=>loadHubSpotDashboard(false);document.querySelector('#hubspotClose').onclick=()=>hide('#hubspotModal');document.querySelectorAll('[data-hubspot-tab]').forEach(btn=>btn.onclick=()=>{hubspotTab=btn.dataset.hubspotTab;renderHubSpotData();});
-    hubspotEls.disconnect.onclick=async()=>{if(!confirm('Disconnect HubSpot from this Creative Creatures account? HubSpot records will not be deleted.'))return;hubspotEls.disconnect.disabled=true;hubspotEls.error.textContent='';try{const result=await hubspotRequest('hubspot_disconnect');renderHubSpot(result.connection);hubspotData={contacts:[],companies:[],deals:[],pipelines:[]};hubspotEls.success.textContent='HubSpot disconnected.';selected.delete('HubSpot');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='HubSpot');if(input)input.checked=false;update();}catch(error){hubspotEls.error.textContent=error.message;}finally{hubspotEls.disconnect.disabled=false;}};
-    loadHubSpotStatus().then(()=>{const params=new URLSearchParams(location.search);if(params.get('hubspot')==='connected'&&hubspotConnection?.connected){history.replaceState({},'',location.pathname);hubspotEls.success.textContent='HubSpot connected successfully.';loadHubSpotDashboard(true);}});
-
-
-    // Slack multi-tenant OAuth + workspace dashboard
-    const slackEls={status:document.querySelector('#slackStatus'),workspace:document.querySelector('#slackWorkspace'),synced:document.querySelector('#slackSynced'),error:document.querySelector('#slackError'),success:document.querySelector('#slackSuccess'),connect:document.querySelector('#slackConnect'),manage:document.querySelector('#slackManage'),sync:document.querySelector('#slackSync'),disconnect:document.querySelector('#slackDisconnect'),modalError:document.querySelector('#slackModalError'),data:document.querySelector('#slackData')};
-    let slackConnection=null,slackData={users:[],channels:[]},slackTab='channels';
-    const slackRequest=async(action,data={})=>{const response=await fetchWithTimeout('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'Slack request failed.');return payload;};
-    const slackGet=async action=>{const response=await fetchWithTimeout(`/api/account-auth?action=${encodeURIComponent(action)}`);const payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'Slack request failed.');return payload;};
-    function renderSlack(connection){slackConnection=connection||{connected:false};const connected=slackConnection.connected===true;slackEls.status.textContent=connected?'Connected ✓':'Not connected';slackEls.status.classList.toggle('connected',connected);slackEls.workspace.textContent=connected?(slackConnection.teamName||(slackConnection.teamId?`Workspace ${slackConnection.teamId}`:'Slack connected')):'';slackEls.synced.textContent=connected&&slackConnection.lastSyncedAt?`Last synced ${new Date(slackConnection.lastSyncedAt).toLocaleString()}`:'';slackEls.connect.style.display=connected?'none':'inline-flex';slackEls.manage.style.display=connected?'inline-flex':'none';slackEls.sync.style.display=connected?'inline-flex':'none';slackEls.disconnect.style.display=connected?'inline-flex':'none';slackEls.error.textContent=slackConnection.lastSyncError||'';}
-    async function loadSlackStatus(){try{const result=await slackGet('slack_status');renderSlack(result.connection);if(result.connection?.connected){selected.add('Slack');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='Slack');if(input)input.checked=true;update();}}catch(error){renderSlack({connected:false});if(error?.name!=='AbortError'&&!String(error.message||'').toLowerCase().includes('sign in'))slackEls.error.textContent=error.message;}}
-    function renderSlackData(){const users=slackData.users||[],channels=slackData.channels||[];document.querySelector('#slackUsersCount').textContent=users.length;document.querySelector('#slackChannelsCount').textContent=channels.length;document.querySelector('#slackPrivateCount').textContent=channels.filter(x=>x.isPrivate).length;let rows='';if(slackTab==='channels')rows=channels.map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name"># ${esc(x.name||'unnamed-channel')}</div><div class="gdrive-item-meta">${x.isPrivate?'Private':'Public'}${x.isMember?' · App is a member':''}${x.numMembers?` · ${Number(x.numMembers)} members`:''}${x.purpose?` · ${esc(x.purpose)}`:''}</div></div></article>`).join('');else rows=users.filter(x=>!x.deleted).map(x=>`<article class="gdrive-item"><div class="gdrive-item-main"><div class="gdrive-item-name">${esc(x.displayName||x.realName||x.name||'Unnamed user')}</div><div class="gdrive-item-meta">${esc(x.email||x.name||'')}${x.isOwner?' · Owner':x.isAdmin?' · Admin':''}${x.isBot?' · Bot':''}</div></div></article>`).join('');slackEls.data.innerHTML=rows||'<div class="gcal-empty">No records returned for this section.</div>';}
-    async function loadSlackDashboard(showModal=true){slackEls.modalError.textContent='';slackEls.sync.disabled=true;slackEls.sync.textContent='Syncing…';try{const result=await slackRequest('slack_dashboard');slackData={users:result.users||[],channels:result.channels||[]};renderSlack(result.connection);renderSlackData();slackEls.success.textContent='Slack workspace synced.';if(result.warnings?.length)slackEls.modalError.textContent=result.warnings.join(' · ');if(showModal)show('#slackModal');}catch(error){slackEls.modalError.textContent=error.message;slackEls.error.textContent=error.message;if(showModal)show('#slackModal');}finally{slackEls.sync.disabled=false;slackEls.sync.textContent='Sync Now';}}
-    slackEls.connect.onclick=async()=>{slackEls.error.textContent='';slackEls.success.textContent='';slackEls.connect.disabled=true;try{const result=await slackGet('slack_connect');if(!result.authorizationUrl)throw new Error('Slack authorization URL was not returned.');location.href=result.authorizationUrl;}catch(error){slackEls.error.textContent=error.message;slackEls.connect.disabled=false;}};
-    slackEls.manage.onclick=()=>loadSlackDashboard(true);slackEls.sync.onclick=()=>loadSlackDashboard(false);document.querySelector('#slackClose').onclick=()=>hide('#slackModal');document.querySelectorAll('[data-slack-tab]').forEach(btn=>btn.onclick=()=>{slackTab=btn.dataset.slackTab;renderSlackData();});
-    slackEls.disconnect.onclick=async()=>{if(!confirm('Disconnect Slack from this Creative Creatures account? Slack workspace data will not be deleted.'))return;slackEls.disconnect.disabled=true;slackEls.error.textContent='';try{const result=await slackRequest('slack_disconnect');renderSlack(result.connection);slackData={users:[],channels:[]};slackEls.success.textContent='Slack disconnected.';selected.delete('Slack');const input=[...document.querySelectorAll('.tool input')].find(el=>el.value==='Slack');if(input)input.checked=false;update();}catch(error){slackEls.error.textContent=error.message;}finally{slackEls.disconnect.disabled=false;}};
-    loadSlackStatus().then(()=>{const params=new URLSearchParams(location.search);if(params.get('slack')==='connected'&&slackConnection?.connected){history.replaceState({},'',location.pathname);slackEls.success.textContent='Slack connected successfully.';loadSlackDashboard(true);}});
-
-    const categories = Object.keys(catalog);
-    document.querySelector('#categorySelect').innerHTML = categories.map(x => `<option>${x}</option>`).join('');
-    const account = window.CCAccount?.getAccount?.() || (()=>{try{return JSON.parse(localStorage.getItem('ccUserAccount')||'null')}catch{return null}})();
-    const accountName = account?.first_name || account?.firstName || account?.displayName?.trim?.().split(/\s+/)[0] || localStorage.getItem('ccOwnerFirstName') || '';
-    const accountEmail = account?.email || localStorage.getItem('ccOwnerEmail') || '';
-    document.querySelector('#firstName').value = accountName;
-    document.querySelector('#email').value = accountEmail;
-
-    document.querySelector('#requestButton').onclick = () => show('#requestModal');
-    document.querySelectorAll('[data-close-request]').forEach(b => b.onclick = () => hide('#requestModal'));
-
-    document.querySelector('#sendRequest').onclick = () => {
-      if (!document.querySelector('#vendorName').value.trim()) return document.querySelector('#vendorName').focus();
-      const requests = JSON.parse(localStorage.getItem('agencyIntegrationRequests') || '[]');
-      requests.push({
-        firstName: document.querySelector('#firstName').value,
-        email: document.querySelector('#email').value,
-        category: document.querySelector('#categorySelect').value,
-        vendor: document.querySelector('#vendorName').value,
-        createdAt: new Date().toISOString()
+    function render(){
+      empty.hidden=selected.length!==0;
+      groupsEl.innerHTML='';
+      if(!selected.length){updateStats();return}
+      const grouped={};
+      selected.forEach(tool=>{
+        const m=meta[tool]||{group:'Other',code:tool.slice(0,2),color:'#667085',copy:'Selected agency integration'};
+        (grouped[m.group]||(grouped[m.group]=[])).push(tool);
       });
-      localStorage.setItem('agencyIntegrationRequests', JSON.stringify(requests));
-      hide('#requestModal');
-      show('#requestThanks');
+      Object.entries(grouped).forEach(([group,tools])=>{
+        const section=document.createElement('section');section.className='group';
+        section.innerHTML=`<header class="group-head"><div class="group-title"><h2>${esc(group)}</h2><span class="group-tag">${tools.some(t=>meta[t]?.status)?'served':'provisioning'}</span></div><span class="group-feed">${esc(groupFeeds[group]||'selected integrations')}</span></header>
+          <div>${tools.map(rowHtml).join('')}</div>`;
+        groupsEl.appendChild(section);
+      });
+      wireButtons();updateStats();
+    }
+    function rowHtml(tool){
+      const m=meta[tool]||{group:'Other',code:tool.slice(0,2),color:'#667085',copy:'Selected agency integration'};
+      const [cls,label]=statusLabel(tool),s=stateMap.get(tool)||{};
+      const supported=Boolean(m.status),connected=s.connected===true;
+      let actions='';
+      if(!supported)actions=`<span class="status provisioning">${label}</span><span class="working">● Working on it</span>`;
+      else if(!connected)actions=`<span class="status ${cls}">${label}</span><button class="btn primary" data-connect="${esc(tool)}">Connect</button>`;
+      else actions=`<span class="status ${cls}">${label}</span>${m.manage?`<button class="btn" data-manage="${esc(tool)}">Manage</button>`:''}${m.sync?`<button class="btn" data-sync="${esc(tool)}">Sync now</button>`:''}<button class="btn danger" data-disconnect="${esc(tool)}">Disconnect</button>`;
+      return `<article class="integration-row"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="row-main"><div class="row-title"><strong>${esc(tool)}</strong>${connected?'<span class="active-source">active source</span>':''}</div><div class="row-copy">${esc(m.copy)}</div></div><div class="row-actions">${actions}</div></article>`;
+    }
+    function updateStats(){
+      const supported=selected.filter(t=>meta[t]?.status);
+      const connected=supported.filter(t=>stateMap.get(t)?.connected);
+      const attention=supported.filter(t=>stateMap.get(t)?.error);
+      const cats=new Set(selected.map(t=>(meta[t]||{}).group).filter(Boolean));
+      document.querySelector('#connectedStat').textContent=`${connected.length} / ${selected.length}`;
+      document.querySelector('#healthyStat').textContent=String(connected.filter(t=>!stateMap.get(t)?.error).length);
+      document.querySelector('#attentionStat').textContent=String(attention.length);
+      document.querySelector('#emptyStat').textContent='0';
+      document.querySelector('#categoryStat').textContent=`across ${cats.size} ${cats.size===1?'category':'categories'}`;
+    }
+    function wireButtons(){
+      document.querySelectorAll('[data-connect]').forEach(b=>b.onclick=()=>connectTool(b.dataset.connect,b));
+      document.querySelectorAll('[data-sync]').forEach(b=>b.onclick=()=>syncTool(b.dataset.sync,b));
+      document.querySelectorAll('[data-disconnect]').forEach(b=>b.onclick=()=>disconnectTool(b.dataset.disconnect,b));
+      document.querySelectorAll('[data-manage]').forEach(b=>b.onclick=()=>manageTool(b.dataset.manage));
+    }
+    async function loadStatuses(){
+      await Promise.all(selected.filter(t=>meta[t]?.status).map(async tool=>{
+        stateMap.set(tool,{loading:true});render();
+        try{
+          const result=await apiGet(meta[tool].status);
+          stateMap.set(tool,{...connectionFrom(result),loading:false,error:connectionFrom(result).lastError||connectionFrom(result).lastSyncError||''});
+        }catch(error){
+          stateMap.set(tool,{connected:false,loading:false,error:error.message});
+        }
+        render();
+      }));
+      handleOauthReturn();
+    }
+    async function connectTool(tool,button){
+      const m=meta[tool];button.disabled=true;
+      try{
+        const result=await apiGet(m.connect);
+        if(!result.authorizationUrl)throw new Error('Authorization URL was not returned.');
+        location.href=result.authorizationUrl;
+      }catch(error){alert(error.message);button.disabled=false}
+    }
+    async function syncTool(tool,button){
+      const m=meta[tool];button.disabled=true;const old=button.textContent;button.textContent='Syncing…';
+      try{
+        const result=await apiPost(m.sync);
+        const c=connectionFrom(result);
+        stateMap.set(tool,{...stateMap.get(tool),...c,connected:c.connected!==false,error:c.lastError||c.lastSyncError||''});
+        render();
+      }catch(error){stateMap.set(tool,{...stateMap.get(tool),error:error.message});render();alert(error.message)}
+      finally{button.disabled=false;button.textContent=old}
+    }
+    async function disconnectTool(tool,button){
+      if(!confirm(`Disconnect ${tool} from this agency?`))return;
+      button.disabled=true;
+      try{
+        const result=await apiPost(meta[tool].disconnect);
+        stateMap.set(tool,{...connectionFrom(result),connected:false,error:''});render();
+      }catch(error){alert(error.message);button.disabled=false}
+    }
+    function handleOauthReturn(){
+      const p=new URLSearchParams(location.search);
+      const map={quickbooks:'QuickBooks Online',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',slack:'Slack'};
+      let changed=false;
+      Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
+      if(changed)history.replaceState({},'',location.pathname);
+    }
+
+    // ---- Manage views for the currently supported integrations ----
+    const modalTitle=document.querySelector('#modalTitle'),modalCopy=document.querySelector('#modalCopy'),modalBody=document.querySelector('#modalBody'),modalError=document.querySelector('#modalError');
+    document.querySelector('#modalClose').onclick=()=>hide('#dataModal');
+
+    async function manageTool(tool){
+      modalError.textContent='';modalTitle.textContent=tool;modalBody.innerHTML='<div class="data-item"><strong>Loading…</strong></div>';show('#dataModal');
+      try{
+        if(tool==='Google Calendar')return manageCalendar();
+        if(tool==='Google Drive')return manageDrive();
+        if(tool==='HubSpot')return manageHubSpot();
+        if(tool==='Slack')return manageSlack();
+        modalBody.innerHTML='<div class="data-item"><strong>No manage view is required for this integration.</strong></div>';
+      }catch(error){modalError.textContent=error.message}
+    }
+
+    let calendarConnection=null,calendarEvents=[];
+    async function manageCalendar(){
+      modalTitle.textContent='Google Calendar';modalCopy.textContent='Choose the default calendar and manage upcoming events.';
+      const list=await apiPost('google_calendar_list');calendarConnection=list.connection;const calendars=list.calendars||[];
+      const events=await apiPost('google_calendar_events',{maxResults:20});calendarEvents=events.events||[];
+      modalBody.innerHTML=`<div class="toolbar"><div class="field"><label>Default calendar</label><select id="calendarSelect">${calendars.filter(c=>['owner','writer'].includes(c.accessRole)).map(c=>`<option value="${esc(c.id)}" ${c.id===calendarConnection?.calendarId?'selected':''}>${esc(c.summary)}${c.primary?' (Primary)':''}</option>`).join('')}</select></div><button class="btn" id="calendarUse">Use this calendar</button><button class="btn primary" id="calendarNew">＋ New Event</button></div><div class="data-list" id="calendarList"></div>`;
+      renderCalendarEvents();
+      document.querySelector('#calendarUse').onclick=async()=>{await apiPost('google_calendar_select',{calendarId:document.querySelector('#calendarSelect').value});await manageCalendar()};
+      document.querySelector('#calendarNew').onclick=()=>openEvent();
+    }
+    function eventWhen(e){const raw=e?.start?.dateTime||e?.start?.date;if(!raw)return'Time unavailable';const d=new Date(raw.length===10?raw+'T00:00:00':raw);return Number.isNaN(d.getTime())?raw:d.toLocaleString()}
+    function renderCalendarEvents(){
+      const el=document.querySelector('#calendarList');if(!el)return;
+      el.innerHTML=calendarEvents.length?calendarEvents.map(e=>`<article class="data-item"><strong>${esc(e.summary||'Untitled event')}</strong><span>${esc(eventWhen(e))}${e.location?' · '+esc(e.location):''}</span><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" data-event-edit="${esc(e.id)}">Edit</button><button class="btn danger" data-event-delete="${esc(e.id)}">Delete</button></div></article>`).join(''):'<div class="data-item"><strong>No upcoming events.</strong></div>';
+      el.querySelectorAll('[data-event-edit]').forEach(b=>b.onclick=()=>openEvent(calendarEvents.find(e=>e.id===b.dataset.eventEdit)));
+      el.querySelectorAll('[data-event-delete]').forEach(b=>b.onclick=async()=>{if(confirm('Delete this event?')){await apiPost('google_calendar_delete_event',{eventId:b.dataset.eventDelete});await manageCalendar()}});
+    }
+    const toLocal=v=>{if(!v)return'';const d=new Date(v);if(Number.isNaN(d.getTime()))return'';const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`};
+    function openEvent(e=null){
+      document.querySelector('#eventHeading').textContent=e?'Edit Event':'Create Event';document.querySelector('#eventId').value=e?.id||'';document.querySelector('#eventTitle').value=e?.summary||'';document.querySelector('#eventStart').value=toLocal(e?.start?.dateTime||new Date(Date.now()+3600000));document.querySelector('#eventEnd').value=toLocal(e?.end?.dateTime||new Date(Date.now()+7200000));document.querySelector('#eventLocation').value=e?.location||'';document.querySelector('#eventAttendees').value=(e?.attendees||[]).map(a=>a.email).filter(Boolean).join(', ');document.querySelector('#eventDescription').value=e?.description||'';document.querySelector('#eventError').textContent='';show('#eventModal');
+    }
+    document.querySelector('#eventCancel').onclick=()=>hide('#eventModal');
+    document.querySelector('#eventSave').onclick=async()=>{
+      const b=document.querySelector('#eventSave');b.disabled=true;document.querySelector('#eventError').textContent='';
+      try{
+        const id=document.querySelector('#eventId').value;
+        const event={summary:document.querySelector('#eventTitle').value.trim(),startDateTime:document.querySelector('#eventStart').value,endDateTime:document.querySelector('#eventEnd').value,location:document.querySelector('#eventLocation').value.trim(),attendees:document.querySelector('#eventAttendees').value,description:document.querySelector('#eventDescription').value.trim(),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'};
+        await apiPost(id?'google_calendar_update_event':'google_calendar_create_event',{eventId:id,event});hide('#eventModal');await manageCalendar();
+      }catch(error){document.querySelector('#eventError').textContent=error.message}finally{b.disabled=false}
     };
 
-    document.querySelector('#backIntegrations').onclick = () => location.href = '/diagnostic/';
+    let pickerReady=false,driveConnection=null;
+    function ensurePicker(){return new Promise((resolve,reject)=>{if(pickerReady&&window.google?.picker)return resolve();if(!window.gapi?.load)return reject(new Error('Google Picker library could not be loaded.'));gapi.load('picker',{callback:()=>{pickerReady=true;resolve()},onerror:()=>reject(new Error('Google Picker library could not be loaded.'))})})}
+    async function manageDrive(){
+      modalTitle.textContent='Google Drive';modalCopy.textContent='Manage the files and folders Creative Creatures may reference.';
+      const status=await apiGet('google_drive_status');driveConnection=status.connection||{selectedItems:[]};
+      modalBody.innerHTML=`<div class="toolbar"><button class="btn primary" id="driveChoose">＋ Choose Files / Folders</button><button class="btn" id="driveRefresh">Refresh Files</button></div><div class="data-list" id="driveList"></div>`;renderDrive();
+      document.querySelector('#driveRefresh').onclick=async()=>{await apiPost('google_drive_refresh');await manageDrive()};
+      document.querySelector('#driveChoose').onclick=openPicker;
+    }
+    function renderDrive(){
+      const el=document.querySelector('#driveList'),items=driveConnection?.selectedItems||[];if(!el)return;
+      el.innerHTML=items.length?items.map(x=>`<article class="data-item"><strong>${esc(x.name||'Untitled')}</strong><span>${esc(x.mimeType||'File')}</span><div style="display:flex;gap:8px;margin-top:9px">${x.webViewLink?`<a class="btn" target="_blank" rel="noopener" href="${esc(x.webViewLink)}">Open</a>`:''}<button class="btn danger" data-drive-remove="${esc(x.id)}">Remove</button></div></article>`).join(''):'<div class="data-item"><strong>No Drive files selected yet.</strong></div>';
+      el.querySelectorAll('[data-drive-remove]').forEach(b=>b.onclick=async()=>{if(confirm('Remove this item from Creative Creatures? The Google Drive file will not be deleted.')){await apiPost('google_drive_remove_item',{fileId:b.dataset.driveRemove});await manageDrive()}});
+    }
+    async function openPicker(){
+      const token=await apiPost('google_drive_picker_token');await ensurePicker();
+      const view=new google.picker.DocsView(google.picker.ViewId.DOCS).setIncludeFolders(true).setSelectFolderEnabled(true);
+      new google.picker.PickerBuilder().addView(view).enableFeature(google.picker.Feature.MULTISELECT_ENABLED).setOAuthToken(token.accessToken).setDeveloperKey(token.picker.apiKey).setAppId(token.picker.appId).setCallback(async data=>{if(data.action!==google.picker.Action.PICKED)return;const ids=(data.docs||[]).map(d=>d.id).filter(Boolean);if(ids.length){await apiPost('google_drive_save_selection',{fileIds:ids});await manageDrive()}}).build().setVisible(true);
+    }
+
+    async function manageHubSpot(){
+      modalTitle.textContent='HubSpot CRM';modalCopy.textContent='Live CRM data from the connected HubSpot portal.';
+      const r=await apiPost('hubspot_dashboard');stateMap.set('HubSpot',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      const sets=[['Contacts',r.contacts||[]],['Companies',r.companies||[]],['Deals',r.deals||[]],['Pipelines',r.pipelines||[]]];
+      modalBody.innerHTML=`<div class="metric-grid">${sets.map(([n,v])=>`<div class="metric"><strong>${v.length}</strong><span>${n}</span></div>`).join('')}</div><div class="tabs">${sets.map(([n])=>`<button class="btn" data-hs-tab="${n.toLowerCase()}">${n}</button>`).join('')}</div><div class="data-list" id="hubList"></div>`;
+      const data={contacts:r.contacts||[],companies:r.companies||[],deals:r.deals||[],pipelines:r.pipelines||[]};
+      const draw=key=>{const el=document.querySelector('#hubList'),arr=data[key]||[];el.innerHTML=arr.length?arr.map(x=>`<article class="data-item"><strong>${esc(x.properties?.dealname||x.properties?.name||[x.properties?.firstname,x.properties?.lastname].filter(Boolean).join(' ')||x.label||'Record')}</strong><span>${esc(x.properties?.email||x.properties?.domain||x.properties?.dealstage||x.id||'')}</span></article>`).join(''):'<div class="data-item"><strong>No records returned.</strong></div>'};
+      document.querySelectorAll('[data-hs-tab]').forEach(b=>b.onclick=()=>draw(b.dataset.hsTab));draw('deals');
+    }
+
+    async function manageSlack(){
+      modalTitle.textContent='Slack Workspace';modalCopy.textContent='Workspace overview only. Message content is not requested or read.';
+      const r=await apiPost('slack_dashboard');stateMap.set('Slack',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      const users=r.users||[],channels=r.channels||[];
+      modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${users.length}</strong><span>Users loaded</span></div><div class="metric"><strong>${channels.length}</strong><span>Channels visible</span></div><div class="metric"><strong>${channels.filter(x=>x.isPrivate).length}</strong><span>Private channels accessible</span></div></div><div class="tabs"><button class="btn" id="slackChannels">Channels</button><button class="btn" id="slackUsers">Users</button></div><div class="data-list" id="slackList"></div>`;
+      const drawChannels=()=>document.querySelector('#slackList').innerHTML=channels.length?channels.map(x=>`<article class="data-item"><strong># ${esc(x.name||'channel')}</strong><span>${x.isPrivate?'Private':'Public'}${x.numMembers?` · ${Number(x.numMembers)} members`:''}${x.purpose?' · '+esc(x.purpose):''}</span></article>`).join(''):'<div class="data-item"><strong>No channels returned.</strong></div>';
+      const drawUsers=()=>document.querySelector('#slackList').innerHTML=users.filter(x=>!x.deleted).map(x=>`<article class="data-item"><strong>${esc(x.displayName||x.realName||x.name||'User')}</strong><span>${esc(x.email||x.name||'')}${x.isOwner?' · Owner':x.isAdmin?' · Admin':''}</span></article>`).join('')||'<div class="data-item"><strong>No users returned.</strong></div>';
+      document.querySelector('#slackChannels').onclick=drawChannels;document.querySelector('#slackUsers').onclick=drawUsers;drawChannels();
+    }
+
+    render();loadStatuses();
   </script>
 </body>
 </html>

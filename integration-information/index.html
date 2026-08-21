@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Tell Creative Creatures which back-office software your agency uses.">
+  <title>Integration Information · Creative Creatures</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/portal/base.css">
+  <style>
+    :root{--line:#e4e4df;--blue:#272cf3;--blue-soft:#eef0ff;--muted:#5d6878;--bg:#fafaf8;--text:#17191f}
+    *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text)}
+    .wrap{width:calc(100% - 40px);margin:0 auto;padding:40px 0 72px}
+    .head{display:flex;justify-content:space-between;align-items:flex-end;gap:28px;margin-bottom:32px}
+    .head-badge{display:inline-block;background:var(--blue-soft);color:var(--blue);font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:5px 12px;border-radius:999px;margin-bottom:12px}
+    .head h1{font-size:clamp(34px,4vw,54px);line-height:1.02;letter-spacing:-.05em;margin:0 0 12px}
+    .head p{font-size:16px;line-height:1.6;color:var(--muted);margin:0;max-width:850px}
+    .summary{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 20px;min-width:250px;box-shadow:0 3px 14px rgba(0,0,0,.025)}
+    .summary strong{display:block;font-size:24px;line-height:1.1;margin-bottom:7px}.summary span{font-size:12px;color:#8792a3}
+    .category-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+    .category{background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px 30px;box-shadow:0 2px 12px rgba(0,0,0,.02);min-height:190px}
+    .category h2{font-size:20px;margin:0 0 6px}.category>p{font-size:14px;color:var(--muted);margin:0 0 18px}
+    .tools{display:flex;flex-wrap:wrap;gap:11px}
+    .tool{position:relative;display:inline-flex;align-items:center;gap:10px;border:1px solid var(--line);background:#fbfbfa;border-radius:12px;padding:13px 16px;font-size:15px;color:#465161;cursor:pointer;transition:.15s}
+    .tool input{position:absolute;opacity:0;pointer-events:none}
+    .check{width:20px;height:20px;border:1px solid #bcc2cb;border-radius:5px;display:grid;place-items:center;font-size:12px;flex:none}
+    .tool:has(input:checked){border-color:#8e91ff;background:var(--blue-soft);color:#2227d8;box-shadow:0 0 0 1px rgba(39,44,243,.07)}
+    .tool:has(input:checked) .check{background:var(--blue);border-color:var(--blue);color:#fff}.tool:has(input:checked) .check:after{content:'✓'}
+    .request-card,.footer{margin-top:26px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px 28px;display:flex;align-items:center;justify-content:space-between;gap:20px;box-shadow:0 4px 16px rgba(0,0,0,.025)}
+    .request-card h3,.footer strong{font-size:17px;margin:0 0 5px}.request-card p,.footer-copy{font-size:14px;color:var(--muted);margin:0;line-height:1.55}.footer strong{display:block;color:#1b2028}
+    .button{min-height:52px;border:1px solid var(--line);border-radius:13px;background:#fff;padding:0 26px;font-size:15px;font-weight:800;color:#4b5665;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;transition:.2s}
+    .button.primary{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 8px 24px rgba(39,44,243,.18)}.button.primary:hover{background:#1d21d4;transform:translateY(-1px)}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.45);backdrop-filter:blur(3px);z-index:300;display:none;place-items:center;padding:18px;overflow:auto}.modal-backdrop.show{display:grid}
+    .modal{width:min(600px,100%);background:#fff;border-radius:20px;border:1px solid var(--line);box-shadow:0 24px 70px rgba(0,0,0,.18);padding:30px}
+    .modal h2{font-size:27px;letter-spacing:-.03em;margin:0 0 10px}.modal p{font-size:14px;line-height:1.55;color:var(--muted);margin:0 0 24px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.field{display:grid;gap:6px}.field.full{grid-column:1/-1}.field label{font-size:12px;font-weight:700}
+    .field input,.field select{width:100%;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fff;font-size:13px;outline:none}.field input:focus,.field select:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-soft)}
+    .modal-actions{display:flex;justify-content:flex-end;gap:12px;margin-top:20px}
+    .queued{display:grid;grid-template-columns:44px 1fr;gap:14px;align-items:center;border:1px solid #b9e0c7;background:#f8fdf9;border-radius:14px;padding:16px;margin:20px 0}.queued i{width:44px;height:44px;border-radius:50%;background:#109b4b;color:#fff;display:grid;place-items:center;font-style:normal;font-weight:800}.queued strong{display:block;font-size:14px}.queued span{font-size:12px;color:var(--muted)}
+    @media(max-width:900px){.wrap{width:calc(100% - 28px);padding-top:28px}.head{align-items:flex-start;flex-direction:column}.summary{width:100%}.category-grid{grid-template-columns:1fr}}
+    @media(max-width:640px){.category{padding:22px 18px;min-height:0}.tool{width:100%}.request-card,.footer{align-items:stretch;flex-direction:column}.request-card .button,.footer .button{width:100%}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal{padding:22px 18px}}
+  </style>
+</head>
+<body>
+  <div data-app-header="integration-information"></div>
+  <main class="wrap">
+    <header class="head">
+      <div>
+        <span class="head-badge">Integration Information</span>
+        <h1>Which Back Office Software Do You Use?</h1>
+        <p>Tell us which systems your agency currently uses. This step is information only — you can connect the selected tools from the separate Integrations dashboard.</p>
+      </div>
+      <aside class="summary">
+        <strong id="selectedCount">0 Tools Selected</strong>
+        <span>Your selections auto-save to your agency workspace.</span>
+      </aside>
+    </header>
+
+    <section class="category-grid" id="categoryGrid"></section>
+
+    <section class="request-card">
+      <div>
+        <h3>Don’t see a system you use?</h3>
+        <p>Submit the vendor and category. We’ll add it to the integration request queue.</p>
+      </div>
+      <button class="button" id="requestButton">Request Integration</button>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-copy">
+        <strong id="summaryTitle">No systems selected yet</strong>
+        <span id="summaryCopy">If you skip selecting any systems, we’ll flag it as a data gap for you.</span>
+      </div>
+      <button class="button primary" id="submitButton">Submit &amp; Next →</button>
+    </footer>
+  </main>
+
+  <div class="modal-backdrop" id="thanksModal">
+    <section class="modal">
+      <h2>Integration information saved</h2>
+      <p>Your tool stack is now saved to this agency account. You can connect these systems later from the Integrations dashboard.</p>
+      <div class="queued"><i>✓</i><div><strong>Back Office Software Saved</strong><span id="queuedText">Your selected tools are saved.</span></div></div>
+      <div class="modal-actions"><button class="button primary" id="nextButton">Next</button></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="requestModal">
+    <section class="modal">
+      <h2>Request an Integration</h2>
+      <p>We’ll record the request for this diagnostic workspace.</p>
+      <div class="form-grid">
+        <div class="field"><label>First Name</label><input id="firstName"></div>
+        <div class="field"><label>Email</label><input id="email" type="email"></div>
+        <div class="field"><label>Back Office Category</label><select id="categorySelect"></select></div>
+        <div class="field"><label>Software Vendor Name</label><input id="vendorName" placeholder="Vendor name"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="button" data-close-request>Cancel</button>
+        <button class="button primary" id="sendRequest">Submit Request</button>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="requestThanks">
+    <section class="modal">
+      <h2>Thank you for submitting this!</h2>
+      <p>Your integration request has been recorded for this agency workspace.</p>
+      <div class="modal-actions"><button class="button primary" id="backInformation">Back to Integration Information</button></div>
+    </section>
+  </div>
+
+  <script src="/portal/diagnostic-state.js"></script>
+  <script src="/portal/account-client.js"></script>
+  <script src="/portal/app-shell.js"></script>
+  <script>
+    const catalog = {
+      'CRM': ['GoHighLevel','HubSpot','Salesforce','Pipedrive','Keap','Zoho CRM'],
+      'Bookkeeping': ['QuickBooks Online','Xero','Sage','FreshBooks','NetSuite'],
+      'Project Management': ['ClickUp','Asana','Monday.com','Teamwork','Jira','Basecamp'],
+      'Communications': ['Slack','Microsoft Teams','Google Chat'],
+      'Calendar & Meetings': ['Google Calendar','Outlook Calendar','Zoom','Calendly'],
+      'Central Drive': ['Google Drive','Dropbox','OneDrive','Box'],
+      'HR & People': ['Gusto','BambooHR','Rippling','ADP','Justworks'],
+      'Billing': ['Stripe','Square','PayPal','Chargebee','Bill.com'],
+      'IT & Security': ['Keeper','Bitwarden','1Password','Cloudflare','Okta']
+    };
+
+    const safeJson=(value,fallback)=>{try{return JSON.parse(value)??fallback}catch{return fallback}};
+    const saved=safeJson(localStorage.getItem('agencySelectedTools'),[]);
+    const selected=new Set(Array.isArray(saved)?saved:[]);
+    const grid=document.querySelector('#categoryGrid');
+
+    grid.innerHTML=Object.entries(catalog).map(([category,tools])=>`
+      <article class="category">
+        <h2>${category}</h2>
+        <p>Select every system currently used by the agency.</p>
+        <div class="tools">${tools.map(tool=>`
+          <label class="tool">
+            <input type="checkbox" value="${tool.replace(/"/g,'&quot;')}" ${selected.has(tool)?'checked':''}>
+            <span class="check"></span><span>${tool}</span>
+          </label>`).join('')}
+        </div>
+      </article>`).join('');
+
+    const currentItems=()=>[...document.querySelectorAll('.tool input:checked')].map(x=>x.value);
+
+    async function persistSelections(){
+      const items=currentItems();
+      localStorage.setItem('agencySelectedTools',JSON.stringify(items));
+      document.querySelector('#selectedCount').textContent=`${items.length} ${items.length===1?'Tool':'Tools'} Selected.`;
+      document.querySelector('#summaryTitle').textContent=items.length?`${items.length} ${items.length===1?'Tool':'Tools'} Selected.`:'No systems selected yet';
+      document.querySelector('#summaryCopy').textContent=items.length?items.join(' · '):'If you skip selecting any systems, we’ll flag it as a data gap for you.';
+      try{await window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.());}catch{}
+      return items;
+    }
+
+    let saveTimer=null;
+    document.querySelectorAll('.tool input').forEach(input=>input.addEventListener('change',()=>{
+      clearTimeout(saveTimer);
+      const items=currentItems();
+      localStorage.setItem('agencySelectedTools',JSON.stringify(items));
+      document.querySelector('#selectedCount').textContent=`${items.length} ${items.length===1?'Tool':'Tools'} Selected.`;
+      document.querySelector('#summaryTitle').textContent=items.length?`${items.length} ${items.length===1?'Tool':'Tools'} Selected.`:'No systems selected yet';
+      document.querySelector('#summaryCopy').textContent=items.length?items.join(' · '):'If you skip selecting any systems, we’ll flag it as a data gap for you.';
+      saveTimer=setTimeout(()=>persistSelections(),500);
+    }));
+    persistSelections();
+
+    const show=id=>document.querySelector(id)?.classList.add('show');
+    const hide=id=>document.querySelector(id)?.classList.remove('show');
+
+    document.querySelector('#submitButton').onclick=async()=>{
+      const button=document.querySelector('#submitButton');
+      button.disabled=true;
+      try{
+        const items=await persistSelections();
+        localStorage.setItem('agencyIntegrationsComplete','true');
+        await window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.(),{throwOnError:true});
+        document.querySelector('#queuedText').textContent=items.length?`${items.length} selected tools are saved.`:'No tools selected; a data gap has been recorded.';
+        show('#thanksModal');
+      }catch(error){
+        alert(error?.message||'Your integration information could not be saved. Please try again.');
+      }finally{button.disabled=false}
+    };
+
+    document.querySelector('#nextButton').onclick=()=>location.href='/diagnostic/';
+
+    const categories=Object.keys(catalog);
+    document.querySelector('#categorySelect').innerHTML=categories.map(x=>`<option>${x}</option>`).join('');
+    const account=window.CCAccount?.getAccount?.()||safeJson(localStorage.getItem('ccUserAccount'),null);
+    document.querySelector('#firstName').value=account?.first_name||account?.firstName||String(account?.name||'').split(/\s+/)[0]||localStorage.getItem('ccOwnerFirstName')||'';
+    document.querySelector('#email').value=account?.email||localStorage.getItem('ccOwnerEmail')||'';
+
+    document.querySelector('#requestButton').onclick=()=>show('#requestModal');
+    document.querySelectorAll('[data-close-request]').forEach(b=>b.onclick=()=>hide('#requestModal'));
+    document.querySelector('#sendRequest').onclick=()=>{
+      const vendor=document.querySelector('#vendorName').value.trim();
+      if(!vendor)return document.querySelector('#vendorName').focus();
+      const requests=safeJson(localStorage.getItem('agencyIntegrationRequests'),[]);
+      requests.push({
+        firstName:document.querySelector('#firstName').value,
+        email:document.querySelector('#email').value,
+        category:document.querySelector('#categorySelect').value,
+        vendor,
+        createdAt:new Date().toISOString()
+      });
+      localStorage.setItem('agencyIntegrationRequests',JSON.stringify(requests));
+      hide('#requestModal');show('#requestThanks');
+    };
+    document.querySelector('#backInformation').onclick=()=>{hide('#requestThanks');document.querySelector('#vendorName').value='';};
+    if(new URLSearchParams(location.search).get('request')==='1')show('#requestModal');
+  </script>
+</body>
+</html>

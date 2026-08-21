@@ -1,12 +1,12 @@
 (() => {
   const IS_RETAKE = new URLSearchParams(window.location.search).get('retake') === '1';
   const sections = [
-    {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Sync from QuickBooks on the Integrations page or upload a PDF, then confirm the financial values below.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
-    {id:'balanceSheet',evidenceType:'balance_sheet',title:'Balance Sheet',short:'Balance Sheet',type:'upload',copy:'Sync from QuickBooks or upload your balance sheet PDF, then confirm the balance-sheet and cash values used for scoring.',requirements:['PDF report','Current assets and liabilities','Cash / debt evidence']},
-    {id:'arAgingDoc',evidenceType:'ar_aging',title:'Accounts Receivable Aging Report',short:'A/R Aging',type:'upload',copy:'Sync A/R Aging from QuickBooks or upload the most recent report, then confirm the collection-rate value below.',requirements:['Most recent A/R Aging Report','PDF format']},
+    {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Choose Upload PDF or Sync Now. Nothing is imported into this section until you explicitly choose one of those actions.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
+    {id:'balanceSheet',evidenceType:'balance_sheet',title:'Balance Sheet',short:'Balance Sheet',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm the balance-sheet and cash values used for scoring.',requirements:['PDF report','Current assets and liabilities','Cash / debt evidence']},
+    {id:'arAgingDoc',evidenceType:'ar_aging',title:'Accounts Receivable Aging Report',short:'A/R Aging',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm the collection-rate value below.',requirements:['Most recent A/R Aging Report','PDF format']},
     {id:'sde',evidenceType:'sde',title:'SDE & Capital Allocation',short:'SDE + Capital',type:'sde',copy:'Confirm owner benefits, Adjusted SDE, and how capital was reinvested during the last year.'},
-    {id:'clientRevenue',evidenceType:'client_revenue',title:'Client Revenue Report',short:'Client Revenue',type:'upload',copy:'Sync client sales from QuickBooks or upload a 12-month client revenue report, then confirm concentration values.',requirements:['Complete client list','Revenue per client','Last 12 months','PDF format']},
-    {id:'serviceRevenue',evidenceType:'service_revenue_mix',title:'Service Revenue Mix',short:'Service Mix',type:'upload',copy:'Sync service sales from QuickBooks or upload revenue by service, then confirm recurring versus project-based revenue.',requirements:['Revenue by service','Recurring / project mix','PDF format']}
+    {id:'clientRevenue',evidenceType:'client_revenue',title:'Client Revenue Report',short:'Client Revenue',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm concentration values.',requirements:['Complete client list','Revenue per client','Last 12 months','PDF format']},
+    {id:'serviceRevenue',evidenceType:'service_revenue_mix',title:'Service Revenue Mix',short:'Service Mix',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm recurring versus project-based revenue.',requirements:['Revenue by service','Recurring / project mix','PDF format']}
   ];
 
   const benefits = [
@@ -154,6 +154,32 @@
   const host=document.querySelector('#sectionHost');
   document.querySelector('#backDiagnostic').addEventListener('click',()=>{persist();location.href='/diagnostic/';});
 
+  app.addEventListener('click',async event=>{
+    const button=event.target.closest('[data-qb-sync]');
+    if(!button)return;
+    event.preventDefault();
+    if(button.disabled)return;
+    button.disabled=true;
+    const original=button.textContent;
+    button.textContent='Syncingâ€¦';
+    try{
+      const response=await fetch('/api/account-auth',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'quickbooks_sync'})
+      });
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.error||'QuickBooks sync failed.');
+      // The user explicitly requested this import. Reload so the existing
+      // financial-evidence loader can apply the newly synced evidence.
+      location.reload();
+    }catch(error){
+      alert(error?.message||'QuickBooks sync failed.');
+      button.disabled=false;
+      button.textContent=original;
+    }
+  });
+
   function renderNav(){
     const nav=document.querySelector('#sectionNav');
     nav.innerHTML=[...sections,{id:'review',short:'Review'}].map((section,index)=>{
@@ -196,7 +222,8 @@
         ${meta?`<div class="uploaded-file"><strong>${esc(meta.name)}</strong>${meta.size?`<span>${formatSize(meta.size)}</span>`:''}</div>`:''}
         ${status?`<div class="extraction-status ${status.className}">${esc(status.text)}</div>`:''}
         <div class="upload-actions">
-          <label class="upload-button">${meta?'Replace PDF':'Choose PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
+          <label class="upload-button">${meta?'Replace PDF':'Upload PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
+          <button type="button" class="upload-button" data-qb-sync="${section.id}">Sync Now</button>
           ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry automated extraction</button>`:''}
         </div>
       </div>

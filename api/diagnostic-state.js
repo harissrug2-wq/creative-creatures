@@ -234,6 +234,11 @@ function sanitizeDiagnosticState(raw = {}) {
     generatedAt: reportReady ? (source.generatedAt || source.generated_at || null) : null,
     paymentComplete: source.paymentComplete === true || source.payment_complete === true,
     integrationsComplete: source.integrationsComplete === true || source.integrations_complete === true,
+    selectedTools: Array.isArray(source.selectedTools)
+      ? [...new Set(source.selectedTools.map(value => clean(value)).filter(Boolean))].slice(0, 100)
+      : Array.isArray(source.selected_tools)
+        ? [...new Set(source.selected_tools.map(value => clean(value)).filter(Boolean))].slice(0, 100)
+        : [],
     goalsComplete: source.goalsComplete === true || source.goals_complete === true,
     updatedAt: source.updatedAt || source.updated_at || new Date().toISOString()
   };

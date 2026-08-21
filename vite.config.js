@@ -60,6 +60,7 @@ export default defineConfig({
         independenceReport: resolve(__dirname, 'agency-scorecard', 'independence', 'index.html'),
         artifacts: page('artifacts'),
         agencyGoals: page('agency-goals'),
+        integrationInformation: page('integration-information'),
         integrations: page('integrations'),
         quickbooksCallback: resolve(__dirname, 'integrations', 'quickbooks', 'callback', 'index.html'),
         googleCalendarCallback: resolve(__dirname, 'integrations', 'google-calendar', 'callback', 'index.html'),
