@@ -1,0 +1,38 @@
+{
+  "uid": "CreativeCreaturesOAuth_app",
+  "type": "app",
+  "config": {
+    "description": "Connect HubSpot CRM data to Creative Creatures for agency diagnostics, reporting, and dashboard insights.",
+    "name": "Creative Creatures",
+    "distribution": "private",
+    "auth": {
+      "type": "oauth",
+      "redirectUrls": [
+        "https://app.creativecreatures.org/integrations/hubspot/callback/"
+      ],
+      "requiredScopes": [
+        "oauth",
+        "crm.objects.contacts.read",
+        "crm.objects.companies.read",
+        "crm.objects.deals.read",
+        "crm.schemas.contacts.read",
+        "crm.schemas.companies.read",
+        "crm.schemas.deals.read"
+      ],
+      "optionalScopes": [],
+      "conditionallyRequiredScopes": []
+    },
+    "permittedUrls": {
+      "fetch": [
+        "https://api.hubapi.com"
+      ],
+      "iframe": [],
+      "img": []
+    },
+    "support": {
+      "supportEmail": "creature@creativecreatures.org",
+      "documentationUrl": "https://app.creativecreatures.org/",
+      "supportUrl": "https://app.creativecreatures.org/"
+    }
+  }
+}
