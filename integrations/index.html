@@ -124,7 +124,7 @@
       'ClickUp':{group:'Project Management',code:'Cu',color:'#7b68ee',copy:'OAuth2 - workspaces - spaces - lists - tasks - time',status:'clickup_status',connect:'clickup_connect',sync:'clickup_dashboard',disconnect:'clickup_disconnect',manage:'clickup'},
       'Asana':{group:'Project Management',code:'As',color:'#f06a6a',copy:'Projects · tasks · teams'},
       'Monday.com':{group:'Project Management',code:'Mo',color:'#ff3d57',copy:'OAuth2 · boards · items · updates'},
-      'Teamwork':{group:'Project Management',code:'Tw',color:'#ef2929',copy:'API key · projects · tasks · time'},
+      'Teamwork':{group:'Project Management',code:'Tw',color:'#ef2929',copy:'OAuth2 - projects - tasks - people - time',status:'teamwork_status',connect:'teamwork_connect',sync:'teamwork_dashboard',disconnect:'teamwork_disconnect',manage:'teamwork'},
       'Jira':{group:'Project Management',code:'Ji',color:'#0052cc',copy:'Projects · issues · sprints'},
       'Basecamp':{group:'Project Management',code:'Ba',color:'#63b954',copy:'Projects · to-dos · messages'},
       'Slack':{group:'Communication',code:'Sl',color:'#4a154b',copy:'OAuth2 · channels · users · workspace',status:'slack_status',connect:'slack_connect',sync:'slack_dashboard',disconnect:'slack_disconnect',manage:'slack'},
@@ -273,7 +273,7 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',slack:'Slack',clickup:'ClickUp'};
+      const map={quickbooks:'QuickBooks Online',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork'};
       let changed=false;
       Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
@@ -291,6 +291,7 @@
         if(tool==='HubSpot')return manageHubSpot();
         if(tool==='Slack')return manageSlack();
         if(tool==='ClickUp')return manageClickUp();
+        if(tool==='Teamwork')return manageTeamwork();
         modalBody.innerHTML='<div class="data-item"><strong>No manage view is required for this integration.</strong></div>';
       }catch(error){modalError.textContent=error.message}
     }
@@ -354,6 +355,17 @@
       const data={contacts:r.contacts||[],companies:r.companies||[],deals:r.deals||[],pipelines:r.pipelines||[]};
       const draw=key=>{const el=document.querySelector('#hubList'),arr=data[key]||[];el.innerHTML=arr.length?arr.map(x=>`<article class="data-item"><strong>${esc(x.properties?.dealname||x.properties?.name||[x.properties?.firstname,x.properties?.lastname].filter(Boolean).join(' ')||x.label||'Record')}</strong><span>${esc(x.properties?.email||x.properties?.domain||x.properties?.dealstage||x.id||'')}</span></article>`).join(''):'<div class="data-item"><strong>No records returned.</strong></div>'};
       document.querySelectorAll('[data-hs-tab]').forEach(b=>b.onclick=()=>draw(b.dataset.hsTab));draw('deals');
+    }
+
+    async function manageTeamwork(){
+      modalTitle.textContent='Teamwork Projects';modalCopy.textContent='Read-only project operations overview from the Teamwork site authorized by this agency.';
+      const r=await apiPost('teamwork_dashboard');stateMap.set('Teamwork',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      const projects=r.projects||[],tasks=r.tasks||[],people=r.people||[],timeEntries=r.timeEntries||[];
+      const totalMinutes=timeEntries.reduce((sum,x)=>sum+Number(x.minutes||0),0),hours=(totalMinutes/60).toFixed(totalMinutes?1:0);
+      modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${projects.length}</strong><span>Projects loaded</span></div><div class="metric"><strong>${tasks.length}</strong><span>Tasks loaded</span></div><div class="metric"><strong>${people.length}</strong><span>People loaded</span></div><div class="metric"><strong>${hours}</strong><span>Logged hours loaded</span></div></div><div class="tabs"><button class="btn" data-tw-tab="projects">Projects</button><button class="btn" data-tw-tab="tasks">Tasks</button><button class="btn" data-tw-tab="people">People</button><button class="btn" data-tw-tab="timeEntries">Time</button></div><div class="data-list" id="teamworkList"></div>`;
+      const data={projects,tasks,people,timeEntries};
+      const draw=key=>{const el=document.querySelector('#teamworkList'),arr=data[key]||[];if(!arr.length){el.innerHTML='<div class="data-item"><strong>No records returned.</strong></div>';return}el.innerHTML=arr.map(x=>{if(key==='projects'){const dates=[x.startDate?'Start '+new Date(x.startDate).toLocaleDateString():'',x.endDate?'End '+new Date(x.endDate).toLocaleDateString():''].filter(Boolean).join(' - ');return `<article class="data-item"><strong>${esc(x.name||'Project')}</strong><span>${esc([x.status,x.companyName,dates].filter(Boolean).join(' - '))}</span></article>`}if(key==='tasks'){const who=(x.assignees||[]).map(a=>a.name).filter(Boolean).join(', '),due=x.dueDate?new Date(x.dueDate).toLocaleDateString():'';return `<article class="data-item"><strong>${esc(x.name||'Task')}</strong><span>${esc([x.status,x.projectName,who,due?'Due '+due:''].filter(Boolean).join(' - '))}</span></article>`}if(key==='people')return `<article class="data-item"><strong>${esc(x.name||'Person')}</strong><span>${esc([x.email,x.title,x.companyName,x.type].filter(Boolean).join(' - '))}</span></article>`;const entryHours=(Number(x.minutes||0)/60).toFixed(Number(x.minutes||0)?1:0),when=x.timeLogged?new Date(x.timeLogged).toLocaleDateString():'';return `<article class="data-item"><strong>${entryHours}h${x.description?' - '+esc(x.description):''}</strong><span>${esc([x.projectName,x.taskName,x.userName,when].filter(Boolean).join(' - '))}</span></article>`}).join('')};
+      document.querySelectorAll('[data-tw-tab]').forEach(button=>button.onclick=()=>draw(button.dataset.twTab));draw('tasks');
     }
 
     async function manageClickUp(){

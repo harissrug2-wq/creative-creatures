@@ -2,6 +2,20 @@ import crypto from 'node:crypto';
 import { sendEmail, escapeHtml } from '../lib/email-service.js';
 import { accountSessionSecret, clearSessionCookie, hashPassword, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
 import {
+  createTeamworkAuthorizationUrl,
+  decryptTeamworkToken,
+  encryptTeamworkToken,
+  exchangeTeamworkCode,
+  getTeamworkUserInfo,
+  listTeamworkPeople,
+  listTeamworkProjects,
+  listTeamworkTasks,
+  listTeamworkTimeEntries,
+  teamworkConfig,
+  verifyTeamworkOAuthState
+} from '../lib/teamwork.js';
+
+import {
   clickUpConfig,
   createClickUpAuthorizationUrl,
   decryptClickUpToken,
@@ -170,6 +184,26 @@ async function googleDriveConnectionAccess(c,accountId){const connection=await g
 function sanitizePickerItems(items){return(Array.isArray(items)?items:[]).map(item=>({id:clean(item?.id),name:clean(item?.name)||'Untitled',mimeType:clean(item?.mimeType),isFolder:Boolean(item?.isFolder||item?.mimeType==='application/vnd.google-apps.folder'),modifiedTime:item?.modifiedTime||null,createdTime:item?.createdTime||null,size:Number.isFinite(Number(item?.size))?Number(item.size):null,webViewLink:clean(item?.webViewLink),iconLink:clean(item?.iconLink),thumbnailLink:clean(item?.thumbnailLink),owners:Array.isArray(item?.owners)?item.owners.map(o=>({displayName:clean(o?.displayName),emailAddress:clean(o?.emailAddress)})):[],parents:Array.isArray(item?.parents)?item.parents.map(clean).filter(Boolean):[],trashed:Boolean(item?.trashed)})).filter(item=>item.id).slice(0,100)}
 
 
+const TEAMWORK_SELECT='id,account_id,installation_id,site_url,api_endpoint,company_id,company_name,region,connected_email,connected_name,access_token_encrypted,status,last_synced_at,last_sync_error,created_at,updated_at';
+async function getTeamworkConnection(c,accountId){const rows=await db(c,`teamwork_connections?select=${TEAMWORK_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
+function publicTeamworkConnection(row){return row?{connected:row.status==='connected',installationId:row.installation_id||'',siteUrl:row.site_url||'',apiEndpoint:row.api_endpoint||'',companyId:row.company_id||'',companyName:row.company_name||'',region:row.region||'',connectedEmail:row.connected_email||'',connectedName:row.connected_name||'',status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,installationId:'',siteUrl:'',apiEndpoint:'',companyId:'',companyName:'',region:'',connectedEmail:'',connectedName:'',status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
+async function saveTeamworkConnection(c,accountId,patch){const existing=await getTeamworkConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`teamwork_connections?id=eq.${encodeURIComponent(existing.id)}&select=${TEAMWORK_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`teamwork_connections?select=${TEAMWORK_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
+async function deleteTeamworkConnection(c,accountId){await db(c,`teamwork_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
+async function teamworkConnectionAccess(c,accountId){const connection=await getTeamworkConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Teamwork first.'),{status:409});const tc=teamworkConfig();if(!tc)throw new Error('Teamwork is not configured.');return{connection,accessToken:decryptTeamworkToken(connection.access_token_encrypted,tc.encryptionSecret)}}
+async function loadTeamworkDashboard(c,accountId){
+  const {connection,accessToken}=await teamworkConnectionAccess(c,accountId),warnings=[];
+  const load=async(label,fn)=>{try{return await fn()}catch(error){warnings.push(`${label}: ${error.message}`);return[]}};
+  const [projects,tasks,people,timeEntries]=await Promise.all([
+    load('projects',()=>listTeamworkProjects(accessToken,connection.api_endpoint)),
+    load('tasks',()=>listTeamworkTasks(accessToken,connection.api_endpoint)),
+    load('people',()=>listTeamworkPeople(accessToken,connection.api_endpoint)),
+    load('time',()=>listTeamworkTimeEntries(accessToken,connection.api_endpoint))
+  ]);
+  const synced=await saveTeamworkConnection(c,accountId,{last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.slice(0,12).join(' | '):null,status:'connected'});
+  return{connection:publicTeamworkConnection(synced),projects:projects.slice(0,250),tasks:tasks.slice(0,250),people:people.slice(0,250),timeEntries:timeEntries.slice(0,250),warnings};
+}
+
+
 const CLICKUP_SELECT='id,account_id,primary_workspace_id,primary_workspace_name,workspace_ids,workspace_names,access_token_encrypted,status,last_synced_at,last_sync_error,created_at,updated_at';
 async function getClickUpConnection(c,accountId){const rows=await db(c,`clickup_connections?select=${CLICKUP_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
 function publicClickUpConnection(row){return row?{connected:row.status==='connected',primaryWorkspaceId:row.primary_workspace_id||'',primaryWorkspaceName:row.primary_workspace_name||'',workspaceIds:Array.isArray(row.workspace_ids)?row.workspace_ids:[],workspaceNames:Array.isArray(row.workspace_names)?row.workspace_names:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,primaryWorkspaceId:'',primaryWorkspaceName:'',workspaceIds:[],workspaceNames:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
@@ -312,6 +346,17 @@ export default async function handler(req,res){
     const action=clean(req.query?.action);
     if(req.method==='GET'){
 
+      if(action==='teamwork_connect'){
+        if(!session)return json(res,401,{error:'Sign in before connecting Teamwork.'});
+        if(!teamworkConfig())return json(res,503,{error:'Teamwork environment variables are not configured.'});
+        return json(res,200,{authorizationUrl:createTeamworkAuthorizationUrl(session.accountId)});
+      }
+      if(action==='teamwork_status'){
+        if(!session)return json(res,401,{error:'Sign in before viewing Teamwork status.'});
+        const connection=await getTeamworkConnection(c,session.accountId);
+        return json(res,200,{connection:publicTeamworkConnection(connection)});
+      }
+
       if(action==='clickup_connect'){
         if(!session)return json(res,401,{error:'Sign in before connecting ClickUp.'});
         if(!clickUpConfig())return json(res,503,{error:'ClickUp environment variables are not configured.'});
@@ -391,6 +436,25 @@ export default async function handler(req,res){
       const token=clean(b.token),password=clean(b.password);if(!token||!password)return json(res,422,{error:'Reset token and new password are required.'});
       const account=await completePasswordReset(c,token,password);const sessionToken=signSession({role:'account',accountId:account.id,email:account.email},secret,30*24*60*60);setSessionCookie(res,'cc_account_session',sessionToken,30*24*60*60);
       return json(res,200,{success:true,authenticated:true,account:pub(account)});
+    }
+
+    if(bodyAction==='teamwork_callback'){
+      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Teamwork.'});
+      const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'Teamwork did not return the required authorization values.'});
+      if(!verifyTeamworkOAuthState(state,session.accountId))return json(res,403,{error:'Teamwork authorization state is invalid or expired.'});
+      const tc=teamworkConfig(),tokens=await exchangeTeamworkCode(code);if(!tokens.access_token)return json(res,409,{error:'Teamwork did not return an access token.'});
+      const installation=tokens.installation||{},apiEndpoint=clean(installation.apiEndPoint||installation.api_endpoint||installation.url);if(!apiEndpoint)return json(res,409,{error:'Teamwork did not return the customer API endpoint.'});
+      let userInfo={};try{userInfo=await getTeamworkUserInfo(tokens.access_token)}catch{}
+      const saved=await saveTeamworkConnection(c,session.accountId,{installation_id:clean(installation.id||userInfo.installation_id),site_url:clean(installation.url||userInfo.url||apiEndpoint),api_endpoint:apiEndpoint,company_id:clean(installation.company?.id),company_name:clean(installation.company?.name||installation.name),region:clean(installation.region),connected_email:clean(userInfo.email),connected_name:[userInfo.given_name,userInfo.family_name].filter(Boolean).join(' '),access_token_encrypted:encryptTeamworkToken(tokens.access_token,tc.encryptionSecret),status:'connected',last_sync_error:null});
+      return json(res,200,{connected:true,connection:publicTeamworkConnection(saved)});
+    }
+    if(bodyAction==='teamwork_dashboard'||bodyAction==='teamwork_sync'){
+      if(!session)return json(res,401,{error:'Sign in before viewing Teamwork data.'});
+      const result=await loadTeamworkDashboard(c,session.accountId);return json(res,200,{success:true,...result});
+    }
+    if(bodyAction==='teamwork_disconnect'){
+      if(!session)return json(res,401,{error:'Sign in before disconnecting Teamwork.'});
+      await deleteTeamworkConnection(c,session.accountId);return json(res,200,{success:true,connection:publicTeamworkConnection(null)});
     }
 
     if(bodyAction==='clickup_callback'){
