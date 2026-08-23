@@ -67,6 +67,7 @@ export default defineConfig({
         googleDriveCallback: resolve(__dirname, 'integrations', 'google-drive', 'callback', 'index.html'),
         hubspotCallback: resolve(__dirname, 'integrations', 'hubspot', 'callback', 'index.html'),
         slackCallback: resolve(__dirname, 'integrations', 'slack', 'callback', 'index.html'),
+        clickupCallback: resolve(__dirname, 'integrations', 'clickup', 'callback', 'index.html'),
         independenceIndex: page('independence-index'),
         agencyStrengthIndex: page('agency-strength-index'),
         agencyPerformanceIndex: page('agency-performance-index'),

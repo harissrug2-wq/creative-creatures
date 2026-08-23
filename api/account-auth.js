@@ -2,6 +2,21 @@ import crypto from 'node:crypto';
 import { sendEmail, escapeHtml } from '../lib/email-service.js';
 import { accountSessionSecret, clearSessionCookie, hashPassword, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
 import {
+  clickUpConfig,
+  createClickUpAuthorizationUrl,
+  decryptClickUpToken,
+  encryptClickUpToken,
+  exchangeClickUpCode,
+  listClickUpFolders,
+  listClickUpFolderlessLists,
+  listClickUpFolderLists,
+  listClickUpSpaces,
+  listClickUpTasks,
+  listClickUpWorkspaces,
+  verifyClickUpOAuthState
+} from '../lib/clickup.js';
+
+import {
   createSlackAuthorizationUrl,
   decryptSlackToken,
   encryptSlackToken,
@@ -155,6 +170,40 @@ async function googleDriveConnectionAccess(c,accountId){const connection=await g
 function sanitizePickerItems(items){return(Array.isArray(items)?items:[]).map(item=>({id:clean(item?.id),name:clean(item?.name)||'Untitled',mimeType:clean(item?.mimeType),isFolder:Boolean(item?.isFolder||item?.mimeType==='application/vnd.google-apps.folder'),modifiedTime:item?.modifiedTime||null,createdTime:item?.createdTime||null,size:Number.isFinite(Number(item?.size))?Number(item.size):null,webViewLink:clean(item?.webViewLink),iconLink:clean(item?.iconLink),thumbnailLink:clean(item?.thumbnailLink),owners:Array.isArray(item?.owners)?item.owners.map(o=>({displayName:clean(o?.displayName),emailAddress:clean(o?.emailAddress)})):[],parents:Array.isArray(item?.parents)?item.parents.map(clean).filter(Boolean):[],trashed:Boolean(item?.trashed)})).filter(item=>item.id).slice(0,100)}
 
 
+const CLICKUP_SELECT='id,account_id,primary_workspace_id,primary_workspace_name,workspace_ids,workspace_names,access_token_encrypted,status,last_synced_at,last_sync_error,created_at,updated_at';
+async function getClickUpConnection(c,accountId){const rows=await db(c,`clickup_connections?select=${CLICKUP_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
+function publicClickUpConnection(row){return row?{connected:row.status==='connected',primaryWorkspaceId:row.primary_workspace_id||'',primaryWorkspaceName:row.primary_workspace_name||'',workspaceIds:Array.isArray(row.workspace_ids)?row.workspace_ids:[],workspaceNames:Array.isArray(row.workspace_names)?row.workspace_names:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,primaryWorkspaceId:'',primaryWorkspaceName:'',workspaceIds:[],workspaceNames:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
+async function saveClickUpConnection(c,accountId,patch){const existing=await getClickUpConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`clickup_connections?id=eq.${encodeURIComponent(existing.id)}&select=${CLICKUP_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`clickup_connections?select=${CLICKUP_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
+async function deleteClickUpConnection(c,accountId){await db(c,`clickup_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
+async function clickUpConnectionAccess(c,accountId){const connection=await getClickUpConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect ClickUp first.'),{status:409});const cc=clickUpConfig();if(!cc)throw new Error('ClickUp is not configured.');return{connection,accessToken:decryptClickUpToken(connection.access_token_encrypted,cc.encryptionSecret)}}
+async function loadClickUpDashboard(c,accountId){
+  const {connection,accessToken}=await clickUpConnectionAccess(c,accountId),warnings=[];
+  let workspaces=[];try{workspaces=await listClickUpWorkspaces(accessToken)}catch(error){warnings.push(`workspaces: ${error.message}`)}
+  const spaces=[],folders=[],lists=[],tasks=[];
+  for(const workspace of workspaces.slice(0,8)){
+    let wsSpaces=[];try{wsSpaces=await listClickUpSpaces(accessToken,workspace.id)}catch(error){warnings.push(`spaces ${workspace.name}: ${error.message}`)}
+    for(const space of wsSpaces.slice(0,20)){
+      spaces.push({...space,workspaceId:workspace.id,workspaceName:workspace.name});
+      let fs=[],direct=[];try{fs=await listClickUpFolders(accessToken,space.id)}catch(error){warnings.push(`folders ${space.name}: ${error.message}`)}
+      try{direct=await listClickUpFolderlessLists(accessToken,space.id)}catch(error){warnings.push(`lists ${space.name}: ${error.message}`)}
+      folders.push(...fs.map(x=>({...x,spaceName:space.name,workspaceName:workspace.name})));
+      lists.push(...direct.map(x=>({...x,spaceName:space.name,workspaceId:workspace.id,workspaceName:workspace.name})));
+      for(const folder of fs.slice(0,30)){
+        let nested=[];try{nested=await listClickUpFolderLists(accessToken,folder.id)}catch(error){warnings.push(`folder lists ${folder.name}: ${error.message}`)}
+        lists.push(...nested.map(x=>({...x,folderName:folder.name,spaceName:space.name,workspaceId:workspace.id,workspaceName:workspace.name})));
+      }
+    }
+  }
+  for(const list of lists.slice(0,30)){
+    if(tasks.length>=250)break;
+    try{const batch=await listClickUpTasks(accessToken,list.id,{page:0});tasks.push(...batch.slice(0,Math.max(0,250-tasks.length)).map(x=>({...x,listName:list.name,spaceName:list.spaceName||'',workspaceName:list.workspaceName||''})))}catch(error){warnings.push(`tasks ${list.name}: ${error.message}`)}
+  }
+  const workspaceIds=workspaces.map(x=>x.id),workspaceNames=workspaces.map(x=>x.name);
+  const synced=await saveClickUpConnection(c,accountId,{primary_workspace_id:workspaceIds[0]||connection.primary_workspace_id,primary_workspace_name:workspaceNames[0]||connection.primary_workspace_name,workspace_ids:workspaceIds,workspace_names:workspaceNames,last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.slice(0,12).join(' | '):null,status:'connected'});
+  return{connection:publicClickUpConnection(synced),workspaces,spaces,folders,lists:lists.slice(0,250),tasks:tasks.slice(0,250),warnings};
+}
+
+
 const SLACK_SELECT='id,account_id,team_id,team_name,team_domain,enterprise_id,enterprise_name,bot_user_id,connected_user_id,access_token_encrypted,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
 async function getSlackConnection(c,accountId){const rows=await db(c,`slack_connections?select=${SLACK_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
 function publicSlackConnection(row){return row?{connected:row.status==='connected',teamId:row.team_id||'',teamName:row.team_name||'',teamDomain:row.team_domain||'',enterpriseId:row.enterprise_id||'',enterpriseName:row.enterprise_name||'',botUserId:row.bot_user_id||'',connectedUserId:row.connected_user_id||'',scopes:Array.isArray(row.scopes)?row.scopes:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,teamId:'',teamName:'',teamDomain:'',enterpriseId:'',enterpriseName:'',botUserId:'',connectedUserId:'',scopes:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
@@ -263,6 +312,17 @@ export default async function handler(req,res){
     const action=clean(req.query?.action);
     if(req.method==='GET'){
 
+      if(action==='clickup_connect'){
+        if(!session)return json(res,401,{error:'Sign in before connecting ClickUp.'});
+        if(!clickUpConfig())return json(res,503,{error:'ClickUp environment variables are not configured.'});
+        return json(res,200,{authorizationUrl:createClickUpAuthorizationUrl(session.accountId)});
+      }
+      if(action==='clickup_status'){
+        if(!session)return json(res,401,{error:'Sign in before viewing ClickUp status.'});
+        const connection=await getClickUpConnection(c,session.accountId);
+        return json(res,200,{connection:publicClickUpConnection(connection)});
+      }
+
       if(action==='slack_connect'){
         if(!session)return json(res,401,{error:'Sign in before connecting Slack.'});
         if(!slackConfig())return json(res,503,{error:'Slack environment variables are not configured.'});
@@ -331,6 +391,25 @@ export default async function handler(req,res){
       const token=clean(b.token),password=clean(b.password);if(!token||!password)return json(res,422,{error:'Reset token and new password are required.'});
       const account=await completePasswordReset(c,token,password);const sessionToken=signSession({role:'account',accountId:account.id,email:account.email},secret,30*24*60*60);setSessionCookie(res,'cc_account_session',sessionToken,30*24*60*60);
       return json(res,200,{success:true,authenticated:true,account:pub(account)});
+    }
+
+    if(bodyAction==='clickup_callback'){
+      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect ClickUp.'});
+      const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'ClickUp did not return the required authorization values.'});
+      if(!verifyClickUpOAuthState(state,session.accountId))return json(res,403,{error:'ClickUp authorization state is invalid or expired.'});
+      const cc=clickUpConfig(),tokens=await exchangeClickUpCode(code);if(!tokens.access_token)return json(res,409,{error:'ClickUp did not return an access token.'});
+      let workspaces=[];try{workspaces=await listClickUpWorkspaces(tokens.access_token)}catch{}
+      const saved=await saveClickUpConnection(c,session.accountId,{primary_workspace_id:workspaces[0]?.id||'',primary_workspace_name:workspaces[0]?.name||'',workspace_ids:workspaces.map(x=>x.id),workspace_names:workspaces.map(x=>x.name),access_token_encrypted:encryptClickUpToken(tokens.access_token,cc.encryptionSecret),status:'connected',last_sync_error:null});
+      return json(res,200,{connected:true,connection:publicClickUpConnection(saved)});
+    }
+    if(bodyAction==='clickup_dashboard'||bodyAction==='clickup_sync'){
+      if(!session)return json(res,401,{error:'Sign in before viewing ClickUp data.'});
+      const result=await loadClickUpDashboard(c,session.accountId);return json(res,200,{success:true,...result});
+    }
+    if(bodyAction==='clickup_disconnect'){
+      if(!session)return json(res,401,{error:'Sign in before disconnecting ClickUp.'});
+      await deleteClickUpConnection(c,session.accountId);
+      return json(res,200,{success:true,connection:publicClickUpConnection(null)});
     }
 
     if(bodyAction==='slack_callback'){

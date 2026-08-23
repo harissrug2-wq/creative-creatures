@@ -121,7 +121,7 @@
       'Pipedrive':{group:'CRM',code:'Pd',color:'#22a06b',copy:'Deals · contacts · activities'},
       'Keap':{group:'CRM',code:'Kp',color:'#ff6b4a',copy:'Contacts · sales · automation'},
       'Zoho CRM':{group:'CRM',code:'Zo',color:'#e94134',copy:'CRM · leads · deals'},
-      'ClickUp':{group:'Project Management',code:'Cu',color:'#7b68ee',copy:'OAuth2 · tasks · projects · time'},
+      'ClickUp':{group:'Project Management',code:'Cu',color:'#7b68ee',copy:'OAuth2 - workspaces - spaces - lists - tasks - time',status:'clickup_status',connect:'clickup_connect',sync:'clickup_dashboard',disconnect:'clickup_disconnect',manage:'clickup'},
       'Asana':{group:'Project Management',code:'As',color:'#f06a6a',copy:'Projects · tasks · teams'},
       'Monday.com':{group:'Project Management',code:'Mo',color:'#ff3d57',copy:'OAuth2 · boards · items · updates'},
       'Teamwork':{group:'Project Management',code:'Tw',color:'#ef2929',copy:'API key · projects · tasks · time'},
@@ -273,7 +273,7 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',slack:'Slack'};
+      const map={quickbooks:'QuickBooks Online',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',slack:'Slack',clickup:'ClickUp'};
       let changed=false;
       Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
@@ -290,6 +290,7 @@
         if(tool==='Google Drive')return manageDrive();
         if(tool==='HubSpot')return manageHubSpot();
         if(tool==='Slack')return manageSlack();
+        if(tool==='ClickUp')return manageClickUp();
         modalBody.innerHTML='<div class="data-item"><strong>No manage view is required for this integration.</strong></div>';
       }catch(error){modalError.textContent=error.message}
     }
@@ -353,6 +354,26 @@
       const data={contacts:r.contacts||[],companies:r.companies||[],deals:r.deals||[],pipelines:r.pipelines||[]};
       const draw=key=>{const el=document.querySelector('#hubList'),arr=data[key]||[];el.innerHTML=arr.length?arr.map(x=>`<article class="data-item"><strong>${esc(x.properties?.dealname||x.properties?.name||[x.properties?.firstname,x.properties?.lastname].filter(Boolean).join(' ')||x.label||'Record')}</strong><span>${esc(x.properties?.email||x.properties?.domain||x.properties?.dealstage||x.id||'')}</span></article>`).join(''):'<div class="data-item"><strong>No records returned.</strong></div>'};
       document.querySelectorAll('[data-hs-tab]').forEach(b=>b.onclick=()=>draw(b.dataset.hsTab));draw('deals');
+    }
+
+    async function manageClickUp(){
+      modalTitle.textContent='ClickUp Workspace';modalCopy.textContent='Read-only project operations overview from the ClickUp workspaces authorized by this agency.';
+      const r=await apiPost('clickup_dashboard');stateMap.set('ClickUp',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      const workspaces=r.workspaces||[],spaces=r.spaces||[],lists=r.lists||[],tasks=r.tasks||[];
+      const totalTime=tasks.reduce((sum,x)=>sum+Number(x.timeSpent||0),0),hours=(totalTime/3600000).toFixed(totalTime?1:0);
+      modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${workspaces.length}</strong><span>Workspaces</span></div><div class="metric"><strong>${spaces.length}</strong><span>Spaces</span></div><div class="metric"><strong>${lists.length}</strong><span>Lists loaded</span></div><div class="metric"><strong>${tasks.length}</strong><span>Tasks loaded</span></div></div><div class="tabs"><button class="btn" data-cu-tab="workspaces">Workspaces</button><button class="btn" data-cu-tab="spaces">Spaces</button><button class="btn" data-cu-tab="lists">Lists</button><button class="btn" data-cu-tab="tasks">Tasks</button><span class="status connected">${hours} tracked hours in loaded tasks</span></div><div class="data-list" id="clickupList"></div>`;
+      const data={workspaces,spaces,lists,tasks};
+      const draw=key=>{
+        const el=document.querySelector('#clickupList'),arr=data[key]||[];
+        if(!arr.length){el.innerHTML='<div class="data-item"><strong>No records returned.</strong></div>';return}
+        el.innerHTML=arr.map(x=>{
+          if(key==='tasks'){const who=(x.assignees||[]).map(a=>a.name).join(', ');const time=Number(x.timeSpent||0)/3600000;return `<article class="data-item"><strong>${esc(x.name||'Task')}</strong><span>${esc(x.status||'No status')}${who?' - '+esc(who):''}${x.dueDate?' - Due '+new Date(Number(x.dueDate)).toLocaleDateString():''}${time?' - '+time.toFixed(1)+'h tracked':''}</span></article>`}
+          if(key==='lists')return `<article class="data-item"><strong>${esc(x.name||'List')}</strong><span>${esc([x.workspaceName,x.spaceName,x.folderName].filter(Boolean).join(' / '))}</span></article>`;
+          if(key==='spaces')return `<article class="data-item"><strong>${esc(x.name||'Space')}</strong><span>${esc(x.workspaceName||'')}</span></article>`;
+          return `<article class="data-item"><strong>${esc(x.name||'Workspace')}</strong><span>${Number(x.members||0)} member(s)</span></article>`;
+        }).join('');
+      };
+      document.querySelectorAll('[data-cu-tab]').forEach(b=>b.onclick=()=>draw(b.dataset.cuTab));draw('tasks');
     }
 
     async function manageSlack(){
