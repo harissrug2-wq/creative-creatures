@@ -123,7 +123,7 @@
       'Zoho CRM':{group:'CRM',code:'Zo',color:'#e94134',copy:'CRM · leads · deals'},
       'ClickUp':{group:'Project Management',code:'Cu',color:'#7b68ee',copy:'OAuth2 - workspaces - spaces - lists - tasks - time',status:'clickup_status',connect:'clickup_connect',sync:'clickup_dashboard',disconnect:'clickup_disconnect',manage:'clickup'},
       'Asana':{group:'Project Management',code:'As',color:'#f06a6a',copy:'Projects · tasks · teams'},
-      'Monday.com':{group:'Project Management',code:'Mo',color:'#ff3d57',copy:'OAuth2 · boards · items · updates'},
+      'Monday.com':{group:'Project Management',code:'Mo',color:'#ff3d57',copy:'OAuth2 - workspaces - boards - items - users',status:'monday_status',connect:'monday_connect',sync:'monday_dashboard',disconnect:'monday_disconnect',manage:'monday'},
       'Teamwork':{group:'Project Management',code:'Tw',color:'#ef2929',copy:'OAuth2 - projects - tasks - people - time',status:'teamwork_status',connect:'teamwork_connect',sync:'teamwork_dashboard',disconnect:'teamwork_disconnect',manage:'teamwork'},
       'Jira':{group:'Project Management',code:'Ji',color:'#0052cc',copy:'Projects · issues · sprints'},
       'Basecamp':{group:'Project Management',code:'Ba',color:'#63b954',copy:'Projects · to-dos · messages'},
@@ -273,7 +273,7 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork'};
+      const map={quickbooks:'QuickBooks Online',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com'};
       let changed=false;
       Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
@@ -292,6 +292,7 @@
         if(tool==='Slack')return manageSlack();
         if(tool==='ClickUp')return manageClickUp();
         if(tool==='Teamwork')return manageTeamwork();
+        if(tool==='Monday.com')return manageMonday();
         modalBody.innerHTML='<div class="data-item"><strong>No manage view is required for this integration.</strong></div>';
       }catch(error){modalError.textContent=error.message}
     }
@@ -356,6 +357,8 @@
       const draw=key=>{const el=document.querySelector('#hubList'),arr=data[key]||[];el.innerHTML=arr.length?arr.map(x=>`<article class="data-item"><strong>${esc(x.properties?.dealname||x.properties?.name||[x.properties?.firstname,x.properties?.lastname].filter(Boolean).join(' ')||x.label||'Record')}</strong><span>${esc(x.properties?.email||x.properties?.domain||x.properties?.dealstage||x.id||'')}</span></article>`).join(''):'<div class="data-item"><strong>No records returned.</strong></div>'};
       document.querySelectorAll('[data-hs-tab]').forEach(b=>b.onclick=()=>draw(b.dataset.hsTab));draw('deals');
     }
+
+    async function manageMonday(){modalTitle.textContent='monday.com Work Management';modalCopy.textContent='Read-only work management overview from the monday.com account authorized by this agency.';const r=await apiPost('monday_dashboard');stateMap.set('Monday.com',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();const workspaces=r.workspaces||[],boards=r.boards||[],users=r.users||[],items=r.items||[];modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${workspaces.length}</strong><span>Workspaces loaded</span></div><div class="metric"><strong>${boards.length}</strong><span>Boards loaded</span></div><div class="metric"><strong>${items.length}</strong><span>Items loaded</span></div><div class="metric"><strong>${users.length}</strong><span>Users loaded</span></div></div><div class="tabs"><button class="btn" data-mo-tab="workspaces">Workspaces</button><button class="btn" data-mo-tab="boards">Boards</button><button class="btn" data-mo-tab="items">Items</button><button class="btn" data-mo-tab="users">Users</button></div><div class="data-list" id="mondayList"></div>`;const data={workspaces,boards,items,users},draw=key=>{const el=document.querySelector('#mondayList'),arr=data[key]||[];if(!arr.length){el.innerHTML='<div class="data-item"><strong>No records returned.</strong></div>';return}el.innerHTML=arr.map(x=>{if(key==='workspaces')return `<article class="data-item"><strong>${esc(x.name||'Workspace')}</strong><span>${esc([x.kind,x.state,x.description].filter(Boolean).join(' - '))}</span></article>`;if(key==='boards'){const owners=(x.owners||[]).map(o=>o.name).filter(Boolean).join(', ');return `<article class="data-item"><strong>${esc(x.name||'Board')}</strong><span>${esc([x.workspaceName,x.kind,x.state,owners?'Owners: '+owners:''].filter(Boolean).join(' - '))}</span></article>`}if(key==='users')return `<article class="data-item"><strong>${esc(x.name||'User')}</strong><span>${esc([x.email,x.title,x.isAdmin?'Admin':'',x.isGuest?'Guest':''].filter(Boolean).join(' - '))}</span></article>`;const columns=(x.columns||[]).filter(c=>c.text).slice(0,4).map(c=>`${c.title}: ${c.text}`).join(' - ');return `<article class="data-item"><strong>${esc(x.name||'Item')}</strong><span>${esc([x.boardName,x.groupName,columns].filter(Boolean).join(' - '))}</span></article>`}).join('')};document.querySelectorAll('[data-mo-tab]').forEach(button=>button.onclick=()=>draw(button.dataset.moTab));draw('items');}
 
     async function manageTeamwork(){
       modalTitle.textContent='Teamwork Projects';modalCopy.textContent='Read-only project operations overview from the Teamwork site authorized by this agency.';

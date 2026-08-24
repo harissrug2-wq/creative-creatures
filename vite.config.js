@@ -69,6 +69,7 @@ export default defineConfig({
         slackCallback: resolve(__dirname, 'integrations', 'slack', 'callback', 'index.html'),
         clickupCallback: resolve(__dirname, 'integrations', 'clickup', 'callback', 'index.html'),
         teamworkCallback: resolve(__dirname, 'integrations', 'teamwork', 'callback', 'index.html'),
+        mondayCallback: resolve(__dirname, 'integrations', 'monday', 'callback', 'index.html'),
         independenceIndex: page('independence-index'),
         agencyStrengthIndex: page('agency-strength-index'),
         agencyPerformanceIndex: page('agency-performance-index'),

@@ -2,6 +2,23 @@ import crypto from 'node:crypto';
 import { sendEmail, escapeHtml } from '../lib/email-service.js';
 import { accountSessionSecret, clearSessionCookie, hashPassword, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
 import {
+  createMondayAuthorizationUrl,
+  decryptMondayToken,
+  encryptMondayToken,
+  exchangeMondayCode,
+  getMondayIdentity,
+  listMondayBoardItems,
+  listMondayBoards,
+  listMondayUsers,
+  listMondayWorkspaces,
+  mondayAccessExpiry,
+  mondayConfig,
+  refreshMondayTokens,
+  revokeMondayToken,
+  verifyMondayOAuthState
+} from '../lib/monday.js';
+
+import {
   createTeamworkAuthorizationUrl,
   decryptTeamworkToken,
   encryptTeamworkToken,
@@ -184,6 +201,16 @@ async function googleDriveConnectionAccess(c,accountId){const connection=await g
 function sanitizePickerItems(items){return(Array.isArray(items)?items:[]).map(item=>({id:clean(item?.id),name:clean(item?.name)||'Untitled',mimeType:clean(item?.mimeType),isFolder:Boolean(item?.isFolder||item?.mimeType==='application/vnd.google-apps.folder'),modifiedTime:item?.modifiedTime||null,createdTime:item?.createdTime||null,size:Number.isFinite(Number(item?.size))?Number(item.size):null,webViewLink:clean(item?.webViewLink),iconLink:clean(item?.iconLink),thumbnailLink:clean(item?.thumbnailLink),owners:Array.isArray(item?.owners)?item.owners.map(o=>({displayName:clean(o?.displayName),emailAddress:clean(o?.emailAddress)})):[],parents:Array.isArray(item?.parents)?item.parents.map(clean).filter(Boolean):[],trashed:Boolean(item?.trashed)})).filter(item=>item.id).slice(0,100)}
 
 
+const MONDAY_SELECT='id,account_id,monday_account_id,monday_account_name,monday_account_slug,monday_user_id,monday_user_name,monday_user_email,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scope,oauth_mode,status,last_synced_at,last_sync_error,created_at,updated_at';
+async function getMondayConnection(c,accountId){const rows=await db(c,`monday_connections?select=${MONDAY_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
+function publicMondayConnection(row){return row?{connected:row.status==='connected',accountId:row.monday_account_id||'',accountName:row.monday_account_name||'',accountSlug:row.monday_account_slug||'',userId:row.monday_user_id||'',userName:row.monday_user_name||'',userEmail:row.monday_user_email||'',scope:row.scope||'',oauthMode:row.oauth_mode||'',status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,accountId:'',accountName:'',accountSlug:'',userId:'',userName:'',userEmail:'',scope:'',oauthMode:'',status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
+async function saveMondayConnection(c,accountId,patch){const existing=await getMondayConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`monday_connections?id=eq.${encodeURIComponent(existing.id)}&select=${MONDAY_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`monday_connections?select=${MONDAY_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
+async function deleteMondayConnection(c,accountId){await db(c,`monday_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
+async function ensureMondayAccess(c,connection){const mc=mondayConfig();if(!mc)throw new Error('monday.com is not configured.');const expiresAt=Date.parse(connection.access_token_expires_at||'');if(!Number.isFinite(expiresAt)||expiresAt>Date.now()+300000)return{connection,accessToken:decryptMondayToken(connection.access_token_encrypted,mc.encryptionSecret)};if(!connection.refresh_token_encrypted)throw Object.assign(new Error('monday.com access expired. Reconnect monday.com.'),{status:401});const refreshToken=decryptMondayToken(connection.refresh_token_encrypted,mc.encryptionSecret),tokens=await refreshMondayTokens(refreshToken),updated=await saveMondayConnection(c,connection.account_id,{access_token_encrypted:encryptMondayToken(tokens.access_token,mc.encryptionSecret),refresh_token_encrypted:encryptMondayToken(tokens.refresh_token,mc.encryptionSecret),access_token_expires_at:mondayAccessExpiry(tokens.access_token,tokens),scope:tokens.scope||connection.scope||'',oauth_mode:'oauth2.1',status:'connected',last_sync_error:null});return{connection:updated,accessToken:tokens.access_token}}
+async function mondayConnectionAccess(c,accountId){const connection=await getMondayConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect monday.com first.'),{status:409});return ensureMondayAccess(c,connection)}
+async function loadMondayDashboard(c,accountId){const{connection,accessToken}=await mondayConnectionAccess(c,accountId),warnings=[];let identity=null,workspaces=[],boards=[],users=[],items=[];const load=async(label,fn,fallback)=>{try{return await fn()}catch(error){warnings.push(`${label}: ${error.message}`);return fallback}};identity=await load('identity',()=>getMondayIdentity(accessToken),null);workspaces=await load('workspaces',()=>listMondayWorkspaces(accessToken),[]);boards=await load('boards',()=>listMondayBoards(accessToken),[]);users=await load('users',()=>listMondayUsers(accessToken),[]);for(const board of boards.slice(0,25)){if(items.length>=300)break;const batch=await load(`items ${board.name}`,()=>listMondayBoardItems(accessToken,board.id,board.name),[]);items.push(...batch.slice(0,Math.max(0,300-items.length)))}const synced=await saveMondayConnection(c,accountId,{monday_account_id:identity?.accountId||connection.monday_account_id||null,monday_account_name:identity?.accountName||connection.monday_account_name||null,monday_account_slug:identity?.accountSlug||connection.monday_account_slug||null,monday_user_id:identity?.userId||connection.monday_user_id||null,monday_user_name:identity?.userName||connection.monday_user_name||null,monday_user_email:identity?.userEmail||connection.monday_user_email||null,last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.slice(0,12).join(' | '):null,status:'connected'});return{connection:publicMondayConnection(synced),identity,workspaces,boards,users,items:items.slice(0,300),warnings}}
+
+
 const TEAMWORK_SELECT='id,account_id,installation_id,site_url,api_endpoint,company_id,company_name,region,connected_email,connected_name,access_token_encrypted,status,last_synced_at,last_sync_error,created_at,updated_at';
 async function getTeamworkConnection(c,accountId){const rows=await db(c,`teamwork_connections?select=${TEAMWORK_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
 function publicTeamworkConnection(row){return row?{connected:row.status==='connected',installationId:row.installation_id||'',siteUrl:row.site_url||'',apiEndpoint:row.api_endpoint||'',companyId:row.company_id||'',companyName:row.company_name||'',region:row.region||'',connectedEmail:row.connected_email||'',connectedName:row.connected_name||'',status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,installationId:'',siteUrl:'',apiEndpoint:'',companyId:'',companyName:'',region:'',connectedEmail:'',connectedName:'',status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
@@ -346,6 +373,9 @@ export default async function handler(req,res){
     const action=clean(req.query?.action);
     if(req.method==='GET'){
 
+      if(action==='monday_connect'){if(!session)return json(res,401,{error:'Sign in before connecting monday.com.'});if(!mondayConfig())return json(res,503,{error:'monday.com environment variables are not configured.'});return json(res,200,{authorizationUrl:createMondayAuthorizationUrl(session.accountId)});}
+      if(action==='monday_status'){if(!session)return json(res,401,{error:'Sign in before viewing monday.com status.'});const connection=await getMondayConnection(c,session.accountId);return json(res,200,{connection:publicMondayConnection(connection)});}
+
       if(action==='teamwork_connect'){
         if(!session)return json(res,401,{error:'Sign in before connecting Teamwork.'});
         if(!teamworkConfig())return json(res,503,{error:'Teamwork environment variables are not configured.'});
@@ -437,6 +467,10 @@ export default async function handler(req,res){
       const account=await completePasswordReset(c,token,password);const sessionToken=signSession({role:'account',accountId:account.id,email:account.email},secret,30*24*60*60);setSessionCookie(res,'cc_account_session',sessionToken,30*24*60*60);
       return json(res,200,{success:true,authenticated:true,account:pub(account)});
     }
+
+    if(bodyAction==='monday_callback'){if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect monday.com.'});const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'monday.com did not return the required authorization values.'});const statePayload=verifyMondayOAuthState(state,session.accountId);if(!statePayload)return json(res,403,{error:'monday.com authorization state is invalid or expired.'});const mc=mondayConfig(),tokens=await exchangeMondayCode(code,statePayload.codeVerifier);if(!tokens.access_token)return json(res,409,{error:'monday.com did not return an access token.'});let identity={};try{identity=await getMondayIdentity(tokens.access_token)}catch{}const saved=await saveMondayConnection(c,session.accountId,{monday_account_id:identity.accountId||null,monday_account_name:identity.accountName||null,monday_account_slug:identity.accountSlug||null,monday_user_id:identity.userId||null,monday_user_name:identity.userName||null,monday_user_email:identity.userEmail||null,access_token_encrypted:encryptMondayToken(tokens.access_token,mc.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptMondayToken(tokens.refresh_token,mc.encryptionSecret):null,access_token_expires_at:mondayAccessExpiry(tokens.access_token,tokens),scope:tokens.scope||'',oauth_mode:tokens.oauth_mode||'legacy',status:'connected',last_sync_error:null});return json(res,200,{connected:true,connection:publicMondayConnection(saved)});}
+    if(bodyAction==='monday_dashboard'||bodyAction==='monday_sync'){if(!session)return json(res,401,{error:'Sign in before viewing monday.com data.'});const result=await loadMondayDashboard(c,session.accountId);return json(res,200,{success:true,...result});}
+    if(bodyAction==='monday_disconnect'){if(!session)return json(res,401,{error:'Sign in before disconnecting monday.com.'});const connection=await getMondayConnection(c,session.accountId);if(connection){const mc=mondayConfig();if(mc){try{if(connection.refresh_token_encrypted)await revokeMondayToken(decryptMondayToken(connection.refresh_token_encrypted,mc.encryptionSecret),'refresh_token');else if(connection.oauth_mode==='oauth2.1'&&connection.access_token_encrypted)await revokeMondayToken(decryptMondayToken(connection.access_token_encrypted,mc.encryptionSecret),'access_token')}catch{}}}await deleteMondayConnection(c,session.accountId);return json(res,200,{success:true,connection:publicMondayConnection(null)});}
 
     if(bodyAction==='teamwork_callback'){
       if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Teamwork.'});
