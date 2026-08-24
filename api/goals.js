@@ -1,4 +1,4 @@
-import { buildValuationSnapshot, withValuationReportData } from './valuation-engine.js';
+import { buildValuationSnapshot, withValuationReportData } from '../lib/valuation-engine.js';
 
 const json = (res, status, payload) => {
   res.statusCode = status;
