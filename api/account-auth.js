@@ -60,6 +60,9 @@ import {
   verifySlackOAuthState
 } from '../lib/slack.js';
 import {
+  archiveHubSpotCompany,
+  archiveHubSpotContact,
+  archiveHubSpotDeal,
   createHubSpotAuthorizationUrl,
   decryptHubSpotToken,
   encryptHubSpotToken,
@@ -73,6 +76,9 @@ import {
   listHubSpotDeals,
   refreshHubSpotTokens,
   revokeHubSpotToken,
+  saveHubSpotCompany,
+  saveHubSpotContact,
+  saveHubSpotDeal,
   verifyHubSpotOAuthState
 } from '../lib/hubspot.js';
 import {
@@ -295,12 +301,42 @@ async function ensureHubSpotAccess(c,connection){
 }
 async function hubSpotConnectionAccess(c,accountId){const connection=await getHubSpotConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect HubSpot first.'),{status:409});return ensureHubSpotAccess(c,connection)}
 async function loadHubSpotDashboard(c,accountId){
-  const {connection,accessToken}=await hubSpotConnectionAccess(c,accountId);
+  const {accessToken}=await hubSpotConnectionAccess(c,accountId);
   const settled=await Promise.allSettled([listHubSpotContacts({accessToken,limit:50}),listHubSpotCompanies({accessToken,limit:50}),listHubSpotDeals({accessToken,limit:50}),listHubSpotDealPipelines({accessToken})]);
   const names=['contacts','companies','deals','pipelines'];const data={};const warnings=[];
   settled.forEach((result,index)=>{if(result.status==='fulfilled')data[names[index]]=result.value;else{data[names[index]]=[];warnings.push(`${names[index]}: ${result.reason?.message||'Unable to load'}`)}});
   const synced=await saveHubSpotConnection(c,accountId,{last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null,status:'connected'});
   return{connection:publicHubSpotConnection(synced),...data,warnings};
+}
+
+function hubSpotWriteAccess(connection,scope){
+  const scopes=Array.isArray(connection?.scopes)?connection.scopes:[];
+  if(!scopes.includes(scope))throw Object.assign(new Error('Reconnect HubSpot to approve CRM write access.'),{status:409,code:'HUBSPOT_RECONNECT_REQUIRED'});
+}
+function hubSpotProperties(source,fields){
+  const input=source&&typeof source==='object'?source:{};const output={};
+  for(const [field,max] of fields){if(Object.prototype.hasOwnProperty.call(input,field))output[field]=clean(input[field]).slice(0,max)}
+  return output;
+}
+function validHubSpotRecordId(value){const id=clean(value);if(id&&!/^\d+$/.test(id))throw Object.assign(new Error('HubSpot record ID is invalid.'),{status:422});return id}
+function validateHubSpotNumber(properties,field,label){const value=clean(properties[field]);if(value!==''&&(!Number.isFinite(Number(value))||Number(value)<0))throw Object.assign(new Error(`${label} must be zero or greater.`),{status:422});}
+function hubSpotContactInput(body){
+  const properties=hubSpotProperties(body.properties,[['firstname',120],['lastname',120],['email',320],['phone',80],['company',240],['jobtitle',180],['lifecyclestage',120]]);
+  const id=validHubSpotRecordId(body.recordId);if(!id&&!clean(properties.email)&&!clean(properties.firstname)&&!clean(properties.lastname))throw Object.assign(new Error('Enter an email address or contact name.'),{status:422});
+  if(properties.email&&!/^\S+@\S+\.\S+$/.test(properties.email))throw Object.assign(new Error('Enter a valid contact email address.'),{status:422});
+  return{id,properties};
+}
+function hubSpotCompanyInput(body){
+  const properties=hubSpotProperties(body.properties,[['name',240],['domain',240],['phone',80],['city',160],['state',160],['country',160],['industry',180],['numberofemployees',40],['annualrevenue',60]]);
+  const id=validHubSpotRecordId(body.recordId);if(!id&&!clean(properties.name)&&!clean(properties.domain))throw Object.assign(new Error('Enter a company name or domain.'),{status:422});
+  validateHubSpotNumber(properties,'numberofemployees','Employees');validateHubSpotNumber(properties,'annualrevenue','Annual revenue');return{id,properties};
+}
+function hubSpotDealInput(body){
+  const properties=hubSpotProperties(body.properties,[['dealname',240],['amount',60],['dealstage',180],['pipeline',180],['closedate',40]]);
+  const id=validHubSpotRecordId(body.recordId);if(!id&&!clean(properties.dealname))throw Object.assign(new Error('Enter a deal name.'),{status:422});
+  if(!id&&(!clean(properties.pipeline)||!clean(properties.dealstage)))throw Object.assign(new Error('Choose a deal pipeline and stage.'),{status:422});
+  validateHubSpotNumber(properties,'amount','Deal amount');if(properties.closedate&&!/^\d{4}-\d{2}-\d{2}/.test(properties.closedate))throw Object.assign(new Error('Close date is invalid.'),{status:422});
+  if(properties.closedate)properties.closedate=new Date(`${properties.closedate.slice(0,10)}T00:00:00.000Z`).toISOString();return{id,properties};
 }
 
 async function getOrCreateCurrentRun(c,accountId){
@@ -540,6 +576,24 @@ export default async function handler(req,res){
     if(bodyAction==='hubspot_dashboard'||bodyAction==='hubspot_sync'){
       if(!session)return json(res,401,{error:'Sign in before viewing HubSpot data.'});
       const result=await loadHubSpotDashboard(c,session.accountId);return json(res,200,{success:true,...result});
+    }
+    if(bodyAction==='hubspot_save_contact'){
+      if(!session)return json(res,401,{error:'Sign in before managing HubSpot contacts.'});const {connection,accessToken}=await hubSpotConnectionAccess(c,session.accountId);hubSpotWriteAccess(connection,'crm.objects.contacts.write');const input=hubSpotContactInput(b);const contact=await saveHubSpotContact({accessToken,id:input.id,properties:input.properties});return json(res,200,{success:true,contact});
+    }
+    if(bodyAction==='hubspot_archive_contact'){
+      if(!session)return json(res,401,{error:'Sign in before managing HubSpot contacts.'});const {connection,accessToken}=await hubSpotConnectionAccess(c,session.accountId);hubSpotWriteAccess(connection,'crm.objects.contacts.write');await archiveHubSpotContact({accessToken,id:validHubSpotRecordId(b.recordId)});return json(res,200,{success:true});
+    }
+    if(bodyAction==='hubspot_save_company'){
+      if(!session)return json(res,401,{error:'Sign in before managing HubSpot companies.'});const {connection,accessToken}=await hubSpotConnectionAccess(c,session.accountId);hubSpotWriteAccess(connection,'crm.objects.companies.write');const input=hubSpotCompanyInput(b);const company=await saveHubSpotCompany({accessToken,id:input.id,properties:input.properties});return json(res,200,{success:true,company});
+    }
+    if(bodyAction==='hubspot_archive_company'){
+      if(!session)return json(res,401,{error:'Sign in before managing HubSpot companies.'});const {connection,accessToken}=await hubSpotConnectionAccess(c,session.accountId);hubSpotWriteAccess(connection,'crm.objects.companies.write');await archiveHubSpotCompany({accessToken,id:validHubSpotRecordId(b.recordId)});return json(res,200,{success:true});
+    }
+    if(bodyAction==='hubspot_save_deal'){
+      if(!session)return json(res,401,{error:'Sign in before managing HubSpot deals.'});const {connection,accessToken}=await hubSpotConnectionAccess(c,session.accountId);hubSpotWriteAccess(connection,'crm.objects.deals.write');const input=hubSpotDealInput(b);const deal=await saveHubSpotDeal({accessToken,id:input.id,properties:input.properties});return json(res,200,{success:true,deal});
+    }
+    if(bodyAction==='hubspot_archive_deal'){
+      if(!session)return json(res,401,{error:'Sign in before managing HubSpot deals.'});const {connection,accessToken}=await hubSpotConnectionAccess(c,session.accountId);hubSpotWriteAccess(connection,'crm.objects.deals.write');await archiveHubSpotDeal({accessToken,id:validHubSpotRecordId(b.recordId)});return json(res,200,{success:true});
     }
     if(bodyAction==='hubspot_disconnect'){
       if(!session)return json(res,401,{error:'Sign in before disconnecting HubSpot.'});const connection=await getHubSpotConnection(c,session.accountId);
