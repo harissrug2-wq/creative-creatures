@@ -1,0 +1,98 @@
+
+/* Monitor Agency Dashboard — Phase 2 */
+.live-dashboard{max-width:1440px;margin:0 auto;padding:30px 34px 70px}
+.live-dashboard-head{display:flex;justify-content:space-between;align-items:flex-start;gap:24px;margin-bottom:22px}
+.live-eyebrow,.live-section-label{display:block;color:#3438ef;font-size:11px;font-weight:800;letter-spacing:.07em;text-transform:uppercase}
+.live-dashboard-head h1{margin:6px 0 8px;font-size:36px;line-height:1.08;letter-spacing:-.04em;color:#151820}
+.live-dashboard-head p{max-width:800px;margin:0;color:#6e7888;font-size:14px;line-height:1.55}
+.live-period-summary{min-width:190px;padding:12px 15px;border:1px solid #e4e6e9;border-radius:13px;background:#fff}
+.live-period-summary span{display:block;color:#9199a7;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+.live-period-summary strong{display:block;margin-top:5px;color:#313845;font-size:12px}
+
+.live-timebar{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;padding:14px;border:1px solid #e2e4e7;border-radius:15px;background:#fff;margin-bottom:30px}
+.live-timebar label{display:grid;gap:5px;color:#7b8493;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.live-timebar select{height:40px;min-width:140px;padding:0 32px 0 11px;border:1px solid #dfe2e7;border-radius:10px;background:#fff;color:#262b34;font-size:12px;text-transform:none;letter-spacing:0}
+.live-compare{display:flex;align-items:center;gap:5px;margin-left:auto}
+.live-compare>span{margin-right:5px;color:#7b8493;font-size:10px;font-weight:700;text-transform:uppercase}
+.live-compare button{height:40px;padding:0 13px;border:1px solid #dfe2e7;background:#fff;color:#596273;font-size:12px;cursor:pointer}
+.live-compare button:first-of-type{border-radius:10px 0 0 10px}.live-compare button:last-child{border-radius:0 10px 10px 0;margin-left:-6px}
+.live-compare button.active{position:relative;border-color:#3438ef;background:#eef1ff;color:#292de5;font-weight:700}
+
+.live-section{margin-top:32px}
+.live-section-head{display:flex;justify-content:space-between;align-items:flex-end;gap:18px;margin-bottom:12px}
+.live-section-head h2{margin:5px 0 0;font-size:21px;line-height:1.2;letter-spacing:-.025em;color:#1b2029}
+.live-link{color:#3034e8;font-size:11px;font-weight:700;text-decoration:none}
+.live-source-note,.live-nice{max-width:430px;color:#8993a2;font-size:10px;line-height:1.45;text-align:right}
+
+.live-table-card,.live-department-card{border:1px solid #e3e5e7;border-radius:15px;background:#fff;overflow:hidden}
+.live-goals-table{width:100%;border-collapse:collapse}
+.live-goals-table th{padding:11px 14px;background:#fafaf9;border-bottom:1px solid #e8e9e8;color:#9099a6;font-size:9px;text-transform:uppercase;letter-spacing:.06em;text-align:left}
+.live-goals-table td{padding:13px 14px;border-bottom:1px solid #eeeeeb;color:#38404c;font-size:12px}
+.live-goals-table tr:last-child td{border-bottom:0}
+.live-goals-table td:first-child strong{display:block;color:#20252e}.live-goals-table td:first-child span{display:block;margin-top:3px;color:#9099a6;font-size:10px}
+
+.live-status{display:inline-flex;align-items:center;justify-content:center;min-height:23px;padding:3px 8px;border-radius:999px;border:1px solid #e0e2e5;background:#f4f5f4;color:#697281;font-size:9px;font-weight:800;white-space:nowrap}
+.live-status.on{border-color:#b7e5c8;background:#ebf9f1;color:#16784a}
+.live-status.watch{border-color:#efd79c;background:#fff8e7;color:#9b6300}
+.live-status.off{border-color:#f4c5c0;background:#fff0ef;color:#b42318}
+.live-status.unset{border-color:#e2e4e7;background:#f6f6f4;color:#78818e}
+
+.live-balanced-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.live-balanced-grid article{min-height:116px;padding:18px;border:1px solid #e3e5e7;border-radius:14px;background:#fff}
+.live-balanced-grid span{color:#818a99;font-size:10px;font-weight:800;text-transform:uppercase}.live-balanced-grid strong{display:block;margin:11px 0 6px;color:#454c58;font-size:17px}.live-balanced-grid small{color:#9aa2ae;font-size:10px}
+
+.live-kpi-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.live-kpi-card{min-height:145px;padding:16px;border:1px solid #e3e5e7;border-radius:14px;background:#fff}
+.live-kpi-card.is-empty{background:#fbfbfa}
+.live-kpi-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}.live-kpi-head>span:first-child{color:#687181;font-size:10px;font-weight:800}
+.live-kpi-card>strong{display:block;margin:18px 0 13px;color:#151a22;font-size:25px;letter-spacing:-.035em}.live-kpi-card.is-empty>strong{color:#a3aab4}
+.live-kpi-meta{display:grid;gap:4px;color:#949ca8;font-size:9px;line-height:1.35}.live-kpi-meta b{color:#626b79}
+
+.live-account-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.live-account-card{padding:16px;border:1px solid #e3e5e7;border-radius:14px;background:#fff;min-height:115px}
+.live-account-card>span{display:block;color:#747e8d;font-size:10px;font-weight:800}.live-account-card>strong{display:block;margin:13px 0 9px;color:#171b23;font-size:21px}.live-account-card>small{color:#969eaa;font-size:9px}
+.live-account-card.is-empty>strong{color:#a4abb5}
+
+.live-department-header,.live-department-row{display:grid;grid-template-columns:minmax(150px,.8fr) minmax(260px,1.7fr) 120px;gap:14px;align-items:center;padding:0 15px}
+.live-department-header{min-height:38px;background:#fafaf9;border-bottom:1px solid #e8e9e8;color:#9099a6;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em}
+.live-department-row{min-height:67px;border-bottom:1px solid #efefec}.live-department-row:last-child{border-bottom:0}
+.live-department-row strong{display:block;color:#252a33;font-size:12px}.live-department-row div:first-child span{display:block;margin-top:3px;color:#979eaa;font-size:9px}
+.live-department-row div:nth-child(2)>span{color:#5b6472;font-size:11px;line-height:1.4}
+.live-empty{padding:35px;text-align:center;color:#8d96a3;font-size:11px}
+
+.live-loading-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.live-loading-grid span{height:130px;border-radius:14px;background:linear-gradient(90deg,#f2f2ef,#fafafa,#f2f2ef);background-size:200% 100%;animation:livePulse 1.2s infinite}
+@keyframes livePulse{to{background-position:-200% 0}}
+.live-error{padding:24px;border:1px solid #fecaca;border-radius:14px;background:#fff6f5;color:#b42318}.live-error strong,.live-error span{display:block}.live-error span{margin-top:6px;font-size:11px;color:#8a4a44}.live-error button{margin-top:14px;height:38px;padding:0 15px;border:0;border-radius:9px;background:#b42318;color:#fff;font-weight:700;cursor:pointer}
+
+@media(max-width:1180px){
+  .live-kpi-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .live-account-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:860px){
+  .live-dashboard{padding:24px 18px 60px}
+  .live-dashboard-head{flex-direction:column}
+  .live-period-summary{width:100%}
+  .live-timebar{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+  .live-timebar select{width:100%;min-width:0}
+  .live-compare{margin-left:0;align-self:end}
+  .live-section-head{align-items:flex-start;flex-direction:column}
+  .live-source-note,.live-nice{text-align:left}
+  .live-kpi-grid,.live-account-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:640px){
+  .live-dashboard{padding:20px 12px 50px}
+  .live-dashboard-head h1{font-size:30px}
+  .live-timebar{grid-template-columns:1fr}
+  .live-compare{width:100%}.live-compare button{flex:1}
+  .live-balanced-grid,.live-kpi-grid,.live-account-grid{grid-template-columns:1fr}
+  .live-table-card{overflow:visible}
+  .live-goals-table thead{display:none}
+  .live-goals-table,.live-goals-table tbody,.live-goals-table tr,.live-goals-table td{display:block;width:100%}
+  .live-goals-table tr{padding:9px 0;border-bottom:1px solid #ececea}.live-goals-table tr:last-child{border-bottom:0}
+  .live-goals-table td{display:grid;grid-template-columns:105px minmax(0,1fr);gap:10px;padding:7px 13px;border:0;align-items:center}
+  .live-goals-table td:before{content:attr(data-label);color:#929aa7;font-size:9px;font-weight:800;text-transform:uppercase}
+  .live-department-header{display:none}
+  .live-department-row{grid-template-columns:1fr;gap:8px;padding:14px;min-height:0}
+  .live-department-row .live-status{justify-self:start}
+  .live-loading-grid{grid-template-columns:1fr 1fr}
+}

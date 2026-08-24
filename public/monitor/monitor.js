@@ -2,9 +2,9 @@
   const path = location.pathname.replace(/\/+$/, '') || '/';
   let storedAccount = null;
   try { storedAccount = JSON.parse(localStorage.getItem('cc_account') || 'null'); } catch {}
-  const ownerName = storedAccount?.name || 'Directing Design Owner';
-  const ownerEmail = storedAccount?.email || 'owner@directingdesign.com';
-  const agencyName = storedAccount?.agency_name || storedAccount?.agencyName || 'Directing Design';
+  const ownerName = storedAccount?.name || 'Agency Owner';
+  const ownerEmail = storedAccount?.email || '';
+  const agencyName = storedAccount?.agency_name || storedAccount?.agencyName || 'Agency Workspace';
   const initials = ownerName.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join('').toUpperCase() || 'DD';
   const pageFromPath = path === '/' ? 'platform' : path.split('/').filter(Boolean).pop();
   const page = document.body.dataset.page || pageFromPath;
@@ -43,7 +43,7 @@
   const ico = (name, cls='') => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${iconPaths[name] || iconPaths.dashboard}</svg>`;
 
   const navItems = [
-    ['platform','Dashboard','All','dashboard'],['leadership','Leadership','EOS','leadership'],['marketing','Marketing','CRM','marketing'],
+    ['platform','Dashboard','All','dashboard'],['leadership','Leadership','Native','leadership'],['marketing','Marketing','CRM','marketing'],
     ['sales','Sales','CRM','sales'],['billing','Billing','Accounting','billing'],['onboarding','Onboarding','PM','onboarding'],
     ['service-delivery','Service Delivery','PM','service'],['client-success','Client Success','PM','client'],
     ['talent-acquisition','Talent Acquisition','Payroll','talent'],['finance','Finance','Accounting','finance'],
