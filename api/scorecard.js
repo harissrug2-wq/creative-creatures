@@ -126,6 +126,98 @@ async function getSavedScorecard(config, runId) {
   return Array.isArray(rows) ? rows[0] || null : null;
 }
 
+async function getScorecardHistory(config, accountId) {
+  const runParams = new URLSearchParams({
+    select: 'id,account_id,status,started_at,generated_at,completed_at',
+    account_id: `eq.${accountId}`,
+    order: 'started_at.asc'
+  });
+  const runs = await supabaseRequest(config, `diagnostic_runs?${runParams.toString()}`);
+  if (!Array.isArray(runs) || !runs.length) return [];
+
+  const runIds = runs.map(run => run.id).filter(Boolean);
+  if (!runIds.length) return [];
+
+  const cardParams = new URLSearchParams({
+    select: 'id,diagnostic_run_id,performance_score,strength_score,independence_score,aofi_score,confidence,validation_status,report_data,generated_at,updated_at',
+    diagnostic_run_id: `in.(${runIds.join(',')})`,
+    order: 'generated_at.asc'
+  });
+  const scorecards = await supabaseRequest(config, `scorecards?${cardParams.toString()}`);
+  if (!Array.isArray(scorecards)) return [];
+
+  const runMap = new Map(runs.map(run => [run.id, run]));
+  return scorecards.map(row => {
+    const report = row.report_data && typeof row.report_data === 'object' ? row.report_data : {};
+    const valuation = report.valuation && typeof report.valuation === 'object' ? report.valuation : {};
+    const enterpriseValue = valuation.available === true
+      ? finiteOrNull(valuation.enterpriseValue)
+      : null;
+
+    return {
+      id: row.id,
+      diagnosticRunId: row.diagnostic_run_id,
+      generatedAt: row.generated_at || row.updated_at || runMap.get(row.diagnostic_run_id)?.generated_at || null,
+      runStartedAt: runMap.get(row.diagnostic_run_id)?.started_at || null,
+      score: finiteOrNull(row.aofi_score),
+      confidence: finiteOrNull(row.confidence),
+      validation: UI_VALIDATION[normalizeValidation(row.validation_status)] || 'Needs Validation',
+      performance: finiteOrNull(row.performance_score),
+      strength: finiteOrNull(row.strength_score),
+      independence: finiteOrNull(row.independence_score),
+      enterpriseValue
+    };
+  }).filter(row => Number.isFinite(row.score));
+}
+
+function historyMomentum(history) {
+  if (!Array.isArray(history) || history.length < 2) {
+    return {
+      state: 'baseline',
+      delta: 0,
+      label: 'Baseline',
+      primaryDriver: null
+    };
+  }
+
+  const previous = history[history.length - 2];
+  const current = history[history.length - 1];
+  const delta = Math.round((Number(current.score) - Number(previous.score)) * 10) / 10;
+
+  const driverDefinitions = [
+    ['performance', 'Agency Performance'],
+    ['strength', 'Agency Strength'],
+    ['independence', 'Owner Independence']
+  ];
+
+  const drivers = driverDefinitions
+    .map(([key, label]) => {
+      const currentValue = Number(current[key]);
+      const previousValue = Number(previous[key]);
+      if (!Number.isFinite(currentValue) || !Number.isFinite(previousValue)) return null;
+      const change = Math.round((currentValue - previousValue) * 10) / 10;
+      return { key, label, change };
+    })
+    .filter(Boolean)
+    .sort((a, b) => Math.abs(b.change) - Math.abs(a.change));
+
+  const state = delta > 0.4 ? 'up' : delta < -0.4 ? 'down' : 'flat';
+  const label = state === 'up'
+    ? `Up ${Math.abs(delta).toFixed(1)} pts`
+    : state === 'down'
+      ? `Down ${Math.abs(delta).toFixed(1)} pts`
+      : 'Flat';
+
+  return {
+    state,
+    delta,
+    label,
+    previousGeneratedAt: previous.generatedAt || null,
+    currentGeneratedAt: current.generatedAt || null,
+    primaryDriver: drivers[0] || null
+  };
+}
+
 const UI_VALIDATION = {
   verified: 'Verified',
   needs_validation: 'Needs Validation',
@@ -452,12 +544,16 @@ export default async function handler(req, res) {
       const enriched = withValuationReportData(saved.report_data, valuation);
       await updateSavedScorecardReport(config, saved.id, enriched);
 
+      const history = await getScorecardHistory(config, account.id);
+      enriched.momentum = historyMomentum(history);
+
       return json(res, 200, {
         ok: true,
         accountId: account.id,
         diagnosticRunId: run.id,
         scorecardId: saved.id,
-        scorecard: enriched
+        scorecard: enriched,
+        history
       });
     }
 
@@ -467,12 +563,16 @@ export default async function handler(req, res) {
     const saved = await saveScorecard(config, run, model);
     await markAccountGenerated(config, account, model);
 
+    const history = await getScorecardHistory(config, account.id);
+    model.momentum = historyMomentum(history);
+
     return json(res, 200, {
       ok: true,
       accountId: account.id,
       diagnosticRunId: run.id,
       scorecardId: saved?.id || null,
-      scorecard: model
+      scorecard: model,
+      history
     });
   } catch (error) {
     console.error('scorecard API error', error);

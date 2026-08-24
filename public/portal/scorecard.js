@@ -90,11 +90,95 @@
   const valuationHtml = valuation?.available
     ? `<section class="valuation-note"><div><h3>Estimated Enterprise Value</h3><p>Adjusted SDE ${money(valuation.adjustedSDE)} × ${Number(valuation.finalMultiple).toFixed(2)}×. Multiple: ${Number(valuation.baseMultiple).toFixed(2)}× base, ${Number(valuation.adjustments?.strength || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.strength || 0).toFixed(2)} Strength, ${Number(valuation.adjustments?.ownerIndependence || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.ownerIndependence || 0).toFixed(2)} Owner Independence, ${Number(valuation.adjustments?.roicLite || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.roicLite || 0).toFixed(2)} ROIC-Lite, ${Number(valuation.adjustments?.revenueQuality || 0) >= 0 ? '+' : ''}${Number(valuation.adjustments?.revenueQuality || 0).toFixed(2)} Revenue Quality.</p>${valuationGapCopy}</div><strong>${money(valuation.enterpriseValue)}<small>${Number(valuation.finalMultiple).toFixed(2)}× Adjusted SDE</small></strong></section>`
     : `<section class="valuation-note"><div><h3>Enterprise Valuation needs more evidence</h3><p>${esc((valuation?.missingInputs || ['Approved valuation inputs']).join(', '))}. The platform leaves valuation blank until the approved methodology can be applied end to end.</p></div><strong>Not available<small>${perf.adjustedSDE === null ? 'Adjusted SDE unavailable' : `Adjusted SDE ${money(perf.adjustedSDE)}`}</small></strong></section>`;
+
+  const history = window.CCScorecard?.getHistory?.() || [];
+  const momentum = model.momentum || { state: 'baseline', delta: 0, label: 'Baseline', primaryDriver: null };
+
+  function formatHistoryDate(value, compact = false) {
+    if (!value) return 'Unknown date';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Unknown date';
+    return date.toLocaleDateString(undefined, compact
+      ? { month: 'short', year: '2-digit' }
+      : { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function renderScorecardTrendChart(historyPoints) {
+    const points = Array.isArray(historyPoints) && historyPoints.length
+      ? historyPoints
+      : [{
+          generatedAt: model.generatedAt,
+          score: model.score,
+          confidence: model.confidence,
+          performance: model.reports.performance.score,
+          strength: model.reports.strength.score,
+          independence: model.reports.independence.score,
+          enterpriseValue: model.valuation?.available ? model.valuation.enterpriseValue : null
+        }];
+
+    const width = 920;
+    const height = 290;
+    const padX = 58;
+    const padTop = 28;
+    const padBottom = 52;
+    const graphHeight = height - padTop - padBottom;
+    const usableWidth = width - padX * 2;
+    const x = index => points.length === 1
+      ? width / 2
+      : padX + (index / (points.length - 1)) * usableWidth;
+    const y = value => padTop + ((100 - Math.max(0, Math.min(100, Number(value) || 0))) / 100) * graphHeight;
+
+    const scorePoints = points.map((point, index) => `${x(index)},${y(point.score)}`).join(' ');
+    const confidencePoints = points.map((point, index) => `${x(index)},${y(point.confidence)}`).join(' ');
+    const grid = [0, 25, 50, 75, 100].map(value => {
+      const yy = y(value);
+      return `<g><line x1="${padX}" x2="${width - padX}" y1="${yy}" y2="${yy}" class="trend-grid-line"></line><text x="${padX - 12}" y="${yy + 4}" text-anchor="end" class="trend-axis-label">${value}</text></g>`;
+    }).join('');
+
+    const labels = points.map((point, index) =>
+      `<text x="${x(index)}" y="${height - 18}" text-anchor="middle" class="trend-axis-label">${esc(formatHistoryDate(point.generatedAt, true))}</text>`
+    ).join('');
+
+    const scoreDots = points.map((point, index) =>
+      `<g><circle cx="${x(index)}" cy="${y(point.score)}" r="5" class="trend-dot trend-dot-score"></circle><title>${formatHistoryDate(point.generatedAt)} · Score ${point.score}</title></g>`
+    ).join('');
+
+    const confidenceDots = points.map((point, index) =>
+      `<g><circle cx="${x(index)}" cy="${y(point.confidence)}" r="4" class="trend-dot trend-dot-confidence"></circle><title>${formatHistoryDate(point.generatedAt)} · Confidence ${point.confidence}%</title></g>`
+    ).join('');
+
+    return `<svg class="scorecard-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Agency Owner Freedom Index score and confidence history">
+      ${grid}
+      <polyline points="${scorePoints}" class="trend-line trend-line-score"></polyline>
+      <polyline points="${confidencePoints}" class="trend-line trend-line-confidence"></polyline>
+      ${scoreDots}
+      ${confidenceDots}
+      ${labels}
+    </svg>`;
+  }
+
+  function renderHistoryRows(historyPoints) {
+    if (!Array.isArray(historyPoints) || !historyPoints.length) {
+      return `<tr><td colspan="7">No persisted scorecard snapshots yet.</td></tr>`;
+    }
+
+    return [...historyPoints].reverse().map(point => `
+      <tr>
+        <td><strong>${esc(formatHistoryDate(point.generatedAt))}</strong></td>
+        <td>${Number(point.score).toFixed(0)}</td>
+        <td>${Number(point.confidence).toFixed(0)}%</td>
+        <td>${Number(point.performance).toFixed(0)}</td>
+        <td>${Number(point.strength).toFixed(0)}</td>
+        <td>${Number(point.independence).toFixed(0)}</td>
+        <td>${Number.isFinite(Number(point.enterpriseValue)) ? money(point.enterpriseValue) : '—'}</td>
+      </tr>`).join('');
+  }
+
   root.innerHTML = `
     <header class="scorecard-header"><div><span class="eyebrow">✣ Owner briefing</span><h1>Agency Scorecard</h1><p>Executive view of the Agency Owner Freedom Index, three index reports, confidence, validation, and the highest-return next moves.</p></div><div class="scorecard-meta">Archetype · <strong>${esc(model.archetype)}</strong><br>Generated · <strong>${model.generatedAt ? new Date(model.generatedAt).toLocaleDateString() : 'Today'}</strong></div></header>
     <div class="section-title"><div><div class="section-kicker">Section 01</div><h2>Executive Summary</h2></div><p>The headline index uses the supplied 40 / 40 / 20 scoring formula.</p></div>
     <section class="aofi-card">
-      <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance, Strength, and Owner Independence. Confidence is weighted using the same formula, and validation inherits the weakest index status.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)}</strong></div><div class="aofi-stat"><span>Momentum</span><strong>Baseline</strong></div></div></div>
+      <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance, Strength, and Owner Independence. Confidence is weighted using the same formula, and validation inherits the weakest index status.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)}</strong></div><div class="aofi-stat"><span>Momentum</span><strong>${esc(momentum.label || 'Baseline')}</strong></div></div></div>
       <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(model.weakest[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[model.weakest[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">Create 90 Day Rock</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
     </section>
     <div class="section-title"><div><div class="section-kicker">Section 02</div><h2>Three Index Reports</h2></div><p>Reports appear here only after all three indexes are complete and generated.</p></div>
@@ -103,6 +187,109 @@
     <section class="insight-grid"><article class="insight-card"><h3>Key issues</h3><div class="insight-list">${issueRows}</div></article><article class="insight-card"><h3>Biggest opportunities</h3><div class="insight-list">${opportunityRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues or opportunities.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">Create 90 Day Rock(s)</button></div>
     <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Agency Valuation</h2></div><p>Calculated from the approved Agency Valuation™ methodology and current diagnostic evidence.</p></div>
     ${valuationHtml}<div class="define-goals-wrap"><a class="define-goals-cta" href="/agency-goals/">Define Agency Goals →</a></div>`;
+
+  const persistedHistory = history.length
+    ? history
+    : [{
+        generatedAt: model.generatedAt,
+        score: model.score,
+        confidence: model.confidence,
+        performance: model.reports.performance.score,
+        strength: model.reports.strength.score,
+        independence: model.reports.independence.score,
+        enterpriseValue: model.valuation?.available ? model.valuation.enterpriseValue : null
+      }];
+
+  const latestHistory = persistedHistory[persistedHistory.length - 1] || {};
+  const trendDirectionClass = momentum.state === 'up'
+    ? 'trend-positive'
+    : momentum.state === 'down'
+      ? 'trend-negative'
+      : 'trend-neutral';
+  const driver = momentum.primaryDriver;
+  const driverCopy = driver
+    ? `${driver.label} ${driver.change > 0 ? 'improved' : driver.change < 0 ? 'declined' : 'was unchanged'} by ${Math.abs(Number(driver.change)).toFixed(1)} points versus the previous scorecard.`
+    : 'This is the baseline scorecard. The next generated diagnostic will establish measurable momentum.';
+
+  const currentView = document.createElement('div');
+  currentView.id = 'scorecardCurrentView';
+  currentView.className = 'scorecard-view-panel';
+  while (root.firstChild) currentView.appendChild(root.firstChild);
+  root.appendChild(currentView);
+
+  const trendsView = document.createElement('section');
+  trendsView.id = 'scorecardTrendsView';
+  trendsView.className = 'scorecard-view-panel scorecard-trends-view';
+  trendsView.hidden = true;
+  trendsView.innerHTML = `
+    <header class="trends-header">
+      <div>
+        <span class="eyebrow">Score history</span>
+        <h1>Agency Scorecard Trends</h1>
+        <p>Each generated diagnostic is retained as a frozen scorecard snapshot, so the Agency Owner Freedom Index can be reviewed over time like a business credit score.</p>
+      </div>
+      <div class="snapshot-count"><strong>${persistedHistory.length}</strong><span>snapshot${persistedHistory.length === 1 ? '' : 's'}</span></div>
+    </header>
+
+    <section class="trend-summary-grid">
+      <article><span>Current AOFI</span><strong>${Number(latestHistory.score ?? model.score).toFixed(0)}</strong><small>${esc(model.band?.label || '')}</small></article>
+      <article><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong><small>${persistedHistory.length > 1 ? 'vs previous scorecard' : 'first scorecard'}</small></article>
+      <article><span>Confidence</span><strong>${Number(latestHistory.confidence ?? model.confidence).toFixed(0)}%</strong><small>${esc(model.validation || '')}</small></article>
+      <article><span>Enterprise value</span><strong>${Number.isFinite(Number(latestHistory.enterpriseValue)) ? money(latestHistory.enterpriseValue) : 'Not available'}</strong><small>current persisted valuation</small></article>
+    </section>
+
+    <section class="trend-chart-card">
+      <div class="trend-card-heading">
+        <div><span class="section-kicker">Monthly history</span><h2>Score progression</h2></div>
+        <div class="trend-legend"><span><i class="legend-score"></i>AOFI score</span><span><i class="legend-confidence"></i>Confidence</span></div>
+      </div>
+      <div class="trend-chart-scroll">${renderScorecardTrendChart(persistedHistory)}</div>
+      ${persistedHistory.length === 1 ? '<p class="trend-baseline-note">Baseline established. Future generated diagnostics will add points to this chart.</p>' : ''}
+    </section>
+
+    <section class="trend-driver-card ${trendDirectionClass}">
+      <span>What moved</span>
+      <h3>${driver ? esc(driver.label) : 'Baseline established'}</h3>
+      <p>${esc(driverCopy)}</p>
+    </section>
+
+    <section class="trend-history-card">
+      <div class="trend-card-heading"><div><span class="section-kicker">Snapshot archive</span><h2>Scorecard history</h2></div><p>Frozen results from prior diagnostic runs.</p></div>
+      <div class="trend-table-scroll">
+        <table class="trend-history-table">
+          <thead><tr><th>Date</th><th>AOFI</th><th>Confidence</th><th>Performance</th><th>Strength</th><th>Independence</th><th>Valuation</th></tr></thead>
+          <tbody>${renderHistoryRows(persistedHistory)}</tbody>
+        </table>
+      </div>
+    </section>`;
+
+  root.insertBefore(trendsView, currentView);
+
+  const viewSwitcher = document.createElement('div');
+  viewSwitcher.className = 'scorecard-view-switcher';
+  viewSwitcher.innerHTML = `
+    <div class="view-switcher-copy"><strong>Agency Scorecard</strong><span>Current snapshot or progress over time</span></div>
+    <div class="view-switcher-actions" role="tablist" aria-label="Scorecard view">
+      <button type="button" class="active" data-scorecard-view="current" role="tab" aria-selected="true">Current</button>
+      <button type="button" data-scorecard-view="trends" role="tab" aria-selected="false">Trends</button>
+    </div>`;
+  root.insertBefore(viewSwitcher, trendsView);
+
+  root.querySelectorAll('[data-scorecard-view]').forEach(button => {
+    button.addEventListener('click', () => {
+      const selected = button.dataset.scorecardView;
+      const showTrends = selected === 'trends';
+      currentView.hidden = showTrends;
+      trendsView.hidden = !showTrends;
+      root.querySelectorAll('[data-scorecard-view]').forEach(item => {
+        const active = item === button;
+        item.classList.toggle('active', active);
+        item.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+
   const saveRocks = async candidates => {
     if (!candidates.length) return { added: 0 };
     const dueDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);

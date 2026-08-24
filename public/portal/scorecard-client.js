@@ -1,6 +1,7 @@
 (() => {
   const API_BASE = '/api/scorecard';
   let cached = null;
+  let cachedHistory = [];
 
   const safeJson = (value, fallback = null) => {
     try { return JSON.parse(value); } catch { return fallback; }
@@ -53,6 +54,7 @@
     if (current.agencyUrl) params.set('agencyUrl', current.agencyUrl);
     const payload = await request(`${API_BASE}?${params.toString()}`);
     cached = payload.scorecard || null;
+    cachedHistory = Array.isArray(payload.history) ? payload.history : [];
     return cached;
   }
 
@@ -63,11 +65,13 @@
       body: JSON.stringify(current)
     });
     cached = payload.scorecard || null;
+    cachedHistory = Array.isArray(payload.history) ? payload.history : [];
     return cached;
   }
 
   const getCached = () => cached;
-  const clear = () => { cached = null; };
+  const getHistory = () => cachedHistory.slice();
+  const clear = () => { cached = null; cachedHistory = []; };
 
-  window.CCScorecard = { load, generate, getCached, clear };
+  window.CCScorecard = { load, generate, getCached, getHistory, clear };
 })();
