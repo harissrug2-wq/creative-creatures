@@ -8,6 +8,7 @@ const json = (res, status, payload) => {
 
 const clean = value => String(value ?? '').trim();
 const lower = value => clean(value).toLowerCase();
+const finite = value => { const n = Number(value); return Number.isFinite(n) ? n : null; };
 const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
 
 const EMPTY_DIAGNOSTIC_STATE = {
@@ -116,6 +117,191 @@ async function updateById(config, id, patch) {
   return Array.isArray(rows) ? rows[0] : rows;
 }
 
+
+function average(values) {
+  const usable = values.map(finite).filter(value => value !== null);
+  if (!usable.length) return null;
+  return Math.round((usable.reduce((sum, value) => sum + value, 0) / usable.length) * 10) / 10;
+}
+
+function sum(values) {
+  const usable = values.map(finite).filter(value => value !== null);
+  if (!usable.length) return null;
+  return Math.round(usable.reduce((total, value) => total + value, 0) * 100) / 100;
+}
+
+function latestByType(rows = []) {
+  const map = new Map();
+  rows.forEach(row => {
+    const current = map.get(row.evidence_type);
+    const currentAt = new Date(current?.updated_at || current?.created_at || 0).getTime();
+    const rowAt = new Date(row?.updated_at || row?.created_at || 0).getTime();
+    if (!current || rowAt >= currentAt) map.set(row.evidence_type, row);
+  });
+  return map;
+}
+
+function scorecardMomentum(history) {
+  if (!Array.isArray(history) || history.length < 2) {
+    return { state: 'baseline', delta: 0, label: 'Baseline' };
+  }
+  const previous = history[history.length - 2];
+  const current = history[history.length - 1];
+  const delta = Math.round((Number(current.aofi) - Number(previous.aofi)) * 10) / 10;
+  if (delta > 0.4) return { state: 'up', delta, label: `Up ${Math.abs(delta).toFixed(1)} pts` };
+  if (delta < -0.4) return { state: 'down', delta, label: `Down ${Math.abs(delta).toFixed(1)} pts` };
+  return { state: 'flat', delta, label: 'Flat' };
+}
+
+function supportedMrr(serviceEvidence) {
+  const data = serviceEvidence?.extracted_data && typeof serviceEvidence.extracted_data === 'object'
+    ? serviceEvidence.extracted_data
+    : {};
+  const recurring = finite(data.recurringRevenue);
+  if (recurring === null) return null;
+  const period = String(data.periodLabel || '').toLowerCase();
+  const annualPeriod = /\b(ttm|trailing\s*12|12\s*months?|annual|year(?:ly)?)\b/.test(period);
+  return annualPeriod ? Math.round((recurring / 12) * 100) / 100 : null;
+}
+
+async function buildAdminPortfolio(config, accountRows) {
+  const [runsRaw, cardsRaw, evidenceRaw] = await Promise.all([
+    supabaseRequest(config, 'diagnostic_runs?select=id,account_id,status,is_current,started_at,generated_at,completed_at&order=started_at.asc'),
+    supabaseRequest(config, 'scorecards?select=id,diagnostic_run_id,performance_score,strength_score,independence_score,aofi_score,confidence,validation_status,report_data,generated_at,updated_at&order=generated_at.asc'),
+    supabaseRequest(config, 'financial_evidence?select=diagnostic_run_id,evidence_type,extraction_status,extracted_data,validation_status,created_at,updated_at&order=updated_at.asc')
+  ]);
+
+  const accountIds = new Set(accountRows.map(row => String(row.id)));
+  const runs = (Array.isArray(runsRaw) ? runsRaw : []).filter(run => accountIds.has(String(run.account_id)));
+  const runById = new Map(runs.map(run => [String(run.id), run]));
+  const runsByAccount = new Map();
+
+  runs.forEach(run => {
+    const key = String(run.account_id);
+    if (!runsByAccount.has(key)) runsByAccount.set(key, []);
+    runsByAccount.get(key).push(run);
+  });
+
+  const cardsByAccount = new Map();
+  (Array.isArray(cardsRaw) ? cardsRaw : []).forEach(card => {
+    const run = runById.get(String(card.diagnostic_run_id));
+    if (!run) return;
+    const key = String(run.account_id);
+    if (!cardsByAccount.has(key)) cardsByAccount.set(key, []);
+    cardsByAccount.get(key).push(card);
+  });
+
+  const evidenceByRun = new Map();
+  (Array.isArray(evidenceRaw) ? evidenceRaw : []).forEach(row => {
+    if (!runById.has(String(row.diagnostic_run_id))) return;
+    const key = String(row.diagnostic_run_id);
+    if (!evidenceByRun.has(key)) evidenceByRun.set(key, []);
+    evidenceByRun.get(key).push(row);
+  });
+
+  const enriched = accountRows.map(account => {
+    const key = String(account.id);
+    const accountRuns = (runsByAccount.get(key) || []).slice().sort((a, b) =>
+      new Date(a.started_at || 0) - new Date(b.started_at || 0)
+    );
+    const currentRun = accountRuns.find(run => run.is_current === true) || accountRuns[accountRuns.length - 1] || null;
+    const cards = (cardsByAccount.get(key) || []).slice().sort((a, b) =>
+      new Date(a.generated_at || a.updated_at || 0) - new Date(b.generated_at || b.updated_at || 0)
+    );
+
+    const history = cards.map(card => {
+      const report = card.report_data && typeof card.report_data === 'object' ? card.report_data : {};
+      const valuation = report.valuation && typeof report.valuation === 'object' ? report.valuation : {};
+      return {
+        generatedAt: card.generated_at || card.updated_at || null,
+        aofi: finite(card.aofi_score),
+        confidence: finite(card.confidence),
+        performance: finite(card.performance_score),
+        strength: finite(card.strength_score),
+        independence: finite(card.independence_score),
+        enterpriseValue: valuation.available === true ? finite(valuation.enterpriseValue) : finite(report.enterpriseValuation)
+      };
+    }).filter(row => row.aofi !== null);
+
+    const latestCard = cards[cards.length - 1] || null;
+    const latestHistory = history[history.length - 1] || {};
+    const latestReport = latestCard?.report_data && typeof latestCard.report_data === 'object'
+      ? latestCard.report_data
+      : {};
+
+    const evidence = currentRun ? latestByType(evidenceByRun.get(String(currentRun.id)) || []) : new Map();
+    const pnl = evidence.get('profit_loss')?.extracted_data || {};
+    const balance = evidence.get('balance_sheet')?.extracted_data || {};
+    const service = evidence.get('service_revenue_mix');
+    const coverage = [
+      evidence.has('profit_loss') ? 'profit_loss' : null,
+      evidence.has('balance_sheet') ? 'balance_sheet' : null,
+      evidence.has('service_revenue_mix') ? 'service_revenue_mix' : null
+    ].filter(Boolean);
+
+    return {
+      ...account,
+      portfolio: {
+        archetype: latestReport.archetype || account?.archetype_result?.title || account?.report_data?.archetypeTitle || '',
+        scorecard: {
+          aofi: latestHistory.aofi ?? null,
+          confidence: latestHistory.confidence ?? null,
+          performance: latestHistory.performance ?? null,
+          strength: latestHistory.strength ?? null,
+          independence: latestHistory.independence ?? null,
+          enterpriseValue: latestHistory.enterpriseValue ?? null,
+          validation: latestCard?.validation_status || null,
+          generatedAt: latestHistory.generatedAt || null,
+          momentum: scorecardMomentum(history),
+          history
+        },
+        financials: {
+          revenueTtm: finite(pnl.revenueTTM),
+          netProfitTtm: finite(pnl.netIncomeTTM),
+          cash: finite(balance.cash),
+          recurringRevenue: finite(service?.extracted_data?.recurringRevenue),
+          mrr: supportedMrr(service),
+          coverage
+        }
+      }
+    };
+  });
+
+  const scorecards = enriched.map(account => account.portfolio.scorecard).filter(card => card.aofi !== null);
+  const financials = enriched.map(account => account.portfolio.financials);
+  const valuations = scorecards.map(card => card.enterpriseValue).filter(value => finite(value) !== null);
+  const mrr = financials.map(row => row.mrr).filter(value => finite(value) !== null);
+  const netProfit = financials.map(row => row.netProfitTtm).filter(value => finite(value) !== null);
+  const cash = financials.map(row => row.cash).filter(value => finite(value) !== null);
+
+  return {
+    accounts: enriched,
+    platform: {
+      activeAgencies: enriched.length,
+      scorecardsReady: scorecards.length,
+      scorecardCoverage: enriched.length ? Math.round((scorecards.length / enriched.length) * 100) : 0,
+      averageAofi: average(scorecards.map(card => card.aofi)),
+      averageConfidence: average(scorecards.map(card => card.confidence)),
+      averagePerformance: average(scorecards.map(card => card.performance)),
+      averageStrength: average(scorecards.map(card => card.strength)),
+      averageIndependence: average(scorecards.map(card => card.independence)),
+      totalValuation: sum(valuations),
+      valuationCoverage: valuations.length,
+      totalMrr: sum(mrr),
+      mrrCoverage: mrr.length,
+      totalNetProfitTtm: sum(netProfit),
+      netProfitCoverage: netProfit.length,
+      totalCash: sum(cash),
+      cashCoverage: cash.length,
+      pendingTelemetry: [
+        { key: 'team_utilization', label: 'Team Utilization', note: 'Will populate from project/time-tracking integrations used by Monitor.' },
+        { key: 'lead_to_close', label: 'Lead-to-Close Rate', note: 'Will populate from CRM pipeline telemetry used by Monitor.' },
+        { key: 'client_sentiment', label: 'Client Sentiment / NPS', note: 'Will populate when a verified client-sentiment source is connected.' }
+      ]
+    }
+  };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PATCH,DELETE,OPTIONS');
@@ -130,7 +316,12 @@ export default async function handler(req, res) {
       if (req.query?.all === 'true' || req.query?.all === '1' || req.query?.list === '1') {
         if (!requireAdmin(req)) return json(res, 401, { error: 'Admin authentication required.' });
         const rows = await supabaseRequest(config, `accounts?select=${SELECT}&order=created_at.desc`);
-        return json(res, 200, { accounts: (Array.isArray(rows) ? rows : []).map(publicAccount) });
+        const accounts = (Array.isArray(rows) ? rows : []).map(publicAccount);
+        if (req.query?.portfolio === '1' || req.query?.portfolio === 'true') {
+          const portfolio = await buildAdminPortfolio(config, accounts);
+          return json(res, 200, portfolio);
+        }
+        return json(res, 200, { accounts });
       }
 
       const email = lower(req.query?.email);

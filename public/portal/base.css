@@ -159,3 +159,40 @@ img { max-width: 100%; }
     background:#f0f2ff;
   }
 }
+
+/* Global Responsive Popup Guard
+   Keeps application dialogs inside the viewport without changing popup logic. */
+html.cc-modal-open,html.cc-modal-open body{overflow:hidden}
+:is(.modal-backdrop,.modal-overlay,.dialog-backdrop,.manage-backdrop,.workspace-backdrop,[class*="modal-backdrop"],[class*="modal-overlay"]){
+  overscroll-behavior:contain;
+}
+:is(.modal-card,.modal-dialog,.dialog-card,.dialog-panel,.workspace-modal,.manage-modal,.integration-modal,.evidence-modal,.calendar-modal,.drive-modal,.slack-modal,.clickup-modal,.teamwork-modal,.monday-modal,[role="dialog"]){
+  max-width:calc(100vw - 32px);
+  max-height:calc(100dvh - 32px);
+}
+@media(max-width:768px){
+  :is(.modal-backdrop,.modal-overlay,.dialog-backdrop,.manage-backdrop,.workspace-backdrop,[class*="modal-backdrop"],[class*="modal-overlay"]){
+    padding:10px!important;
+    align-items:flex-start!important;
+    overflow-y:auto!important;
+  }
+  :is(.modal-card,.modal-dialog,.dialog-card,.dialog-panel,.workspace-modal,.manage-modal,.integration-modal,.evidence-modal,.calendar-modal,.drive-modal,.slack-modal,.clickup-modal,.teamwork-modal,.monday-modal,[role="dialog"]){
+    width:100%!important;
+    max-width:calc(100vw - 20px)!important;
+    max-height:calc(100dvh - 20px)!important;
+    margin:auto!important;
+    overflow:auto!important;
+    overscroll-behavior:contain;
+  }
+  :is(.modal-card,.modal-dialog,.dialog-card,.dialog-panel,.workspace-modal,.manage-modal,.integration-modal,.evidence-modal,.calendar-modal,.drive-modal,.slack-modal,.clickup-modal,.teamwork-modal,.monday-modal,[role="dialog"]) :is(input,select,textarea,button){
+    max-width:100%;
+  }
+  :is(.modal-actions,.dialog-actions,.modal-footer,.dialog-footer){
+    flex-wrap:wrap!important;
+  }
+}
+@media(max-width:480px){
+  :is(.modal-actions,.dialog-actions,.modal-footer,.dialog-footer)>:is(button,a){
+    flex:1 1 140px;
+  }
+}

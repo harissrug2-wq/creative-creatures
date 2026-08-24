@@ -32,6 +32,7 @@ export default defineConfig({
         admin: page('admin'),
         adminLogin: resolve(__dirname, 'admin', 'login', 'index.html'),
         adminOwnerArchetypes: resolve(__dirname, 'admin', 'owner-archetypes', 'index.html'),
+        adminScorecards: resolve(__dirname, 'admin', 'scorecards', 'index.html'),
         adminPerformance: resolve(__dirname, 'admin', 'performance', 'index.html'),
         platform: page('platform'),
         leadership: page('leadership'),

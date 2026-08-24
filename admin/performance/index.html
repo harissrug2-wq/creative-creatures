@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Diagnostic Performance · Creative Creatures Admin</title>
+  <title>Platform Performance · Creative Creatures Admin</title>
   <link rel="icon" href="/favicon.svg">
   <link rel="stylesheet" href="/admin/admin.css">
 </head>
@@ -17,34 +17,62 @@
       <nav class="admin-nav">
         <a class="admin-link" href="/admin/owner-archetypes/"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Owner Archetype</a>
         <a class="admin-link" href="/admin/"><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg>Diagnostics</a>
-        <a class="admin-link active" href="/admin/performance/"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Performance</a>
+        <a class="admin-link" href="/admin/scorecards/"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Agency Scorecards</a>
+        <a class="admin-link active" href="/admin/performance/"><svg viewBox="0 0 24 24"><path d="M3 18h18M5 15l4-4 3 2 6-7"/></svg>Platform Performance</a>
       </nav>
       <div class="admin-profile"><span class="admin-avatar">PA</span><div><strong data-admin-username>Platform Admin</strong><span>admin@creativecreatures.org</span></div><i>⌃</i></div>
     </aside>
     <div class="admin-overlay"></div>
+
     <div class="admin-main">
-      <header class="admin-top"><button class="admin-mobile">☰</button><span>Creative Creatures</span>&nbsp;/&nbsp;Admin&nbsp;/&nbsp;Performance</header>
-      <main class="admin-content">
-        <header class="admin-head"><div><h1>Diagnostic Performance</h1><p>Live completion and report-readiness rollup across paid Agency Diagnostic clients.</p></div><span class="admin-updated" data-admin-updated></span></header>
+      <header class="admin-top"><button class="admin-mobile">☰</button><span>Creative Creatures</span>&nbsp;/&nbsp;Admin&nbsp;/&nbsp;Platform Performance</header>
+      <main class="admin-content portfolio-content">
+        <header class="admin-head">
+          <div>
+            <h1>Platform Performance</h1>
+            <p>Real portfolio rollup across Creative Creatures agencies. Financial cards use persisted source evidence; unavailable Monitor telemetry is never fabricated.</p>
+          </div>
+          <span class="admin-updated" data-admin-updated></span>
+        </header>
+
         <p class="admin-inline-error" data-admin-error hidden></p>
-        <section class="metric-grid" id="metricGrid"></section>
+
+        <section class="portfolio-metric-grid performance-metric-grid" id="platformMetrics"></section>
+
+        <section class="portfolio-section">
+          <div class="section-head">
+            <div>
+              <span class="section-label">Monitor telemetry</span>
+              <h2>Operational metrics awaiting connected sources</h2>
+            </div>
+            <p>These become live as Monitor integrations provide verified agency-level telemetry.</p>
+          </div>
+          <div class="telemetry-grid" id="platformTelemetry"></div>
+        </section>
+
         <div class="rollup-head">
-          <h2>Per-diagnostic rollup</h2>
+          <div>
+            <h2>Agency performance rollup</h2>
+            <p class="rollup-subcopy">MRR is calculated only when recurring-revenue evidence clearly represents a 12-month/TTM period.</p>
+          </div>
           <div class="rollup-tools">
-            <input class="searchbox" id="agencySearch" placeholder="⌕  Search diagnostic...">
-            <select class="sortbox" id="agencySort">
-              <option value="progress-desc">Sort: Analysis ↓</option>
-              <option value="status-desc">Sort: Status ↓</option>
+            <input class="searchbox" id="platformSearch" placeholder="Search agency...">
+            <select class="sortbox" id="platformSort">
+              <option value="aofi-desc">Sort: AOFI ↓</option>
+              <option value="mrr-desc">Sort: MRR ↓</option>
+              <option value="profit-desc">Sort: Net Profit ↓</option>
+              <option value="cash-desc">Sort: Cash ↓</option>
               <option value="name-asc">Sort: Name A-Z</option>
-              <option value="date-desc">Sort: Date Newest</option>
             </select>
           </div>
         </div>
-        <section class="rollup-table" id="rollupTableContainer"></section>
+
+        <section class="portfolio-table-card" id="platformAgencyRollup"></section>
       </main>
     </div>
   </div>
+
   <script src="/admin/admin-auth.js"></script>
-  <script src="/admin/admin.js"></script>
+  <script src="/admin/portfolio.js"></script>
 </body>
 </html>

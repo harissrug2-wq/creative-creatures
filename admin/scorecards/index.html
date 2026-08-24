@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agency Scorecards · Creative Creatures Admin</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+  <div class="admin-app">
+    <aside class="admin-side">
+      <div class="admin-brand">
+        <img src="/portal/creative-creatures-logo.png" alt="Creative Creatures">
+        <div class="admin-badge"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/></svg>Admin Console</div>
+      </div>
+      <nav class="admin-nav">
+        <a class="admin-link" href="/admin/owner-archetypes/"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Owner Archetype</a>
+        <a class="admin-link" href="/admin/"><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg>Diagnostics</a>
+        <a class="admin-link active" href="/admin/scorecards/"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Agency Scorecards</a>
+        <a class="admin-link" href="/admin/performance/"><svg viewBox="0 0 24 24"><path d="M3 18h18M5 15l4-4 3 2 6-7"/></svg>Platform Performance</a>
+      </nav>
+      <div class="admin-profile"><span class="admin-avatar">PA</span><div><strong data-admin-username>Platform Admin</strong><span>admin@creativecreatures.org</span></div><i>⌃</i></div>
+    </aside>
+    <div class="admin-overlay"></div>
+
+    <div class="admin-main">
+      <header class="admin-top"><button class="admin-mobile">☰</button><span>Creative Creatures</span>&nbsp;/&nbsp;Admin&nbsp;/&nbsp;Agency Scorecards</header>
+      <main class="admin-content portfolio-content">
+        <header class="admin-head">
+          <div>
+            <h1>Agency Scorecards</h1>
+            <p>Portfolio-level view of AOFI, confidence, momentum, valuation, index scores, owner archetype and diagnostic progress.</p>
+          </div>
+          <span class="admin-updated" data-admin-updated></span>
+        </header>
+
+        <p class="admin-inline-error" data-admin-error hidden></p>
+
+        <section class="portfolio-metric-grid" id="scorecardMetrics"></section>
+
+        <div class="rollup-head">
+          <div>
+            <h2>Agency portfolio</h2>
+            <p class="rollup-subcopy">Generated Scorecards only use persisted diagnostic results—no demo values.</p>
+          </div>
+          <div class="rollup-tools">
+            <input class="searchbox" id="scorecardSearch" placeholder="Search agency...">
+            <select class="sortbox" id="scorecardSort">
+              <option value="score-desc">Sort: AOFI ↓</option>
+              <option value="confidence-desc">Sort: Confidence ↓</option>
+              <option value="momentum-desc">Sort: Momentum ↓</option>
+              <option value="valuation-desc">Sort: Valuation ↓</option>
+              <option value="name-asc">Sort: Name A-Z</option>
+            </select>
+          </div>
+        </div>
+
+        <section class="portfolio-table-card" id="scorecardPortfolio"></section>
+      </main>
+    </div>
+  </div>
+
+  <div class="admin-modal portfolio-modal" id="scorecardDetailModal" aria-hidden="true">
+    <div class="admin-dialog portfolio-dialog" id="scorecardDetailContent" role="dialog" aria-modal="true" aria-label="Agency Scorecard details"></div>
+  </div>
+
+  <script src="/admin/admin-auth.js"></script>
+  <script src="/admin/portfolio.js"></script>
+</body>
+</html>
