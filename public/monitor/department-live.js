@@ -228,14 +228,15 @@
   }
 
   function financeModel() {
-    const pnl=latestEvidence('profit_loss'),balance=latestEvidence('balance_sheet'),service=latestEvidence('service_revenue_mix');
+    const pnl=latestEvidence('profit_loss'),balance=latestEvidence('balance_sheet'),ar=latestEvidence('ar_aging'),service=latestEvidence('service_revenue_mix');
     const net=finite(pnl.netIncomeTTM)??finite(pnl.netIncomeYTD);
     const revenue=finite(pnl.revenueTTM)??finite(pnl.revenueYTD);
     const margin=finite(pnl.netProfitMarginPercent)??(net!==null&&revenue?net/revenue*100:null);
+    const accountsReceivable=finite(ar.totalAR)??finite(balance.accountsReceivable);
     return{
       metrics:[metric('Revenue',revenue,'money','Profit & Loss evidence'),metric('Net profit',net,'money','Profit & Loss evidence'),metric('Net profit margin',margin,'percent','Profit & Loss evidence'),metric('Cash on hand',balance.cash,'money','Balance Sheet evidence')],
       title:'Financial detail',
-      rows:[['Gross profit',pnl.grossProfitTTM],['Operating expenses',pnl.operatingExpensesTTM],['Accounts receivable',balance.accountsReceivable],['Current liabilities',balance.currentLiabilities],['Recurring revenue',service.recurringRevenue],['Project revenue',service.projectRevenue]].map(([title,value])=>({title,meta:'Latest available evidence',value:money(value)})),
+      rows:[['Gross profit',pnl.grossProfitTTM],['Operating expenses',pnl.operatingExpensesTTM],['Accounts receivable',accountsReceivable],['Current liabilities',balance.currentLiabilities],['Recurring revenue',service.recurringRevenue],['Project revenue',service.projectRevenue]].map(([title,value])=>({title,meta:'Latest available evidence',value:money(value)})),
       note:'Financial cards use the latest synced or uploaded evidence. Missing fields remain blank.'
     };
   }
