@@ -399,6 +399,170 @@ async function completePasswordReset(c,token,password){
   return Array.isArray(updated)&&updated[0]?updated[0]:account;
 }
 
+const MONITOR_DEPARTMENTS=new Set([
+  'marketing','sales','billing','onboarding','service-delivery','client-success',
+  'talent-acquisition','finance','communication','systems','sops'
+]);
+
+async function monitorRows(c,path,label,warnings){
+  try{
+    const rows=await db(c,path);
+    return Array.isArray(rows)?rows:[];
+  }catch(error){
+    warnings.push(`${label}: ${error.message||'Unable to load'}`);
+    return[];
+  }
+}
+
+function publicMonitorGoal(row){
+  return row?{
+    id:row.id,department:row.department||'',goal:row.goal||'',owner:row.owner_name||'',
+    status:row.status||'Needs Definition',done:row.done_looks_like||'',
+    completion:row.target_completion||'',completionDate:row.target_completion_date||'',
+    updatedAt:row.updated_at||null
+  }:null;
+}
+
+function publicMonitorRock(row){
+  return{
+    id:row.id,title:row.title||'',description:row.description||'',owner:row.owner_name||'',
+    due:row.due||'',dueDate:row.due_date||'',status:row.status||'Not started',
+    sourceType:row.source_type||'',updatedAt:row.updated_at||null
+  };
+}
+
+function publicMonitorEvidence(row){
+  return{
+    id:row.id,type:row.evidence_type,status:row.extraction_status||'',
+    model:row.extraction_model||'',validationStatus:row.validation_status||'',
+    extractedAt:row.extracted_at||null,updatedAt:row.updated_at||null,
+    data:row.extracted_data&&typeof row.extracted_data==='object'?row.extracted_data:{}
+  };
+}
+
+async function monitorConnection(c,accountId,getter,presenter){
+  try{
+    const row=await getter(c,accountId);
+    return presenter(row);
+  }catch(error){
+    return{connected:false,status:'unavailable',lastSyncedAt:null,error:error.message||'Connection status unavailable.'};
+  }
+}
+
+async function monitorProjectSource(c,accountId,warnings){
+  const candidates=[
+    {name:'ClickUp',get:getClickUpConnection,public:publicClickUpConnection,load:loadClickUpDashboard},
+    {name:'Teamwork',get:getTeamworkConnection,public:publicTeamworkConnection,load:loadTeamworkDashboard},
+    {name:'monday.com',get:getMondayConnection,public:publicMondayConnection,load:loadMondayDashboard}
+  ];
+  for(const candidate of candidates){
+    const connection=await monitorConnection(c,accountId,candidate.get,candidate.public);
+    if(!connection.connected)continue;
+    try{
+      const data=await candidate.load(c,accountId);
+      return{kind:'project_management',name:candidate.name,connected:true,connection:data.connection,data,warnings:data.warnings||[]};
+    }catch(error){
+      warnings.push(`${candidate.name}: ${error.message||'Unable to load project data'}`);
+      return{kind:'project_management',name:candidate.name,connected:true,connection,data:{},error:error.message||'Unable to load project data.'};
+    }
+  }
+  return{kind:'project_management',name:'Project management',connected:false,connection:null,data:{}};
+}
+
+async function monitorHubSpotSource(c,accountId,warnings){
+  const connection=await monitorConnection(c,accountId,getHubSpotConnection,publicHubSpotConnection);
+  if(!connection.connected)return{kind:'crm',name:'HubSpot',connected:false,connection,data:{}};
+  try{
+    const data=await loadHubSpotDashboard(c,accountId);
+    return{kind:'crm',name:'HubSpot',connected:true,connection:data.connection,data,warnings:data.warnings||[]};
+  }catch(error){
+    warnings.push(`HubSpot: ${error.message||'Unable to load CRM data'}`);
+    return{kind:'crm',name:'HubSpot',connected:true,connection,data:{},error:error.message||'Unable to load CRM data.'};
+  }
+}
+
+async function monitorSlackSource(c,accountId,warnings){
+  const connection=await monitorConnection(c,accountId,getSlackConnection,publicSlackConnection);
+  if(!connection.connected)return{kind:'communications',name:'Slack',connected:false,connection,data:{}};
+  try{
+    const data=await loadSlackDashboard(c,accountId);
+    return{kind:'communications',name:'Slack',connected:true,connection:data.connection,data,warnings:data.warnings||[]};
+  }catch(error){
+    warnings.push(`Slack: ${error.message||'Unable to load workspace data'}`);
+    return{kind:'communications',name:'Slack',connected:true,connection,data:{},error:error.message||'Unable to load workspace data.'};
+  }
+}
+
+async function monitorSystemsSource(c,accountId){
+  const definitions=[
+    ['HubSpot',getHubSpotConnection,publicHubSpotConnection],
+    ['QuickBooks',getQuickBooksConnection,publicQuickBooksConnection],
+    ['ClickUp',getClickUpConnection,publicClickUpConnection],
+    ['Teamwork',getTeamworkConnection,publicTeamworkConnection],
+    ['monday.com',getMondayConnection,publicMondayConnection],
+    ['Slack',getSlackConnection,publicSlackConnection],
+    ['Google Drive',getGoogleDriveConnection,publicGoogleDriveConnection],
+    ['Google Calendar',getGoogleCalendarConnection,publicGoogleCalendarConnection]
+  ];
+  const connections=await Promise.all(definitions.map(async([name,getter,presenter])=>({name,...await monitorConnection(c,accountId,getter,presenter)})));
+  return{kind:'systems',name:'Creative Creatures integration registry',connected:true,connection:null,data:{connections}};
+}
+
+async function loadMonitorDepartment(c,accountId,department){
+  if(!MONITOR_DEPARTMENTS.has(department))throw Object.assign(new Error('Unknown Monitor department.'),{status:422,code:'INVALID_MONITOR_DEPARTMENT'});
+  const warnings=[];
+  const account=await findById(c,accountId);
+  if(!account)throw Object.assign(new Error('Account not found.'),{status:404,code:'ACCOUNT_NOT_FOUND'});
+
+  const goalParams=new URLSearchParams({
+    select:'id,department,goal,owner_name,status,done_looks_like,target_completion,target_completion_date,updated_at',
+    account_id:`eq.${accountId}`,department:`eq.${department==='service-delivery'?'Service Delivery':department==='client-success'?'Client Success':department==='talent-acquisition'?'Talent Acquisition':department.charAt(0).toUpperCase()+department.slice(1)}`,limit:'1'
+  });
+  const rocksParams=new URLSearchParams({
+    select:'id,title,description,owner_name,due,due_date,status,source_type,updated_at',
+    account_id:`eq.${accountId}`,order:'updated_at.desc',limit:'100'
+  });
+  const runParams=new URLSearchParams({select:'id',account_id:`eq.${accountId}`,is_current:'eq.true',limit:'1'});
+  const [goalRows,rockRows,runRows]=await Promise.all([
+    monitorRows(c,`department_goals?${goalParams.toString()}`,'department goal',warnings),
+    monitorRows(c,`rocks?${rocksParams.toString()}`,'rocks',warnings),
+    monitorRows(c,`diagnostic_runs?${runParams.toString()}`,'diagnostic run',warnings)
+  ]);
+  const runId=runRows[0]?.id||'';
+  let evidenceRows=[];
+  if(runId){
+    const evidenceParams=new URLSearchParams({
+      select:'id,evidence_type,extraction_status,extraction_model,validation_status,extracted_at,updated_at,extracted_data',
+      diagnostic_run_id:`eq.${runId}`,order:'updated_at.desc'
+    });
+    evidenceRows=await monitorRows(c,`financial_evidence?${evidenceParams.toString()}`,'financial evidence',warnings);
+  }
+
+  let source={kind:'none',name:'No connected source',connected:false,connection:null,data:{}};
+  if(department==='marketing'||department==='sales')source=await monitorHubSpotSource(c,accountId,warnings);
+  else if(department==='onboarding'||department==='service-delivery')source=await monitorProjectSource(c,accountId,warnings);
+  else if(department==='client-success'){
+    const clientEvidence=evidenceRows.some(row=>row.evidence_type==='client_revenue');
+    source=clientEvidence?{kind:'financial_evidence',name:'Client Revenue evidence',connected:true,connection:null,data:{}}:await monitorHubSpotSource(c,accountId,warnings);
+  }
+  else if(department==='billing'||department==='finance'){
+    const quickBooks=evidenceRows.some(row=>row.extraction_model==='quickbooks-online-api');
+    source={kind:'financial_evidence',name:quickBooks?'QuickBooks Online':'Financial evidence',connected:evidenceRows.length>0,connection:null,data:{}};
+  }
+  else if(department==='communication')source=await monitorSlackSource(c,accountId,warnings);
+  else if(department==='systems')source=await monitorSystemsSource(c,accountId);
+  else if(department==='sops'){
+    const connection=await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection);
+    source={kind:'drive',name:'Google Drive',connected:connection.connected,connection,data:{items:connection.selectedItems||[]}};
+  }
+
+  return{
+    success:true,department,account:pub(account),generatedAt:new Date().toISOString(),
+    goal:publicMonitorGoal(goalRows[0]||null),rocks:rockRows.map(publicMonitorRock),
+    evidence:evidenceRows.map(publicMonitorEvidence),source,warnings:[...new Set(warnings.concat(source.warnings||[]))].slice(0,20)
+  };
+}
+
 export default async function handler(req,res){
   res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');
   if(req.method==='OPTIONS')return json(res,204,{});
@@ -492,6 +656,12 @@ export default async function handler(req,res){
     }
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
     const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const bodyAction=clean(b.action);
+
+    if(bodyAction==='monitor_department'){
+      if(!session)return json(res,401,{error:'Sign in before viewing Monitor department data.'});
+      const result=await loadMonitorDepartment(c,session.accountId,clean(b.department));
+      return json(res,200,result);
+    }
 
     if(bodyAction==='forgot_password'){
       const email=lower(b.email);if(!email||!/^\S+@\S+\.\S+$/.test(email))return json(res,422,{error:'Enter a valid email address.'});
