@@ -67,6 +67,7 @@ export default defineConfig({
         freshbooksCallback: resolve(__dirname, 'integrations', 'freshbooks', 'callback', 'index.html'),
         googleCalendarCallback: resolve(__dirname, 'integrations', 'google-calendar', 'callback', 'index.html'),
         googleDriveCallback: resolve(__dirname, 'integrations', 'google-drive', 'callback', 'index.html'),
+        googleChatCallback: resolve(__dirname, 'integrations', 'google-chat', 'callback', 'index.html'),
         hubspotCallback: resolve(__dirname, 'integrations', 'hubspot', 'callback', 'index.html'),
         zohoCrmCallback: resolve(__dirname, 'integrations', 'zoho-crm', 'callback', 'index.html'),
         slackCallback: resolve(__dirname, 'integrations', 'slack', 'callback', 'index.html'),

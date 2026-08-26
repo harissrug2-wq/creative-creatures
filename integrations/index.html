@@ -129,7 +129,7 @@
       'Basecamp':{group:'Project Management',code:'Ba',color:'#63b954',copy:'Projects · to-dos · messages'},
       'Slack':{group:'Communication',code:'Sl',color:'#4a154b',copy:'OAuth2 · channels · users · workspace',status:'slack_status',connect:'slack_connect',sync:'slack_dashboard',disconnect:'slack_disconnect',manage:'slack'},
       'Microsoft Teams':{group:'Communication',code:'Ms',color:'#6264a7',copy:'Teams · channels · meetings'},
-      'Google Chat':{group:'Communication',code:'Gc',color:'#00ac47',copy:'Spaces · members · messages'},
+      'Google Chat':{group:'Communication',code:'Gc',color:'#00ac47',copy:'OAuth2 · spaces · members · send messages · no history access',status:'google_chat_status',connect:'google_chat_connect',sync:'google_chat_sync',disconnect:'google_chat_disconnect',manage:'google_chat'},
       'Google Calendar':{group:'Calendar & Meetings',code:'31',color:'#4285f4',copy:'OAuth2 · calendars · events',status:'google_calendar_status',connect:'google_calendar_connect',disconnect:'google_calendar_disconnect',manage:'calendar'},
       'Outlook Calendar':{group:'Calendar & Meetings',code:'Oc',color:'#0078d4',copy:'Microsoft 365 · calendars · events'},
       'Zoom':{group:'Calendar & Meetings',code:'Zm',color:'#2d8cff',copy:'Meetings · webinars · users'},
@@ -273,7 +273,7 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',zoho:'Zoho CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com'};
+      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com'};
       let changed=false;
       Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
@@ -292,6 +292,7 @@
         if(tool==='Zoho CRM')return manageZoho();
         if(tool==='FreshBooks')return manageFreshBooks();
         if(tool==='Slack')return manageSlack();
+        if(tool==='Google Chat')return manageGoogleChat();
         if(tool==='ClickUp')return manageClickUp();
         if(tool==='Teamwork')return manageTeamwork();
         if(tool==='Monday.com')return manageMonday();
@@ -521,6 +522,37 @@
       const drawChannels=()=>document.querySelector('#slackList').innerHTML=channels.length?channels.map(x=>`<article class="data-item"><strong># ${esc(x.name||'channel')}</strong><span>${x.isPrivate?'Private':'Public'}${x.numMembers?` · ${Number(x.numMembers)} members`:''}${x.purpose?' · '+esc(x.purpose):''}</span></article>`).join(''):'<div class="data-item"><strong>No channels returned.</strong></div>';
       const drawUsers=()=>document.querySelector('#slackList').innerHTML=users.filter(x=>!x.deleted).map(x=>`<article class="data-item"><strong>${esc(x.displayName||x.realName||x.name||'User')}</strong><span>${esc(x.email||x.name||'')}${x.isOwner?' · Owner':x.isAdmin?' · Admin':''}</span></article>`).join('')||'<div class="data-item"><strong>No users returned.</strong></div>';
       document.querySelector('#slackChannels').onclick=drawChannels;document.querySelector('#slackUsers').onclick=drawUsers;drawChannels();
+    }
+
+    let googleChatData={spaces:[],connection:null},googleChatSpace='';
+    async function manageGoogleChat(){
+      modalTitle.textContent='Google Chat';modalCopy.textContent='View spaces and members or send a new text message. Creative Creatures does not request message history.';
+      const r=await apiPost('google_chat_dashboard');stateMap.set('Google Chat',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      googleChatData={spaces:r.spaces||[],connection:r.connection||null};if(!googleChatData.spaces.some(item=>item.name===googleChatSpace))googleChatSpace=googleChatData.spaces[0]?.name||'';
+      const spaces=googleChatData.spaces,named=spaces.filter(item=>item.spaceType==='SPACE'),groupChats=spaces.filter(item=>item.spaceType==='GROUP_CHAT'),dms=spaces.filter(item=>item.spaceType==='DIRECT_MESSAGE');
+      const options=spaces.map(item=>`<option value="${esc(item.name)}" ${item.name===googleChatSpace?'selected':''}>${esc(item.displayName)} · ${esc((item.spaceType||'space').replaceAll('_',' ').toLowerCase())}</option>`).join('');
+      modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${spaces.length}</strong><span>Spaces visible</span></div><div class="metric"><strong>${named.length}</strong><span>Named spaces</span></div><div class="metric"><strong>${groupChats.length}</strong><span>Group chats</span></div><div class="metric"><strong>${dms.length}</strong><span>Direct messages</span></div></div><div class="data-item" style="margin-bottom:12px"><strong>Privacy boundary</strong><span>Space and membership metadata are loaded. Existing message content is not requested or read.</span></div><div class="toolbar"><div class="field" style="flex:1"><label>Google Chat space</label><select id="googleChatSpace">${options}</select></div><button class="btn" id="googleChatMembers" ${spaces.length?'':'disabled'}>View members</button><button class="btn primary" id="googleChatMessage" ${spaces.length?'':'disabled'}>＋ Send message</button></div><div class="tabs"><button class="btn primary" id="googleChatSpacesTab">Spaces</button></div><div class="data-list" id="googleChatList"></div>`;
+      const select=document.querySelector('#googleChatSpace');if(select)select.onchange=()=>{googleChatSpace=select.value};
+      document.querySelector('#googleChatMembers').onclick=loadGoogleChatMembers;document.querySelector('#googleChatMessage').onclick=openGoogleChatMessage;document.querySelector('#googleChatSpacesTab').onclick=drawGoogleChatSpaces;drawGoogleChatSpaces();
+    }
+    function drawGoogleChatSpaces(){
+      const el=document.querySelector('#googleChatList'),spaces=googleChatData.spaces||[];if(!el)return;
+      el.innerHTML=spaces.length?spaces.map(item=>`<article class="data-item"><strong>${esc(item.displayName||'Unnamed space')}</strong><span>${esc((item.spaceType||'Space').replaceAll('_',' '))}${item.externalUserAllowed?' · External users allowed':''}${item.lastActiveTime?' · Active '+new Date(item.lastActiveTime).toLocaleString():''}</span></article>`).join(''):'<div class="data-item"><strong>No Google Chat spaces returned.</strong><span>The connected user must be a member of a space before it appears here.</span></div>';
+    }
+    async function loadGoogleChatMembers(){
+      const button=document.querySelector('#googleChatMembers'),el=document.querySelector('#googleChatList');googleChatSpace=document.querySelector('#googleChatSpace')?.value||googleChatSpace;if(!googleChatSpace)return;
+      button.disabled=true;button.textContent='Loading…';el.innerHTML='<div class="data-item"><strong>Loading members…</strong></div>';
+      try{const r=await apiPost('google_chat_members',{spaceName:googleChatSpace}),members=r.members||[];el.innerHTML=members.length?members.map(item=>`<article class="data-item"><strong>${esc(item.member?.displayName||item.member?.name||'Member')}</strong><span>${esc([item.member?.type,item.role,item.state].filter(Boolean).join(' · '))}</span></article>`).join(''):'<div class="data-item"><strong>No members returned.</strong></div>';if(r.truncated)modalError.textContent='Google Chat returned more than 500 memberships; Phase 1 shows the first 500.'}catch(error){modalError.textContent=error.message;drawGoogleChatSpaces()}finally{button.disabled=false;button.textContent='View members'}
+    }
+    function openGoogleChatMessage(){
+      googleChatSpace=document.querySelector('#googleChatSpace')?.value||googleChatSpace;const selected=googleChatData.spaces.find(item=>item.name===googleChatSpace);
+      modalTitle.textContent='Send Google Chat Message';modalCopy.textContent='The message is posted as the connected Google user and attributed to Creative Creatures.';
+      modalBody.innerHTML=`<div class="field full"><label>Space</label><input value="${esc(selected?.displayName||googleChatSpace)}" disabled></div><div class="field full" style="margin-top:14px"><label>Message</label><textarea id="googleChatText" maxlength="4000" rows="7" placeholder="Write a message…"></textarea></div><div class="modal-error" id="googleChatError"></div><div class="modal-actions" style="bottom:-26px"><button class="btn" id="googleChatCancel">Cancel</button><button class="btn primary" id="googleChatSend">Send Message</button></div>`;
+      document.querySelector('#googleChatCancel').onclick=()=>manageGoogleChat();document.querySelector('#googleChatSend').onclick=sendGoogleChatText;
+    }
+    async function sendGoogleChatText(){
+      const button=document.querySelector('#googleChatSend'),errorEl=document.querySelector('#googleChatError'),text=document.querySelector('#googleChatText').value.trim();button.disabled=true;errorEl.textContent='';
+      try{await apiPost('google_chat_send_message',{spaceName:googleChatSpace,text});await manageGoogleChat()}catch(error){errorEl.textContent=error.message;button.disabled=false}
     }
 
     render();loadStatuses();

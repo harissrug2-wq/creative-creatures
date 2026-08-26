@@ -246,8 +246,16 @@
   }
 
   function communicationModel() {
+    const source=state.payload?.source?.name||'Communications',connected=state.payload?.source?.connected===true;
+    if(source==='Google Chat'){
+      const spaces=array(sourceData().spaces),named=spaces.filter(item=>item.spaceType==='SPACE'),groups=spaces.filter(item=>item.spaceType==='GROUP_CHAT'),dms=spaces.filter(item=>item.spaceType==='DIRECT_MESSAGE');
+      return{
+        metrics:[metric('Spaces visible',connected?spaces.length:null,'number','Google Chat spaces scope'),metric('Named spaces',connected?named.length:null,'number','Google Chat spaces scope'),metric('Group chats',connected?groups.length:null,'number','Google Chat spaces scope'),metric('Direct messages',connected?dms.length:null,'number','Google Chat spaces scope')],
+        title:'Visible spaces',rows:spaces.slice(0,16).map(item=>({title:item.displayName||'Unnamed space',meta:(item.spaceType||'Space').replaceAll('_',' '),value:item.memberCount!==null&&item.memberCount!==undefined?`${item.memberCount} members`:''})),
+        note:'Creative Creatures reads Google Chat space and membership metadata and can send new text messages. It does not request or read message history.'
+      };
+    }
     const users=array(sourceData().users),channels=array(sourceData().channels),active=users.filter(item=>!item.deleted&&!item.isBot);
-    const connected=state.payload?.source?.connected===true;
     return{
       metrics:[metric('Active people loaded',connected?active.length:null,'number','Slack users scope'),metric('Channels visible',connected?channels.length:null,'number','Slack conversations scope'),metric('Public channels',connected?channels.filter(item=>!item.isPrivate).length:null,'number','Slack conversations scope'),metric('Private channels accessible',connected?channels.filter(item=>item.isPrivate).length:null,'number','Slack conversations scope')],
       title:'Visible channels',rows:channels.slice(0,16).map(item=>({title:`# ${item.name||'channel'}`,meta:item.purpose||item.topic||'',value:item.numMembers?`${item.numMembers} members`:item.isPrivate?'Private':'Public'})),

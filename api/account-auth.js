@@ -130,6 +130,21 @@ import {
   verifyGoogleCalendarOAuthState
 } from '../lib/google-calendar.js';
 import {
+  createGoogleChatAuthorizationUrl,
+  decryptGoogleChatToken,
+  encryptGoogleChatToken,
+  exchangeGoogleChatCode,
+  getGoogleChatIdentity,
+  GOOGLE_CHAT_REQUIRED_SCOPES,
+  googleChatConfig,
+  listGoogleChatMembers,
+  listGoogleChatSpaces,
+  refreshGoogleChatTokens,
+  revokeGoogleChatToken,
+  sendGoogleChatMessage,
+  verifyGoogleChatOAuthState
+} from '../lib/google-chat.js';
+import {
   createQuickBooksAuthorizationUrl,
   decryptQuickBooksToken,
   encryptQuickBooksToken,
@@ -366,6 +381,31 @@ async function saveSlackConnection(c,accountId,patch){const existing=await getSl
 async function deleteSlackConnection(c,accountId){await db(c,`slack_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
 async function slackConnectionAccess(c,accountId){const connection=await getSlackConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Slack first.'),{status:409});const sc=slackConfig();if(!sc)throw new Error('Slack is not configured.');return{connection,accessToken:decryptSlackToken(connection.access_token_encrypted,sc.encryptionSecret)}}
 async function loadSlackDashboard(c,accountId){const {connection,accessToken}=await slackConnectionAccess(c,accountId);const settled=await Promise.allSettled([listSlackUsers({accessToken,limit:200}),listSlackChannels({accessToken,limit:200}),slackAuthTest(accessToken)]),warnings=[];const users=settled[0].status==='fulfilled'?settled[0].value:(warnings.push(`users: ${settled[0].reason?.message||'Unable to load'}`),[]);const channels=settled[1].status==='fulfilled'?settled[1].value:(warnings.push(`channels: ${settled[1].reason?.message||'Unable to load'}`),[]);const auth=settled[2].status==='fulfilled'?settled[2].value:(warnings.push(`workspace: ${settled[2].reason?.message||'Unable to load'}`),{});const synced=await saveSlackConnection(c,accountId,{team_id:clean(auth.team_id)||connection.team_id,team_name:clean(auth.team)||connection.team_name,connected_user_id:clean(auth.user_id)||connection.connected_user_id,last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null,status:'connected'});return{connection:publicSlackConnection(synced),users,channels,warnings}}
+
+const GOOGLE_CHAT_SELECT='id,account_id,google_user_id,connected_email,connected_name,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
+async function getGoogleChatConnection(c,accountId){const rows=await db(c,`google_chat_connections?select=${GOOGLE_CHAT_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
+function publicGoogleChatConnection(row){return row?{connected:row.status==='connected',googleUserId:row.google_user_id||'',connectedEmail:row.connected_email||'',connectedName:row.connected_name||'',scopes:Array.isArray(row.scopes)?row.scopes:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,googleUserId:'',connectedEmail:'',connectedName:'',scopes:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
+async function saveGoogleChatConnection(c,accountId,patch){const existing=await getGoogleChatConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`google_chat_connections?id=eq.${encodeURIComponent(existing.id)}&select=${GOOGLE_CHAT_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`google_chat_connections?select=${GOOGLE_CHAT_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',scopes:[],...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
+async function deleteGoogleChatConnection(c,accountId){await db(c,`google_chat_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
+function googleChatTokenDates(tokens){return{access_token_expires_at:new Date(Date.now()+(Number(tokens.expires_in)||3600)*1000).toISOString()}}
+async function ensureGoogleChatAccess(c,connection){
+  const config=googleChatConfig();if(!config)throw new Error('Google Chat is not configured.');
+  const expiresAt=Date.parse(connection.access_token_expires_at||'');
+  if(Number.isFinite(expiresAt)&&expiresAt>Date.now()+120000)return{connection,accessToken:decryptGoogleChatToken(connection.access_token_encrypted,config.encryptionSecret)};
+  if(!connection.refresh_token_encrypted)throw Object.assign(new Error('Google Chat access expired. Reconnect Google Chat.'),{status:401});
+  const refreshToken=decryptGoogleChatToken(connection.refresh_token_encrypted,config.encryptionSecret),tokens=await refreshGoogleChatTokens(refreshToken);
+  const scopes=clean(tokens.scope).split(/\s+/).map(clean).filter(Boolean);
+  const updated=await saveGoogleChatConnection(c,connection.account_id,{access_token_encrypted:encryptGoogleChatToken(tokens.access_token,config.encryptionSecret),refresh_token_encrypted:connection.refresh_token_encrypted,...googleChatTokenDates(tokens),scopes:scopes.length?scopes:connection.scopes,status:'connected',last_sync_error:null});
+  return{connection:updated,accessToken:tokens.access_token};
+}
+async function googleChatConnectionAccess(c,accountId){const connection=await getGoogleChatConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Google Chat first.'),{status:409});return ensureGoogleChatAccess(c,connection)}
+async function loadGoogleChatDashboard(c,accountId){
+  const {connection,accessToken}=await googleChatConnectionAccess(c,accountId);const warnings=[];
+  const result=await listGoogleChatSpaces({accessToken,limit:500});
+  if(result.truncated)warnings.push('Google Chat returned more than 500 spaces; Phase 1 shows the first 500.');
+  const synced=await saveGoogleChatConnection(c,accountId,{last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null,status:'connected'});
+  return{connection:publicGoogleChatConnection(synced),spaces:result.records,warnings};
+}
 
 
 const HS_SELECT='id,account_id,portal_id,hub_domain,connected_email,account_type,time_zone,company_currency,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
@@ -635,16 +675,20 @@ async function monitorCrmSource(c,accountId,warnings){
   return{kind:'crm',name:'CRM',connected:false,connection:null,data:{}};
 }
 
-async function monitorSlackSource(c,accountId,warnings){
-  const connection=await monitorConnection(c,accountId,getSlackConnection,publicSlackConnection);
-  if(!connection.connected)return{kind:'communications',name:'Slack',connected:false,connection,data:{}};
-  try{
-    const data=await loadSlackDashboard(c,accountId);
-    return{kind:'communications',name:'Slack',connected:true,connection:data.connection,data,warnings:data.warnings||[]};
-  }catch(error){
-    warnings.push(`Slack: ${error.message||'Unable to load workspace data'}`);
-    return{kind:'communications',name:'Slack',connected:true,connection,data:{},error:error.message||'Unable to load workspace data.'};
+async function monitorCommunicationsSource(c,accountId,warnings){
+  const candidates=[
+    {name:'Slack',get:getSlackConnection,public:publicSlackConnection,load:loadSlackDashboard},
+    {name:'Google Chat',get:getGoogleChatConnection,public:publicGoogleChatConnection,load:loadGoogleChatDashboard}
+  ];
+  const available=(await Promise.all(candidates.map(async candidate=>({...candidate,connection:await monitorConnection(c,accountId,candidate.get,candidate.public)}))))
+    .filter(candidate=>candidate.connection.connected)
+    .sort((a,b)=>Date.parse(b.connection.lastSyncedAt||b.connection.updatedAt||0)-Date.parse(a.connection.lastSyncedAt||a.connection.updatedAt||0));
+  for(const candidate of available){
+    const connection=candidate.connection;
+    try{const data=await candidate.load(c,accountId);return{kind:'communications',name:candidate.name,connected:true,connection:data.connection,data,warnings:data.warnings||[]}}
+    catch(error){warnings.push(`${candidate.name}: ${error.message||'Unable to load workspace data'}`);return{kind:'communications',name:candidate.name,connected:true,connection,data:{},error:error.message||'Unable to load workspace data.'}}
   }
+  return{kind:'communications',name:'Communications',connected:false,connection:null,data:{}};
 }
 
 async function monitorSystemsSource(c,accountId){
@@ -657,6 +701,7 @@ async function monitorSystemsSource(c,accountId){
     ['Teamwork',getTeamworkConnection,publicTeamworkConnection],
     ['monday.com',getMondayConnection,publicMondayConnection],
     ['Slack',getSlackConnection,publicSlackConnection],
+    ['Google Chat',getGoogleChatConnection,publicGoogleChatConnection],
     ['Google Drive',getGoogleDriveConnection,publicGoogleDriveConnection],
     ['Google Calendar',getGoogleCalendarConnection,publicGoogleCalendarConnection]
   ];
@@ -705,7 +750,7 @@ async function loadMonitorDepartment(c,accountId,department){
     const accountingEvidence=evidenceRows.find(row=>row.extraction_model==='freshbooks-api'||row.extraction_model==='quickbooks-online-api');
     source={kind:'financial_evidence',name:accountingEvidence?.extraction_model==='freshbooks-api'?'FreshBooks':accountingEvidence?.extraction_model==='quickbooks-online-api'?'QuickBooks Online':'Financial evidence',connected:evidenceRows.length>0,connection:null,data:{}};
   }
-  else if(department==='communication')source=await monitorSlackSource(c,accountId,warnings);
+  else if(department==='communication')source=await monitorCommunicationsSource(c,accountId,warnings);
   else if(department==='systems')source=await monitorSystemsSource(c,accountId);
   else if(department==='sops'){
     const connection=await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection);
@@ -763,6 +808,16 @@ export default async function handler(req,res){
         if(!session)return json(res,401,{error:'Sign in before viewing Slack status.'});
         const connection=await getSlackConnection(c,session.accountId);
         return json(res,200,{connection:publicSlackConnection(connection)});
+      }
+      if(action==='google_chat_connect'){
+        if(!session)return json(res,401,{error:'Sign in before connecting Google Chat.'});
+        if(!googleChatConfig())return json(res,503,{error:'Google Chat environment variables are not configured.'});
+        return json(res,200,{authorizationUrl:createGoogleChatAuthorizationUrl(session.accountId)});
+      }
+      if(action==='google_chat_status'){
+        if(!session)return json(res,401,{error:'Sign in before viewing Google Chat status.'});
+        const connection=await getGoogleChatConnection(c,session.accountId);
+        return json(res,200,{connection:publicGoogleChatConnection(connection)});
       }
 
       if(action==='hubspot_connect'){
@@ -906,6 +961,35 @@ export default async function handler(req,res){
     }
     if(bodyAction==='slack_disconnect'){
       if(!session)return json(res,401,{error:'Sign in before disconnecting Slack.'});const connection=await getSlackConnection(c,session.accountId);if(connection){const sc=slackConfig();if(sc){try{const token=decryptSlackToken(connection.access_token_encrypted,sc.encryptionSecret);await revokeSlackToken(token)}catch{}}await deleteSlackConnection(c,session.accountId)}return json(res,200,{success:true,connection:publicSlackConnection(null)});
+    }
+
+    if(bodyAction==='google_chat_callback'){
+      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Google Chat.'});
+      const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'Google Chat did not return the required authorization values.'});
+      if(!verifyGoogleChatOAuthState(state,session.accountId))return json(res,403,{error:'Google Chat authorization state is invalid or expired.'});
+      const config=googleChatConfig(),tokens=await exchangeGoogleChatCode(code),existing=await getGoogleChatConnection(c,session.accountId);
+      if(!tokens.refresh_token&&!existing?.refresh_token_encrypted)return json(res,409,{error:'Google did not return a refresh token. Revoke Creative Creatures access in your Google Account and connect again.'});
+      const scopes=clean(tokens.scope).split(/\s+/).map(clean).filter(Boolean),missing=GOOGLE_CHAT_REQUIRED_SCOPES.filter(scope=>!scopes.includes(scope));
+      if(missing.length)return json(res,409,{error:`Google Chat authorization is missing required scopes: ${missing.join(', ')}. Reconnect and approve all requested access.`});
+      let identity={id:'',email:'',name:''};try{identity=await getGoogleChatIdentity(tokens.access_token)}catch{}
+      const saved=await saveGoogleChatConnection(c,session.accountId,{google_user_id:identity.id||existing?.google_user_id||'',connected_email:identity.email||existing?.connected_email||'',connected_name:identity.name||existing?.connected_name||'',access_token_encrypted:encryptGoogleChatToken(tokens.access_token,config.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptGoogleChatToken(tokens.refresh_token,config.encryptionSecret):existing?.refresh_token_encrypted,...googleChatTokenDates(tokens),scopes,status:'connected',last_sync_error:null});
+      return json(res,200,{connected:true,connection:publicGoogleChatConnection(saved)});
+    }
+    if(bodyAction==='google_chat_dashboard'||bodyAction==='google_chat_sync'){
+      if(!session)return json(res,401,{error:'Sign in before viewing Google Chat data.'});const result=await loadGoogleChatDashboard(c,session.accountId);return json(res,200,{success:true,...result});
+    }
+    if(bodyAction==='google_chat_members'){
+      if(!session)return json(res,401,{error:'Sign in before viewing Google Chat members.'});const {connection,accessToken}=await googleChatConnectionAccess(c,session.accountId);const result=await listGoogleChatMembers({accessToken,spaceName:clean(b.spaceName),limit:500});
+      return json(res,200,{success:true,connection:publicGoogleChatConnection(connection),members:result.records,truncated:result.truncated});
+    }
+    if(bodyAction==='google_chat_send_message'){
+      if(!session)return json(res,401,{error:'Sign in before sending Google Chat messages.'});const {accessToken}=await googleChatConnectionAccess(c,session.accountId);const message=await sendGoogleChatMessage({accessToken,spaceName:clean(b.spaceName),text:clean(b.text)});
+      return json(res,200,{success:true,message});
+    }
+    if(bodyAction==='google_chat_disconnect'){
+      if(!session)return json(res,401,{error:'Sign in before disconnecting Google Chat.'});const connection=await getGoogleChatConnection(c,session.accountId);
+      if(connection){const config=googleChatConfig();if(config){try{const token=connection.refresh_token_encrypted?decryptGoogleChatToken(connection.refresh_token_encrypted,config.encryptionSecret):decryptGoogleChatToken(connection.access_token_encrypted,config.encryptionSecret);await revokeGoogleChatToken(token)}catch{}}await deleteGoogleChatConnection(c,session.accountId)}
+      return json(res,200,{success:true,connection:publicGoogleChatConnection(null)});
     }
 
 
