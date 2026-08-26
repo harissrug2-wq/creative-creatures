@@ -64,6 +64,7 @@ export default defineConfig({
         integrationInformation: page('integration-information'),
         integrations: page('integrations'),
         quickbooksCallback: resolve(__dirname, 'integrations', 'quickbooks', 'callback', 'index.html'),
+        freshbooksCallback: resolve(__dirname, 'integrations', 'freshbooks', 'callback', 'index.html'),
         googleCalendarCallback: resolve(__dirname, 'integrations', 'google-calendar', 'callback', 'index.html'),
         googleDriveCallback: resolve(__dirname, 'integrations', 'google-drive', 'callback', 'index.html'),
         hubspotCallback: resolve(__dirname, 'integrations', 'hubspot', 'callback', 'index.html'),

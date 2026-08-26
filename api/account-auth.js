@@ -145,6 +145,28 @@ import {
   revokeQuickBooksToken,
   verifyQuickBooksOAuthState
 } from '../lib/quickbooks.js';
+import {
+  archiveFreshBooksClient,
+  createFreshBooksAuthorizationUrl,
+  decryptFreshBooksToken,
+  encryptFreshBooksToken,
+  exchangeFreshBooksCode,
+  FRESHBOOKS_REQUIRED_SCOPES,
+  fetchFreshBooksArAgingEvidence,
+  fetchFreshBooksBalanceSheetEvidence,
+  fetchFreshBooksClientRevenueEvidence,
+  fetchFreshBooksProfitLossEvidence,
+  freshBooksConfig,
+  getFreshBooksIdentity,
+  listFreshBooksClients,
+  listFreshBooksExpenses,
+  listFreshBooksInvoices,
+  listFreshBooksPayments,
+  refreshFreshBooksTokens,
+  revokeFreshBooksToken,
+  saveFreshBooksClient,
+  verifyFreshBooksOAuthState
+} from '../lib/freshbooks.js';
 
 const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(payload))};
 const clean=v=>String(v??'').trim();const lower=v=>clean(v).toLowerCase();
@@ -178,6 +200,51 @@ async function ensureQuickBooksAccess(c,connection){
   const tokens=await refreshQuickBooksTokens(refreshToken);
   const updated=await saveQuickBooksConnection(c,connection.account_id,{access_token_encrypted:encryptQuickBooksToken(tokens.access_token,qbc.encryptionSecret),refresh_token_encrypted:encryptQuickBooksToken(tokens.refresh_token||refreshToken,qbc.encryptionSecret),...tokenDates(tokens),scope:tokens.scope||connection.scope||'com.intuit.quickbooks.accounting',status:'connected',last_sync_error:null});
   return{connection:updated,accessToken:tokens.access_token};
+}
+
+const FB_SELECT='id,account_id,freshbooks_user_id,connected_email,selected_business_id,selected_business_uuid,selected_account_id,selected_business_name,businesses,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
+async function getFreshBooksConnection(c,accountId){const rows=await db(c,`freshbooks_connections?select=${FB_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
+function publicFreshBooksConnection(row){return row?{connected:row.status==='connected',freshBooksUserId:row.freshbooks_user_id||'',connectedEmail:row.connected_email||'',selectedBusinessId:row.selected_business_id||'',selectedBusinessUuid:row.selected_business_uuid||'',selectedAccountId:row.selected_account_id||'',selectedBusinessName:row.selected_business_name||'',businesses:Array.isArray(row.businesses)?row.businesses:[],scopes:Array.isArray(row.scopes)?row.scopes:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,freshBooksUserId:'',connectedEmail:'',selectedBusinessId:'',selectedBusinessUuid:'',selectedAccountId:'',selectedBusinessName:'',businesses:[],scopes:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
+async function saveFreshBooksConnection(c,accountId,patch){const existing=await getFreshBooksConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`freshbooks_connections?id=eq.${encodeURIComponent(existing.id)}&select=${FB_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`freshbooks_connections?select=${FB_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',businesses:[],scopes:[],...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
+async function deleteFreshBooksConnection(c,accountId){await db(c,`freshbooks_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
+function freshBooksTokenDates(tokens){return{access_token_expires_at:new Date(Date.now()+(Number(tokens.expires_in)||43200)*1000).toISOString()}}
+async function ensureFreshBooksAccess(c,connection){
+  const config=freshBooksConfig();if(!config)throw new Error('FreshBooks is not configured.');
+  const expiresAt=Date.parse(connection.access_token_expires_at||'');
+  if(Number.isFinite(expiresAt)&&expiresAt>Date.now()+120000)return{connection,accessToken:decryptFreshBooksToken(connection.access_token_encrypted,config.encryptionSecret)};
+  if(!connection.refresh_token_encrypted)throw Object.assign(new Error('FreshBooks access expired. Reconnect FreshBooks.'),{status:401});
+  const encryptedRefresh=connection.refresh_token_encrypted,refreshToken=decryptFreshBooksToken(encryptedRefresh,config.encryptionSecret);
+  let tokens;
+  try{tokens=await refreshFreshBooksTokens(refreshToken)}catch(error){
+    const current=await getFreshBooksConnection(c,connection.account_id);
+    if(current&&current.refresh_token_encrypted!==encryptedRefresh&&Date.parse(current.access_token_expires_at||'')>Date.now()+30000)return{connection:current,accessToken:decryptFreshBooksToken(current.access_token_encrypted,config.encryptionSecret)};
+    throw error;
+  }
+  const scopes=clean(tokens.scope).split(/\s+/).map(clean).filter(Boolean);
+  const updated=await saveFreshBooksConnection(c,connection.account_id,{access_token_encrypted:encryptFreshBooksToken(tokens.access_token,config.encryptionSecret),refresh_token_encrypted:encryptFreshBooksToken(tokens.refresh_token,config.encryptionSecret),...freshBooksTokenDates(tokens),scopes:scopes.length?scopes:connection.scopes,status:'connected',last_sync_error:null});
+  return{connection:updated,accessToken:tokens.access_token};
+}
+async function freshBooksConnectionAccess(c,accountId){const connection=await getFreshBooksConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect FreshBooks first.'),{status:409});const access=await ensureFreshBooksAccess(c,connection);if(!access.connection.selected_account_id)throw Object.assign(new Error('Choose a FreshBooks business before loading accounting data.'),{status:409});return access}
+function freshBooksWriteAccess(connection){if(!(Array.isArray(connection?.scopes)&&connection.scopes.includes('user:clients:write')))throw Object.assign(new Error('Reconnect FreshBooks after enabling the user:clients:write scope in the FreshBooks app.'),{status:409,code:'FRESHBOOKS_RECONNECT_REQUIRED'});}
+function freshBooksClientInput(body){
+  const source=body?.client&&typeof body.client==='object'?body.client:{},client={};
+  const fields=[['firstName','fname',120],['lastName','lname',120],['email','email',320],['organization','organization',240],['phone','bus_phone',80],['currency','currency_code',3],['note','note',1000],['street','p_street',240],['street2','p_street2',240],['city','p_city',160],['province','p_province',160],['postalCode','p_code',40],['country','p_country',160]];
+  fields.forEach(([input,output,max])=>{if(Object.prototype.hasOwnProperty.call(source,input))client[output]=clean(source[input]).slice(0,max)});
+  const id=clean(body?.recordId);if(!id&&!client.fname&&!client.lname&&!client.organization)throw Object.assign(new Error('Enter a client name or organization.'),{status:422});
+  if(client.email&&!/^\S+@\S+\.\S+$/.test(client.email))throw Object.assign(new Error('Enter a valid client email address.'),{status:422});
+  if(client.currency_code&&!/^[A-Za-z]{3}$/.test(client.currency_code))throw Object.assign(new Error('Currency must be a three-letter code such as USD.'),{status:422});
+  if(client.currency_code)client.currency_code=client.currency_code.toUpperCase();return{id,client};
+}
+async function loadFreshBooksDashboard(c,accountId){
+  const {connection,accessToken}=await freshBooksConnectionAccess(c,accountId);const selectedAccountId=connection.selected_account_id;
+  const settled=await Promise.allSettled([getFreshBooksIdentity(accessToken),listFreshBooksClients({accessToken,accountId:selectedAccountId}),listFreshBooksInvoices({accessToken,accountId:selectedAccountId}),listFreshBooksPayments({accessToken,accountId:selectedAccountId}),listFreshBooksExpenses({accessToken,accountId:selectedAccountId})]);
+  const warnings=[];const value=(index,key)=>{const item=settled[index];if(item.status==='fulfilled')return key?item.value?.[key]||[]:item.value;warnings.push(item.reason?.message||'FreshBooks data could not be loaded.');return key?[]:null};
+  const identity=value(0),businesses=identity?.businesses||connection.businesses||[];
+  if(identity&&!businesses.some(item=>item.accountId===selectedAccountId))throw Object.assign(new Error('The selected FreshBooks business is no longer available. Choose another business or reconnect.'),{status:409});
+  const clients=value(1,'records'),invoices=value(2,'records'),payments=value(3,'records'),expenses=value(4,'records');
+  [1,2,3,4].forEach(index=>{const item=settled[index];if(item.status==='fulfilled'&&item.value?.truncated)warnings.push('FreshBooks returned more than 500 records for one ledger list; Phase 1 shows the first 500.')});
+  const synced=await saveFreshBooksConnection(c,accountId,{businesses,last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null,status:'connected'});
+  return{connection:publicFreshBooksConnection(synced),clients,invoices,payments,expenses,warnings:[...new Set(warnings)]};
 }
 
 
@@ -411,12 +478,12 @@ async function getOrCreateCurrentRun(c,accountId){
   rows=await db(c,'diagnostic_runs?select=id,account_id,status,is_current',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'in_progress',is_current:true})});
   return Array.isArray(rows)?rows[0]:rows;
 }
-async function saveQuickBooksEvidence(c,runId,evidenceType,data){
+async function saveAccountingEvidence(c,runId,evidenceType,data,{provider='QuickBooks Online',model='quickbooks-online-api',mimeType='application/vnd.intuit.quickbooks.report+json'}={}){
   const select='id,diagnostic_run_id,evidence_type,file_name,file_size_bytes,storage_path,mime_type,extraction_status,extraction_model,extraction_error,extracted_at,extracted_data,validation_status,created_at,updated_at';
   const rows=await db(c,`financial_evidence?select=${select}&diagnostic_run_id=eq.${encodeURIComponent(runId)}&evidence_type=eq.${encodeURIComponent(evidenceType)}&order=updated_at.desc&limit=1`);
   const existing=Array.isArray(rows)?rows[0]||null:null;const now=new Date().toISOString();
   const label={profit_loss:'Profit & Loss',balance_sheet:'Balance Sheet',ar_aging:'A/R Aging',client_revenue:'Client Revenue',service_revenue_mix:'Service Revenue Mix'}[evidenceType]||'Financial Evidence';
-  const patch={file_name:`QuickBooks Online · ${label}`,file_size_bytes:null,storage_path:null,mime_type:'application/vnd.intuit.quickbooks.report+json',extraction_status:'processed',extraction_model:'quickbooks-online-api',extraction_error:null,extracted_at:now,extracted_data:data||{},validation_status:'verified',updated_at:now};
+  const patch={file_name:`${provider} · ${label}`,file_size_bytes:null,storage_path:null,mime_type:mimeType,extraction_status:'processed',extraction_model:model,extraction_error:null,extracted_at:now,extracted_data:data||{},validation_status:'verified',updated_at:now};
   if(existing){const updated=await db(c,`financial_evidence?id=eq.${encodeURIComponent(existing.id)}&select=${select}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});return Array.isArray(updated)?updated[0]||existing:existing}
   const created=await db(c,`financial_evidence?select=${select}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({diagnostic_run_id:runId,evidence_type:evidenceType,...patch,created_at:now})});return Array.isArray(created)?created[0]||null:null
 }
@@ -431,14 +498,34 @@ async function syncQuickBooks(c,accountId){
     if(pnl?.monthlyOperatingExpenses!==null&&pnl?.monthlyOperatingExpenses!==undefined&&balance?.monthlyOperatingExpenses==null)balance.monthlyOperatingExpenses=pnl.monthlyOperatingExpenses;
     const run=await getOrCreateCurrentRun(c,accountId);
     const evidence=[];
-    evidence.push(await saveQuickBooksEvidence(c,run.id,'profit_loss',pnl));
-    evidence.push(await saveQuickBooksEvidence(c,run.id,'balance_sheet',balance));
-    evidence.push(await saveQuickBooksEvidence(c,run.id,'ar_aging',ar));
-    evidence.push(await saveQuickBooksEvidence(c,run.id,'client_revenue',clients));
-    evidence.push(await saveQuickBooksEvidence(c,run.id,'service_revenue_mix',services));
+    evidence.push(await saveAccountingEvidence(c,run.id,'profit_loss',pnl));
+    evidence.push(await saveAccountingEvidence(c,run.id,'balance_sheet',balance));
+    evidence.push(await saveAccountingEvidence(c,run.id,'ar_aging',ar));
+    evidence.push(await saveAccountingEvidence(c,run.id,'client_revenue',clients));
+    evidence.push(await saveAccountingEvidence(c,run.id,'service_revenue_mix',services));
     const synced=await saveQuickBooksConnection(c,accountId,{status:'connected',last_synced_at:new Date().toISOString(),last_sync_error:null});
     return{connection:publicQuickBooksConnection(synced),evidence:evidence.filter(Boolean),warnings:[...(balance?.warnings||[]),...(services?.warnings||[])]};
   }catch(error){await saveQuickBooksConnection(c,accountId,{last_sync_error:error.message||'QuickBooks sync failed.'}).catch(()=>null);throw error}
+}
+
+async function syncFreshBooks(c,accountId){
+  const {connection,accessToken}=await freshBooksConnectionAccess(c,accountId);const accountIdAtFreshBooks=connection.selected_account_id,businessUuid=connection.selected_business_uuid;
+  try{
+    const [pnl,balance,ar,clientBundle]=await Promise.all([
+      fetchFreshBooksProfitLossEvidence({accessToken,businessUuid}),fetchFreshBooksBalanceSheetEvidence({accessToken,businessUuid}),fetchFreshBooksArAgingEvidence({accessToken,accountId:accountIdAtFreshBooks}),fetchFreshBooksClientRevenueEvidence({accessToken,accountId:accountIdAtFreshBooks})
+    ]);
+    if(pnl?.monthlyOperatingExpenses!==null&&pnl?.monthlyOperatingExpenses!==undefined&&balance?.monthlyOperatingExpenses==null)balance.monthlyOperatingExpenses=pnl.monthlyOperatingExpenses;
+    if(balance?.accountsReceivable==null&&ar?.totalAR!=null)balance.accountsReceivable=ar.totalAR;
+    const run=await getOrCreateCurrentRun(c,accountId),options={provider:'FreshBooks',model:'freshbooks-api',mimeType:'application/vnd.freshbooks.report+json'},evidence=[];
+    evidence.push(await saveAccountingEvidence(c,run.id,'profit_loss',pnl,options));
+    evidence.push(await saveAccountingEvidence(c,run.id,'balance_sheet',balance,options));
+    evidence.push(await saveAccountingEvidence(c,run.id,'ar_aging',ar,options));
+    evidence.push(await saveAccountingEvidence(c,run.id,'client_revenue',clientBundle.clientRevenue,options));
+    evidence.push(await saveAccountingEvidence(c,run.id,'service_revenue_mix',clientBundle.serviceRevenue,options));
+    const warnings=[...(pnl?.warnings||[]),...(balance?.warnings||[]),...(ar?.warnings||[]),...(clientBundle?.clientRevenue?.warnings||[]),...(clientBundle?.serviceRevenue?.warnings||[])];
+    const synced=await saveFreshBooksConnection(c,accountId,{status:'connected',last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null});
+    return{connection:publicFreshBooksConnection(synced),evidence:evidence.filter(Boolean),warnings:[...new Set(warnings)]};
+  }catch(error){await saveFreshBooksConnection(c,accountId,{last_sync_error:error.message||'FreshBooks sync failed.'}).catch(()=>null);throw error}
 }
 
 const tokenHash=token=>crypto.createHash('sha256').update(String(token)).digest('hex');
@@ -565,6 +652,7 @@ async function monitorSystemsSource(c,accountId){
     ['HubSpot',getHubSpotConnection,publicHubSpotConnection],
     ['Zoho CRM',getZohoConnection,publicZohoConnection],
     ['QuickBooks',getQuickBooksConnection,publicQuickBooksConnection],
+    ['FreshBooks',getFreshBooksConnection,publicFreshBooksConnection],
     ['ClickUp',getClickUpConnection,publicClickUpConnection],
     ['Teamwork',getTeamworkConnection,publicTeamworkConnection],
     ['monday.com',getMondayConnection,publicMondayConnection],
@@ -614,8 +702,8 @@ async function loadMonitorDepartment(c,accountId,department){
     source=clientEvidence?{kind:'financial_evidence',name:'Client Revenue evidence',connected:true,connection:null,data:{}}:await monitorCrmSource(c,accountId,warnings);
   }
   else if(department==='billing'||department==='finance'){
-    const quickBooks=evidenceRows.some(row=>row.extraction_model==='quickbooks-online-api');
-    source={kind:'financial_evidence',name:quickBooks?'QuickBooks Online':'Financial evidence',connected:evidenceRows.length>0,connection:null,data:{}};
+    const accountingEvidence=evidenceRows.find(row=>row.extraction_model==='freshbooks-api'||row.extraction_model==='quickbooks-online-api');
+    source={kind:'financial_evidence',name:accountingEvidence?.extraction_model==='freshbooks-api'?'FreshBooks':accountingEvidence?.extraction_model==='quickbooks-online-api'?'QuickBooks Online':'Financial evidence',connected:evidenceRows.length>0,connection:null,data:{}};
   }
   else if(department==='communication')source=await monitorSlackSource(c,accountId,warnings);
   else if(department==='systems')source=await monitorSystemsSource(c,accountId);
@@ -706,6 +794,16 @@ export default async function handler(req,res){
         if(!session)return json(res,401,{error:'Sign in before viewing QuickBooks status.'});
         const connection=await getQuickBooksConnection(c,session.accountId);
         return json(res,200,{connection:publicQuickBooksConnection(connection),environment:quickBooksConfig()?.environment||null});
+      }
+      if(action==='freshbooks_connect'){
+        if(!session)return json(res,401,{error:'Sign in before connecting FreshBooks.'});
+        if(!freshBooksConfig())return json(res,503,{error:'FreshBooks environment variables are not configured.'});
+        return json(res,200,{authorizationUrl:createFreshBooksAuthorizationUrl(session.accountId)});
+      }
+      if(action==='freshbooks_status'){
+        if(!session)return json(res,401,{error:'Sign in before viewing FreshBooks status.'});
+        const connection=await getFreshBooksConnection(c,session.accountId);
+        return json(res,200,{connection:publicFreshBooksConnection(connection)});
       }
 
       if(action==='google_drive_connect'){
@@ -904,6 +1002,39 @@ export default async function handler(req,res){
       const connection=await getQuickBooksConnection(c,session.accountId);
       if(connection){const qbc=quickBooksConfig();if(qbc){try{const refresh=decryptQuickBooksToken(connection.refresh_token_encrypted,qbc.encryptionSecret);await revokeQuickBooksToken(refresh)}catch{}}await deleteQuickBooksConnection(c,session.accountId)}
       return json(res,200,{success:true,connection:publicQuickBooksConnection(null)});
+    }
+
+    if(bodyAction==='freshbooks_callback'){
+      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect FreshBooks.'});
+      const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'FreshBooks did not return the required authorization values.'});
+      if(!verifyFreshBooksOAuthState(state,session.accountId))return json(res,403,{error:'FreshBooks authorization state is invalid or expired.'});
+      const config=freshBooksConfig(),tokens=await exchangeFreshBooksCode(code);if(!tokens.refresh_token)return json(res,409,{error:'FreshBooks did not return a refresh token. Reconnect FreshBooks.'});
+      const identity=await getFreshBooksIdentity(tokens.access_token),businesses=identity.businesses||[];
+      const selected=businesses.find(item=>['owner','business_partner'].includes(item.role)&&item.uuid)||businesses.find(item=>item.uuid)||businesses[0];
+      if(!selected?.accountId)return json(res,409,{error:'This FreshBooks user does not have an active business account available to Creative Creatures.'});
+      const scopes=clean(tokens.scope).split(/\s+/).map(clean).filter(Boolean);
+      const missingScopes=FRESHBOOKS_REQUIRED_SCOPES.filter(scope=>!scopes.includes(scope));
+      if(missingScopes.length){await revokeFreshBooksToken(tokens.access_token).catch(()=>false);return json(res,409,{error:`FreshBooks authorization is missing required scopes: ${missingScopes.join(', ')}. Add them in the FreshBooks developer app, then connect again.`,code:'FRESHBOOKS_SCOPES_REQUIRED',missingScopes})}
+      const saved=await saveFreshBooksConnection(c,session.accountId,{freshbooks_user_id:identity.id,connected_email:identity.email,selected_business_id:selected.id,selected_business_uuid:selected.uuid,selected_account_id:selected.accountId,selected_business_name:selected.name,businesses,access_token_encrypted:encryptFreshBooksToken(tokens.access_token,config.encryptionSecret),refresh_token_encrypted:encryptFreshBooksToken(tokens.refresh_token,config.encryptionSecret),...freshBooksTokenDates(tokens),scopes,status:'connected',last_sync_error:null});
+      return json(res,200,{connected:true,connection:publicFreshBooksConnection(saved)});
+    }
+    if(bodyAction==='freshbooks_dashboard'){
+      if(!session)return json(res,401,{error:'Sign in before viewing FreshBooks data.'});const result=await loadFreshBooksDashboard(c,session.accountId);return json(res,200,{success:true,...result});
+    }
+    if(bodyAction==='freshbooks_sync'){
+      if(!session)return json(res,401,{error:'Sign in before syncing FreshBooks financial reports.'});const result=await syncFreshBooks(c,session.accountId);return json(res,200,{success:true,...result});
+    }
+    if(bodyAction==='freshbooks_select_business'){
+      if(!session)return json(res,401,{error:'Sign in before selecting a FreshBooks business.'});const {accessToken}=await freshBooksConnectionAccess(c,session.accountId);const identity=await getFreshBooksIdentity(accessToken),key=clean(b.businessUuid||b.businessId||b.accountId);const selected=identity.businesses.find(item=>item.uuid===key||item.id===key||item.accountId===key);if(!selected)return json(res,404,{error:'That FreshBooks business is no longer available.'});const saved=await saveFreshBooksConnection(c,session.accountId,{selected_business_id:selected.id,selected_business_uuid:selected.uuid,selected_account_id:selected.accountId,selected_business_name:selected.name,businesses:identity.businesses,last_sync_error:null,status:'connected'});return json(res,200,{success:true,connection:publicFreshBooksConnection(saved)});
+    }
+    if(bodyAction==='freshbooks_save_client'){
+      if(!session)return json(res,401,{error:'Sign in before managing FreshBooks clients.'});const {connection,accessToken}=await freshBooksConnectionAccess(c,session.accountId);freshBooksWriteAccess(connection);const input=freshBooksClientInput(b);const client=await saveFreshBooksClient({accessToken,accountId:connection.selected_account_id,id:input.id,client:input.client});return json(res,200,{success:true,client});
+    }
+    if(bodyAction==='freshbooks_archive_client'){
+      if(!session)return json(res,401,{error:'Sign in before managing FreshBooks clients.'});const {connection,accessToken}=await freshBooksConnectionAccess(c,session.accountId);freshBooksWriteAccess(connection);await archiveFreshBooksClient({accessToken,accountId:connection.selected_account_id,id:clean(b.recordId)});return json(res,200,{success:true});
+    }
+    if(bodyAction==='freshbooks_disconnect'){
+      if(!session)return json(res,401,{error:'Sign in before disconnecting FreshBooks.'});const connection=await getFreshBooksConnection(c,session.accountId);if(connection){const config=freshBooksConfig();if(config){try{const refresh=decryptFreshBooksToken(connection.refresh_token_encrypted,config.encryptionSecret);await revokeFreshBooksToken(refresh)}catch{}}await deleteFreshBooksConnection(c,session.accountId)}return json(res,200,{success:true,connection:publicFreshBooksConnection(null)});
     }
 
 

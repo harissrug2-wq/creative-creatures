@@ -108,7 +108,7 @@
       'QuickBooks Online':{group:'Finance & Billing',code:'QB',color:'#2ca01c',copy:'OAuth2 · P&L · A/R · expenses',status:'quickbooks_status',connect:'quickbooks_connect',sync:'quickbooks_sync',disconnect:'quickbooks_disconnect'},
       'Xero':{group:'Finance & Billing',code:'Xe',color:'#13b5ea',copy:'Accounting · invoices · expenses'},
       'Sage':{group:'Finance & Billing',code:'Sg',color:'#00a376',copy:'Accounting · reporting'},
-      'FreshBooks':{group:'Finance & Billing',code:'Fb',color:'#0075dd',copy:'Invoices · expenses · clients'},
+      'FreshBooks':{group:'Finance & Billing',code:'Fb',color:'#0075dd',copy:'OAuth2 · clients · invoices · payments · expenses · reports',status:'freshbooks_status',connect:'freshbooks_connect',sync:'freshbooks_sync',disconnect:'freshbooks_disconnect',manage:'freshbooks'},
       'NetSuite':{group:'Finance & Billing',code:'Ns',color:'#425563',copy:'ERP · finance · reporting'},
       'Stripe':{group:'Finance & Billing',code:'St',color:'#635bff',copy:'OAuth2 · charges · invoices · subscriptions'},
       'Square':{group:'Finance & Billing',code:'Sq',color:'#111',copy:'Payments · customers · orders'},
@@ -273,7 +273,7 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',zoho:'Zoho CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com'};
+      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',zoho:'Zoho CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com'};
       let changed=false;
       Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
@@ -290,6 +290,7 @@
         if(tool==='Google Drive')return manageDrive();
         if(tool==='HubSpot')return manageHubSpot();
         if(tool==='Zoho CRM')return manageZoho();
+        if(tool==='FreshBooks')return manageFreshBooks();
         if(tool==='Slack')return manageSlack();
         if(tool==='ClickUp')return manageClickUp();
         if(tool==='Teamwork')return manageTeamwork();
@@ -397,6 +398,46 @@
     async function archiveHubSpotRecord(kind,recordId){
       if(!confirm(`Archive this ${hubSpotKinds[kind].label.toLowerCase()}? HubSpot will move it to the recycling bin.`))return;
       try{await apiPost(hubSpotKinds[kind].archive,{recordId});await manageHubSpot();hubSpotTab=kind;drawHubSpot(kind)}catch(error){modalError.textContent=error.message}
+    }
+
+    let freshBooksData={clients:[],invoices:[],payments:[],expenses:[],connection:null},freshBooksTab='invoices';
+    const freshBooksCanWrite=()=>Boolean(freshBooksData.connection?.scopes?.includes('user:clients:write'));
+    const freshMoney=(value,currency)=>{const number=Number(value);if(!Number.isFinite(number))return'—';try{return new Intl.NumberFormat(undefined,{style:'currency',currency:currency||'USD'}).format(number)}catch{return`${currency||''} ${number.toLocaleString()}`.trim()}};
+    async function manageFreshBooks(){
+      modalTitle.textContent='FreshBooks';modalCopy.textContent='Manage clients and review live accounting records for the FreshBooks business selected by this agency.';
+      const r=await apiPost('freshbooks_dashboard');stateMap.set('FreshBooks',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      freshBooksData={clients:r.clients||[],invoices:r.invoices||[],payments:r.payments||[],expenses:r.expenses||[],connection:r.connection||null};
+      const sets=[['Clients',freshBooksData.clients],['Invoices',freshBooksData.invoices],['Payments',freshBooksData.payments],['Expenses',freshBooksData.expenses]],businesses=freshBooksData.connection?.businesses||[];
+      modalBody.innerHTML=`${!freshBooksCanWrite()?'<div class="data-item" style="border-color:#f0d69b;background:#fff9eb;margin-bottom:12px"><strong>Client editing is not authorized</strong><span>Enable user:clients:write in the FreshBooks developer app, then disconnect and reconnect FreshBooks.</span></div>':''}<div class="toolbar"><div class="field"><label>FreshBooks business</label><select id="freshBusiness">${businesses.map(item=>`<option value="${esc(item.uuid||item.accountId||item.id)}" ${item.accountId===freshBooksData.connection?.selectedAccountId?'selected':''}>${esc(item.name)} · ${esc(item.role||'member')}</option>`).join('')}</select></div><button class="btn" id="freshUseBusiness" ${businesses.length<2?'disabled':''}>Use this business</button></div><div class="metric-grid">${sets.map(([name,rows])=>`<div class="metric"><strong>${rows.length}</strong><span>${name} loaded</span></div>`).join('')}</div><div class="data-item" style="margin-bottom:12px"><strong>Safe Phase 1 boundary</strong><span>Clients can be created, edited, and archived. Invoices, payments, expenses, and financial reports are read-only.</span></div><div class="toolbar"><div class="tabs" style="margin:0;flex:1">${sets.map(([name])=>`<button class="btn" data-fresh-tab="${name.toLowerCase()}">${name}</button>`).join('')}</div><button class="btn primary" id="freshNew">＋ New Client</button></div><div class="data-list" id="freshList"></div>`;
+      const use=document.querySelector('#freshUseBusiness');if(use)use.onclick=async()=>{use.disabled=true;try{await apiPost('freshbooks_select_business',{businessUuid:document.querySelector('#freshBusiness').value});freshBooksTab='invoices';await manageFreshBooks()}catch(error){modalError.textContent=error.message;use.disabled=false}};
+      document.querySelectorAll('[data-fresh-tab]').forEach(button=>button.onclick=()=>drawFreshBooks(button.dataset.freshTab));drawFreshBooks(freshBooksTab);
+    }
+    function drawFreshBooks(key){
+      freshBooksTab=key;const el=document.querySelector('#freshList'),newButton=document.querySelector('#freshNew'),rows=freshBooksData[key]||[];if(!el)return;
+      document.querySelectorAll('[data-fresh-tab]').forEach(button=>button.classList.toggle('primary',button.dataset.freshTab===key));
+      newButton.hidden=key!=='clients';newButton.disabled=!freshBooksCanWrite();newButton.onclick=()=>openFreshBooksClient();
+      if(!rows.length){el.innerHTML=`<div class="data-item"><strong>No ${esc(key)} returned.</strong><span>${key==='clients'?'Create the first client from Creative Creatures.':'FreshBooks has no live records in this list.'}</span></div>`;return}
+      if(key==='clients')el.innerHTML=rows.map(item=>`<article class="data-item"><strong>${esc(item.organization||[item.firstName,item.lastName].filter(Boolean).join(' ')||item.email||'Unnamed client')}</strong><span>${esc([item.email,item.phone,item.outstandingBalance!==null&&item.outstandingBalance!==undefined?`Outstanding ${freshMoney(item.outstandingBalance,item.currency)}`:'',item.overdueBalance!==null&&item.overdueBalance!==undefined?`Overdue ${freshMoney(item.overdueBalance,item.currency)}`:''].filter(Boolean).join(' · '))}</span><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" data-fresh-edit="${esc(item.id)}" ${freshBooksCanWrite()?'':'disabled'}>Edit</button><button class="btn danger" data-fresh-archive="${esc(item.id)}" ${freshBooksCanWrite()?'':'disabled'}>Archive</button></div></article>`).join('');
+      if(key==='invoices')el.innerHTML=rows.map(item=>`<article class="data-item"><strong>Invoice ${esc(item.invoiceNumber||item.id)} · ${esc(item.clientName||'Client')}</strong><span>${esc([freshMoney(item.amount,item.currency),item.status,item.date?`Issued ${new Date(item.date+'T00:00:00').toLocaleDateString()}`:'',item.dueDate?`Due ${new Date(item.dueDate+'T00:00:00').toLocaleDateString()}`:'',item.outstanding!==null&&item.outstanding!==undefined?`Outstanding ${freshMoney(item.outstanding,item.currency)}`:''].filter(Boolean).join(' · '))}</span></article>`).join('');
+      if(key==='payments')el.innerHTML=rows.map(item=>`<article class="data-item"><strong>${freshMoney(item.amount,item.currency)} · ${esc(item.type||'Payment')}</strong><span>${esc([item.date?new Date(item.date+'T00:00:00').toLocaleDateString():'',item.invoiceId?`Invoice ${item.invoiceId}`:'',item.note].filter(Boolean).join(' · '))}</span></article>`).join('');
+      if(key==='expenses')el.innerHTML=rows.map(item=>`<article class="data-item"><strong>${esc(item.vendor||item.category||'Expense')} · ${freshMoney(item.amount,item.currency)}</strong><span>${esc([item.date?new Date(item.date+'T00:00:00').toLocaleDateString():'',item.category,item.notes].filter(Boolean).join(' · '))}</span></article>`).join('');
+      el.querySelectorAll('[data-fresh-edit]').forEach(button=>button.onclick=()=>openFreshBooksClient(rows.find(item=>item.id===button.dataset.freshEdit)));
+      el.querySelectorAll('[data-fresh-archive]').forEach(button=>button.onclick=()=>archiveFreshBooksClientRecord(button.dataset.freshArchive));
+    }
+    function openFreshBooksClient(record=null){
+      modalTitle.textContent=`${record?'Edit':'New'} FreshBooks Client`;modalCopy.textContent=`${record?'Update':'Create'} this client directly in the selected FreshBooks business.`;
+      const input=(id,label,type='text',full=false)=>`<div class="field ${full?'full':''}"><label>${label}</label><input id="fresh_${id}" type="${type}" value="${esc(record?.[id]||'')}"></div>`;
+      const fields=input('firstName','First name')+input('lastName','Last name')+input('email','Email','email',true)+input('organization','Organization','text',true)+input('phone','Phone')+input('currency','Currency code')+input('street','Billing street')+input('street2','Billing street 2')+input('city','City')+input('province','State / province')+input('postalCode','Postal code')+input('country','Country')+`<div class="field full"><label>Internal note</label><textarea id="fresh_note">${esc(record?.note||'')}</textarea></div>`;
+      modalBody.innerHTML=`<input type="hidden" id="freshRecordId" value="${esc(record?.id||'')}"><div class="form-grid">${fields}</div><div class="modal-error" id="freshEditorError"></div><div class="modal-actions" style="bottom:-26px"><button class="btn" id="freshEditorCancel">Cancel</button><button class="btn primary" id="freshEditorSave">Save Client</button></div>`;
+      document.querySelector('#freshEditorCancel').onclick=()=>manageFreshBooks();document.querySelector('#freshEditorSave').onclick=saveFreshBooksClientRecord;
+    }
+    async function saveFreshBooksClientRecord(){
+      const button=document.querySelector('#freshEditorSave'),client={};button.disabled=true;document.querySelector('#freshEditorError').textContent='';['firstName','lastName','email','organization','phone','currency','street','street2','city','province','postalCode','country','note'].forEach(name=>{const field=document.querySelector(`#fresh_${name}`);if(field)client[name]=field.value.trim()});
+      try{await apiPost('freshbooks_save_client',{recordId:document.querySelector('#freshRecordId').value,client});freshBooksTab='clients';await manageFreshBooks()}catch(error){document.querySelector('#freshEditorError').textContent=error.message;button.disabled=false}
+    }
+    async function archiveFreshBooksClientRecord(recordId){
+      if(!confirm('Archive this client in FreshBooks? Existing invoices and payments are not deleted.'))return;
+      try{await apiPost('freshbooks_archive_client',{recordId});freshBooksTab='clients';await manageFreshBooks()}catch(error){modalError.textContent=error.message}
     }
 
     let zohoData={contacts:[],accounts:[],deals:[],pipelines:[],connection:null},zohoTab='deals';
