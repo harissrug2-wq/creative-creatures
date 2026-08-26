@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Privacy Policy · Creative Creatures</title>
+  <meta name="description" content="Creative Creatures Privacy Policy. Learn how we collect, use, protect, and manage your agency data and integration information.">
+  <meta name="theme-color" content="#f8f8f6">
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/portal/base.css">
+  <style>
+    :root {
+      --legal-sidebar-width: 260px;
+    }
+    body.legal-page {
+      background: var(--cc-bg, #f8f8f6);
+      color: var(--cc-text, #111218);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .legal-header {
+      background: #ffffff;
+      border-bottom: 1px solid var(--cc-line, #e3e4e2);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .legal-header-inner {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 0 24px;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .legal-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+    .legal-brand img {
+      height: 28px;
+      width: auto;
+    }
+    .legal-nav {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .legal-nav a {
+      color: var(--cc-muted, #5f6675);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: color 0.15s ease;
+    }
+    .legal-nav a:hover, .legal-nav a.active {
+      color: var(--cc-blue, #2929ed);
+    }
+    .legal-nav .btn-signin {
+      background: var(--cc-blue, #2929ed);
+      color: #ffffff !important;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      box-shadow: 0 2px 8px rgba(41, 41, 237, 0.2);
+    }
+    .legal-hero {
+      background: #ffffff;
+      border-bottom: 1px solid var(--cc-line, #e3e4e2);
+      padding: 48px 24px 40px;
+    }
+    .legal-hero-inner {
+      max-width: 1140px;
+      margin: 0 auto;
+    }
+    .legal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: var(--cc-blue-soft, #edf1ff);
+      color: var(--cc-blue, #2929ed);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .legal-hero h1 {
+      font-size: clamp(32px, 4vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 12px;
+      color: var(--cc-text, #111218);
+    }
+    .legal-hero p {
+      font-size: 16px;
+      line-height: 1.6;
+      color: var(--cc-muted, #5f6675);
+      margin: 0 0 20px;
+      max-width: 760px;
+    }
+    .legal-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 24px;
+      font-size: 13px;
+      color: var(--cc-subtle, #8991a2);
+    }
+    .legal-meta span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .print-btn {
+      border: 1px solid var(--cc-line, #e3e4e2);
+      background: #ffffff;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--cc-text, #111218);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+    .print-btn:hover {
+      background: var(--cc-bg, #f8f8f6);
+      border-color: #d0d1cf;
+    }
+    .legal-layout {
+      max-width: 1140px;
+      margin: 40px auto 80px;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: var(--legal-sidebar-width) minmax(0, 1fr);
+      gap: 48px;
+      flex: 1;
+    }
+    .legal-sidebar {
+      position: sticky;
+      top: 96px;
+      align-self: start;
+      max-height: calc(100vh - 120px);
+      overflow-y: auto;
+    }
+    .toc-card {
+      background: #ffffff;
+      border: 1px solid var(--cc-line, #e3e4e2);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: var(--cc-shadow, 0 1px 2px rgba(17,18,24,.04));
+    }
+    .toc-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--cc-subtle, #8991a2);
+      margin-bottom: 14px;
+    }
+    .toc-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .toc-list a {
+      font-size: 13px;
+      color: var(--cc-muted, #5f6675);
+      text-decoration: none;
+      line-height: 1.4;
+      display: block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+    }
+    .toc-list a:hover, .toc-list a.active {
+      color: var(--cc-blue, #2929ed);
+      background: var(--cc-blue-soft, #edf1ff);
+      font-weight: 600;
+    }
+    .legal-content {
+      background: #ffffff;
+      border: 1px solid var(--cc-line, #e3e4e2);
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: var(--cc-shadow, 0 1px 2px rgba(17,18,24,.04));
+      min-width: 0;
+    }
+    .legal-section {
+      margin-bottom: 44px;
+      scroll-margin-top: 90px;
+    }
+    .legal-section:last-child {
+      margin-bottom: 0;
+    }
+    .legal-section h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--cc-text, #111218);
+      margin: 0 0 16px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--cc-line, #e3e4e2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .legal-section h2 .sec-num {
+      color: var(--cc-blue, #2929ed);
+      font-size: 16px;
+      font-weight: 800;
+    }
+    .legal-section h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--cc-text, #111218);
+      margin: 20px 0 10px;
+    }
+    .legal-section p {
+      font-size: 15px;
+      line-height: 1.65;
+      color: #3b4250;
+      margin: 0 0 14px;
+    }
+    .legal-section ul, .legal-section ol {
+      margin: 0 0 16px;
+      padding-left: 22px;
+      font-size: 15px;
+      line-height: 1.65;
+      color: #3b4250;
+    }
+    .legal-section li {
+      margin-bottom: 8px;
+    }
+    .legal-callout {
+      background: var(--cc-bg, #f8f8f6);
+      border-left: 4px solid var(--cc-blue, #2929ed);
+      border-radius: 0 10px 10px 0;
+      padding: 16px 20px;
+      margin: 20px 0;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--cc-text, #111218);
+    }
+    .legal-callout strong {
+      display: block;
+      color: var(--cc-blue, #2929ed);
+      margin-bottom: 4px;
+    }
+    .legal-footer {
+      background: #ffffff;
+      border-top: 1px solid var(--cc-line, #e3e4e2);
+      padding: 40px 24px;
+      margin-top: auto;
+    }
+    .legal-footer-inner {
+      max-width: 1140px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      font-size: 13px;
+      color: var(--cc-muted, #5f6675);
+    }
+    .legal-footer-links {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    .legal-footer-links a {
+      color: var(--cc-muted, #5f6675);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.15s ease;
+    }
+    .legal-footer-links a:hover {
+      color: var(--cc-blue, #2929ed);
+    }
+
+    @media (max-width: 900px) {
+      .legal-layout {
+        grid-template-columns: 1fr;
+        gap: 32px;
+        margin: 24px auto 50px;
+      }
+      .legal-sidebar {
+        position: static;
+        max-height: none;
+      }
+      .legal-content {
+        padding: 24px;
+      }
+    }
+    @media print {
+      .legal-header, .legal-sidebar, .print-btn, .legal-footer {
+        display: none !important;
+      }
+      .legal-layout {
+        display: block;
+        padding: 0;
+        margin: 0;
+      }
+      .legal-content {
+        border: none;
+        box-shadow: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body class="legal-page">
+
+  <header class="legal-header">
+    <div class="legal-header-inner">
+      <a href="/login/" class="legal-brand" aria-label="Creative Creatures Home">
+        <img src="/portal/creative-creatures-logo.png" alt="Creative Creatures Logo">
+      </a>
+      <nav class="legal-nav">
+        <a href="/privacy-policy/" class="active">Privacy Policy</a>
+        <a href="/terms-of-service/">Terms of Service</a>
+        <a href="/login/" class="btn-signin">Sign In</a>
+      </nav>
+    </div>
+  </header>
+
+  <section class="legal-hero">
+    <div class="legal-hero-inner">
+      <span class="legal-badge">Legal Documentation</span>
+      <h1>Privacy Policy</h1>
+      <p>This Privacy Policy describes how Creative Creatures ("we", "us", or "our") collects, uses, protects, and discloses your personal and agency information when you use our website, diagnostic tools, and agency intelligence platform.</p>
+      <div class="legal-meta">
+        <span>🗓 Last Updated: August 27, 2026</span>
+        <span>🛡 Security Standards: SOC2 Compliant &amp; Encrypted</span>
+        <button type="button" class="print-btn" onclick="window.print()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+          Print Policy
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <main class="legal-layout">
+    <aside class="legal-sidebar">
+      <nav class="toc-card" aria-label="Table of Contents">
+        <div class="toc-title">Table of Contents</div>
+        <ul class="toc-list" id="tocList">
+          <li><a href="#overview">1. Overview &amp; Scope</a></li>
+          <li><a href="#information-we-collect">2. Information We Collect</a></li>
+          <li><a href="#how-we-use-information">3. How We Use Information</a></li>
+          <li><a href="#integrations">4. Third-Party Software &amp; APIs</a></li>
+          <li><a href="#data-sharing">5. Data Sharing &amp; Disclosure</a></li>
+          <li><a href="#data-security">6. Security &amp; Data Protection</a></li>
+          <li><a href="#data-retention">7. Data Retention &amp; Storage</a></li>
+          <li><a href="#your-rights">8. Your Rights &amp; Choices</a></li>
+          <li><a href="#cookies">9. Cookies &amp; Tracking</a></li>
+          <li><a href="#updates">10. Policy Updates</a></li>
+          <li><a href="#contact">11. Contact Information</a></li>
+        </ul>
+      </nav>
+    </aside>
+
+    <article class="legal-content">
+      
+      <section id="overview" class="legal-section">
+        <h2><span class="sec-num">01.</span> Overview &amp; Scope</h2>
+        <p>At Creative Creatures, we respect the privacy of agency owners, leadership teams, and partners who trust us with their agency operational and diagnostic data. We are committed to maintaining the confidentiality, security, and integrity of all data processed through our platform.</p>
+        <p>This Privacy Policy applies to all services offered by Creative Creatures, including our website located at CreativeCreatures.co / CreativeCreatures.org, our Owner Archetype assessment, Agency Diagnostic platform, Breakthrough Accelerator, and integrated back-office analytics dashboards.</p>
+        <div class="legal-callout">
+          <strong>Key Privacy Promise</strong>
+          We never sell, rent, or trade your agency's operational data, client lists, or financial metrics to third parties or advertising networks. Your agency performance data is strictly yours.
+        </div>
+      </section>
+
+      <section id="information-we-collect" class="legal-section">
+        <h2><span class="sec-num">02.</span> Information We Collect</h2>
+        <p>We collect information to provide, personalize, and improve our agency diagnostic and operating platform. The types of information we collect include:</p>
+
+        <h3>A. Account &amp; Profile Information</h3>
+        <p>When you register for an account, request a diagnostic report, or communicate with us, we collect:</p>
+        <ul>
+          <li><strong>Contact Details:</strong> Your full name, work email address, phone number, and physical address.</li>
+          <li><strong>Agency Information:</strong> Agency name, website URL, team size, primary service offerings, revenue tier, and owner archetype responses.</li>
+          <li><strong>Authentication Credentials:</strong> Password hashes and OAuth token identifiers used for account access.</li>
+        </ul>
+
+        <h3>B. Diagnostic &amp; Operational Metrics</h3>
+        <p>During the Agency Diagnostic and platform use, we collect operational data regarding your agency performance across 11 key departments (Leadership, Marketing, Sales, Billing, Onboarding, Service Delivery, Client Success, Talent Acquisition, Finance, Communication, Systems, and SOPs).</p>
+
+        <h3>C. Connected Integration Data</h3>
+        <p>If you choose to authorize integrations with third-party software (such as QuickBooks, FreshBooks, HubSpot, Zoho CRM, ClickUp, Monday.com, Teamwork, Slack, Google Drive, or Google Chat), we receive read-only or scoped API metadata necessary to compute scorecard KPIs and health indicators.</p>
+      </section>
+
+      <section id="how-we-use-information" class="legal-section">
+        <h2><span class="sec-num">03.</span> How We Use Information</h2>
+        <p>We utilize the collected information strictly for legitimate business and platform operational purposes, including:</p>
+        <ul>
+          <li><strong>Generating Diagnostic Reports:</strong> Processing assessment answers to calculate your Owner Archetype, Independence Index, Agency Strength Index, and 14-point risk evaluation.</li>
+          <li><strong>Operating the Platform:</strong> Powering your agency workspace dashboard, goal cascades, weekly L10 meeting cadence, and department performance metrics.</li>
+          <li><strong>Customer Support &amp; Executive Advising:</strong> Enabling assigned fractional advisors (such as your Fractional COO) to review evidence and conduct 1:1 strategy review sessions.</li>
+          <li><strong>Service Improvements:</strong> Aggregating anonymized benchmark metrics to benchmark agency performance standards across industries.</li>
+          <li><strong>System Notifications:</strong> Sending transactional updates, reset password links, diagnostic activation confirmations, and security alerts.</li>
+        </ul>
+      </section>
+
+      <section id="integrations" class="legal-section">
+        <h2><span class="sec-num">04.</span> Third-Party Software &amp; APIs</h2>
+        <p>Creative Creatures offers optional back-office software integrations to automatically surface live agency KPIs:</p>
+        <ul>
+          <li><strong>OAuth Authorization:</strong> You explicitly authorize connection with third-party platforms via secure OAuth protocol. You may disconnect integrations at any time from your account settings.</li>
+          <li><strong>Privacy Boundaries:</strong> For tools like Google Chat or Slack, only workspace and channel metadata required for team communication tracking is fetched. Message body content is not parsed or stored.</li>
+          <li><strong>Third-Party Privacy Policies:</strong> Data processed by connected third-party providers remains subject to their respective terms and privacy policies.</li>
+        </ul>
+      </section>
+
+      <section id="data-sharing" class="legal-section">
+        <h2><span class="sec-num">05.</span> Data Sharing &amp; Disclosure</h2>
+        <p>We do not share your agency data except under the following limited circumstances:</p>
+        <ul>
+          <li><strong>Authorized Service Providers:</strong> Trusted vendors who provide infrastructure, hosting (Vercel, Supabase), billing processing, and email delivery, bound by strict confidentiality agreements.</li>
+          <li><strong>Legal &amp; Regulatory Compliance:</strong> If required by court order, legal process, law enforcement request, or to protect the rights, property, and safety of Creative Creatures or our users.</li>
+          <li><strong>Business Transfers:</strong> In connection with a merger, acquisition, or sale of company assets, where user data remains subject to pre-existing privacy commitments.</li>
+        </ul>
+      </section>
+
+      <section id="data-security" class="legal-section">
+        <h2><span class="sec-num">06.</span> Security &amp; Data Protection</h2>
+        <p>We employ enterprise-grade security protocols to protect your data against unauthorized access, disclosure, modification, or destruction:</p>
+        <ul>
+          <li><strong>Encryption in Transit &amp; at Rest:</strong> All web traffic is encrypted via HTTPS / TLS 1.3. Sensitive parameters, auth tokens, and financial evidence data are encrypted using industry-standard AES encryption.</li>
+          <li><strong>Access Controls:</strong> Multi-factor authentication, role-based access restrictions, and isolated database schemas.</li>
+          <li><strong>Regular Audits:</strong> Continuous vulnerability scans and periodic security audits of our API handlers and infrastructure.</li>
+        </ul>
+      </section>
+
+      <section id="data-retention" class="legal-section">
+        <h2><span class="sec-num">07.</span> Data Retention &amp; Storage</h2>
+        <p>We retain your account and diagnostic data for as long as your workspace remains active or as needed to provide our services. You may request full account deletion or export of your diagnostic data at any time by contacting our support team.</p>
+      </section>
+
+      <section id="your-rights" class="legal-section">
+        <h2><span class="sec-num">08.</span> Your Rights &amp; Choices</h2>
+        <p>Depending on your jurisdiction, you have specific rights regarding your personal and agency data:</p>
+        <ul>
+          <li><strong>Access &amp; Export:</strong> Request a full copy of your diagnostic results and profile information.</li>
+          <li><strong>Correction:</strong> Update or amend inaccurate account information through your profile dashboard.</li>
+          <li><strong>Deletion:</strong> Request permanent removal of your account and diagnostic records from active servers.</li>
+          <li><strong>Opt-Out:</strong> Unsubscribe from non-essential promotional communications via the link in any email footer.</li>
+        </ul>
+      </section>
+
+      <section id="cookies" class="legal-section">
+        <h2><span class="sec-num">09.</span> Cookies &amp; Tracking</h2>
+        <p>Creative Creatures uses essential session cookies and local storage items (`localStorage`) strictly to maintain user sign-in state, diagnostic questionnaire progress, and theme preferences. We do not use intrusive third-party cross-site tracking cookies.</p>
+      </section>
+
+      <section id="updates" class="legal-section">
+        <h2><span class="sec-num">10.</span> Policy Updates</h2>
+        <p>We may update this Privacy Policy periodically to reflect enhancements to our platform or regulatory changes. When updates occur, we will revise the "Last Updated" date at the top of this page and notify active account holders via email or in-app notice.</p>
+      </section>
+
+      <section id="contact" class="legal-section">
+        <h2><span class="sec-num">11.</span> Contact Information</h2>
+        <p>If you have questions, concerns, or requests regarding this Privacy Policy or our data protection practices, please reach out to us:</p>
+        <div class="legal-callout">
+          <strong>Creative Creatures Data Protection Office</strong><br>
+          Email: <a href="mailto:privacy@creativecreatures.co" style="color:var(--cc-blue);text-decoration:none;font-weight:600;">privacy@creativecreatures.co</a><br>
+          Direct Representative: Marcus Reyes (<a href="mailto:marcus@creativecreatures.co" style="color:var(--cc-blue);text-decoration:none;">marcus@creativecreatures.co</a>)<br>
+          Website: <a href="https://creativecreatures.co" style="color:var(--cc-blue);text-decoration:none;">CreativeCreatures.co</a>
+        </div>
+      </section>
+
+    </article>
+  </main>
+
+  <footer class="legal-footer">
+    <div class="legal-footer-inner">
+      <div>&copy; 2026 Creative Creatures. All rights reserved.</div>
+      <div class="legal-footer-links">
+        <a href="/privacy-policy/">Privacy Policy</a>
+        <a href="/terms-of-service/">Terms of Service</a>
+        <a href="/login/">Sign In</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Highlight table of contents items on scroll
+    const sections = document.querySelectorAll('.legal-section');
+    const tocLinks = document.querySelectorAll('#tocList a');
+
+    window.addEventListener('scroll', () => {
+      let current = '';
+      sections.forEach(section => {
+        const sectionTop = section.offsetTop - 110;
+        if (pageYOffset >= sectionTop) {
+          current = section.getAttribute('id');
+        }
+      });
+      tocLinks.forEach(link => {
+        link.classList.remove('active');
+        if (link.getAttribute('href') === `#${current}`) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

@@ -25,3 +25,9 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# Backup and temp files
+.cc-*
+*.zip
+stop
+

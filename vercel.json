@@ -28,12 +28,28 @@
       "destination": "/owner-archetype/"
     },
     {
-      "source": "/owner-archetype/report/:token/",
-      "destination": "/owner-archetype/"
+      "source": "/privacy-policy",
+      "destination": "/privacy-policy/"
     },
     {
-      "source": "/owner-archetype/report/:token",
-      "destination": "/owner-archetype/"
+      "source": "/privacy",
+      "destination": "/privacy-policy/"
+    },
+    {
+      "source": "/privacy/",
+      "destination": "/privacy-policy/"
+    },
+    {
+      "source": "/terms-of-service",
+      "destination": "/terms-of-service/"
+    },
+    {
+      "source": "/terms",
+      "destination": "/terms-of-service/"
+    },
+    {
+      "source": "/terms/",
+      "destination": "/terms-of-service/"
     }
   ],
   "functions": {
