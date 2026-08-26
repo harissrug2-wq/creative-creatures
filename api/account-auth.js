@@ -82,6 +82,27 @@ import {
   verifyHubSpotOAuthState
 } from '../lib/hubspot.js';
 import {
+  archiveZohoAccount,
+  archiveZohoContact,
+  archiveZohoDeal,
+  createZohoAuthorizationUrl,
+  decryptZohoToken,
+  encryptZohoToken,
+  exchangeZohoCode,
+  getZohoOrganization,
+  listZohoAccounts,
+  listZohoContacts,
+  listZohoDealPipelines,
+  listZohoDeals,
+  refreshZohoTokens,
+  revokeZohoRefreshToken,
+  saveZohoAccount,
+  saveZohoContact,
+  saveZohoDeal,
+  verifyZohoOAuthState,
+  zohoConfig
+} from '../lib/zoho.js';
+import {
   createGoogleDriveAuthorizationUrl,
   decryptGoogleDriveToken,
   encryptGoogleDriveToken,
@@ -309,6 +330,51 @@ async function loadHubSpotDashboard(c,accountId){
   return{connection:publicHubSpotConnection(synced),...data,warnings};
 }
 
+const ZOHO_SELECT='id,account_id,organization_id,organization_name,location,accounts_server,api_domain,company_currency,currency_symbol,time_zone,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
+async function getZohoConnection(c,accountId){const rows=await db(c,`zoho_crm_connections?select=${ZOHO_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
+function publicZohoConnection(row){return row?{connected:row.status==='connected',organizationId:row.organization_id||'',organizationName:row.organization_name||'',location:row.location||'',companyCurrency:row.company_currency||'',currencySymbol:row.currency_symbol||'',timeZone:row.time_zone||'',scopes:Array.isArray(row.scopes)?row.scopes:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,organizationId:'',organizationName:'',location:'',companyCurrency:'',currencySymbol:'',timeZone:'',scopes:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
+async function saveZohoConnection(c,accountId,patch){const existing=await getZohoConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`zoho_crm_connections?id=eq.${encodeURIComponent(existing.id)}&select=${ZOHO_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`zoho_crm_connections?select=${ZOHO_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
+async function deleteZohoConnection(c,accountId){await db(c,`zoho_crm_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
+function zohoTokenDates(tokens){return{access_token_expires_at:new Date(Date.now()+(Number(tokens.expires_in)||3600)*1000).toISOString()}}
+async function ensureZohoAccess(c,connection){
+  const zc=zohoConfig();if(!zc)throw new Error('Zoho CRM is not configured.');
+  const expiresAt=Date.parse(connection.access_token_expires_at||'');
+  if(Number.isFinite(expiresAt)&&expiresAt>Date.now()+120000)return{connection,accessToken:decryptZohoToken(connection.access_token_encrypted,zc.encryptionSecret),apiDomain:connection.api_domain};
+  if(!connection.refresh_token_encrypted)throw Object.assign(new Error('Zoho CRM access expired. Reconnect Zoho CRM.'),{status:401});
+  const refreshToken=decryptZohoToken(connection.refresh_token_encrypted,zc.encryptionSecret);const tokens=await refreshZohoTokens(refreshToken,connection.accounts_server);
+  const updated=await saveZohoConnection(c,connection.account_id,{api_domain:tokens.api_domain||connection.api_domain,access_token_encrypted:encryptZohoToken(tokens.access_token,zc.encryptionSecret),...zohoTokenDates(tokens),status:'connected',last_sync_error:null});
+  return{connection:updated,accessToken:tokens.access_token,apiDomain:updated.api_domain};
+}
+async function zohoConnectionAccess(c,accountId){const connection=await getZohoConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Zoho CRM first.'),{status:409});return ensureZohoAccess(c,connection)}
+async function loadZohoDashboard(c,accountId){
+  const {accessToken,apiDomain}=await zohoConnectionAccess(c,accountId);
+  const settled=await Promise.allSettled([listZohoContacts({accessToken,apiDomain,limit:50}),listZohoAccounts({accessToken,apiDomain,limit:50}),listZohoDeals({accessToken,apiDomain,limit:50}),listZohoDealPipelines({accessToken,apiDomain})]);
+  const names=['contacts','accounts','deals','pipelines'],data={},warnings=[];
+  settled.forEach((result,index)=>{if(result.status==='fulfilled')data[names[index]]=result.value;else{data[names[index]]=[];warnings.push(`${names[index]}: ${result.reason?.message||'Unable to load'}`)}});
+  const synced=await saveZohoConnection(c,accountId,{last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null,status:'connected'});
+  return{connection:publicZohoConnection(synced),...data,companies:data.accounts,warnings};
+}
+
+function zohoWriteAccess(connection,scope){const scopes=Array.isArray(connection?.scopes)?connection.scopes:[];if(!scopes.includes(scope))throw Object.assign(new Error('Reconnect Zoho CRM to approve CRM write access.'),{status:409,code:'ZOHO_RECONNECT_REQUIRED'});}
+function zohoFields(source,fields){const input=source&&typeof source==='object'?source:{},output={};for(const [field,max] of fields){if(Object.prototype.hasOwnProperty.call(input,field))output[field]=clean(input[field]).slice(0,max)}return output}
+function validZohoRecordId(value){const id=clean(value);if(id&&!/^\d+$/.test(id))throw Object.assign(new Error('Zoho CRM record ID is invalid.'),{status:422});return id}
+function validateZohoNumber(properties,field,label){const value=clean(properties[field]);if(value!==''&&(!Number.isFinite(Number(value))||Number(value)<0))throw Object.assign(new Error(`${label} must be zero or greater.`),{status:422});}
+function zohoContactInput(body){
+  const input=zohoFields(body.properties,[['firstname',120],['lastname',120],['email',320],['phone',80],['jobtitle',180]]),id=validZohoRecordId(body.recordId);
+  if(!id&&!input.lastname)throw Object.assign(new Error('Last name is required by Zoho CRM.'),{status:422});if(input.email&&!/^\S+@\S+\.\S+$/.test(input.email))throw Object.assign(new Error('Enter a valid contact email address.'),{status:422});
+  return{id,data:{First_Name:input.firstname,Last_Name:input.lastname,Email:input.email,Phone:input.phone,Title:input.jobtitle}};
+}
+function zohoAccountInput(body){
+  const input=zohoFields(body.properties,[['name',240],['domain',240],['phone',80],['industry',180],['numberofemployees',40],['annualrevenue',60],['city',160],['state',160],['country',160]]),id=validZohoRecordId(body.recordId);
+  if(!id&&!input.name)throw Object.assign(new Error('Account name is required by Zoho CRM.'),{status:422});validateZohoNumber(input,'numberofemployees','Employees');validateZohoNumber(input,'annualrevenue','Annual revenue');
+  return{id,data:{Account_Name:input.name,Website:input.domain,Phone:input.phone,Industry:input.industry,Employees:input.numberofemployees===''?null:Number(input.numberofemployees),Annual_Revenue:input.annualrevenue===''?null:Number(input.annualrevenue),Billing_City:input.city,Billing_State:input.state,Billing_Country:input.country}};
+}
+function zohoDealInput(body){
+  const input=zohoFields(body.properties,[['dealname',240],['amount',60],['dealstage',180],['pipeline',180],['closedate',40]]),id=validZohoRecordId(body.recordId);
+  if(!id&&!input.dealname)throw Object.assign(new Error('Deal name is required by Zoho CRM.'),{status:422});if(!id&&!input.dealstage)throw Object.assign(new Error('Choose a deal stage.'),{status:422});validateZohoNumber(input,'amount','Deal amount');if(input.closedate&&!/^\d{4}-\d{2}-\d{2}$/.test(input.closedate))throw Object.assign(new Error('Close date is invalid.'),{status:422});
+  return{id,data:{Deal_Name:input.dealname,Amount:input.amount===''?null:Number(input.amount),Closing_Date:input.closedate||null,Pipeline:input.pipeline||undefined,Stage:input.dealstage}};
+}
+
 function hubSpotWriteAccess(connection,scope){
   const scopes=Array.isArray(connection?.scopes)?connection.scopes:[];
   if(!scopes.includes(scope))throw Object.assign(new Error('Reconnect HubSpot to approve CRM write access.'),{status:409,code:'HUBSPOT_RECONNECT_REQUIRED'});
@@ -469,16 +535,17 @@ async function monitorProjectSource(c,accountId,warnings){
   return{kind:'project_management',name:'Project management',connected:false,connection:null,data:{}};
 }
 
-async function monitorHubSpotSource(c,accountId,warnings){
-  const connection=await monitorConnection(c,accountId,getHubSpotConnection,publicHubSpotConnection);
-  if(!connection.connected)return{kind:'crm',name:'HubSpot',connected:false,connection,data:{}};
-  try{
-    const data=await loadHubSpotDashboard(c,accountId);
-    return{kind:'crm',name:'HubSpot',connected:true,connection:data.connection,data,warnings:data.warnings||[]};
-  }catch(error){
-    warnings.push(`HubSpot: ${error.message||'Unable to load CRM data'}`);
-    return{kind:'crm',name:'HubSpot',connected:true,connection,data:{},error:error.message||'Unable to load CRM data.'};
+async function monitorCrmSource(c,accountId,warnings){
+  const candidates=[
+    {name:'HubSpot',get:getHubSpotConnection,public:publicHubSpotConnection,load:loadHubSpotDashboard},
+    {name:'Zoho CRM',get:getZohoConnection,public:publicZohoConnection,load:loadZohoDashboard}
+  ];
+  for(const candidate of candidates){
+    const connection=await monitorConnection(c,accountId,candidate.get,candidate.public);if(!connection.connected)continue;
+    try{const data=await candidate.load(c,accountId);return{kind:'crm',name:candidate.name,connected:true,connection:data.connection,data,warnings:data.warnings||[]}}
+    catch(error){warnings.push(`${candidate.name}: ${error.message||'Unable to load CRM data'}`);return{kind:'crm',name:candidate.name,connected:true,connection,data:{},error:error.message||'Unable to load CRM data.'}}
   }
+  return{kind:'crm',name:'CRM',connected:false,connection:null,data:{}};
 }
 
 async function monitorSlackSource(c,accountId,warnings){
@@ -496,6 +563,7 @@ async function monitorSlackSource(c,accountId,warnings){
 async function monitorSystemsSource(c,accountId){
   const definitions=[
     ['HubSpot',getHubSpotConnection,publicHubSpotConnection],
+    ['Zoho CRM',getZohoConnection,publicZohoConnection],
     ['QuickBooks',getQuickBooksConnection,publicQuickBooksConnection],
     ['ClickUp',getClickUpConnection,publicClickUpConnection],
     ['Teamwork',getTeamworkConnection,publicTeamworkConnection],
@@ -539,11 +607,11 @@ async function loadMonitorDepartment(c,accountId,department){
   }
 
   let source={kind:'none',name:'No connected source',connected:false,connection:null,data:{}};
-  if(department==='marketing'||department==='sales')source=await monitorHubSpotSource(c,accountId,warnings);
+  if(department==='marketing'||department==='sales')source=await monitorCrmSource(c,accountId,warnings);
   else if(department==='onboarding'||department==='service-delivery')source=await monitorProjectSource(c,accountId,warnings);
   else if(department==='client-success'){
     const clientEvidence=evidenceRows.some(row=>row.evidence_type==='client_revenue');
-    source=clientEvidence?{kind:'financial_evidence',name:'Client Revenue evidence',connected:true,connection:null,data:{}}:await monitorHubSpotSource(c,accountId,warnings);
+    source=clientEvidence?{kind:'financial_evidence',name:'Client Revenue evidence',connected:true,connection:null,data:{}}:await monitorCrmSource(c,accountId,warnings);
   }
   else if(department==='billing'||department==='finance'){
     const quickBooks=evidenceRows.some(row=>row.extraction_model==='quickbooks-online-api');
@@ -618,6 +686,16 @@ export default async function handler(req,res){
         if(!session)return json(res,401,{error:'Sign in before viewing HubSpot status.'});
         const connection=await getHubSpotConnection(c,session.accountId);
         return json(res,200,{connection:publicHubSpotConnection(connection)});
+      }
+      if(action==='zoho_connect'){
+        if(!session)return json(res,401,{error:'Sign in before connecting Zoho CRM.'});
+        if(!zohoConfig())return json(res,503,{error:'Zoho CRM environment variables are not configured.'});
+        return json(res,200,{authorizationUrl:createZohoAuthorizationUrl(session.accountId)});
+      }
+      if(action==='zoho_status'){
+        if(!session)return json(res,401,{error:'Sign in before viewing Zoho CRM status.'});
+        const connection=await getZohoConnection(c,session.accountId);
+        return json(res,200,{connection:publicZohoConnection(connection)});
       }
       if(action==='quickbooks_connect'){
         if(!session)return json(res,401,{error:'Sign in before connecting QuickBooks.'});
@@ -769,6 +847,42 @@ export default async function handler(req,res){
       if(!session)return json(res,401,{error:'Sign in before disconnecting HubSpot.'});const connection=await getHubSpotConnection(c,session.accountId);
       if(connection){const hsc=hubSpotConfig();if(hsc){try{const refresh=decryptHubSpotToken(connection.refresh_token_encrypted,hsc.encryptionSecret);await revokeHubSpotToken(refresh,'refresh_token')}catch{}}await deleteHubSpotConnection(c,session.accountId)}
       return json(res,200,{success:true,connection:publicHubSpotConnection(null)});
+    }
+
+    if(bodyAction==='zoho_callback'){
+      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Zoho CRM.'});
+      const code=clean(b.code),state=clean(b.state),accountsServer=clean(b.accountsServer),location=clean(b.location);if(!code||!state||!accountsServer)return json(res,422,{error:'Zoho CRM did not return the required authorization values.'});
+      if(!verifyZohoOAuthState(state,session.accountId))return json(res,403,{error:'Zoho CRM authorization state is invalid or expired.'});
+      const zc=zohoConfig(),tokens=await exchangeZohoCode(code,accountsServer),existing=await getZohoConnection(c,session.accountId);
+      if(!tokens.refresh_token&&!existing?.refresh_token_encrypted)return json(res,409,{error:'Zoho CRM did not return a refresh token. Reconnect and approve access again.'});
+      let organization={};try{organization=await getZohoOrganization({accessToken:tokens.access_token,apiDomain:tokens.api_domain})}catch{}
+      const scopes=clean(tokens.scope).split(/[\s,]+/).map(clean).filter(Boolean);
+      const saved=await saveZohoConnection(c,session.accountId,{organization_id:clean(organization.id||organization.zgid),organization_name:clean(organization.company_name),location:location.toUpperCase(),accounts_server:new URL(accountsServer).origin,api_domain:tokens.api_domain,company_currency:clean(organization.currency),currency_symbol:clean(organization.currency_symbol),time_zone:clean(organization.time_zone),access_token_encrypted:encryptZohoToken(tokens.access_token,zc.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptZohoToken(tokens.refresh_token,zc.encryptionSecret):existing?.refresh_token_encrypted,...zohoTokenDates(tokens),scopes:scopes.length?scopes:zc.scopes,status:'connected',last_sync_error:null});
+      return json(res,200,{connected:true,connection:publicZohoConnection(saved)});
+    }
+    if(bodyAction==='zoho_dashboard'||bodyAction==='zoho_sync'){
+      if(!session)return json(res,401,{error:'Sign in before viewing Zoho CRM data.'});const result=await loadZohoDashboard(c,session.accountId);return json(res,200,{success:true,...result});
+    }
+    if(bodyAction==='zoho_save_contact'){
+      if(!session)return json(res,401,{error:'Sign in before managing Zoho CRM contacts.'});const {connection,accessToken,apiDomain}=await zohoConnectionAccess(c,session.accountId);zohoWriteAccess(connection,'ZohoCRM.modules.contacts.ALL');const input=zohoContactInput(b);const contact=await saveZohoContact({accessToken,apiDomain,id:input.id,data:input.data});return json(res,200,{success:true,contact});
+    }
+    if(bodyAction==='zoho_archive_contact'){
+      if(!session)return json(res,401,{error:'Sign in before managing Zoho CRM contacts.'});const {connection,accessToken,apiDomain}=await zohoConnectionAccess(c,session.accountId);zohoWriteAccess(connection,'ZohoCRM.modules.contacts.ALL');await archiveZohoContact({accessToken,apiDomain,id:validZohoRecordId(b.recordId)});return json(res,200,{success:true});
+    }
+    if(bodyAction==='zoho_save_account'){
+      if(!session)return json(res,401,{error:'Sign in before managing Zoho CRM accounts.'});const {connection,accessToken,apiDomain}=await zohoConnectionAccess(c,session.accountId);zohoWriteAccess(connection,'ZohoCRM.modules.accounts.ALL');const input=zohoAccountInput(b);const account=await saveZohoAccount({accessToken,apiDomain,id:input.id,data:input.data});return json(res,200,{success:true,account});
+    }
+    if(bodyAction==='zoho_archive_account'){
+      if(!session)return json(res,401,{error:'Sign in before managing Zoho CRM accounts.'});const {connection,accessToken,apiDomain}=await zohoConnectionAccess(c,session.accountId);zohoWriteAccess(connection,'ZohoCRM.modules.accounts.ALL');await archiveZohoAccount({accessToken,apiDomain,id:validZohoRecordId(b.recordId)});return json(res,200,{success:true});
+    }
+    if(bodyAction==='zoho_save_deal'){
+      if(!session)return json(res,401,{error:'Sign in before managing Zoho CRM deals.'});const {connection,accessToken,apiDomain}=await zohoConnectionAccess(c,session.accountId);zohoWriteAccess(connection,'ZohoCRM.modules.deals.ALL');const input=zohoDealInput(b);const deal=await saveZohoDeal({accessToken,apiDomain,id:input.id,data:input.data});return json(res,200,{success:true,deal});
+    }
+    if(bodyAction==='zoho_archive_deal'){
+      if(!session)return json(res,401,{error:'Sign in before managing Zoho CRM deals.'});const {connection,accessToken,apiDomain}=await zohoConnectionAccess(c,session.accountId);zohoWriteAccess(connection,'ZohoCRM.modules.deals.ALL');await archiveZohoDeal({accessToken,apiDomain,id:validZohoRecordId(b.recordId)});return json(res,200,{success:true});
+    }
+    if(bodyAction==='zoho_disconnect'){
+      if(!session)return json(res,401,{error:'Sign in before disconnecting Zoho CRM.'});const connection=await getZohoConnection(c,session.accountId);if(connection){const zc=zohoConfig();if(zc){try{const refresh=decryptZohoToken(connection.refresh_token_encrypted,zc.encryptionSecret);await revokeZohoRefreshToken(refresh,connection.accounts_server)}catch{}}await deleteZohoConnection(c,session.accountId)}return json(res,200,{success:true,connection:publicZohoConnection(null)});
     }
 
     if(bodyAction==='quickbooks_callback'){

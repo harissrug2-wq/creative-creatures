@@ -138,23 +138,26 @@
     const contacts=array(sourceData().contacts);
     const companies=array(sourceData().companies);
     const connected=state.payload?.source?.connected===true;
+    const crm=state.payload?.source?.name||'CRM';
     const newContacts=contacts.filter(item=>inPeriod(item.properties?.createdate||item.createdAt));
     const lifecycle=value=>clean(value).toLowerCase();
-    const mql=contacts.filter(item=>lifecycle(item.properties?.lifecyclestage)==='marketingqualifiedlead').length;
-    const sql=contacts.filter(item=>lifecycle(item.properties?.lifecyclestage)==='salesqualifiedlead').length;
+    const hasLifecycle=contacts.some(item=>clean(item.properties?.lifecyclestage));
+    const mql=hasLifecycle?contacts.filter(item=>lifecycle(item.properties?.lifecyclestage)==='marketingqualifiedlead').length:null;
+    const sql=hasLifecycle?contacts.filter(item=>lifecycle(item.properties?.lifecyclestage)==='salesqualifiedlead').length:null;
     const stages=new Map();
-    contacts.forEach(item=>{const label=clean(item.properties?.lifecyclestage)||'Not set';stages.set(label,(stages.get(label)||0)+1)});
+    contacts.filter(item=>clean(item.properties?.lifecyclestage)).forEach(item=>{const label=clean(item.properties?.lifecyclestage);stages.set(label,(stages.get(label)||0)+1)});
     return{
-      metrics:[metric('Contacts loaded',connected?contacts.length:null,'number','HubSpot'),metric('New contacts in period',connected?newContacts.length:null,'number','HubSpot contact create date'),metric('Marketing qualified leads',connected?mql:null,'number','HubSpot lifecycle stage'),metric('Sales qualified leads',connected?sql:null,'number','HubSpot lifecycle stage')],
+      metrics:[metric('Contacts loaded',connected?contacts.length:null,'number',crm),metric('New contacts in period',connected?newContacts.length:null,'number',`${crm} contact create date`),metric('Marketing qualified leads',connected?mql:null,'number',hasLifecycle?`${crm} lifecycle stage`:`${crm} does not expose a contact lifecycle stage`),metric('Sales qualified leads',connected?sql:null,'number',hasLifecycle?`${crm} lifecycle stage`:`${crm} does not expose a contact lifecycle stage`)],
       title:'Lifecycle distribution',
-      rows:[...stages.entries()].map(([label,value])=>({title:label,meta:'HubSpot lifecycle stage',value:number(value)})),
-      note:`${companies.length} companies are loaded from this agency’s connected HubSpot portal.`
+      rows:[...stages.entries()].map(([label,value])=>({title:label,meta:`${crm} lifecycle stage`,value:number(value)})),
+      note:`${companies.length} accounts are loaded from this agency’s connected ${crm} organization. Lifecycle metrics remain No Data when the CRM does not expose that field.`
     };
   }
 
   function salesModel() {
     const deals=array(sourceData().deals);
     const connected=state.payload?.source?.connected===true;
+    const crm=state.payload?.source?.name||'CRM';
     const stages=stageMaps();
     const periodDeals=deals.filter(item=>inPeriod(item.properties?.createdate||item.createdAt));
     const amount=item=>finite(item.properties?.amount)||0;
@@ -164,10 +167,10 @@
     const pipelineValue=deals.reduce((sum,item)=>sum+amount(item),0);
     const wonValue=won.reduce((sum,item)=>sum+amount(item),0);
     return{
-      metrics:[metric('Pipeline value',connected?pipelineValue:null,'money','HubSpot loaded deals'),metric('New deals in period',connected?periodDeals.length:null,'number','HubSpot deal create date'),metric('Closed-won value',connected?wonValue:null,'money','HubSpot deal stage'),metric('Loaded-deal close rate',connected&&closed.length?(won.length/closed.length)*100:null,'percent','Closed-won ÷ closed deals')],
+      metrics:[metric('Pipeline value',connected?pipelineValue:null,'money',`${crm} loaded deals`),metric('New deals in period',connected?periodDeals.length:null,'number',`${crm} deal create date`),metric('Closed-won value',connected?wonValue:null,'money',`${crm} deal stage`),metric('Loaded-deal close rate',connected&&closed.length?(won.length/closed.length)*100:null,'percent','Closed-won ÷ closed deals')],
       title:'Recent deals',
       rows:deals.slice().sort((a,b)=>(parseDate(b.updatedAt)?.getTime()||0)-(parseDate(a.updatedAt)?.getTime()||0)).slice(0,12).map(item=>({title:item.properties?.dealname||'Unnamed deal',meta:stage(item).label||'Stage not set',value:money(amount(item))})),
-      note:'Close rate uses only the deals returned by HubSpot in this Phase 1 connection.'
+      note:`Close rate uses only the deals returned by ${crm} in the active CRM connection.`
     };
   }
 
@@ -224,7 +227,8 @@
     };
     const companies=array(sourceData().companies),contacts=array(sourceData().contacts);
     const connected=state.payload?.source?.connected===true;
-    return{metrics:[metric('Companies loaded',connected?companies.length:null,'number','HubSpot'),metric('Customer contacts',connected?contacts.filter(item=>clean(item.properties?.lifecyclestage).toLowerCase()==='customer').length:null,'number','HubSpot lifecycle stage'),metric('Account churn',null,'percent','No connected churn source'),metric('NPS',null,'number','No connected NPS source')],title:'Companies',rows:companies.slice(0,16).map(item=>({title:item.properties?.name||'Unnamed company',meta:item.properties?.domain||'',value:item.properties?.industry||''})),note:'HubSpot company data is a roster fallback; it is not treated as client-health or sentiment data.'};
+    const crm=state.payload?.source?.name||'CRM',hasLifecycle=contacts.some(item=>clean(item.properties?.lifecyclestage));
+    return{metrics:[metric('Accounts loaded',connected?companies.length:null,'number',crm),metric('Customer contacts',connected&&hasLifecycle?contacts.filter(item=>clean(item.properties?.lifecyclestage).toLowerCase()==='customer').length:null,'number',hasLifecycle?`${crm} lifecycle stage`:`${crm} does not expose a contact lifecycle stage`),metric('Account churn',null,'percent','No connected churn source'),metric('NPS',null,'number','No connected NPS source')],title:'Accounts',rows:companies.slice(0,16).map(item=>({title:item.properties?.name||'Unnamed account',meta:item.properties?.domain||'',value:item.properties?.industry||''})),note:`${crm} account data is a roster fallback; it is not treated as client-health or sentiment data.`};
   }
 
   function financeModel() {

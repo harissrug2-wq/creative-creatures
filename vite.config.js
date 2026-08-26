@@ -67,6 +67,7 @@ export default defineConfig({
         googleCalendarCallback: resolve(__dirname, 'integrations', 'google-calendar', 'callback', 'index.html'),
         googleDriveCallback: resolve(__dirname, 'integrations', 'google-drive', 'callback', 'index.html'),
         hubspotCallback: resolve(__dirname, 'integrations', 'hubspot', 'callback', 'index.html'),
+        zohoCrmCallback: resolve(__dirname, 'integrations', 'zoho-crm', 'callback', 'index.html'),
         slackCallback: resolve(__dirname, 'integrations', 'slack', 'callback', 'index.html'),
         clickupCallback: resolve(__dirname, 'integrations', 'clickup', 'callback', 'index.html'),
         teamworkCallback: resolve(__dirname, 'integrations', 'teamwork', 'callback', 'index.html'),

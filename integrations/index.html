@@ -120,7 +120,7 @@
       'Salesforce':{group:'CRM',code:'Sf',color:'#00a1e0',copy:'CRM · accounts · opportunities'},
       'Pipedrive':{group:'CRM',code:'Pd',color:'#22a06b',copy:'Deals · contacts · activities'},
       'Keap':{group:'CRM',code:'Kp',color:'#ff6b4a',copy:'Contacts · sales · automation'},
-      'Zoho CRM':{group:'CRM',code:'Zo',color:'#e94134',copy:'CRM · leads · deals'},
+      'Zoho CRM':{group:'CRM',code:'Zo',color:'#e94134',copy:'OAuth2 · contacts · accounts · deals · pipelines',status:'zoho_status',connect:'zoho_connect',sync:'zoho_dashboard',disconnect:'zoho_disconnect',manage:'zoho'},
       'ClickUp':{group:'Project Management',code:'Cu',color:'#7b68ee',copy:'OAuth2 - workspaces - spaces - lists - tasks - time',status:'clickup_status',connect:'clickup_connect',sync:'clickup_dashboard',disconnect:'clickup_disconnect',manage:'clickup'},
       'Asana':{group:'Project Management',code:'As',color:'#f06a6a',copy:'Projects · tasks · teams'},
       'Monday.com':{group:'Project Management',code:'Mo',color:'#ff3d57',copy:'OAuth2 - workspaces - boards - items - users',status:'monday_status',connect:'monday_connect',sync:'monday_dashboard',disconnect:'monday_disconnect',manage:'monday'},
@@ -273,7 +273,7 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com'};
+      const map={quickbooks:'QuickBooks Online',google_calendar:'Google Calendar',google_drive:'Google Drive',hubspot:'HubSpot',zoho:'Zoho CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com'};
       let changed=false;
       Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
@@ -289,6 +289,7 @@
         if(tool==='Google Calendar')return manageCalendar();
         if(tool==='Google Drive')return manageDrive();
         if(tool==='HubSpot')return manageHubSpot();
+        if(tool==='Zoho CRM')return manageZoho();
         if(tool==='Slack')return manageSlack();
         if(tool==='ClickUp')return manageClickUp();
         if(tool==='Teamwork')return manageTeamwork();
@@ -396,6 +397,46 @@
     async function archiveHubSpotRecord(kind,recordId){
       if(!confirm(`Archive this ${hubSpotKinds[kind].label.toLowerCase()}? HubSpot will move it to the recycling bin.`))return;
       try{await apiPost(hubSpotKinds[kind].archive,{recordId});await manageHubSpot();hubSpotTab=kind;drawHubSpot(kind)}catch(error){modalError.textContent=error.message}
+    }
+
+    let zohoData={contacts:[],accounts:[],deals:[],pipelines:[],connection:null},zohoTab='deals';
+    const zohoKinds={contacts:{label:'Contact',scope:'ZohoCRM.modules.contacts.ALL',save:'zoho_save_contact',archive:'zoho_archive_contact'},accounts:{label:'Account',scope:'ZohoCRM.modules.accounts.ALL',save:'zoho_save_account',archive:'zoho_archive_account'},deals:{label:'Deal',scope:'ZohoCRM.modules.deals.ALL',save:'zoho_save_deal',archive:'zoho_archive_deal'}};
+    const zohoCanWrite=kind=>(zohoData.connection?.scopes||[]).includes(zohoKinds[kind]?.scope);
+    const zohoDealStageLabel=id=>{for(const pipeline of zohoData.pipelines)for(const stage of pipeline.stages||[])if(stage.id===id)return stage.label;return id||'No stage'};
+    async function manageZoho(){
+      modalTitle.textContent='Zoho CRM';modalCopy.textContent='Create and manage live CRM records in the Zoho organization connected to this agency.';
+      const r=await apiPost('zoho_dashboard');stateMap.set('Zoho CRM',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      zohoData={contacts:r.contacts||[],accounts:r.accounts||[],deals:r.deals||[],pipelines:r.pipelines||[],connection:r.connection||null};
+      const sets=[['Contacts',zohoData.contacts],['Accounts',zohoData.accounts],['Deals',zohoData.deals],['Pipelines',zohoData.pipelines]],missingWrite=['contacts','accounts','deals'].filter(kind=>!zohoCanWrite(kind));
+      modalBody.innerHTML=`${missingWrite.length?'<div class="data-item" style="border-color:#f0d69b;background:#fff9eb;margin-bottom:12px"><strong>Reconnect required for editing</strong><span>The existing Zoho CRM authorization does not include all Phase 1 write scopes. Disconnect and reconnect Zoho CRM.</span></div>':''}<div class="metric-grid">${sets.map(([n,v])=>`<div class="metric"><strong>${v.length}</strong><span>${n} loaded</span></div>`).join('')}</div><div class="toolbar"><div class="tabs" style="margin:0;flex:1">${sets.map(([n])=>`<button class="btn" data-zo-tab="${n.toLowerCase()}">${n}</button>`).join('')}</div><button class="btn primary" id="zohoNew"></button></div><div class="data-list" id="zohoList"></div>`;
+      document.querySelectorAll('[data-zo-tab]').forEach(button=>button.onclick=()=>drawZoho(button.dataset.zoTab));drawZoho(zohoTab);
+    }
+    function drawZoho(key){
+      zohoTab=key;const el=document.querySelector('#zohoList'),newButton=document.querySelector('#zohoNew'),arr=zohoData[key]||[],kind=zohoKinds[key];if(!el)return;
+      document.querySelectorAll('[data-zo-tab]').forEach(button=>button.classList.toggle('primary',button.dataset.zoTab===key));
+      if(newButton){newButton.hidden=!kind;newButton.textContent=kind?`＋ New ${kind.label}`:'';newButton.disabled=kind?!zohoCanWrite(key):true;newButton.onclick=kind?()=>openZohoEditor(key):null}
+      if(key==='pipelines'){el.innerHTML=arr.length?arr.map(pipeline=>`<article class="data-item"><strong>${esc(pipeline.label||pipeline.id)}</strong><span>${esc((pipeline.stages||[]).map(stage=>stage.label).join(' → ')||'No stages')}</span></article>`).join(''):'<div class="data-item"><strong>No deal pipelines returned.</strong></div>';return}
+      if(!arr.length){el.innerHTML=`<div class="data-item"><strong>No ${esc(key)} returned.</strong><span>Create the first ${esc(kind.label.toLowerCase())} from Creative Creatures.</span></div>`;return}
+      el.innerHTML=arr.map(record=>{const p=record.properties||{};let title='',detail='';if(key==='contacts'){title=[p.firstname,p.lastname].filter(Boolean).join(' ')||p.email||'Unnamed contact';detail=[p.email,p.phone,p.company,p.jobtitle].filter(Boolean).join(' · ')}else if(key==='accounts'){title=p.name||p.domain||'Unnamed account';detail=[p.domain,p.industry,p.city,p.country].filter(Boolean).join(' · ')}else{title=p.dealname||'Unnamed deal';detail=[p.amount?`${zohoData.connection?.currencySymbol||zohoData.connection?.companyCurrency||''} ${p.amount}`.trim():'',zohoDealStageLabel(p.dealstage),p.closedate?`Close ${new Date(p.closedate).toLocaleDateString()}`:''].filter(Boolean).join(' · ')}return `<article class="data-item"><strong>${esc(title)}</strong><span>${esc(detail||`Zoho CRM ID ${record.id}`)}</span><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" data-zo-edit="${esc(record.id)}" ${zohoCanWrite(key)?'':'disabled'}>Edit</button><button class="btn danger" data-zo-archive="${esc(record.id)}" ${zohoCanWrite(key)?'':'disabled'}>Archive</button></div></article>`}).join('');
+      el.querySelectorAll('[data-zo-edit]').forEach(button=>button.onclick=()=>openZohoEditor(key,arr.find(record=>record.id===button.dataset.zoEdit)));el.querySelectorAll('[data-zo-archive]').forEach(button=>button.onclick=()=>archiveZohoRecord(key,button.dataset.zoArchive));
+    }
+    function openZohoEditor(kind,record=null){
+      const p=record?.properties||{},config=zohoKinds[kind];modalTitle.textContent=`${record?'Edit':'New'} ${config.label}`;modalCopy.textContent=`${record?'Update':'Create'} this record directly in the connected Zoho CRM organization.`;
+      const input=(id,label,type='text',full=false,required=false)=>`<div class="field ${full?'full':''}"><label>${label}${required?' *':''}</label><input id="zo_${id}" type="${type}" value="${esc(type==='date'?String(p[id]||'').slice(0,10):(p[id]||''))}" ${required?'required':''}></div>`;let fields='';
+      if(kind==='contacts')fields=input('firstname','First name')+input('lastname','Last name','text',false,!record)+input('email','Email','email',true)+input('phone','Phone')+input('jobtitle','Job title','text',true);
+      if(kind==='accounts')fields=input('name','Account name','text',true,!record)+input('domain','Website')+input('phone','Phone')+input('industry','Industry')+input('numberofemployees','Employees','number')+input('annualrevenue','Annual revenue','number')+input('city','City')+input('state','State')+input('country','Country','text',true);
+      if(kind==='deals'){const pipelineId=p.pipeline||zohoData.pipelines[0]?.id||'';fields=input('dealname','Deal name','text',true,!record)+input('amount','Amount','number')+input('closedate','Close date','date');fields+=`<div class="field"><label>Pipeline</label><select id="zo_pipeline">${zohoData.pipelines.map(item=>`<option value="${esc(item.id)}" ${item.id===pipelineId?'selected':''}>${esc(item.label)}</option>`).join('')}</select></div><div class="field"><label>Stage *</label><select id="zo_dealstage" required></select></div>`}
+      modalBody.innerHTML=`<input type="hidden" id="zoRecordId" value="${esc(record?.id||'')}"><div class="form-grid">${fields}</div><div class="modal-error" id="zohoEditorError"></div><div class="modal-actions" style="bottom:-26px"><button class="btn" id="zohoEditorCancel">Cancel</button><button class="btn primary" id="zohoEditorSave">Save ${config.label}</button></div>`;
+      if(kind==='deals'){const pipeline=document.querySelector('#zo_pipeline'),stage=document.querySelector('#zo_dealstage');const loadStages=()=>{const selected=zohoData.pipelines.find(item=>item.id===pipeline.value),current=p.dealstage||'';stage.innerHTML=(selected?.stages||[]).filter(item=>!item.archived).map(item=>`<option value="${esc(item.id)}" ${item.id===current?'selected':''}>${esc(item.label)}</option>`).join('')};pipeline.onchange=loadStages;loadStages()}
+      document.querySelector('#zohoEditorCancel').onclick=()=>manageZoho();document.querySelector('#zohoEditorSave').onclick=()=>saveZohoRecord(kind);
+    }
+    async function saveZohoRecord(kind){
+      const config=zohoKinds[kind],button=document.querySelector('#zohoEditorSave'),properties={};button.disabled=true;document.querySelector('#zohoEditorError').textContent='';const names=kind==='contacts'?['firstname','lastname','email','phone','jobtitle']:kind==='accounts'?['name','domain','phone','industry','numberofemployees','annualrevenue','city','state','country']:['dealname','amount','closedate','pipeline','dealstage'];names.forEach(name=>{const el=document.querySelector(`#zo_${name}`);if(el)properties[name]=el.value.trim()});
+      try{await apiPost(config.save,{recordId:document.querySelector('#zoRecordId').value,properties});zohoTab=kind;await manageZoho()}catch(error){document.querySelector('#zohoEditorError').textContent=error.message;button.disabled=false}
+    }
+    async function archiveZohoRecord(kind,recordId){
+      if(!confirm(`Archive this ${zohoKinds[kind].label.toLowerCase()}? Zoho CRM will move it to the recycle bin.`))return;
+      try{await apiPost(zohoKinds[kind].archive,{recordId});zohoTab=kind;await manageZoho()}catch(error){modalError.textContent=error.message}
     }
 
     async function manageMonday(){modalTitle.textContent='monday.com Work Management';modalCopy.textContent='Read-only work management overview from the monday.com account authorized by this agency.';const r=await apiPost('monday_dashboard');stateMap.set('Monday.com',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();const workspaces=r.workspaces||[],boards=r.boards||[],users=r.users||[],items=r.items||[];modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${workspaces.length}</strong><span>Workspaces loaded</span></div><div class="metric"><strong>${boards.length}</strong><span>Boards loaded</span></div><div class="metric"><strong>${items.length}</strong><span>Items loaded</span></div><div class="metric"><strong>${users.length}</strong><span>Users loaded</span></div></div><div class="tabs"><button class="btn" data-mo-tab="workspaces">Workspaces</button><button class="btn" data-mo-tab="boards">Boards</button><button class="btn" data-mo-tab="items">Items</button><button class="btn" data-mo-tab="users">Users</button></div><div class="data-list" id="mondayList"></div>`;const data={workspaces,boards,items,users},draw=key=>{const el=document.querySelector('#mondayList'),arr=data[key]||[];if(!arr.length){el.innerHTML='<div class="data-item"><strong>No records returned.</strong></div>';return}el.innerHTML=arr.map(x=>{if(key==='workspaces')return `<article class="data-item"><strong>${esc(x.name||'Workspace')}</strong><span>${esc([x.kind,x.state,x.description].filter(Boolean).join(' - '))}</span></article>`;if(key==='boards'){const owners=(x.owners||[]).map(o=>o.name).filter(Boolean).join(', ');return `<article class="data-item"><strong>${esc(x.name||'Board')}</strong><span>${esc([x.workspaceName,x.kind,x.state,owners?'Owners: '+owners:''].filter(Boolean).join(' - '))}</span></article>`}if(key==='users')return `<article class="data-item"><strong>${esc(x.name||'User')}</strong><span>${esc([x.email,x.title,x.isAdmin?'Admin':'',x.isGuest?'Guest':''].filter(Boolean).join(' - '))}</span></article>`;const columns=(x.columns||[]).filter(c=>c.text).slice(0,4).map(c=>`${c.title}: ${c.text}`).join(' - ');return `<article class="data-item"><strong>${esc(x.name||'Item')}</strong><span>${esc([x.boardName,x.groupName,columns].filter(Boolean).join(' - '))}</span></article>`}).join('')};document.querySelectorAll('[data-mo-tab]').forEach(button=>button.onclick=()=>draw(button.dataset.moTab));draw('items');}
