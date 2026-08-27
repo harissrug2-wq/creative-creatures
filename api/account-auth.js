@@ -820,7 +820,19 @@ export default async function handler(req,res){
   try{
     if(req.method==='DELETE'){clearSessionCookie(res,'cc_account_session');return json(res,200,{success:true})}
     const session=currentSession(req,secret);
-    const action=clean(req.query?.action);
+    const b=(req.method==='POST'||req.method==='PUT')?(typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{})):{};
+    let action=clean(req.query?.action||b.action);
+    if(!action){
+      const url=new URL(req.url,`http://${req.headers.host||'localhost'}`);
+      const pathname=url.pathname.replace(/\/$/,'');
+      if(pathname.endsWith('/jira/connect'))action='jira_connect';
+      else if(pathname.endsWith('/jira/callback'))action='jira_callback';
+      else if(pathname.endsWith('/jira/refresh-token'))action='jira_refresh_token';
+      else if(pathname.endsWith('/jira/projects'))action='jira_projects';
+      else if(pathname.endsWith('/jira/issues'))action=req.method==='POST'?'jira_create_issue':(req.method==='PUT'?'jira_update_issue':'jira_issues');
+      else if(pathname.endsWith('/jira/sync'))action='jira_sync';
+      else if(pathname.endsWith('/jira/disconnect'))action='jira_disconnect';
+    }
     if(req.method==='GET'){
 
       if(action==='monday_connect'){if(!session)return json(res,401,{error:'Sign in before connecting monday.com.'});if(!mondayConfig())return json(res,503,{error:'monday.com environment variables are not configured.'});return json(res,200,{authorizationUrl:createMondayAuthorizationUrl(session.accountId)});}
@@ -945,8 +957,8 @@ export default async function handler(req,res){
       const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});
       return json(res,200,{authenticated:true,account:pub(account)});
     }
-    if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
-    const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const bodyAction=clean(b.action);
+    if(req.method!=='POST'&&req.method!=='PUT')return json(res,405,{error:'Method not allowed.'});
+    const bodyAction=clean(b.action);
 
     if(bodyAction==='monitor_department'){
       if(!session)return json(res,401,{error:'Sign in before viewing Monitor department data.'});

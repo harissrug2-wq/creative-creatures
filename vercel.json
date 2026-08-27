@@ -65,7 +65,7 @@
     },
     {
       "source": "/api/jira/:path*",
-      "destination": "/api/jira"
+      "destination": "/api/account-auth"
     }
   ],
   "functions": {
