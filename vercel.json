@@ -50,6 +50,10 @@
     {
       "source": "/terms/",
       "destination": "/terms-of-service/"
+    },
+    {
+      "source": "/integrations/jira/callback",
+      "destination": "/integrations/jira/callback/"
     }
   ],
   "functions": {

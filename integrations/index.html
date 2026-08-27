@@ -125,7 +125,7 @@
       'Asana':{group:'Project Management',code:'As',color:'#f06a6a',copy:'Projects · tasks · teams'},
       'Monday.com':{group:'Project Management',code:'Mo',color:'#ff3d57',copy:'OAuth2 - workspaces - boards - items - users',status:'monday_status',connect:'monday_connect',sync:'monday_dashboard',disconnect:'monday_disconnect',manage:'monday'},
       'Teamwork':{group:'Project Management',code:'Tw',color:'#ef2929',copy:'OAuth2 - projects - tasks - people - time',status:'teamwork_status',connect:'teamwork_connect',sync:'teamwork_dashboard',disconnect:'teamwork_disconnect',manage:'teamwork'},
-      'Jira':{group:'Project Management',code:'Ji',color:'#0052cc',copy:'Projects · issues · sprints'},
+      'Jira':{group:'Project Management',code:'Ji',color:'#0052cc',copy:'OAuth2 · sites · projects · issues · users',status:'jira_status',connect:'jira_connect',sync:'jira_dashboard',disconnect:'jira_disconnect',manage:'jira'},
       'Basecamp':{group:'Project Management',code:'Ba',color:'#63b954',copy:'Projects · to-dos · messages'},
       'Slack':{group:'Communication',code:'Sl',color:'#4a154b',copy:'OAuth2 · channels · users · workspace',status:'slack_status',connect:'slack_connect',sync:'slack_dashboard',disconnect:'slack_disconnect',manage:'slack'},
       'Microsoft Teams':{group:'Communication',code:'Ms',color:'#6264a7',copy:'Teams · channels · meetings'},
@@ -273,7 +273,7 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com'};
+      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com',jira:'Jira'};
       let changed=false;
       Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
@@ -296,6 +296,7 @@
         if(tool==='ClickUp')return manageClickUp();
         if(tool==='Teamwork')return manageTeamwork();
         if(tool==='Monday.com')return manageMonday();
+        if(tool==='Jira')return manageJira();
         modalBody.innerHTML='<div class="data-item"><strong>No manage view is required for this integration.</strong></div>';
       }catch(error){modalError.textContent=error.message}
     }
@@ -512,6 +513,25 @@
         }).join('');
       };
       document.querySelectorAll('[data-cu-tab]').forEach(b=>b.onclick=()=>draw(b.dataset.cuTab));draw('tasks');
+    }
+
+    async function manageJira(){
+      modalTitle.textContent='Jira Workspace';modalCopy.textContent='Read-only project and issue tracking overview from the Jira site authorized by this agency.';
+      const r=await apiPost('jira_dashboard');stateMap.set('Jira',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      const resources=r.resources||[],projects=r.projects||[],issues=r.issues||[],users=r.users||[];
+      modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${resources.length}</strong><span>Sites connected</span></div><div class="metric"><strong>${projects.length}</strong><span>Projects loaded</span></div><div class="metric"><strong>${issues.length}</strong><span>Issues loaded</span></div><div class="metric"><strong>${users.length}</strong><span>Users loaded</span></div></div><div class="tabs"><button class="btn" data-ji-tab="projects">Projects</button><button class="btn" data-ji-tab="issues">Issues</button><button class="btn" data-ji-tab="users">Users</button><button class="btn" data-ji-tab="resources">Sites</button></div><div class="data-list" id="jiraList"></div>`;
+      const data={resources,projects,issues,users};
+      const draw=key=>{
+        const el=document.querySelector('#jiraList'),arr=data[key]||[];
+        if(!arr.length){el.innerHTML='<div class="data-item"><strong>No records returned.</strong></div>';return}
+        el.innerHTML=arr.map(x=>{
+          if(key==='issues')return `<article class="data-item"><strong>[${esc(x.key)}] ${esc(x.summary||'Untitled issue')}</strong><span>${esc([x.projectName,x.issueType,x.status,x.priority,x.assignee?'Assignee: '+x.assignee:''].filter(Boolean).join(' · '))}</span></article>`;
+          if(key==='projects')return `<article class="data-item"><strong>[${esc(x.key)}] ${esc(x.name||'Project')}</strong><span>${esc(x.projectTypeKey||'software')} project</span></article>`;
+          if(key==='users')return `<article class="data-item"><strong>${esc(x.displayName||x.emailAddress||'User')}</strong><span>${esc([x.emailAddress,x.accountType,x.active?'Active':'Inactive'].filter(Boolean).join(' · '))}</span></article>`;
+          return `<article class="data-item"><strong>${esc(x.name||'Site')}</strong><span>${esc(x.url||'')}</span></article>`;
+        }).join('');
+      };
+      document.querySelectorAll('[data-ji-tab]').forEach(b=>b.onclick=()=>draw(b.dataset.jiTab));draw('issues');
     }
 
     async function manageSlack(){
