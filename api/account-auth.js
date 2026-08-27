@@ -389,7 +389,7 @@ async function loadClickUpDashboard(c,accountId){
 
 const JIRA_SELECT='id,account_id,primary_site_id,primary_site_name,primary_site_url,site_ids,site_names,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
 async function getJiraConnection(c,accountId){const rows=await db(c,`jira_connections?select=${JIRA_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
-function publicJiraConnection(row){return row?{connected:row.status==='connected',primarySiteId:row.primary_site_id||'',primarySiteName:row.primary_site_name||'',primarySiteUrl:row.primary_site_url||'',siteIds:Array.isArray(row.site_ids)?row.site_ids:[],siteNames:Array.isArray(row.site_names)?row.site_names:[],scopes:Array.isArray(row.scopes)?row.scopes:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,primarySiteId:'',primarySiteName:'',primarySiteUrl:'',siteIds:[],siteNames:[],scopes:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
+function publicJiraConnection(row){return row&&row.status==='connected'?{connected:true,primarySiteId:row.primary_site_id||'',primarySiteName:row.primary_site_name||'',primarySiteUrl:row.primary_site_url||'',siteIds:Array.isArray(row.site_ids)?row.site_ids:[],siteNames:Array.isArray(row.site_names)?row.site_names:[],scopes:Array.isArray(row.scopes)?row.scopes:[],status:'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,primarySiteId:'',primarySiteName:'',primarySiteUrl:'',siteIds:[],siteNames:[],scopes:[],status:'needs_attention',lastSyncedAt:null,lastSyncError:''}}
 async function saveJiraConnection(c,accountId,patch){const existing=await getJiraConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`jira_connections?id=eq.${encodeURIComponent(existing.id)}&select=${JIRA_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`jira_connections?select=${JIRA_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',scopes:[],...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
 async function deleteJiraConnection(c,accountId){await db(c,`jira_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
 function jiraTokenDates(tokens){return{access_token_expires_at:new Date(Date.now()+(Number(tokens.expires_in)||3600)*1000).toISOString()}}
@@ -1006,6 +1006,60 @@ export default async function handler(req,res){
       if(!session)return json(res,401,{error:'Sign in before disconnecting Jira.'});
       await deleteJiraConnection(c,session.accountId);
       return json(res,200,{success:true,connection:publicJiraConnection(null)});
+    }
+    if(bodyAction==='jira_projects'){
+      if(!session)return json(res,401,{error:'Sign in before viewing Jira projects.'});
+      const {connection,accessToken}=await jiraConnectionAccess(c,session.accountId);
+      const siteId=clean(b.siteId)||connection.primary_site_id;
+      if(!siteId)return json(res,400,{error:'No connected Jira site found.'});
+      const projects=await listJiraProjects(accessToken,siteId);
+      return json(res,200,{success:true,projects});
+    }
+    if(bodyAction==='jira_issues'){
+      if(!session)return json(res,401,{error:'Sign in before viewing Jira issues.'});
+      const {connection,accessToken}=await jiraConnectionAccess(c,session.accountId);
+      const siteId=clean(b.siteId)||connection.primary_site_id;
+      if(!siteId)return json(res,400,{error:'No connected Jira site found.'});
+      const issues=await listJiraIssues(accessToken,siteId,{projectKey:clean(b.projectKey),status:clean(b.status),query:clean(b.query),maxResults:100});
+      return json(res,200,{success:true,issues});
+    }
+    if(bodyAction==='jira_create_issue'){
+      if(!session)return json(res,401,{error:'Sign in before creating Jira issues.'});
+      const {connection,accessToken}=await jiraConnectionAccess(c,session.accountId);
+      const siteId=clean(b.siteId)||connection.primary_site_id;
+      if(!siteId)return json(res,400,{error:'No connected Jira site found.'});
+      const issue=await createJiraIssue(accessToken,siteId,{
+        projectKey:clean(b.projectKey),
+        summary:clean(b.summary),
+        description:clean(b.description),
+        issueType:clean(b.issueType)||'Task',
+        priority:clean(b.priority)||'Medium',
+        assigneeAccountId:clean(b.assigneeAccountId)
+      });
+      return json(res,200,{success:true,issue});
+    }
+    if(bodyAction==='jira_update_issue'){
+      if(!session)return json(res,401,{error:'Sign in before updating Jira issues.'});
+      const issueKey=clean(b.issueKey);
+      if(!issueKey)return json(res,400,{error:'Issue key is required.'});
+      const {connection,accessToken}=await jiraConnectionAccess(c,session.accountId);
+      const siteId=clean(b.siteId)||connection.primary_site_id;
+      if(!siteId)return json(res,400,{error:'No connected Jira site found.'});
+      const result=await updateJiraIssue(accessToken,siteId,issueKey,{
+        summary:b.summary!==undefined?clean(b.summary):undefined,
+        description:b.description!==undefined?clean(b.description):undefined,
+        status:b.status!==undefined?clean(b.status):undefined,
+        priority:b.priority!==undefined?clean(b.priority):undefined,
+        assigneeAccountId:b.assigneeAccountId!==undefined?clean(b.assigneeAccountId):undefined
+      });
+      return json(res,200,{success:true,...result});
+    }
+    if(bodyAction==='jira_refresh_token'){
+      if(!session)return json(res,401,{error:'Sign in before refreshing Jira token.'});
+      const connection=await getJiraConnection(c,session.accountId);
+      if(!connection)return json(res,404,{error:'No Jira connection found.'});
+      const refreshed=await ensureJiraAccess(c,connection);
+      return json(res,200,{success:true,connection:publicJiraConnection(refreshed.connection)});
     }
 
     if(bodyAction==='clickup_callback'){

@@ -296,7 +296,7 @@
         if(tool==='ClickUp')return manageClickUp();
         if(tool==='Teamwork')return manageTeamwork();
         if(tool==='Monday.com')return manageMonday();
-        if(tool==='Jira')return manageJira();
+        if(tool==='Jira')return location.href='/integrations/jira/dashboard/';
         modalBody.innerHTML='<div class="data-item"><strong>No manage view is required for this integration.</strong></div>';
       }catch(error){modalError.textContent=error.message}
     }

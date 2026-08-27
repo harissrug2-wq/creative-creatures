@@ -54,6 +54,18 @@
     {
       "source": "/integrations/jira/callback",
       "destination": "/integrations/jira/callback/"
+    },
+    {
+      "source": "/api/auth/jira/callback",
+      "destination": "/integrations/jira/callback/"
+    },
+    {
+      "source": "/integrations/jira/dashboard",
+      "destination": "/integrations/jira/dashboard/"
+    },
+    {
+      "source": "/api/jira/:path*",
+      "destination": "/api/jira"
     }
   ],
   "functions": {

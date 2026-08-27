@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Manage projects, issues, and team tasks directly from your connected Jira workspace.">
+  <title>Jira Management · Creative Creatures</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/portal/base.css">
+  <style>
+    :root {
+      --bg: #f8f8f6;
+      --card: #ffffff;
+      --line: #e3e4e2;
+      --text: #111218;
+      --muted: #5f6675;
+      --jira-blue: #0052cc;
+      --jira-blue-soft: #deebff;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .page-wrap {
+      max-width: 1140px;
+      margin: 0 auto;
+      padding: 32px 24px 80px;
+    }
+    .page-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+    .header-title h1 {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      margin: 0 0 8px;
+    }
+    .header-title p {
+      font-size: 14px;
+      color: var(--muted);
+      margin: 0;
+      max-width: 640px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      min-height: 40px;
+      padding: 0 16px;
+      border-radius: 9px;
+      border: 1px solid var(--line);
+      background: #ffffff;
+      color: var(--text);
+      font-weight: 650;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+    .btn:hover {
+      background: #f4f4f2;
+    }
+    .btn-primary {
+      background: var(--jira-blue);
+      border-color: var(--jira-blue);
+      color: #ffffff;
+      box-shadow: 0 4px 12px rgba(0, 82, 204, 0.2);
+    }
+    .btn-primary:hover {
+      background: #0043a8;
+    }
+    .btn-danger {
+      color: #c93434;
+      border-color: #f2caca;
+    }
+    .btn-danger:hover {
+      background: #fff0f0;
+    }
+    .site-banner {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: var(--cc-shadow, 0 1px 2px rgba(17,18,24,.04));
+    }
+    .site-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .site-mark {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      background: var(--jira-blue-soft);
+      color: var(--jira-blue);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 16px;
+    }
+    .site-details strong {
+      display: block;
+      font-size: 15px;
+    }
+    .site-details span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: #e7f7ef;
+      color: #147743;
+      border: 1px solid #ccebd9;
+    }
+    .status-badge::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #18a35b;
+    }
+    .jira-grid {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 24px;
+    }
+    .panel {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--cc-shadow, 0 1px 2px rgba(17,18,24,.04));
+    }
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .panel-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0;
+    }
+    .projects-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .project-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .project-item:hover {
+      background: #f4f4f2;
+    }
+    .project-item.active {
+      background: var(--jira-blue-soft);
+      border-color: #b3d4ff;
+    }
+    .key-pill {
+      font-size: 11px;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: #eef0f4;
+      color: #3b4250;
+      text-transform: uppercase;
+    }
+    .project-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .filter-bar {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    .filter-input {
+      flex: 1;
+      min-width: 180px;
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 13px;
+      outline: none;
+    }
+    .filter-select {
+      height: 38px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 13px;
+      background: #ffffff;
+      outline: none;
+    }
+    .issues-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .issue-card {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 14px 16px;
+      background: #ffffff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      transition: border-color 0.15s ease;
+    }
+    .issue-card:hover {
+      border-color: var(--jira-blue);
+    }
+    .issue-main {
+      min-width: 0;
+      flex: 1;
+    }
+    .issue-top {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .issue-key {
+      font-size: 12px;
+      font-weight: 800;
+      color: var(--jira-blue);
+    }
+    .type-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #f0f1f5;
+      color: #555e6d;
+      text-transform: uppercase;
+    }
+    .issue-summary {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 0 0 4px;
+      line-height: 1.3;
+    }
+    .issue-meta {
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .status-tag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #edf0f5;
+      color: #3e4654;
+    }
+    .status-tag.in-progress { background: #deebff; color: #0052cc; }
+    .status-tag.done { background: #e7f7ef; color: #147743; }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.46);
+      backdrop-filter: blur(3px);
+      z-index: 300;
+      display: none;
+      place-items: center;
+      padding: 16px;
+      overflow-y: auto;
+    }
+    .modal-backdrop.show { display: grid; }
+    .modal-card {
+      width: min(600px, calc(100vw - 32px));
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 28px;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.18);
+    }
+    .modal-card h2 {
+      font-size: 22px;
+      margin: 0 0 6px;
+      letter-spacing: -0.02em;
+    }
+    .modal-card p {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0 0 20px;
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+    .field.full { grid-column: 1 / -1; }
+    .field label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .field input, .field select, .field textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 13px;
+      outline: none;
+      background: #ffffff;
+    }
+    .field textarea {
+      min-height: 80px;
+      resize: vertical;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 22px;
+    }
+    .modal-error {
+      color: #c93434;
+      font-size: 12px;
+      margin-top: 10px;
+    }
+    @media (max-width: 900px) {
+      .jira-grid { grid-template-columns: 1fr; }
+      .page-wrap { padding: 20px 16px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div data-app-header="integrations"></div>
+
+  <main class="page-wrap">
+    <header class="page-header">
+      <div class="header-title">
+        <h1>Jira Management</h1>
+        <p>Manage Atlassian Jira software projects, create new issues, and track team progress directly from your agency intelligence workspace.</p>
+      </div>
+      <div class="header-actions">
+        <a class="btn" href="/integrations/">← Integrations</a>
+        <button type="button" class="btn" id="syncBtn">⚡ Sync now</button>
+        <button type="button" class="btn btn-primary" id="createIssueBtn">＋ Create Issue</button>
+        <button type="button" class="btn btn-danger" id="disconnectBtn">Disconnect</button>
+      </div>
+    </header>
+
+    <section class="site-banner" id="siteBanner">
+      <div class="site-info">
+        <div class="site-mark">Jr</div>
+        <div class="site-details">
+          <strong id="siteName">Loading Jira workspace...</strong>
+          <span id="siteUrl">Connecting to Atlassian Cloud...</span>
+        </div>
+      </div>
+      <span class="status-badge" id="statusBadge">Connected</span>
+    </section>
+
+    <div class="jira-grid">
+      <aside class="panel">
+        <div class="panel-header">
+          <h2>Projects</h2>
+          <span id="projectCount" style="font-size:12px;color:var(--muted)">0</span>
+        </div>
+        <div class="projects-list" id="projectsList">
+          <div style="font-size:13px;color:var(--muted)">Loading projects...</div>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Issues &amp; Tasks</h2>
+          <span id="issueCount" style="font-size:12px;color:var(--muted)">0 issues</span>
+        </div>
+
+        <div class="filter-bar">
+          <input type="text" class="filter-input" id="searchFilter" placeholder="Search issues by summary...">
+          <select class="filter-select" id="projectFilter">
+            <option value="">All Projects</option>
+          </select>
+          <select class="filter-select" id="statusFilter">
+            <option value="">All Statuses</option>
+            <option value="To Do">To Do</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Done">Done</option>
+          </select>
+        </div>
+
+        <div class="issues-list" id="issuesList">
+          <div style="font-size:13px;color:var(--muted);padding:14px;">Loading issues...</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Create Issue Modal -->
+  <div class="modal-backdrop" id="createIssueModal">
+    <section class="modal-card">
+      <h2>Create Jira Issue</h2>
+      <p>Create a new task, bug, or story in the selected Jira project.</p>
+      <form id="createForm" novalidate>
+        <div class="form-grid">
+          <div class="field"><label>Project *</label><select id="newProject" required></select></div>
+          <div class="field"><label>Issue Type</label><select id="newType"><option value="Task">Task</option><option value="Bug">Bug</option><option value="Story">Story</option><option value="Epic">Epic</option></select></div>
+          <div class="field full"><label>Summary *</label><input id="newSummary" placeholder="Short description of the issue" required></div>
+          <div class="field full"><label>Description</label><textarea id="newDescription" placeholder="Detailed issue description..."></textarea></div>
+          <div class="field"><label>Priority</label><select id="newPriority"><option value="High">High</option><option value="Medium" selected>Medium</option><option value="Low">Low</option></select></div>
+          <div class="field"><label>Assignee</label><select id="newAssignee"><option value="">Unassigned</option></select></div>
+        </div>
+        <div class="modal-error" id="createError"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="closeCreateModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveCreateBtn">Create Issue</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <!-- Edit Issue Modal -->
+  <div class="modal-backdrop" id="editIssueModal">
+    <section class="modal-card">
+      <h2>Edit Jira Issue</h2>
+      <p>Update issue details and workflow status.</p>
+      <form id="editForm" novalidate>
+        <input type="hidden" id="editIssueKey">
+        <div class="form-grid">
+          <div class="field full"><label>Summary</label><input id="editSummary" required></div>
+          <div class="field full"><label>Description</label><textarea id="editDescription"></textarea></div>
+          <div class="field"><label>Status</label><select id="editStatus"><option value="To Do">To Do</option><option value="In Progress">In Progress</option><option value="Done">Done</option></select></div>
+          <div class="field"><label>Priority</label><select id="editPriority"><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select></div>
+          <div class="field full"><label>Assignee</label><select id="editAssignee"><option value="">Unassigned</option></select></div>
+        </div>
+        <div class="modal-error" id="editError"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="closeEditModal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveEditBtn">Save Changes</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <script src="/portal/diagnostic-state.js"></script>
+  <script src="/portal/account-client.js"></script>
+  <script src="/portal/app-shell.js"></script>
+  <script>
+    const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    let jiraProjects = [], jiraIssues = [], jiraUsers = [], activeProjectKey = '';
+
+    async function apiPost(action, data = {}) {
+      const res = await fetch('/api/account-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, ...data })
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(payload.error || 'Jira operation failed.');
+      return payload;
+    }
+
+    async function loadDashboard() {
+      try {
+        const r = await apiPost('jira_dashboard');
+        const conn = r.connection || {};
+        const siteName = conn.primarySiteName || r.resources?.[0]?.name || 'Jira Workspace';
+        const siteUrl = conn.primarySiteUrl || r.resources?.[0]?.url || 'https://atlassian.net';
+        document.querySelector('#siteName').textContent = siteName;
+        document.querySelector('#siteUrl').textContent = siteUrl;
+
+        jiraProjects = r.projects || [];
+        jiraIssues = r.issues || [];
+        jiraUsers = r.users || [];
+
+        renderProjects();
+        populateDropdowns();
+        renderIssues();
+      } catch (err) {
+        document.querySelector('#siteName').textContent = 'Jira Connection Required';
+        document.querySelector('#siteUrl').textContent = err.message;
+        document.querySelector('#statusBadge').className = 'status-badge btn-danger';
+        document.querySelector('#statusBadge').textContent = 'Needs attention';
+      }
+    }
+
+    function renderProjects() {
+      const listEl = document.querySelector('#projectsList');
+      const countEl = document.querySelector('#projectCount');
+      countEl.textContent = jiraProjects.length;
+
+      if (!jiraProjects.length) {
+        listEl.innerHTML = '<div style="font-size:13px;color:var(--muted);">No projects found in this Jira workspace.</div>';
+        return;
+      }
+
+      listEl.innerHTML = jiraProjects.map(p => `
+        <div class="project-item ${p.key === activeProjectKey ? 'active' : ''}" data-project-key="${esc(p.key)}">
+          <span class="key-pill">${esc(p.key)}</span>
+          <span class="project-name">${esc(p.name)}</span>
+        </div>
+      `).join('');
+
+      listEl.querySelectorAll('.project-item').forEach(el => {
+        el.onclick = () => {
+          const key = el.dataset.projectKey;
+          activeProjectKey = activeProjectKey === key ? '' : key;
+          document.querySelector('#projectFilter').value = activeProjectKey;
+          renderProjects();
+          renderIssues();
+        };
+      });
+    }
+
+    function populateDropdowns() {
+      const projSelect = document.querySelector('#projectFilter');
+      const newProjSelect = document.querySelector('#newProject');
+      const newAssignee = document.querySelector('#newAssignee');
+      const editAssignee = document.querySelector('#editAssignee');
+
+      projSelect.innerHTML = '<option value="">All Projects</option>' + jiraProjects.map(p => `<option value="${esc(p.key)}">${esc(p.name)} (${esc(p.key)})</option>`).join('');
+      newProjSelect.innerHTML = jiraProjects.map(p => `<option value="${esc(p.key)}">${esc(p.name)} (${esc(p.key)})</option>`).join('');
+
+      const userOptions = '<option value="">Unassigned</option>' + jiraUsers.map(u => `<option value="${esc(u.accountId)}">${esc(u.displayName)}</option>`).join('');
+      newAssignee.innerHTML = userOptions;
+      editAssignee.innerHTML = userOptions;
+    }
+
+    function renderIssues() {
+      const listEl = document.querySelector('#issuesList');
+      const countEl = document.querySelector('#issueCount');
+      const projFilter = document.querySelector('#projectFilter').value || activeProjectKey;
+      const statusFilter = document.querySelector('#statusFilter').value.toLowerCase();
+      const searchQuery = document.querySelector('#searchFilter').value.toLowerCase().trim();
+
+      const filtered = jiraIssues.filter(i => {
+        if (projFilter && i.projectKey !== projFilter) return false;
+        if (statusFilter && i.status.toLowerCase() !== statusFilter) return false;
+        if (searchQuery && !i.summary.toLowerCase().includes(searchQuery) && !i.key.toLowerCase().includes(searchQuery)) return false;
+        return true;
+      });
+
+      countEl.textContent = `${filtered.length} ${filtered.length === 1 ? 'issue' : 'issues'}`;
+
+      if (!filtered.length) {
+        listEl.innerHTML = '<div style="font-size:13px;color:var(--muted);padding:14px;">No issues match your current filters.</div>';
+        return;
+      }
+
+      listEl.innerHTML = filtered.map(i => {
+        let statusCls = '';
+        if (i.status.toLowerCase().includes('progress')) statusCls = 'in-progress';
+        if (i.status.toLowerCase().includes('done') || i.status.toLowerCase().includes('closed')) statusCls = 'done';
+
+        return `
+          <article class="issue-card">
+            <div class="issue-main">
+              <div class="issue-top">
+                <span class="issue-key">[${esc(i.key)}]</span>
+                <span class="type-badge">${esc(i.issueType)}</span>
+                <span class="status-tag ${statusCls}">${esc(i.status)}</span>
+              </div>
+              <h3 class="issue-summary">${esc(i.summary)}</h3>
+              <div class="issue-meta">
+                <span>📁 ${esc(i.projectName || i.projectKey)}</span>
+                <span>⚡ Priority: ${esc(i.priority)}</span>
+                <span>👤 ${esc(i.assignee)}</span>
+              </div>
+            </div>
+            <button type="button" class="btn" data-edit-key="${esc(i.key)}">Edit</button>
+          </article>
+        `;
+      }).join('');
+
+      listEl.querySelectorAll('[data-edit-key]').forEach(b => {
+        b.onclick = () => openEditModal(jiraIssues.find(i => i.key === b.dataset.editKey));
+      });
+    }
+
+    // Modal Control
+    const showModal = id => document.querySelector(id)?.classList.add('show');
+    const hideModal = id => document.querySelector(id)?.classList.remove('show');
+
+    document.querySelector('#createIssueBtn').onclick = () => showModal('#createIssueModal');
+    document.querySelector('#closeCreateModal').onclick = () => hideModal('#createIssueModal');
+    document.querySelector('#closeEditModal').onclick = () => hideModal('#editIssueModal');
+
+    document.querySelector('#projectFilter').onchange = e => {
+      activeProjectKey = e.target.value;
+      renderProjects();
+      renderIssues();
+    };
+    document.querySelector('#statusFilter').onchange = renderIssues;
+    document.querySelector('#searchFilter').oninput = renderIssues;
+
+    // Create Issue Submit
+    document.querySelector('#createForm').onsubmit = async e => {
+      e.preventDefault();
+      const saveBtn = document.querySelector('#saveCreateBtn');
+      const errEl = document.querySelector('#createError');
+      errEl.textContent = '';
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Creating...';
+
+      try {
+        await apiPost('jira_create_issue', {
+          projectKey: document.querySelector('#newProject').value,
+          summary: document.querySelector('#newSummary').value.trim(),
+          description: document.querySelector('#newDescription').value.trim(),
+          issueType: document.querySelector('#newType').value,
+          priority: document.querySelector('#newPriority').value,
+          assigneeAccountId: document.querySelector('#newAssignee').value
+        });
+        hideModal('#createIssueModal');
+        document.querySelector('#newSummary').value = '';
+        document.querySelector('#newDescription').value = '';
+        await loadDashboard();
+      } catch (err) {
+        errEl.textContent = err.message;
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Create Issue';
+      }
+    };
+
+    // Edit Issue Handler
+    function openEditModal(issue) {
+      if (!issue) return;
+      document.querySelector('#editIssueKey').value = issue.key;
+      document.querySelector('#editSummary').value = issue.summary;
+      document.querySelector('#editDescription').value = issue.description || '';
+      document.querySelector('#editStatus').value = issue.status || 'To Do';
+      document.querySelector('#editPriority').value = issue.priority || 'Medium';
+      document.querySelector('#editAssignee').value = issue.assigneeAccountId || '';
+      document.querySelector('#editError').textContent = '';
+      showModal('#editIssueModal');
+    }
+
+    document.querySelector('#editForm').onsubmit = async e => {
+      e.preventDefault();
+      const saveBtn = document.querySelector('#saveEditBtn');
+      const errEl = document.querySelector('#editError');
+      errEl.textContent = '';
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
+      try {
+        await apiPost('jira_update_issue', {
+          issueKey: document.querySelector('#editIssueKey').value,
+          summary: document.querySelector('#editSummary').value.trim(),
+          description: document.querySelector('#editDescription').value.trim(),
+          status: document.querySelector('#editStatus').value,
+          priority: document.querySelector('#editPriority').value,
+          assigneeAccountId: document.querySelector('#editAssignee').value
+        });
+        hideModal('#editIssueModal');
+        await loadDashboard();
+      } catch (err) {
+        errEl.textContent = err.message;
+      } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save Changes';
+      }
+    };
+
+    // Global Buttons
+    document.querySelector('#syncBtn').onclick = async () => {
+      const btn = document.querySelector('#syncBtn');
+      btn.disabled = true;
+      btn.textContent = 'Syncing...';
+      try {
+        await apiPost('jira_sync');
+        await loadDashboard();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Sync now';
+      }
+    };
+
+    document.querySelector('#disconnectBtn').onclick = async () => {
+      if (!confirm('Disconnect Jira from your Creative Creatures account?')) return;
+      try {
+        await apiPost('jira_disconnect');
+        location.href = '/integrations/';
+      } catch (err) {
+        alert(err.message);
+      }
+    };
+
+    loadDashboard();
+  </script>
+</body>
+</html>

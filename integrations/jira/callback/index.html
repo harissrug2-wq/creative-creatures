@@ -46,7 +46,7 @@
         });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error || 'Unable to connect Jira.');
-        location.replace('/integrations/?jira=connected');
+        location.replace('/integrations/jira/dashboard/?jira=connected');
       } catch (error) {
         fail(error.message || 'Unable to connect Jira.');
       }
