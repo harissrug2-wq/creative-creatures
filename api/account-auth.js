@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { sendEmail, escapeHtml } from '../lib/email-service.js';
 import { accountSessionSecret, clearSessionCookie, hashPassword, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
+import { createJiraAuthorizationUrl, decryptJiraToken, encryptJiraToken, exchangeJiraCode, getJiraCurrentUser, jiraConfig, jiraTokenExpiry, listJiraIssues, listJiraIssueTypes, listJiraProjects, listJiraResources, listJiraTransitions, refreshJiraTokens, saveJiraIssue, transitionJiraIssue, verifyJiraOAuthState } from '../lib/jira.js';
 import {
   createMondayAuthorizationUrl,
   decryptMondayToken,
@@ -46,20 +47,6 @@ import {
   listClickUpWorkspaces,
   verifyClickUpOAuthState
 } from '../lib/clickup.js';
-import {
-  createJiraAuthorizationUrl,
-  decryptJiraToken,
-  encryptJiraToken,
-  exchangeJiraCode,
-  getJiraAccessibleResources,
-  getJiraMyself,
-  jiraConfig,
-  listJiraIssues,
-  listJiraProjects,
-  listJiraUsers,
-  refreshJiraTokens,
-  verifyJiraOAuthState
-} from '../lib/jira.js';
 
 import {
   createSlackAuthorizationUrl,
@@ -387,38 +374,14 @@ async function loadClickUpDashboard(c,accountId){
   return{connection:publicClickUpConnection(synced),workspaces,spaces,folders,lists:lists.slice(0,250),tasks:tasks.slice(0,250),warnings};
 }
 
-const JIRA_SELECT='id,account_id,primary_site_id,primary_site_name,primary_site_url,site_ids,site_names,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
+const JIRA_SELECT='id,account_id,cloud_id,site_url,site_name,connected_account_id,connected_name,connected_email,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scopes,resources,status,last_synced_at,last_sync_error,created_at,updated_at';
 async function getJiraConnection(c,accountId){const rows=await db(c,`jira_connections?select=${JIRA_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
-function publicJiraConnection(row){return row&&row.status==='connected'?{connected:true,primarySiteId:row.primary_site_id||'',primarySiteName:row.primary_site_name||'',primarySiteUrl:row.primary_site_url||'',siteIds:Array.isArray(row.site_ids)?row.site_ids:[],siteNames:Array.isArray(row.site_names)?row.site_names:[],scopes:Array.isArray(row.scopes)?row.scopes:[],status:'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,primarySiteId:'',primarySiteName:'',primarySiteUrl:'',siteIds:[],siteNames:[],scopes:[],status:'needs_attention',lastSyncedAt:null,lastSyncError:''}}
-async function saveJiraConnection(c,accountId,patch){const existing=await getJiraConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`jira_connections?id=eq.${encodeURIComponent(existing.id)}&select=${JIRA_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`jira_connections?select=${JIRA_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',scopes:[],...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
-async function deleteJiraConnection(c,accountId){await db(c,`jira_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
-function jiraTokenDates(tokens){return{access_token_expires_at:new Date(Date.now()+(Number(tokens.expires_in)||3600)*1000).toISOString()}}
-async function ensureJiraAccess(c,connection){
-  const config=jiraConfig();if(!config)throw new Error('Jira is not configured.');
-  const expiresAt=Date.parse(connection.access_token_expires_at||'');
-  if(Number.isFinite(expiresAt)&&expiresAt>Date.now()+120000)return{connection,accessToken:decryptJiraToken(connection.access_token_encrypted,config.encryptionSecret)};
-  if(!connection.refresh_token_encrypted)throw Object.assign(new Error('Jira access expired. Reconnect Jira.'),{status:401});
-  const refreshToken=decryptJiraToken(connection.refresh_token_encrypted,config.encryptionSecret),tokens=await refreshJiraTokens(refreshToken);
-  const scopes=clean(tokens.scope).split(/\s+/).map(clean).filter(Boolean);
-  const updated=await saveJiraConnection(c,connection.account_id,{access_token_encrypted:encryptJiraToken(tokens.access_token,config.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptJiraToken(tokens.refresh_token,config.encryptionSecret):connection.refresh_token_encrypted,...jiraTokenDates(tokens),scopes:scopes.length?scopes:connection.scopes,status:'connected',last_sync_error:null});
-  return{connection:updated,accessToken:tokens.access_token};
-}
+function publicJiraConnection(row){return row?{connected:row.status==='connected',cloudId:row.cloud_id||'',siteUrl:row.site_url||'',siteName:row.site_name||'',connectedName:row.connected_name||'',connectedEmail:row.connected_email||'',scopes:Array.isArray(row.scopes)?row.scopes:[],resources:Array.isArray(row.resources)?row.resources:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,cloudId:'',siteUrl:'',siteName:'',connectedName:'',connectedEmail:'',scopes:[],resources:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
+async function saveJiraConnection(c,accountId,patch){const existing=await getJiraConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`jira_connections?id=eq.${encodeURIComponent(existing.id)}&select=${JIRA_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`jira_connections?select=${JIRA_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
+async function deleteJiraConnection(c,accountId){await db(c,`jira_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'})}
+async function ensureJiraAccess(c,connection){const jc=jiraConfig();if(!jc)throw new Error('Jira is not configured.');const expires=Date.parse(connection.access_token_expires_at||'');if(Number.isFinite(expires)&&expires>Date.now()+120000)return{connection,accessToken:decryptJiraToken(connection.access_token_encrypted,jc.encryptionSecret)};if(!connection.refresh_token_encrypted)throw Object.assign(new Error('Jira access expired. Reconnect Jira.'),{status:401});const tokens=await refreshJiraTokens(decryptJiraToken(connection.refresh_token_encrypted,jc.encryptionSecret));const updated=await saveJiraConnection(c,connection.account_id,{access_token_encrypted:encryptJiraToken(tokens.access_token,jc.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptJiraToken(tokens.refresh_token,jc.encryptionSecret):connection.refresh_token_encrypted,access_token_expires_at:jiraTokenExpiry(tokens),scopes:clean(tokens.scope).split(/\s+/).filter(Boolean),status:'connected',last_sync_error:null});return{connection:updated,accessToken:tokens.access_token}}
 async function jiraConnectionAccess(c,accountId){const connection=await getJiraConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Jira first.'),{status:409});return ensureJiraAccess(c,connection)}
-async function loadJiraDashboard(c,accountId){
-  const {connection,accessToken}=await jiraConnectionAccess(c,accountId),warnings=[];
-  let resources=[];
-  try{resources=await getJiraAccessibleResources(accessToken)}catch(error){warnings.push(`accessible sites: ${error.message}`)}
-  const site=resources[0]||{id:connection.primary_site_id,name:connection.primary_site_name,url:connection.primary_site_url};
-  let projects=[],issues=[],users=[];
-  if(site.id){
-    try{projects=await listJiraProjects(accessToken,site.id)}catch(error){warnings.push(`projects (${site.name}): ${error.message}`)}
-    try{issues=await listJiraIssues(accessToken,site.id,{maxResults:100})}catch(error){warnings.push(`issues (${site.name}): ${error.message}`)}
-    try{users=await listJiraUsers(accessToken,site.id)}catch(error){warnings.push(`users (${site.name}): ${error.message}`)}
-  }
-  const siteIds=resources.map(x=>x.id),siteNames=resources.map(x=>x.name);
-  const synced=await saveJiraConnection(c,accountId,{primary_site_id:site.id||connection.primary_site_id,primary_site_name:site.name||connection.primary_site_name,primary_site_url:site.url||connection.primary_site_url,site_ids:siteIds.length?siteIds:connection.site_ids,site_names:siteNames.length?siteNames:connection.site_names,last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null,status:'connected'});
-  return{connection:publicJiraConnection(synced),resources,projects,issues,users,warnings};
-}
+async function loadJiraDashboard(c,accountId){const{connection,accessToken}=await jiraConnectionAccess(c,accountId),warnings=[],load=async(label,fn)=>{try{return await fn()}catch(error){warnings.push(`${label}: ${error.message}`);return[]}};const[projects,issues]=await Promise.all([load('projects',()=>listJiraProjects(accessToken,connection.cloud_id)),load('issues',()=>listJiraIssues(accessToken,connection.cloud_id))]);const synced=await saveJiraConnection(c,accountId,{last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null,status:'connected'});return{connection:publicJiraConnection(synced),projects,issues,warnings}}
 
 
 const SLACK_SELECT='id,account_id,team_id,team_name,team_domain,enterprise_id,enterprise_name,bot_user_id,connected_user_id,access_token_encrypted,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
@@ -691,10 +654,10 @@ async function monitorConnection(c,accountId,getter,presenter){
 
 async function monitorProjectSource(c,accountId,warnings){
   const candidates=[
-    {name:'Jira',get:getJiraConnection,public:publicJiraConnection,load:loadJiraDashboard},
     {name:'ClickUp',get:getClickUpConnection,public:publicClickUpConnection,load:loadClickUpDashboard},
     {name:'Teamwork',get:getTeamworkConnection,public:publicTeamworkConnection,load:loadTeamworkDashboard},
-    {name:'monday.com',get:getMondayConnection,public:publicMondayConnection,load:loadMondayDashboard}
+    {name:'monday.com',get:getMondayConnection,public:publicMondayConnection,load:loadMondayDashboard},
+    {name:'Jira',get:getJiraConnection,public:publicJiraConnection,load:loadJiraDashboard}
   ];
   for(const candidate of candidates){
     const connection=await monitorConnection(c,accountId,candidate.get,candidate.public);
@@ -741,7 +704,6 @@ async function monitorCommunicationsSource(c,accountId,warnings){
 
 async function monitorSystemsSource(c,accountId){
   const definitions=[
-    ['Jira',getJiraConnection,publicJiraConnection],
     ['HubSpot',getHubSpotConnection,publicHubSpotConnection],
     ['Zoho CRM',getZohoConnection,publicZohoConnection],
     ['QuickBooks',getQuickBooksConnection,publicQuickBooksConnection],
@@ -749,6 +711,7 @@ async function monitorSystemsSource(c,accountId){
     ['ClickUp',getClickUpConnection,publicClickUpConnection],
     ['Teamwork',getTeamworkConnection,publicTeamworkConnection],
     ['monday.com',getMondayConnection,publicMondayConnection],
+    ['Jira',getJiraConnection,publicJiraConnection],
     ['Slack',getSlackConnection,publicSlackConnection],
     ['Google Chat',getGoogleChatConnection,publicGoogleChatConnection],
     ['Google Drive',getGoogleDriveConnection,publicGoogleDriveConnection],
@@ -820,19 +783,7 @@ export default async function handler(req,res){
   try{
     if(req.method==='DELETE'){clearSessionCookie(res,'cc_account_session');return json(res,200,{success:true})}
     const session=currentSession(req,secret);
-    const b=(req.method==='POST'||req.method==='PUT')?(typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{})):{};
-    let action=clean(req.query?.action||b.action);
-    if(!action){
-      const url=new URL(req.url,`http://${req.headers.host||'localhost'}`);
-      const pathname=url.pathname.replace(/\/$/,'');
-      if(pathname.endsWith('/jira/connect'))action='jira_connect';
-      else if(pathname.endsWith('/jira/callback'))action='jira_callback';
-      else if(pathname.endsWith('/jira/refresh-token'))action='jira_refresh_token';
-      else if(pathname.endsWith('/jira/projects'))action='jira_projects';
-      else if(pathname.endsWith('/jira/issues'))action=req.method==='POST'?'jira_create_issue':(req.method==='PUT'?'jira_update_issue':'jira_issues');
-      else if(pathname.endsWith('/jira/sync'))action='jira_sync';
-      else if(pathname.endsWith('/jira/disconnect'))action='jira_disconnect';
-    }
+    const action=clean(req.query?.action);
     if(req.method==='GET'){
 
       if(action==='monday_connect'){if(!session)return json(res,401,{error:'Sign in before connecting monday.com.'});if(!mondayConfig())return json(res,503,{error:'monday.com environment variables are not configured.'});return json(res,200,{authorizationUrl:createMondayAuthorizationUrl(session.accountId)});}
@@ -849,17 +800,6 @@ export default async function handler(req,res){
         return json(res,200,{connection:publicTeamworkConnection(connection)});
       }
 
-      if(action==='jira_connect'){
-        if(!session)return json(res,401,{error:'Sign in before connecting Jira.'});
-        if(!jiraConfig())return json(res,503,{error:'Jira environment variables are not configured.'});
-        return json(res,200,{authorizationUrl:createJiraAuthorizationUrl(session.accountId)});
-      }
-      if(action==='jira_status'){
-        if(!session)return json(res,401,{error:'Sign in before viewing Jira status.'});
-        const connection=await getJiraConnection(c,session.accountId);
-        return json(res,200,{connection:publicJiraConnection(connection)});
-      }
-
       if(action==='clickup_connect'){
         if(!session)return json(res,401,{error:'Sign in before connecting ClickUp.'});
         if(!clickUpConfig())return json(res,503,{error:'ClickUp environment variables are not configured.'});
@@ -870,6 +810,8 @@ export default async function handler(req,res){
         const connection=await getClickUpConnection(c,session.accountId);
         return json(res,200,{connection:publicClickUpConnection(connection)});
       }
+      if(action==='jira_connect'){if(!session)return json(res,401,{error:'Sign in before connecting Jira.'});if(!jiraConfig())return json(res,503,{error:'Jira environment variables are not configured.'});return json(res,200,{authorizationUrl:createJiraAuthorizationUrl(session.accountId)})}
+      if(action==='jira_status'){if(!session)return json(res,401,{error:'Sign in before viewing Jira status.'});return json(res,200,{connection:publicJiraConnection(await getJiraConnection(c,session.accountId))})}
 
       if(action==='slack_connect'){
         if(!session)return json(res,401,{error:'Sign in before connecting Slack.'});
@@ -957,8 +899,8 @@ export default async function handler(req,res){
       const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});
       return json(res,200,{authenticated:true,account:pub(account)});
     }
-    if(req.method!=='POST'&&req.method!=='PUT')return json(res,405,{error:'Method not allowed.'});
-    const bodyAction=clean(b.action);
+    if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
+    const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const bodyAction=clean(b.action);
 
     if(bodyAction==='monitor_department'){
       if(!session)return json(res,401,{error:'Sign in before viewing Monitor department data.'});
@@ -1000,80 +942,6 @@ export default async function handler(req,res){
       await deleteTeamworkConnection(c,session.accountId);return json(res,200,{success:true,connection:publicTeamworkConnection(null)});
     }
 
-    if(bodyAction==='jira_callback'){
-      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Jira.'});
-      const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'Jira did not return the required authorization values.'});
-      if(!verifyJiraOAuthState(state,session.accountId))return json(res,403,{error:'Jira authorization state is invalid or expired.'});
-      const jc=jiraConfig(),tokens=await exchangeJiraCode(code);if(!tokens.access_token)return json(res,409,{error:'Jira did not return an access token.'});
-      let resources=[];try{resources=await getJiraAccessibleResources(tokens.access_token)}catch{}
-      const scopes=clean(tokens.scope).split(/\s+/).map(clean).filter(Boolean);
-      const saved=await saveJiraConnection(c,session.accountId,{primary_site_id:resources[0]?.id||'',primary_site_name:resources[0]?.name||'',primary_site_url:resources[0]?.url||'',site_ids:resources.map(x=>x.id),site_names:resources.map(x=>x.name),access_token_encrypted:encryptJiraToken(tokens.access_token,jc.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptJiraToken(tokens.refresh_token,jc.encryptionSecret):null,...jiraTokenDates(tokens),scopes,status:'connected',last_sync_error:null});
-      return json(res,200,{connected:true,connection:publicJiraConnection(saved)});
-    }
-    if(bodyAction==='jira_dashboard'||bodyAction==='jira_sync'){
-      if(!session)return json(res,401,{error:'Sign in before viewing Jira data.'});
-      const result=await loadJiraDashboard(c,session.accountId);return json(res,200,{success:true,...result});
-    }
-    if(bodyAction==='jira_disconnect'){
-      if(!session)return json(res,401,{error:'Sign in before disconnecting Jira.'});
-      await deleteJiraConnection(c,session.accountId);
-      return json(res,200,{success:true,connection:publicJiraConnection(null)});
-    }
-    if(bodyAction==='jira_projects'){
-      if(!session)return json(res,401,{error:'Sign in before viewing Jira projects.'});
-      const {connection,accessToken}=await jiraConnectionAccess(c,session.accountId);
-      const siteId=clean(b.siteId)||connection.primary_site_id;
-      if(!siteId)return json(res,400,{error:'No connected Jira site found.'});
-      const projects=await listJiraProjects(accessToken,siteId);
-      return json(res,200,{success:true,projects});
-    }
-    if(bodyAction==='jira_issues'){
-      if(!session)return json(res,401,{error:'Sign in before viewing Jira issues.'});
-      const {connection,accessToken}=await jiraConnectionAccess(c,session.accountId);
-      const siteId=clean(b.siteId)||connection.primary_site_id;
-      if(!siteId)return json(res,400,{error:'No connected Jira site found.'});
-      const issues=await listJiraIssues(accessToken,siteId,{projectKey:clean(b.projectKey),status:clean(b.status),query:clean(b.query),maxResults:100});
-      return json(res,200,{success:true,issues});
-    }
-    if(bodyAction==='jira_create_issue'){
-      if(!session)return json(res,401,{error:'Sign in before creating Jira issues.'});
-      const {connection,accessToken}=await jiraConnectionAccess(c,session.accountId);
-      const siteId=clean(b.siteId)||connection.primary_site_id;
-      if(!siteId)return json(res,400,{error:'No connected Jira site found.'});
-      const issue=await createJiraIssue(accessToken,siteId,{
-        projectKey:clean(b.projectKey),
-        summary:clean(b.summary),
-        description:clean(b.description),
-        issueType:clean(b.issueType)||'Task',
-        priority:clean(b.priority)||'Medium',
-        assigneeAccountId:clean(b.assigneeAccountId)
-      });
-      return json(res,200,{success:true,issue});
-    }
-    if(bodyAction==='jira_update_issue'){
-      if(!session)return json(res,401,{error:'Sign in before updating Jira issues.'});
-      const issueKey=clean(b.issueKey);
-      if(!issueKey)return json(res,400,{error:'Issue key is required.'});
-      const {connection,accessToken}=await jiraConnectionAccess(c,session.accountId);
-      const siteId=clean(b.siteId)||connection.primary_site_id;
-      if(!siteId)return json(res,400,{error:'No connected Jira site found.'});
-      const result=await updateJiraIssue(accessToken,siteId,issueKey,{
-        summary:b.summary!==undefined?clean(b.summary):undefined,
-        description:b.description!==undefined?clean(b.description):undefined,
-        status:b.status!==undefined?clean(b.status):undefined,
-        priority:b.priority!==undefined?clean(b.priority):undefined,
-        assigneeAccountId:b.assigneeAccountId!==undefined?clean(b.assigneeAccountId):undefined
-      });
-      return json(res,200,{success:true,...result});
-    }
-    if(bodyAction==='jira_refresh_token'){
-      if(!session)return json(res,401,{error:'Sign in before refreshing Jira token.'});
-      const connection=await getJiraConnection(c,session.accountId);
-      if(!connection)return json(res,404,{error:'No Jira connection found.'});
-      const refreshed=await ensureJiraAccess(c,connection);
-      return json(res,200,{success:true,connection:publicJiraConnection(refreshed.connection)});
-    }
-
     if(bodyAction==='clickup_callback'){
       if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect ClickUp.'});
       const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'ClickUp did not return the required authorization values.'});
@@ -1092,6 +960,14 @@ export default async function handler(req,res){
       await deleteClickUpConnection(c,session.accountId);
       return json(res,200,{success:true,connection:publicClickUpConnection(null)});
     }
+
+    if(bodyAction==='jira_callback'){if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Jira.'});const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'Jira did not return the required authorization values.'});if(!verifyJiraOAuthState(state,session.accountId))return json(res,403,{error:'Jira authorization state is invalid or expired.'});const jc=jiraConfig(),tokens=await exchangeJiraCode(code),resources=await listJiraResources(tokens.access_token),resource=resources[0];if(!resource)return json(res,409,{error:'No Jira Cloud site was granted to this authorization.'});let user={};try{user=await getJiraCurrentUser(tokens.access_token,resource.id)}catch{}const saved=await saveJiraConnection(c,session.accountId,{cloud_id:resource.id,site_url:resource.url,site_name:resource.name,connected_account_id:clean(user.accountId),connected_name:clean(user.displayName),connected_email:clean(user.emailAddress),access_token_encrypted:encryptJiraToken(tokens.access_token,jc.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptJiraToken(tokens.refresh_token,jc.encryptionSecret):null,access_token_expires_at:jiraTokenExpiry(tokens),scopes:clean(tokens.scope).split(/\s+/).filter(Boolean),resources,status:'connected',last_sync_error:null});return json(res,200,{connected:true,connection:publicJiraConnection(saved)})}
+    if(bodyAction==='jira_dashboard'||bodyAction==='jira_sync'){if(!session)return json(res,401,{error:'Sign in before viewing Jira data.'});return json(res,200,{success:true,...await loadJiraDashboard(c,session.accountId)})}
+    if(bodyAction==='jira_issue_types'){if(!session)return json(res,401,{error:'Sign in before viewing Jira issue types.'});const{connection,accessToken}=await jiraConnectionAccess(c,session.accountId);return json(res,200,{issueTypes:await listJiraIssueTypes(accessToken,connection.cloud_id,clean(b.projectKey))})}
+    if(bodyAction==='jira_save_issue'){if(!session)return json(res,401,{error:'Sign in before changing Jira issues.'});const{connection,accessToken}=await jiraConnectionAccess(c,session.accountId);return json(res,200,{success:true,issue:await saveJiraIssue(accessToken,connection.cloud_id,b.issue||{})})}
+    if(bodyAction==='jira_transitions'){if(!session)return json(res,401,{error:'Sign in before viewing Jira transitions.'});const{connection,accessToken}=await jiraConnectionAccess(c,session.accountId);return json(res,200,{transitions:await listJiraTransitions(accessToken,connection.cloud_id,clean(b.issueKey))})}
+    if(bodyAction==='jira_transition_issue'){if(!session)return json(res,401,{error:'Sign in before changing Jira issues.'});const{connection,accessToken}=await jiraConnectionAccess(c,session.accountId);await transitionJiraIssue(accessToken,connection.cloud_id,clean(b.issueKey),clean(b.transitionId));return json(res,200,{success:true})}
+    if(bodyAction==='jira_disconnect'){if(!session)return json(res,401,{error:'Sign in before disconnecting Jira.'});await deleteJiraConnection(c,session.accountId);return json(res,200,{success:true,connection:publicJiraConnection(null)})}
 
     if(bodyAction==='slack_callback'){
       if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Slack.'});

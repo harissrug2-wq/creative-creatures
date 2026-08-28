@@ -194,6 +194,7 @@
     if(source==='ClickUp')return{source,projects:array(data.spaces),tasks:array(data.tasks).map(item=>({...item,completed:item.statusType==='closed'||/complete|closed/i.test(item.status),date:item.dateCreated||item.dateUpdated,due:item.dueDate,trackedMs:finite(item.timeSpent)||0}))};
     if(source==='Teamwork')return{source,projects:array(data.projects),tasks:array(data.tasks).map(item=>({...item,completed:Boolean(item.completed)||/complete|closed/i.test(item.status),date:item.updatedAt||item.startDate||item.dueDate,due:item.dueDate,trackedMinutes:0})),timeEntries:array(data.timeEntries)};
     if(source==='monday.com')return{source,projects:array(data.boards),tasks:array(data.items).map(item=>{const status=array(item.columns).find(column=>/status/i.test(column.title))?.text||'';const due=array(item.columns).find(column=>/due|date/i.test(column.title))?.text||null;return{...item,status,completed:/complete|done|closed/i.test(status),date:item.createdAt||item.updatedAt,due}})};
+    if(source==='Jira')return{source,projects:array(data.projects),tasks:array(data.issues).map(item=>({...item,id:item.id||item.key,name:item.summary,completed:item.statusCategory==='done'||Boolean(item.resolutionDate),date:item.updated||item.created,due:item.dueDate,trackedMs:0}))};
     return{source,projects:[],tasks:[],timeEntries:[]};
   }
 
