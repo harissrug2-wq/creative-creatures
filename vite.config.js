@@ -63,6 +63,7 @@ export default defineConfig({
         agencyGoals: page('agency-goals'),
         integrationInformation: page('integration-information'),
         integrations: page('integrations'),
+        partnerPortal: page('portal'),
         quickbooksCallback: resolve(__dirname, 'integrations', 'quickbooks', 'callback', 'index.html'),
         freshbooksCallback: resolve(__dirname, 'integrations', 'freshbooks', 'callback', 'index.html'),
         googleCalendarCallback: resolve(__dirname, 'integrations', 'google-calendar', 'callback', 'index.html'),

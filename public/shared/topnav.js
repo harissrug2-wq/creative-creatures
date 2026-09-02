@@ -32,13 +32,13 @@
     ['scorecard', '/agency-scorecard/', 'Agency Scorecard', icons.score],
     ['goals', '/agency-goals/', 'Agency Goals', icons.goals],
     ['integrations', '/integrations/', 'Integrations', icons.plug],
-    ['portal', '#', 'Portal', icons.portal]
+    ['portal', '/portal/', 'Portal', icons.portal]
   ];
 
   const isLocked = (key) => {
     if (key === 'scorecard' || key === 'goals') return !scorecardGenerated && !integrationsReady && !performanceReady;
     if (key === 'monitor') return !bool('agencyGoalsComplete') && active !== 'monitor';
-    if (key === 'portal') return true;
+    if (key === 'portal') return false;
     return false;
   };
 

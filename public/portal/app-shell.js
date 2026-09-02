@@ -67,10 +67,10 @@
         item('/agency-goals/','Agency Goals','goals','goals',true),
         item('/integration-information/','Integration Information','plug','integration-information'),
         item('/integrations/','Integrations','plug','integrations'),
-        `<a href="#" class="portal-muted" onclick="return false">${icon('portal')}Portal <span class="coming">coming soon</span></a>`
+        item('/portal/','Portal','portal','portal')
       ].join('');
       mobileNav = [
-        ['Monitor','/platform/',true,'monitor'],['Accelerator','/accelerator/',true,'accelerator'],['Agency Scorecard','/agency-scorecard/',state.reportReady,'scorecard'],['Agency Goals','/agency-goals/',true,'goals'],['Integration Information','/integration-information/',true,'integration-information'],['Integrations','/integrations/',true,'integrations']
+        ['Monitor','/platform/',true,'monitor'],['Accelerator','/accelerator/',true,'accelerator'],['Agency Scorecard','/agency-scorecard/',state.reportReady,'scorecard'],['Agency Goals','/agency-goals/',true,'goals'],['Integration Information','/integration-information/',true,'integration-information'],['Integrations','/integrations/',true,'integrations'],['Portal','/portal/',true,'portal']
       ];
     } else {
       desktopNav = [
@@ -80,10 +80,10 @@
         item('/agency-scorecard/','Agency Scorecard','score','scorecard',state.reportReady),
         item('/agency-goals/','Agency Goals','goals','goals',goalsReady),
         item('/platform/','Monitor','monitor','monitor',monitorReady),
-        item('#','Portal','portal','portal',false)
+        item('/portal/','Portal','portal','portal')
       ].join('');
       mobileNav = [
-        ['Integration Information','/integration-information/',true,'integration-information'],['Integrations','/integrations/',true,'integrations'],['Diagnostic','/diagnostic/',true,'diagnostic'],['Agency Scorecard','/agency-scorecard/',state.reportReady,'scorecard'],['Agency Goals','/agency-goals/',goalsReady,'goals'],['Monitor','/platform/',monitorReady,'monitor'],['Portal','#',false,'portal']
+        ['Integration Information','/integration-information/',true,'integration-information'],['Integrations','/integrations/',true,'integrations'],['Diagnostic','/diagnostic/',true,'diagnostic'],['Agency Scorecard','/agency-scorecard/',state.reportReady,'scorecard'],['Agency Goals','/agency-goals/',goalsReady,'goals'],['Monitor','/platform/',monitorReady,'monitor'],['Portal','/portal/',true,'portal']
       ];
       const paid = bool('ccPaymentComplete') || bool('agencyPaymentComplete');
       if (paid && (active === 'diagnostic' || active === 'integration-information')) status = diagnosticStatus(state);

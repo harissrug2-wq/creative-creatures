@@ -394,6 +394,7 @@ async function zoomConnectionAccess(c,accountId){const connection=await getZoomC
 async function loadZoomDashboard(c,accountId){const{connection,accessToken}=await zoomConnectionAccess(c,accountId),warnings=[];let user=null,meetings=[];try{user=await getZoomCurrentUser(accessToken)}catch(error){warnings.push(`user: ${error.message}`)}try{meetings=await listZoomMeetings(accessToken)}catch(error){warnings.push(`meetings: ${error.message}`)}const synced=await saveZoomConnection(c,accountId,{zoom_user_id:user?.id||connection.zoom_user_id,zoom_account_id:user?.accountId||connection.zoom_account_id,connected_email:user?.email||connection.connected_email,connected_name:user?.displayName||connection.connected_name,user_type:user?.type||connection.user_type,timezone:user?.timezone||connection.timezone,last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null,status:'connected'});return{connection:publicZoomConnection(synced),user,meetings,warnings}}
 
 
+
 const SLACK_SELECT='id,account_id,team_id,team_name,team_domain,enterprise_id,enterprise_name,bot_user_id,connected_user_id,access_token_encrypted,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
 async function getSlackConnection(c,accountId){const rows=await db(c,`slack_connections?select=${SLACK_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
 function publicSlackConnection(row){return row?{connected:row.status==='connected',teamId:row.team_id||'',teamName:row.team_name||'',teamDomain:row.team_domain||'',enterpriseId:row.enterprise_id||'',enterpriseName:row.enterprise_name||'',botUserId:row.bot_user_id||'',connectedUserId:row.connected_user_id||'',scopes:Array.isArray(row.scopes)?row.scopes:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,teamId:'',teamName:'',teamDomain:'',enterpriseId:'',enterpriseName:'',botUserId:'',connectedUserId:'',scopes:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
@@ -787,6 +788,28 @@ async function loadMonitorDepartment(c,accountId,department){
   };
 }
 
+const PARTNER_APP_SELECT='id,name,category,placement,summary,logo_url,learn_url,checkout_url,status,sort_order,updated_at';
+const partnerUrl=value=>{try{const url=new URL(clean(value));return url.protocol==='https:'?url.href:''}catch{return''}};
+const publicPartnerApp=(row,requested=false)=>({id:row.id,name:row.name,category:row.category,placement:row.placement,summary:row.summary||'',logoUrl:partnerUrl(row.logo_url),learnUrl:partnerUrl(row.learn_url),checkoutUrl:partnerUrl(row.checkout_url),requested:Boolean(requested),updatedAt:row.updated_at||null});
+async function loadPartnerPortal(c,accountId){
+  const [apps,referrals]=await Promise.all([
+    db(c,`partner_apps?select=${PARTNER_APP_SELECT}&status=eq.active&order=sort_order.asc,name.asc`),
+    db(c,`partner_referrals?select=partner_app_id,status,created_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.desc`)
+  ]);
+  const requested=new Set((Array.isArray(referrals)?referrals:[]).filter(row=>['requested','contacted','converted'].includes(row.status)).map(row=>row.partner_app_id));
+  return{apps:(Array.isArray(apps)?apps:[]).map(row=>publicPartnerApp(row,requested.has(row.id))),generatedAt:new Date().toISOString()};
+}
+async function savePartnerReferral(c,accountId,partnerAppId,intent){
+  const id=clean(partnerAppId);if(!/^[a-z0-9-]{2,80}$/.test(id))throw Object.assign(new Error('Partner application is invalid.'),{status:422});
+  const apps=await db(c,`partner_apps?select=id,status&id=eq.${encodeURIComponent(id)}&status=eq.active&limit=1`),app=Array.isArray(apps)?apps[0]:null;
+  if(!app)throw Object.assign(new Error('That strategic partner is not currently available.'),{status:404});
+  const value=intent==='purchase'?'purchase':'information',now=new Date().toISOString();
+  const existing=await db(c,`partner_referrals?select=id,status&account_id=eq.${encodeURIComponent(accountId)}&partner_app_id=eq.${encodeURIComponent(id)}&intent=eq.${value}&status=in.(requested,contacted)&limit=1`);
+  if(Array.isArray(existing)&&existing[0]){await db(c,`partner_referrals?id=eq.${encodeURIComponent(existing[0].id)}`,{method:'PATCH',body:JSON.stringify({updated_at:now})});return{saved:true,id:existing[0].id,status:existing[0].status}}
+  const rows=await db(c,'partner_referrals?select=id,status,created_at',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,partner_app_id:id,intent:value,status:'requested',created_at:now,updated_at:now})});
+  return{saved:true,...(Array.isArray(rows)?rows[0]||{}:{})};
+}
+
 export default async function handler(req,res){
   res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');
   if(req.method==='OPTIONS')return json(res,204,{});
@@ -796,6 +819,8 @@ export default async function handler(req,res){
     const session=currentSession(req,secret);
     const action=clean(req.query?.action);
     if(req.method==='GET'){
+
+      if(action==='partner_portal'){if(!session)return json(res,401,{error:'Sign in before opening the Partner Portal.'});return json(res,200,{success:true,...await loadPartnerPortal(c,session.accountId)})}
 
       if(action==='monday_connect'){if(!session)return json(res,401,{error:'Sign in before connecting monday.com.'});if(!mondayConfig())return json(res,503,{error:'monday.com environment variables are not configured.'});return json(res,200,{authorizationUrl:createMondayAuthorizationUrl(session.accountId)});}
       if(action==='monday_status'){if(!session)return json(res,401,{error:'Sign in before viewing monday.com status.'});const connection=await getMondayConnection(c,session.accountId);return json(res,200,{connection:publicMondayConnection(connection)});}
@@ -914,6 +939,7 @@ export default async function handler(req,res){
     }
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
     const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const bodyAction=clean(b.action);
+    if(bodyAction==='partner_referral'){if(!session)return json(res,401,{error:'Sign in before contacting a strategic partner.'});return json(res,200,{success:true,referral:await savePartnerReferral(c,session.accountId,b.partnerAppId,clean(b.intent))})}
 
     if(bodyAction==='monitor_department'){
       if(!session)return json(res,401,{error:'Sign in before viewing Monitor department data.'});
@@ -988,6 +1014,7 @@ export default async function handler(req,res){
     if(bodyAction==='zoom_save_meeting'){if(!session)return json(res,401,{error:'Sign in before changing Zoom meetings.'});const{accessToken}=await zoomConnectionAccess(c,session.accountId),meeting=b.meeting||{},meetingId=clean(meeting.id);const result=meetingId?await updateZoomMeeting(accessToken,meetingId,meeting):await createZoomMeeting(accessToken,meeting);return json(res,200,{success:true,meeting:result})}
     if(bodyAction==='zoom_delete_meeting'){if(!session)return json(res,401,{error:'Sign in before deleting Zoom meetings.'});const{accessToken}=await zoomConnectionAccess(c,session.accountId);return json(res,200,{success:true,...await deleteZoomMeeting(accessToken,clean(b.meetingId))})}
     if(bodyAction==='zoom_disconnect'){if(!session)return json(res,401,{error:'Sign in before disconnecting Zoom.'});const connection=await getZoomConnection(c,session.accountId),zc=zoomConfig();if(connection&&zc){try{await revokeZoomToken(decryptZoomToken(connection.refresh_token_encrypted,zc.encryptionSecret))}catch{}}await deleteZoomConnection(c,session.accountId);return json(res,200,{success:true,connection:publicZoomConnection(null)})}
+
 
     if(bodyAction==='slack_callback'){
       if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Slack.'});

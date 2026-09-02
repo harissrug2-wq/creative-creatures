@@ -71,7 +71,7 @@
             <a href="${scorecardHref}" class="top-link ${scorecardUnlocked?'':'locked-link'}" aria-disabled="${scorecardUnlocked?'false':'true'}">${ico('score')} Agency Scorecard</a>
             <a href="${goalsUnlocked?'/agency-goals/':'#'}" class="top-link ${goalsUnlocked?'':'locked-link'}" aria-disabled="${goalsUnlocked?'false':'true'}">${ico('goals')} Agency Goals</a>
             <a href="/platform/" class="top-link active">${ico('monitor')} Monitor</a>
-            <button class="top-link locked-link" aria-disabled="true">${ico('dashboard')} Portal</button>
+            <a href="/portal/" class="top-link">${ico('dashboard')} Portal</a>
           </nav><button class="ask-button" id="askButton">${ico('spark')} Ask Creature</button></header>
           <main class="page-wrap">${content}</main>
         </div>
