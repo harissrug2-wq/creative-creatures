@@ -76,6 +76,7 @@
       desktopNav = [
         item('/integration-information/','Integration Information','plug','integration-information'),
         item('/integrations/','Integrations','plug','integrations'),
+        item('/accelerator/','Accelerator','diagnostic','accelerator'),
         item('/diagnostic/','Diagnostic','diagnostic','diagnostic'),
         item('/agency-scorecard/','Agency Scorecard','score','scorecard',state.reportReady),
         item('/agency-goals/','Agency Goals','goals','goals',goalsReady),
@@ -83,7 +84,7 @@
         item('/portal/','Portal','portal','portal')
       ].join('');
       mobileNav = [
-        ['Integration Information','/integration-information/',true,'integration-information'],['Integrations','/integrations/',true,'integrations'],['Diagnostic','/diagnostic/',true,'diagnostic'],['Agency Scorecard','/agency-scorecard/',state.reportReady,'scorecard'],['Agency Goals','/agency-goals/',goalsReady,'goals'],['Monitor','/platform/',monitorReady,'monitor'],['Portal','/portal/',true,'portal']
+        ['Integration Information','/integration-information/',true,'integration-information'],['Integrations','/integrations/',true,'integrations'],['Accelerator','/accelerator/',true,'accelerator'],['Diagnostic','/diagnostic/',true,'diagnostic'],['Agency Scorecard','/agency-scorecard/',state.reportReady,'scorecard'],['Agency Goals','/agency-goals/',goalsReady,'goals'],['Monitor','/platform/',monitorReady,'monitor'],['Portal','/portal/',true,'portal']
       ];
       const paid = bool('ccPaymentComplete') || bool('agencyPaymentComplete');
       if (paid && (active === 'diagnostic' || active === 'integration-information')) status = diagnosticStatus(state);

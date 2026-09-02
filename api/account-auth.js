@@ -788,6 +788,46 @@ async function loadMonitorDepartment(c,accountId,department){
   };
 }
 
+const ACCELERATOR_ENROLLMENT_SELECT='id,account_id,facilitator_id,cohort_name,cohort_size,status,payment_plan,package_price_cents,package_checkout_url,package_paid_at,started_at,target_completion_at,completed_at,created_at,updated_at';
+const ACCELERATOR_SESSION_SELECT='session_number,title,summary,price_cents,checkout_url,primary_action_label,primary_action_url,secondary_action_label,secondary_action_url,updated_at';
+const ACCELERATOR_PROGRESS_SELECT='session_number,status,scheduled_at,paid_at,amount_paid_cents,completed_at,notes,updated_at';
+const safeHttpsUrl=value=>{try{const url=new URL(clean(value));return url.protocol==='https:'?url.href:''}catch{return''}};
+const publicAcceleratorEnrollment=row=>row?{id:row.id,status:row.status,paymentPlan:row.payment_plan,cohortName:row.cohort_name||'',cohortSize:row.cohort_size||null,packagePriceCents:Number(row.package_price_cents)||0,packageCheckoutUrl:safeHttpsUrl(row.package_checkout_url),packagePaidAt:row.package_paid_at||null,startedAt:row.started_at||null,targetCompletionAt:row.target_completion_at||null,completedAt:row.completed_at||null,updatedAt:row.updated_at||null}:null;
+const publicAcceleratorFacilitator=row=>row?{name:row.name,title:row.title||'',experienceSummary:row.experience_summary||'',photoUrl:safeHttpsUrl(row.photo_url),highlights:Array.isArray(row.highlights)?row.highlights.map(clean).filter(Boolean).slice(0,8):[]}:null;
+const acceleratorActionUrl=value=>{const url=clean(value);return url.startsWith('/')&&!url.startsWith('//')?url:safeHttpsUrl(url)};
+async function loadAccelerator(c,accountId){
+  const [accountRows,enrollmentRows,sessions]=await Promise.all([
+    db(c,`accounts?select=id,archetype_result,diagnostic_state&id=eq.${encodeURIComponent(accountId)}&limit=1`),
+    db(c,`accelerator_enrollments?select=${ACCELERATOR_ENROLLMENT_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`),
+    db(c,`accelerator_program_sessions?select=${ACCELERATOR_SESSION_SELECT}&order=session_number.asc`)
+  ]);
+  const account=Array.isArray(accountRows)?accountRows[0]||{}:{},enrollment=Array.isArray(enrollmentRows)?enrollmentRows[0]||null:null;
+  let facilitator=null,progress=[];
+  if(enrollment){
+    const tasks=[db(c,`accelerator_session_progress?select=${ACCELERATOR_PROGRESS_SELECT}&enrollment_id=eq.${encodeURIComponent(enrollment.id)}&order=session_number.asc`)];
+    if(enrollment.facilitator_id)tasks.push(db(c,`accelerator_facilitators?select=name,title,experience_summary,photo_url,highlights,status&id=eq.${encodeURIComponent(enrollment.facilitator_id)}&status=eq.active&limit=1`));
+    const results=await Promise.all(tasks);progress=Array.isArray(results[0])?results[0]:[];if(results[1])facilitator=Array.isArray(results[1])?results[1][0]||null:null;
+  }
+  const progressBySession=new Map(progress.map(row=>[Number(row.session_number),row]));
+  const archetype=account.archetype_result&&typeof account.archetype_result==='object'?account.archetype_result:{};
+  const diagnostic=account.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
+  return{
+    enrollment:publicAcceleratorEnrollment(enrollment),facilitator:publicAcceleratorFacilitator(facilitator),
+    foundationComplete:Boolean(archetype.name||archetype.title||archetype.archetype||archetype.primary),
+    integrationsComplete:Boolean(diagnostic.integrationsComplete||diagnostic.integrationComplete||diagnostic.integrations_complete),
+    sessions:(Array.isArray(sessions)?sessions:[]).map(row=>{const item=progressBySession.get(Number(row.session_number));return{sessionNumber:Number(row.session_number),title:row.title,summary:row.summary,priceCents:Number(row.price_cents)||0,checkoutUrl:safeHttpsUrl(row.checkout_url),primaryActionLabel:row.primary_action_label||'',primaryActionUrl:acceleratorActionUrl(row.primary_action_url),secondaryActionLabel:row.secondary_action_label||'',secondaryActionUrl:acceleratorActionUrl(row.secondary_action_url),status:item?.status||(Number(row.session_number)===0?'available':'locked'),scheduledAt:item?.scheduled_at||null,paidAt:item?.paid_at||null,amountPaidCents:Number(item?.amount_paid_cents)||0,completedAt:item?.completed_at||null,notes:item?.notes||'',updatedAt:item?.updated_at||row.updated_at||null}})
+  };
+}
+async function chooseAcceleratorPlan(c,accountId,paymentPlan){
+  const plan=paymentPlan==='package'?'package':paymentPlan==='pay_as_you_go'?'pay_as_you_go':'';if(!plan)throw Object.assign(new Error('Choose the package or pay-as-you-go plan.'),{status:422});
+  const existingRows=await db(c,`accelerator_enrollments?select=${ACCELERATOR_ENROLLMENT_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`),existing=Array.isArray(existingRows)?existingRows[0]||null:null,now=new Date().toISOString();
+  let saved;
+  if(existing){const rows=await db(c,`accelerator_enrollments?id=eq.${encodeURIComponent(existing.id)}&select=${ACCELERATOR_ENROLLMENT_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({payment_plan:plan,status:existing.status==='cancelled'?'active':existing.status,started_at:existing.started_at||now,updated_at:now})});saved=Array.isArray(rows)?rows[0]||existing:existing}
+  else{const rows=await db(c,`accelerator_enrollments?select=${ACCELERATOR_ENROLLMENT_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,payment_plan:plan,status:'active',started_at:now,created_at:now,updated_at:now})});saved=Array.isArray(rows)?rows[0]||null:null}
+  if(saved){await db(c,'accelerator_session_progress?on_conflict=enrollment_id,session_number',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([{enrollment_id:saved.id,session_number:0,status:'available',created_at:now,updated_at:now},{enrollment_id:saved.id,session_number:1,status:'available',created_at:now,updated_at:now}])})}
+  return publicAcceleratorEnrollment(saved);
+}
+
 const PARTNER_APP_SELECT='id,name,category,placement,summary,logo_url,learn_url,checkout_url,status,sort_order,updated_at';
 const partnerUrl=value=>{try{const url=new URL(clean(value));return url.protocol==='https:'?url.href:''}catch{return''}};
 const publicPartnerApp=(row,requested=false)=>({id:row.id,name:row.name,category:row.category,placement:row.placement,summary:row.summary||'',logoUrl:partnerUrl(row.logo_url),learnUrl:partnerUrl(row.learn_url),checkoutUrl:partnerUrl(row.checkout_url),requested:Boolean(requested),updatedAt:row.updated_at||null});
@@ -819,6 +859,8 @@ export default async function handler(req,res){
     const session=currentSession(req,secret);
     const action=clean(req.query?.action);
     if(req.method==='GET'){
+
+      if(action==='accelerator'){if(!session)return json(res,401,{error:'Sign in before opening the Breakthrough Accelerator.'});return json(res,200,{success:true,...await loadAccelerator(c,session.accountId)})}
 
       if(action==='partner_portal'){if(!session)return json(res,401,{error:'Sign in before opening the Partner Portal.'});return json(res,200,{success:true,...await loadPartnerPortal(c,session.accountId)})}
 
@@ -939,6 +981,7 @@ export default async function handler(req,res){
     }
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
     const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const bodyAction=clean(b.action);
+    if(bodyAction==='accelerator_choose_plan'){if(!session)return json(res,401,{error:'Sign in before choosing an Accelerator payment plan.'});return json(res,200,{success:true,enrollment:await chooseAcceleratorPlan(c,session.accountId,clean(b.paymentPlan))})}
     if(bodyAction==='partner_referral'){if(!session)return json(res,401,{error:'Sign in before contacting a strategic partner.'});return json(res,200,{success:true,referral:await savePartnerReferral(c,session.accountId,b.partnerAppId,clean(b.intent))})}
 
     if(bodyAction==='monitor_department'){

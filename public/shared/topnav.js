@@ -28,6 +28,7 @@
 
   const links = [
     ['monitor', '/platform/', 'Monitor', icons.monitor],
+    ['accelerator', '/accelerator/', 'Accelerator', icons.diagnostic],
     ['diagnostic', '/diagnostic/', 'Diagnostic', icons.diagnostic],
     ['scorecard', '/agency-scorecard/', 'Agency Scorecard', icons.score],
     ['goals', '/agency-goals/', 'Agency Goals', icons.goals],
