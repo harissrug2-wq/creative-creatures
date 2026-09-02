@@ -7,6 +7,7 @@
   <link rel="icon" href="/favicon.svg">
   <link rel="stylesheet" href="/portal/base.css">
   <link rel="stylesheet" href="/accelerator/accelerator-live.css">
+  <link rel="stylesheet" href="/accelerator/accelerator-workspace.css">
 </head>
 <body>
   <div data-app-header="accelerator"></div>
@@ -26,6 +27,19 @@
       <aside class="acc-boundary"><strong>Source boundary</strong> Session dates, facilitator details, completion, and payment status appear only when saved for this agency. Missing values remain unassigned.</aside>
     </section>
   </main>
+  <dialog id="workspaceDialog" class="acc-dialog">
+    <div class="acc-dialog-head"><div><span class="acc-eyebrow">SESSION WORKSPACE</span><h2 id="workspaceTitle"></h2><p id="workspaceSubtitle"></p></div><button id="closeWorkspace" type="button" aria-label="Close">×</button></div>
+    <div class="acc-form-grid">
+      <label class="full">Desired outcome<input id="desiredOutcome" maxlength="1000" placeholder="What must be true when this session ends?"></label>
+      <label>Preparation notes<textarea id="prepNotes" maxlength="5000" placeholder="Evidence, context, and preparation…"></textarea></label>
+      <label>Questions for the session<textarea id="sessionQuestions" maxlength="5000" placeholder="Questions to address with the facilitator…"></textarea></label>
+      <label>Decisions<textarea id="sessionDecisions" maxlength="5000" placeholder="Decisions made during the session…"></textarea></label>
+      <label>Session notes<textarea id="sessionNotes" maxlength="5000" placeholder="Working notes and observations…"></textarea></label>
+    </div>
+    <div class="acc-action-head"><div><span class="acc-eyebrow">FOLLOW-THROUGH</span><h3>Action items</h3></div><button id="addAction" class="acc-btn" type="button">+ Add action</button></div>
+    <div id="actionRows" class="acc-action-rows"></div>
+    <div class="acc-dialog-actions"><span id="workspaceSaveState"></span><button id="cancelWorkspace" class="acc-btn" type="button">Close</button><button id="saveWorkspace" class="acc-btn" type="button">Save draft</button><button id="statusButton" class="acc-btn primary" type="button">Start session</button></div>
+  </dialog>
   <script src="/portal/diagnostic-state.js"></script>
   <script src="/portal/app-shell.js"></script>
   <script src="/accelerator/accelerator-live.js"></script>
