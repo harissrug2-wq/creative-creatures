@@ -102,7 +102,7 @@
   <script>
     const safeJson=(v,f)=>{try{return JSON.parse(v)??f}catch{return f}};
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const selected=Array.from(new Set(safeJson(localStorage.getItem('agencySelectedTools'),[]).map(x=>x==='GoHighLevel'?'CRM Connector':x))).filter(Boolean);
+    const selected=Array.from(new Set(safeJson(localStorage.getItem('agencySelectedTools'),[]).map(x=>x==='GoHighLevel'||x==='CRM Connector'?'GHL CRM':x))).filter(Boolean);
 
     const meta={
       'QuickBooks Online':{group:'Finance & Billing',code:'QB',color:'#2ca01c',copy:'OAuth2 · P&L · A/R · expenses',status:'quickbooks_status',connect:'quickbooks_connect',sync:'quickbooks_sync',disconnect:'quickbooks_disconnect'},
@@ -115,7 +115,7 @@
       'PayPal':{group:'Finance & Billing',code:'PP',color:'#0070ba',copy:'Payments · transactions'},
       'Chargebee':{group:'Finance & Billing',code:'Cb',color:'#6c48ff',copy:'Subscriptions · invoices'},
       'Bill.com':{group:'Finance & Billing',code:'Bi',color:'#0068ff',copy:'AP · AR · payments'},
-      'CRM Connector':{group:'CRM',code:'CR',color:'#168ce5',copy:'OAuth2 · location-scoped · contacts · opportunities · pipelines',status:'ghl_status',connect:'ghl_connect',sync:'ghl_sync',disconnect:'ghl_disconnect',manage:'ghl'},
+      'GHL CRM':{group:'CRM',code:'GH',color:'#168ce5',copy:'OAuth2 · location-scoped · contacts · opportunities · pipelines',status:'ghl_status',connect:'ghl_connect',sync:'ghl_sync',disconnect:'ghl_disconnect',manage:'ghl'},
       'HubSpot':{group:'CRM',code:'Hs',color:'#ff5c35',copy:'OAuth2 · contacts · companies · deals · pipelines',status:'hubspot_status',connect:'hubspot_connect',sync:'hubspot_dashboard',disconnect:'hubspot_disconnect',manage:'hubspot'},
       'Salesforce':{group:'CRM',code:'Sf',color:'#00a1e0',copy:'CRM · accounts · opportunities'},
       'Pipedrive':{group:'CRM',code:'Pd',color:'#22a06b',copy:'Deals · contacts · activities'},
@@ -273,7 +273,7 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',crm:'CRM Connector',ghl:'CRM Connector',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com',jira:'Jira',zoom:'Zoom'};
+      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',crm:'GHL CRM',ghl:'GHL CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com',jira:'Jira',zoom:'Zoom'};
       let changed=false;
       Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
@@ -288,7 +288,7 @@
       try{
         if(tool==='Google Calendar')return manageCalendar();
         if(tool==='Google Drive')return manageDrive();
-        if(tool==='CRM Connector')return manageGhl();
+        if(tool==='GHL CRM')return manageGhl();
         if(tool==='HubSpot')return manageHubSpot();
         if(tool==='Zoho CRM')return manageZoho();
         if(tool==='FreshBooks')return manageFreshBooks();
@@ -357,8 +357,8 @@
     let ghlData={contacts:[],opportunities:[],pipelines:[],connection:null},ghlTab='opportunities';
     const ghlStageLabel=id=>{for(const pipeline of ghlData.pipelines)for(const stage of pipeline.stages||[])if(stage.id===id)return stage.name||stage.label;return id||'No stage'};
     async function manageGhl(){
-      modalTitle.textContent='CRM Connector';modalCopy.textContent='Manage live CRM records in the location connected to this Creative Creatures agency.';
-      const r=await apiPost('ghl_dashboard');ghlData={contacts:r.contacts||[],opportunities:r.opportunities||[],pipelines:r.pipelines||[],connection:r.connection||null};stateMap.set('CRM Connector',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      modalTitle.textContent='GHL CRM';modalCopy.textContent='Manage live CRM records in the location connected to this Creative Creatures agency.';
+      const r=await apiPost('ghl_dashboard');ghlData={contacts:r.contacts||[],opportunities:r.opportunities||[],pipelines:r.pipelines||[],connection:r.connection||null};stateMap.set('GHL CRM',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
       const open=ghlData.opportunities.filter(x=>String(x.status||'open').toLowerCase()==='open'),value=open.reduce((sum,x)=>sum+Number(x.monetaryValue||0),0),currency=ghlData.connection?.currency||'USD';
       modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${ghlData.contacts.length}</strong><span>Contacts loaded</span></div><div class="metric"><strong>${ghlData.opportunities.length}</strong><span>Opportunities loaded</span></div><div class="metric"><strong>${open.length}</strong><span>Open opportunities</span></div><div class="metric"><strong>${esc(currency)} ${value.toLocaleString()}</strong><span>Open pipeline value</span></div></div><div class="data-item" style="margin-bottom:12px"><strong>${esc(ghlData.connection?.locationName||'Connected CRM location')}</strong><span>${esc([ghlData.connection?.locationEmail,ghlData.connection?.timezone].filter(Boolean).join(' · '))}</span></div><div class="toolbar"><div class="tabs" style="margin:0;flex:1"><button class="btn" data-ghl-tab="opportunities">Opportunities</button><button class="btn" data-ghl-tab="contacts">Contacts</button><button class="btn" data-ghl-tab="pipelines">Pipelines</button></div><button class="btn primary" id="ghlNew"></button></div><div class="data-list" id="ghlList"></div>`;
       document.querySelectorAll('[data-ghl-tab]').forEach(b=>b.onclick=()=>drawGhl(b.dataset.ghlTab));drawGhl(ghlTab);
