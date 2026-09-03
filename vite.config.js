@@ -77,6 +77,7 @@ export default defineConfig({
         mondayCallback: resolve(__dirname, 'integrations', 'monday', 'callback', 'index.html'),
         jiraCallback: resolve(__dirname, 'integrations', 'jira', 'callback', 'index.html'),
         zoomCallback: resolve(__dirname, 'integrations', 'zoom', 'callback', 'index.html'),
+        crmDocs: resolve(__dirname, 'docs', 'crm', 'index.html'),
         privacyPolicy: page('privacy-policy'),
         terms: page('terms'),
         support: page('support'),

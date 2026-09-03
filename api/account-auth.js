@@ -3,6 +3,7 @@ import { sendEmail, escapeHtml } from '../lib/email-service.js';
 import { accountSessionSecret, clearSessionCookie, hashPassword, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
 import { createJiraAuthorizationUrl, decryptJiraToken, encryptJiraToken, exchangeJiraCode, getJiraCurrentUser, jiraConfig, jiraTokenExpiry, listJiraIssues, listJiraIssueTypes, listJiraProjects, listJiraResources, listJiraTransitions, refreshJiraTokens, saveJiraIssue, transitionJiraIssue, verifyJiraOAuthState } from '../lib/jira.js';
 import { createZoomAuthorizationUrl, createZoomMeeting, decryptZoomToken, deleteZoomMeeting, encryptZoomToken, exchangeZoomCode, getZoomCurrentUser, getZoomMeeting, listZoomMeetings, refreshZoomTokens, revokeZoomToken, updateZoomMeeting, verifyZoomOAuthState, zoomConfig, zoomTokenExpiry } from '../lib/zoom.js';
+import { archiveGhlContact, archiveGhlOpportunity, createGhlAuthorizationUrl, decryptGhlToken, encryptGhlToken, exchangeGhlCode, getGhlLocation, ghlConfig, ghlTokenExpiry, listGhlContacts, listGhlOpportunities, listGhlPipelines, refreshGhlTokens, saveGhlContact, saveGhlOpportunity, verifyGhlOAuthState, verifyGhlWebhookSignature } from '../lib/ghl.js';
 import {
   createMondayAuthorizationUrl,
   decryptMondayToken,
@@ -393,6 +394,15 @@ async function ensureZoomAccess(c,connection){const zc=zoomConfig();if(!zc)throw
 async function zoomConnectionAccess(c,accountId){const connection=await getZoomConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Zoom first.'),{status:409});return ensureZoomAccess(c,connection)}
 async function loadZoomDashboard(c,accountId){const{connection,accessToken}=await zoomConnectionAccess(c,accountId),warnings=[];let user=null,meetings=[];try{user=await getZoomCurrentUser(accessToken)}catch(error){warnings.push(`user: ${error.message}`)}try{meetings=await listZoomMeetings(accessToken)}catch(error){warnings.push(`meetings: ${error.message}`)}const synced=await saveZoomConnection(c,accountId,{zoom_user_id:user?.id||connection.zoom_user_id,zoom_account_id:user?.accountId||connection.zoom_account_id,connected_email:user?.email||connection.connected_email,connected_name:user?.displayName||connection.connected_name,user_type:user?.type||connection.user_type,timezone:user?.timezone||connection.timezone,last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null,status:'connected'});return{connection:publicZoomConnection(synced),user,meetings,warnings}}
 
+const GHL_SELECT='id,account_id,location_id,company_id,location_name,location_email,location_phone,timezone,currency,country,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,scopes,user_id,user_type,status,last_synced_at,last_sync_error,created_at,updated_at';
+async function getGhlConnection(c,accountId){const rows=await db(c,`ghl_connections?select=${GHL_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
+function publicGhlConnection(row){return row?{connected:row.status==='connected',locationId:row.location_id||'',companyId:row.company_id||'',locationName:row.location_name||'',locationEmail:row.location_email||'',locationPhone:row.location_phone||'',timezone:row.timezone||'',currency:row.currency||'',country:row.country||'',userId:row.user_id||'',userType:row.user_type||'Location',scopes:Array.isArray(row.scopes)?row.scopes:[],status:row.status||'connected',lastSyncedAt:row.last_synced_at||null,lastSyncError:row.last_sync_error||'',updatedAt:row.updated_at||null}:{connected:false,locationId:'',companyId:'',locationName:'',locationEmail:'',locationPhone:'',timezone:'',currency:'',country:'',userId:'',userType:'Location',scopes:[],status:'disconnected',lastSyncedAt:null,lastSyncError:''}}
+async function saveGhlConnection(c,accountId,patch){const existing=await getGhlConnection(c,accountId),now=new Date().toISOString();if(existing){const rows=await db(c,`ghl_connections?id=eq.${encodeURIComponent(existing.id)}&select=${GHL_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({...patch,updated_at:now})});return Array.isArray(rows)?rows[0]||existing:existing}const rows=await db(c,`ghl_connections?select=${GHL_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,status:'connected',...patch,created_at:now,updated_at:now})});return Array.isArray(rows)?rows[0]||null:null}
+async function deleteGhlConnection(c,accountId){await db(c,`ghl_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'})}
+async function ensureGhlAccess(c,connection){const gc=ghlConfig();if(!gc)throw new Error('CRM Connector is not configured.');const expires=Date.parse(connection.access_token_expires_at||'');if(Number.isFinite(expires)&&expires>Date.now()+120000)return{connection,accessToken:decryptGhlToken(connection.access_token_encrypted,gc.encryptionSecret)};if(!connection.refresh_token_encrypted)throw Object.assign(new Error('CRM access expired. Reconnect CRM Connector.'),{status:401});const tokens=await refreshGhlTokens(decryptGhlToken(connection.refresh_token_encrypted,gc.encryptionSecret));const updated=await saveGhlConnection(c,connection.account_id,{access_token_encrypted:encryptGhlToken(tokens.access_token,gc.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptGhlToken(tokens.refresh_token,gc.encryptionSecret):connection.refresh_token_encrypted,access_token_expires_at:ghlTokenExpiry(tokens),scopes:clean(tokens.scope).split(/\s+/).filter(Boolean),status:'connected',last_sync_error:null});return{connection:updated,accessToken:tokens.access_token}}
+async function ghlConnectionAccess(c,accountId){const connection=await getGhlConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect CRM Connector first.'),{status:409});return ensureGhlAccess(c,connection)}
+async function loadGhlDashboard(c,accountId){const{connection,accessToken}=await ghlConnectionAccess(c,accountId),warnings=[],load=async(label,fn)=>{try{return await fn()}catch(error){warnings.push(`${label}: ${error.message}`);return[]}};const[pipelines,contacts,opportunities]=await Promise.all([load('pipelines',()=>listGhlPipelines(accessToken,connection.location_id)),load('contacts',()=>listGhlContacts(accessToken,connection.location_id)),load('opportunities',()=>listGhlOpportunities(accessToken,connection.location_id))]);const synced=await saveGhlConnection(c,accountId,{last_synced_at:new Date().toISOString(),last_sync_error:warnings.length?warnings.join(' | '):null,status:'connected'});return{connection:publicGhlConnection(synced),pipelines,contacts,opportunities,warnings}}
+
 
 
 const SLACK_SELECT='id,account_id,team_id,team_name,team_domain,enterprise_id,enterprise_name,bot_user_id,connected_user_id,access_token_encrypted,scopes,status,last_synced_at,last_sync_error,created_at,updated_at';
@@ -687,7 +697,8 @@ async function monitorProjectSource(c,accountId,warnings){
 async function monitorCrmSource(c,accountId,warnings){
   const candidates=[
     {name:'HubSpot',get:getHubSpotConnection,public:publicHubSpotConnection,load:loadHubSpotDashboard},
-    {name:'Zoho CRM',get:getZohoConnection,public:publicZohoConnection,load:loadZohoDashboard}
+    {name:'Zoho CRM',get:getZohoConnection,public:publicZohoConnection,load:loadZohoDashboard},
+    {name:'CRM Connector',get:getGhlConnection,public:publicGhlConnection,load:loadGhlDashboard}
   ];
   for(const candidate of candidates){
     const connection=await monitorConnection(c,accountId,candidate.get,candidate.public);if(!connection.connected)continue;
@@ -717,6 +728,7 @@ async function monitorSystemsSource(c,accountId){
   const definitions=[
     ['HubSpot',getHubSpotConnection,publicHubSpotConnection],
     ['Zoho CRM',getZohoConnection,publicZohoConnection],
+    ['CRM Connector',getGhlConnection,publicGhlConnection],
     ['QuickBooks',getQuickBooksConnection,publicQuickBooksConnection],
     ['FreshBooks',getFreshBooksConnection,publicFreshBooksConnection],
     ['ClickUp',getClickUpConnection,publicClickUpConnection],
@@ -875,14 +887,36 @@ async function savePartnerReferral(c,accountId,partnerAppId,intent){
 }
 
 export default async function handler(req,res){
-  res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');
+  res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,X-GHL-Signature');
   if(req.method==='OPTIONS')return json(res,204,{});
   const c=cfg();const secret=accountSessionSecret();if(!c||!secret)return json(res,503,{error:'Account authentication is not configured.'});
   try{
     if(req.method==='DELETE'){clearSessionCookie(res,'cc_account_session');return json(res,200,{success:true})}
     const session=currentSession(req,secret);
     const action=clean(req.query?.action);
+    if(req.method==='POST'&&action==='webhook'){
+      const event=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{}),serialized=JSON.stringify(event),signature=clean(req.headers['x-ghl-signature']);
+      if(!verifyGhlWebhookSignature(serialized,signature))return json(res,401,{error:'Invalid webhook signature.'});
+      const eventType=clean(event.type||event.eventType||'Unknown').slice(0,120),locationId=clean(event.locationId).slice(0,120),resourceId=clean(event.contactId||event.opportunityId||event.id).slice(0,160);
+      const webhookId=clean(event.webhookId||event.webhook_id)||crypto.createHash('sha256').update(serialized).digest('hex');
+      await db(c,`ghl_webhook_events?on_conflict=webhook_id`,{method:'POST',headers:{Prefer:'resolution=ignore-duplicates'},body:JSON.stringify({webhook_id:webhookId,event_type:eventType,location_id:locationId||null,resource_id:resourceId||null,processed_at:new Date().toISOString()})});
+      if(locationId){if(eventType==='AppUninstall')await db(c,`ghl_connections?location_id=eq.${encodeURIComponent(locationId)}`,{method:'DELETE'});else await db(c,`ghl_connections?location_id=eq.${encodeURIComponent(locationId)}`,{method:'PATCH',body:JSON.stringify({last_synced_at:new Date().toISOString(),last_sync_error:null,updated_at:new Date().toISOString()})})}
+      return json(res,200,{received:true});
+    }
     if(req.method==='GET'){
+
+      if(action==='callback'){
+        if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect CRM Connector.'});
+        const code=clean(req.query?.code),state=clean(req.query?.state),providerError=clean(req.query?.error_description||req.query?.error);
+        if(providerError)return json(res,400,{error:providerError});
+        if(!code||!state)return json(res,422,{error:'The CRM provider did not return the required authorization values.'});
+        if(!verifyGhlOAuthState(state,session.accountId))return json(res,403,{error:'CRM authorization state is invalid or expired.'});
+        const gc=ghlConfig(),tokens=await exchangeGhlCode(code),locationId=clean(tokens.locationId||tokens.location_id);
+        if(!locationId||!tokens.refresh_token)return json(res,409,{error:'The CRM provider did not return a location and refresh token.'});
+        let location={};try{location=await getGhlLocation(tokens.access_token,locationId)}catch{}
+        await saveGhlConnection(c,session.accountId,{location_id:locationId,company_id:clean(tokens.companyId||tokens.company_id),location_name:clean(location.name),location_email:clean(location.email),location_phone:clean(location.phone),timezone:clean(location.timezone),currency:clean(location.currency),country:clean(location.country),access_token_encrypted:encryptGhlToken(tokens.access_token,gc.encryptionSecret),refresh_token_encrypted:encryptGhlToken(tokens.refresh_token,gc.encryptionSecret),access_token_expires_at:ghlTokenExpiry(tokens),scopes:clean(tokens.scope).split(/\s+/).filter(Boolean),user_id:clean(tokens.userId||tokens.user_id),user_type:clean(tokens.userType||tokens.user_type)||'Location',status:'connected',last_sync_error:null});
+        res.statusCode=302;res.setHeader('Location','/integrations/?crm=connected');return res.end();
+      }
 
       if(action==='accelerator'){if(!session)return json(res,401,{error:'Sign in before opening the Breakthrough Accelerator.'});return json(res,200,{success:true,...await loadAccelerator(c,session.accountId)})}
 
@@ -916,6 +950,8 @@ export default async function handler(req,res){
       if(action==='jira_status'){if(!session)return json(res,401,{error:'Sign in before viewing Jira status.'});return json(res,200,{connection:publicJiraConnection(await getJiraConnection(c,session.accountId))})}
       if(action==='zoom_connect'){if(!session)return json(res,401,{error:'Sign in before connecting Zoom.'});if(!zoomConfig())return json(res,503,{error:'Zoom environment variables are not configured.'});return json(res,200,{authorizationUrl:createZoomAuthorizationUrl(session.accountId)})}
       if(action==='zoom_status'){if(!session)return json(res,401,{error:'Sign in before viewing Zoom status.'});return json(res,200,{connection:publicZoomConnection(await getZoomConnection(c,session.accountId))})}
+      if(action==='ghl_connect'){if(!session)return json(res,401,{error:'Sign in before connecting CRM Connector.'});if(!ghlConfig())return json(res,503,{error:'CRM Connector environment variables are not configured.'});return json(res,200,{authorizationUrl:createGhlAuthorizationUrl(session.accountId)})}
+      if(action==='ghl_status'){if(!session)return json(res,401,{error:'Sign in before viewing CRM Connector status.'});return json(res,200,{connection:publicGhlConnection(await getGhlConnection(c,session.accountId))})}
 
       if(action==='slack_connect'){
         if(!session)return json(res,401,{error:'Sign in before connecting Slack.'});
@@ -1076,6 +1112,13 @@ export default async function handler(req,res){
     if(bodyAction==='jira_transitions'){if(!session)return json(res,401,{error:'Sign in before viewing Jira transitions.'});const{connection,accessToken}=await jiraConnectionAccess(c,session.accountId);return json(res,200,{transitions:await listJiraTransitions(accessToken,connection.cloud_id,clean(b.issueKey))})}
     if(bodyAction==='jira_transition_issue'){if(!session)return json(res,401,{error:'Sign in before changing Jira issues.'});const{connection,accessToken}=await jiraConnectionAccess(c,session.accountId);await transitionJiraIssue(accessToken,connection.cloud_id,clean(b.issueKey),clean(b.transitionId));return json(res,200,{success:true})}
     if(bodyAction==='jira_disconnect'){if(!session)return json(res,401,{error:'Sign in before disconnecting Jira.'});await deleteJiraConnection(c,session.accountId);return json(res,200,{success:true,connection:publicJiraConnection(null)})}
+
+    if(bodyAction==='ghl_dashboard'||bodyAction==='ghl_sync'){if(!session)return json(res,401,{error:'Sign in before viewing CRM data.'});return json(res,200,{success:true,...await loadGhlDashboard(c,session.accountId)})}
+    if(bodyAction==='ghl_save_contact'){if(!session)return json(res,401,{error:'Sign in before changing CRM contacts.'});const{connection,accessToken}=await ghlConnectionAccess(c,session.accountId);return json(res,200,{success:true,contact:await saveGhlContact(accessToken,connection.location_id,b.contact||{})})}
+    if(bodyAction==='ghl_archive_contact'){if(!session)return json(res,401,{error:'Sign in before archiving CRM contacts.'});const{accessToken}=await ghlConnectionAccess(c,session.accountId);await archiveGhlContact(accessToken,clean(b.recordId));return json(res,200,{success:true})}
+    if(bodyAction==='ghl_save_opportunity'){if(!session)return json(res,401,{error:'Sign in before changing CRM opportunities.'});const{connection,accessToken}=await ghlConnectionAccess(c,session.accountId);return json(res,200,{success:true,opportunity:await saveGhlOpportunity(accessToken,connection.location_id,b.opportunity||{})})}
+    if(bodyAction==='ghl_archive_opportunity'){if(!session)return json(res,401,{error:'Sign in before archiving CRM opportunities.'});const{accessToken}=await ghlConnectionAccess(c,session.accountId);await archiveGhlOpportunity(accessToken,clean(b.recordId));return json(res,200,{success:true})}
+    if(bodyAction==='ghl_disconnect'){if(!session)return json(res,401,{error:'Sign in before disconnecting CRM Connector.'});await deleteGhlConnection(c,session.accountId);return json(res,200,{success:true,connection:publicGhlConnection(null)})}
 
     if(bodyAction==='zoom_callback'){if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect Zoom.'});const code=clean(b.code),state=clean(b.state);if(!code||!state)return json(res,422,{error:'Zoom did not return the required authorization values.'});if(!verifyZoomOAuthState(state,session.accountId))return json(res,403,{error:'Zoom authorization state is invalid or expired.'});const zc=zoomConfig(),tokens=await exchangeZoomCode(code);if(!tokens.refresh_token)return json(res,409,{error:'Zoom did not return a refresh token.'});const user=await getZoomCurrentUser(tokens.access_token),saved=await saveZoomConnection(c,session.accountId,{zoom_user_id:user.id,zoom_account_id:user.accountId,connected_email:user.email,connected_name:user.displayName,user_type:user.type,timezone:user.timezone,access_token_encrypted:encryptZoomToken(tokens.access_token,zc.encryptionSecret),refresh_token_encrypted:encryptZoomToken(tokens.refresh_token,zc.encryptionSecret),access_token_expires_at:zoomTokenExpiry(tokens),scopes:clean(tokens.scope).split(/\s+/).filter(Boolean),status:'connected',last_sync_error:null});return json(res,200,{connected:true,connection:publicZoomConnection(saved)})}
     if(bodyAction==='zoom_dashboard'||bodyAction==='zoom_sync'){if(!session)return json(res,401,{error:'Sign in before viewing Zoom data.'});return json(res,200,{success:true,...await loadZoomDashboard(c,session.accountId)})}
