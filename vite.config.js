@@ -12,7 +12,7 @@ const pageLoaderPlugin = {
       {
         tag: 'div',
         attrs: { id: 'ccPageLoader', role: 'status', 'aria-live': 'polite', 'aria-hidden': 'false' },
-        children: '<div class="cc-loader-card"><div class="cc-loader-mark"><span class="cc-loader-orbit"></span><img src="/favicon.svg" alt=""></div><div class="cc-loader-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><div class="cc-loader-copy"><strong>Creative Creatures</strong><span data-loader-copy>Loading your agency workspace…</span></div></div>',
+        children: '<div class="cc-loader-card"><div class="cc-loader-mark"><span class="cc-loader-orbit"></span><img src="/favicon.svg" alt=""></div><div class="cc-loader-copy"><strong>Creative Creatures</strong><span data-loader-copy>Loading your agency workspace…</span></div></div>',
         injectTo: 'body-prepend'
       },
       { tag: 'script', attrs: { src: '/shared/page-loader.js' }, injectTo: 'body-prepend' }

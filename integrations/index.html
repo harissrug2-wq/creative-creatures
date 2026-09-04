@@ -36,6 +36,30 @@
     .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field.full{grid-column:1/-1}
     @media(max-width:900px){.page{width:calc(100% - 26px);padding-top:24px}.hero{flex-direction:column}.hero .btn{width:100%}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-row{grid-template-columns:38px minmax(0,1fr)}.row-actions{grid-column:1/-1;justify-content:flex-start;padding-left:50px}.group-feed{display:none}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
     @media(max-width:600px){.stats{grid-template-columns:1fr 1fr}.stat{padding:15px}.stat strong{font-size:25px}.group-head{align-items:flex-start}.integration-row{padding:14px}.row-actions{padding-left:0}.row-actions>*{flex:1}.row-actions .status{flex:0 0 100%;justify-content:center}.modal{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:18px 14px;border-radius:14px}.metric-grid,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions .btn{width:100%}.row-copy{white-space:normal}}
+
+    /* CC_INTEGRATIONS_RESPONSIVE_HOTFIX_V1 */
+    html,body{width:100%;max-width:100%;overflow-x:clip}
+    .page,.hero,.stats,.groups,.group,.group-head,.integration-row,.row-main,.row-actions,.footnote{min-width:0;max-width:100%}
+    .integration-row>*{min-width:0}
+    .row-actions .btn,.row-actions .working{max-width:100%;overflow-wrap:anywhere}
+    .modal-backdrop{width:100%;max-width:100%;overflow-x:hidden}
+    .modal,#modalBody,.data-list,.toolbar,.metric-grid,.form-grid{min-width:0;max-width:100%}
+    .metric-grid>*,.form-grid>*,.toolbar>*{min-width:0}
+    .modal h2,.modal p,.data-item,.data-item *{overflow-wrap:anywhere}
+    @media(max-width:600px){
+      .page{width:calc(100% - 20px)}
+      .hero h1{font-size:32px}
+      .stats{grid-template-columns:1fr}
+      .group-head{flex-wrap:wrap}
+      .integration-row{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:13px 12px}
+      .row-actions{grid-column:1/-1;padding-left:0;display:grid;grid-template-columns:1fr 1fr;width:100%}
+      .row-actions .status{grid-column:1/-1;width:100%}
+      .row-actions>*{width:100%;white-space:normal}
+      .modal-actions{position:static;bottom:auto;margin-top:16px;padding:0;display:grid;grid-template-columns:1fr}
+      .modal-actions .btn{width:100%}
+      .tabs .btn{flex:1 1 140px;white-space:normal}
+      .field{min-width:0}
+    }
   </style>
 </head>
 <body>

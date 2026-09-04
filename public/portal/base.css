@@ -196,3 +196,32 @@ html.cc-modal-open,html.cc-modal-open body{overflow:hidden}
     flex:1 1 140px;
   }
 }
+
+/* CC_UI_STABILITY_HOTFIX_V1 */
+html,body{width:100%;max-width:100%;overflow-x:clip}
+body{min-width:0}
+[data-app-header],.app-topbar,.app-topbar>*{min-width:0;max-width:100%}
+:is(.modal,.modal-card,.modal-dialog,.dialog-card,.dialog-panel,.workspace-modal,.manage-modal,.integration-modal,.evidence-modal,.calendar-modal,.drive-modal,.slack-modal,.clickup-modal,.teamwork-modal,.monday-modal,[role="dialog"]){
+  box-sizing:border-box;
+  min-width:0;
+  max-width:calc(100vw - 32px);
+  overflow-x:hidden;
+}
+:is(.modal,.modal-card,.modal-dialog,.dialog-card,.dialog-panel,.workspace-modal,.manage-modal,.integration-modal,.evidence-modal,.calendar-modal,.drive-modal,.slack-modal,.clickup-modal,.teamwork-modal,.monday-modal,[role="dialog"]) *{min-width:0}
+@media(max-width:768px){
+  :is(.modal-backdrop,.modal-overlay,.dialog-backdrop,.manage-backdrop,.workspace-backdrop,[class*="modal-backdrop"],[class*="modal-overlay"]){
+    place-items:start center!important;
+    padding:8px!important;
+  }
+  :is(.modal,.modal-card,.modal-dialog,.dialog-card,.dialog-panel,.workspace-modal,.manage-modal,.integration-modal,.evidence-modal,.calendar-modal,.drive-modal,.slack-modal,.clickup-modal,.teamwork-modal,.monday-modal,[role="dialog"]){
+    width:100%!important;
+    max-width:calc(100vw - 16px)!important;
+    max-height:calc(100dvh - 16px)!important;
+    margin:0!important;
+    padding:18px 14px!important;
+    border-radius:14px!important;
+    overflow:auto!important;
+  }
+  :is(.modal-actions,.dialog-actions,.modal-footer,.dialog-footer){position:static!important;flex-wrap:wrap!important}
+  :is(.modal-actions,.dialog-actions,.modal-footer,.dialog-footer)>:is(button,a){flex:1 1 140px;max-width:100%}
+}
