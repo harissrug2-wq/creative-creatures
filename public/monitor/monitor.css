@@ -139,3 +139,20 @@
 
 .top-link.locked-link{color:#a7adb7;cursor:not-allowed}
 .top-link .nav-lock{font-size:8px;line-height:1;border-radius:999px;background:#f0f0ed;color:#969ca6;padding:3px 6px;margin-left:1px}
+
+
+/* CC_MONITOR_UNIFIED_MENU_V1 */
+html,body,.monitor-app{max-width:100%;overflow-x:clip}
+.top-menu-toggle,.top-menu-panel{display:none}
+@media(max-width:1600px){
+  .topbar{gap:10px}
+  .topnav,.ask-button{display:none!important}
+  .top-menu-toggle{display:grid;place-items:center;margin-left:auto;width:40px;height:38px;border:1px solid var(--line);border-radius:9px;background:#fff;color:#303744;cursor:pointer}
+  .top-menu-toggle svg{width:20px;height:20px}
+  .top-menu-panel.open{display:flex;position:fixed;z-index:80;top:var(--topbar);right:0;width:min(360px,100vw);max-height:calc(100dvh - var(--topbar));overflow-y:auto;background:#fff;border:1px solid var(--line);border-top:0;border-radius:0 0 0 14px;padding:10px;flex-direction:column;gap:4px;box-shadow:0 16px 36px rgba(16,24,40,.14)}
+  .top-menu-panel a,.top-menu-panel button{min-height:43px;display:flex;align-items:center;gap:7px;padding:9px 12px;border:0;border-radius:8px;background:transparent;color:#3f4857;text-decoration:none;font-size:13px;text-align:left}
+  .top-menu-panel button svg{width:16px;height:16px}
+  .top-menu-panel a.active{color:#292fee;background:#eef1ff;font-weight:600}
+  .top-menu-panel a.locked-link{color:#a7adb7}
+}
+@media(max-width:850px){.topbar{justify-content:space-between}.top-menu-toggle{margin-left:0}.top-menu-panel.open{top:58px;max-height:calc(100dvh - 58px);left:0;width:100%;border-left:0;border-right:0;border-radius:0}}

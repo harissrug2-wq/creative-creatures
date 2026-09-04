@@ -58,51 +58,39 @@
       return `<a href="${disabled ? '#' : href}" class="${activeClass}${disabled ? ' nav-disabled' : ''}" ${disabled ? 'aria-disabled="true" onclick="return false"' : ''}>${icon(name)}${label}</a>`;
     };
 
-    let desktopNav, mobileNav, status = '';
-    if (accelerator) {
-      desktopNav = [
-        item('/platform/','Monitor','monitor','monitor'),
-        item('/accelerator/','Accelerator','diagnostic','accelerator'),
-        item('/agency-scorecard/','Agency Scorecard','score','scorecard',state.reportReady),
-        item('/agency-goals/','Agency Goals','goals','goals',true),
-        item('/integration-information/','Integration Information','plug','integration-information'),
-        item('/integrations/','Integrations','plug','integrations'),
-        item('/portal/','Portal','portal','portal')
-      ].join('');
-      mobileNav = [
-        ['Monitor','/platform/',true,'monitor'],['Accelerator','/accelerator/',true,'accelerator'],['Agency Scorecard','/agency-scorecard/',state.reportReady,'scorecard'],['Agency Goals','/agency-goals/',true,'goals'],['Integration Information','/integration-information/',true,'integration-information'],['Integrations','/integrations/',true,'integrations'],['Portal','/portal/',true,'portal']
-      ];
-    } else {
-      desktopNav = [
-        item('/integration-information/','Integration Information','plug','integration-information'),
-        item('/integrations/','Integrations','plug','integrations'),
-        item('/accelerator/','Accelerator','diagnostic','accelerator'),
-        item('/diagnostic/','Diagnostic','diagnostic','diagnostic'),
-        item('/agency-scorecard/','Agency Scorecard','score','scorecard',state.reportReady),
-        item('/agency-goals/','Agency Goals','goals','goals',goalsReady),
-        item('/platform/','Monitor','monitor','monitor',monitorReady),
-        item('/portal/','Portal','portal','portal')
-      ].join('');
-      mobileNav = [
-        ['Integration Information','/integration-information/',true,'integration-information'],['Integrations','/integrations/',true,'integrations'],['Accelerator','/accelerator/',true,'accelerator'],['Diagnostic','/diagnostic/',true,'diagnostic'],['Agency Scorecard','/agency-scorecard/',state.reportReady,'scorecard'],['Agency Goals','/agency-goals/',goalsReady,'goals'],['Monitor','/platform/',monitorReady,'monitor'],['Portal','/portal/',true,'portal']
-      ];
-      const paid = bool('ccPaymentComplete') || bool('agencyPaymentComplete');
-      if (paid && (active === 'diagnostic' || active === 'integration-information')) status = diagnosticStatus(state);
-    }
+    let status = '';
+    const navigation = [
+      ['/integration-information/','Integration Information','plug','integration-information',true],
+      ['/integrations/','Integrations','plug','integrations',true],
+      ['/accelerator/','Accelerator','diagnostic','accelerator',true],
+      ['/diagnostic/','Diagnostic','diagnostic','diagnostic',true],
+      ['/agency-scorecard/','Agency Scorecard','score','scorecard',state.reportReady],
+      ['/agency-goals/','Agency Goals','goals','goals',goalsReady],
+      ['/platform/','Monitor','monitor','monitor',monitorReady],
+      ['/portal/','Portal','portal','portal',true]
+    ];
+    const desktopNav = navigation.map(([href,label,name,key,enabled]) => item(href,label,name,key,enabled)).join('');
+    const mobileNav = navigation.map(([href,label,name,key,enabled]) => [label,href,enabled,key]);
+    const paid = bool('ccPaymentComplete') || bool('agencyPaymentComplete');
+    if (paid && (active === 'diagnostic' || active === 'integration-information')) status = diagnosticStatus(state);
 
     el.innerHTML = `
       <header class="app-topbar">
         <a class="top-logo" href="/login/"><img class="cc-platform-logo" src="/portal/creative-creatures-logo.png" alt="Creative Creatures"></a>
         <nav class="app-nav">${desktopNav}</nav>
         <button class="ask-creature">${icon('spark')}Ask Creature</button>${profile}
-        <button class="mobile-nav-toggle" aria-label="Open navigation">☰</button>
+        <button class="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false">☰</button>
       </header>
-      <nav class="mobile-nav-panel">${mobileNav.map(([label,href,enabled,key]) => `<a href="${enabled ? href : '#'}" class="${active===key?'active ':''}${enabled?'':'nav-disabled'}" ${enabled?'':'onclick="return false" aria-disabled="true"'}>${label}</a>`).join('')}${identity ? `<button class="mobile-signout" type="button">${icon('logout')}Sign out ${esc(displayName || agencyName)}</button>` : ''}</nav>
+      <nav class="mobile-nav-panel">${mobileNav.map(([label,href,enabled,key]) => `<a href="${enabled ? href : '#'}" class="${active===key?'active ':''}${enabled?'':'nav-disabled'}" ${enabled?'':'onclick="return false" aria-disabled="true"'}>${label}</a>`).join('')}${identity ? `<button class="mobile-signout" type="button">${icon('logout')}Sign out ${esc(displayName || agencyName)}</button>` : ''}<button class="mobile-ask-creature" type="button">${icon("spark")}Ask Creature</button></nav>
       ${status}
       ${identity ? `<div class="top-account-menu" hidden><strong>${esc(displayName || agencyName)}</strong><span>${esc(account?.email || '')}</span><button type="button">${icon('logout')}Sign out</button></div>` : ''}`;
 
     const toggle=el.querySelector('.mobile-nav-toggle'),panel=el.querySelector('.mobile-nav-panel');
-    toggle?.addEventListener('click',()=>panel.classList.toggle('open'));
+    const closeMobileNav=()=>{panel?.classList.remove('open');toggle?.setAttribute('aria-expanded','false');};
+    toggle?.addEventListener('click',()=>{const open=!panel?.classList.contains('open');panel?.classList.toggle('open',open);toggle.setAttribute('aria-expanded',String(open));});
+    panel?.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMobileNav));
+    el.querySelector('.mobile-ask-creature')?.addEventListener('click',()=>{el.querySelector('.ask-creature')?.click();closeMobileNav();});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMobileNav();});
     el.querySelector('.mobile-signout')?.addEventListener('click',signOut);
     const accountButton=el.querySelector('.top-account'),accountMenu=el.querySelector('.top-account-menu');
     accountButton?.addEventListener('click',event=>{event.stopPropagation();const open=accountMenu.hidden;accountMenu.hidden=!open;accountButton.setAttribute('aria-expanded',String(open));});

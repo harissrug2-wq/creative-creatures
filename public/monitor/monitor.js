@@ -65,14 +65,19 @@
           </div>
         </aside>
         <div class="main-shell">
-          <header class="topbar"><button class="mobile-toggle" id="mobileToggle">${ico('menu')}</button><nav class="topnav">
-            <a href="/integrations/" class="top-link">${ico('plug')} Integrations</a>
-            <a href="/diagnostic/" class="top-link">${ico('diagnostic')} Diagnostic</a>
-            <a href="${scorecardHref}" class="top-link ${scorecardUnlocked?'':'locked-link'}" aria-disabled="${scorecardUnlocked?'false':'true'}">${ico('score')} Agency Scorecard</a>
-            <a href="${goalsUnlocked?'/agency-goals/':'#'}" class="top-link ${goalsUnlocked?'':'locked-link'}" aria-disabled="${goalsUnlocked?'false':'true'}">${ico('goals')} Agency Goals</a>
-            <a href="/platform/" class="top-link active">${ico('monitor')} Monitor</a>
-            <a href="/portal/" class="top-link">${ico('dashboard')} Portal</a>
-          </nav><button class="ask-button" id="askButton">${ico('spark')} Ask Creature</button></header>
+          <header class="topbar"><button class="mobile-toggle" id="mobileToggle" aria-label="Open departments">${ico('menu')}</button><nav class="topnav">
+             <a href="/integration-information/" class="top-link">${ico('plug')} Integration Information</a>
+             <a href="/integrations/" class="top-link">${ico('plug')} Integrations</a>
+             <a href="/accelerator/" class="top-link">${ico('diagnostic')} Accelerator</a>
+             <a href="/diagnostic/" class="top-link">${ico('diagnostic')} Diagnostic</a>
+             <a href="${scorecardHref}" class="top-link ${scorecardUnlocked?'':'locked-link'}" aria-disabled="${scorecardUnlocked?'false':'true'}">${ico('score')} Agency Scorecard</a>
+             <a href="${goalsUnlocked?'/agency-goals/':'#'}" class="top-link ${goalsUnlocked?'':'locked-link'}" aria-disabled="${goalsUnlocked?'false':'true'}">${ico('goals')} Agency Goals</a>
+             <a href="/platform/" class="top-link active">${ico('monitor')} Monitor</a>
+             <a href="/portal/" class="top-link">${ico('dashboard')} Portal</a>
+           </nav><button class="ask-button" id="askButton">${ico('spark')} Ask Creature</button><button class="top-menu-toggle" id="topMenuToggle" type="button" aria-label="Open main navigation" aria-expanded="false">${ico('menu')}</button></header>
+           <nav class="top-menu-panel" id="topMenuPanel" aria-label="Main navigation">
+             <a href="/integration-information/">Integration Information</a><a href="/integrations/">Integrations</a><a href="/accelerator/">Accelerator</a><a href="/diagnostic/">Diagnostic</a><a href="${scorecardHref}" class="${scorecardUnlocked?'':'locked-link'}">Agency Scorecard</a><a href="${goalsUnlocked?'/agency-goals/':'#'}" class="${goalsUnlocked?'':'locked-link'}">Agency Goals</a><a href="/platform/" class="active">Monitor</a><a href="/portal/">Portal</a><button id="mobileAskButton" type="button">${ico('spark')} Ask Creature</button>
+           </nav>
           <main class="page-wrap">${content}</main>
         </div>
         <aside class="ask-drawer" id="askDrawer"><div class="drawer-head"><h3>Ask Creature</h3><button class="drawer-close" id="drawerClose">×</button></div><div class="drawer-context"><strong>${title || 'Dashboard'} context</strong><p>How can I help with ${title || 'Dashboard'}? I can summarize what is on screen, surface what needs attention, or draft a quick update based on this tab's data.</p></div><div class="suggestions"><button>Summarize this tab</button><button>What needs my attention?</button><button>Draft a quick update</button></div><div class="chat-input"><input placeholder="Ask about this page…"><button>Send</button></div></aside>
@@ -89,6 +94,12 @@
     document.querySelector('#askButton')?.addEventListener('click',()=>document.querySelector('#askDrawer').classList.add('open'));
     document.querySelector('#drawerClose')?.addEventListener('click',()=>document.querySelector('#askDrawer').classList.remove('open'));
     document.querySelector('#mobileToggle')?.addEventListener('click',()=>document.querySelector('#sidebar').classList.toggle('open'));
+    const topMenuToggle=document.querySelector('#topMenuToggle'),topMenuPanel=document.querySelector('#topMenuPanel');
+    const closeTopMenu=()=>{topMenuPanel?.classList.remove('open');topMenuToggle?.setAttribute('aria-expanded','false');};
+    topMenuToggle?.addEventListener('click',()=>{const open=!topMenuPanel?.classList.contains('open');topMenuPanel?.classList.toggle('open',open);topMenuToggle.setAttribute('aria-expanded',String(open));});
+    topMenuPanel?.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeTopMenu));
+    document.querySelector('#mobileAskButton')?.addEventListener('click',()=>{document.querySelector('#askDrawer')?.classList.add('open');closeTopMenu();});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape')closeTopMenu();});
     document.querySelectorAll('[data-toast]').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();showToast(el.dataset.toast)}));
     document.querySelectorAll('.period button').forEach(btn=>btn.addEventListener('click',()=>{btn.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('active'));btn.classList.add('active')}));
     document.querySelectorAll('.leadership-tabs button').forEach(btn=>btn.addEventListener('click',()=>{btn.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');showToast(`${btn.textContent.trim()} selected.`)}));
