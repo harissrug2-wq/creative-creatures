@@ -37,7 +37,7 @@
   </main>
   <script src="/portal/diagnostic-state.js"></script><script src="/portal/account-client.js"></script><script src="/portal/archetype-pdf.js"></script>
   <script>
-    const params=new URLSearchParams(location.search),destination=params.get('destination')||'diagnostic';
+    const params=new URLSearchParams(location.search),requestedDestination=params.get('destination')||'diagnostic',destination=['diagnostic','accelerator','platform'].includes(requestedDestination)?requestedDestination:'diagnostic';
     const yesOption=document.getElementById('yesOption'),noOption=document.getElementById('noOption'),yesPanel=document.getElementById('yesPanel'),noPanel=document.getElementById('noPanel'),cta=document.getElementById('archetypeCta');
     cta.href='/owner-archetype/assessment/?destination='+encodeURIComponent(destination)+'&source=signup';
     cta.addEventListener('click',()=>localStorage.setItem('ccProgramPath',destination));
@@ -47,7 +47,7 @@
     const esc=v=>String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function selectLead(lead){
       window.CCAccount.useOwnerArchetypeLead(lead);
-      localStorage.setItem('ccProgramPath','diagnostic');
+      localStorage.setItem('ccProgramPath',destination);
       localStorage.removeItem('ccSignedIn');
       return lead;
     }
@@ -68,7 +68,7 @@
       }
     }
     function proceedToPayment(lead){selectLead(lead);location.href='/payment/';}
-    function loginToDiagnostic(lead){const email=String(lead?.email||'').trim();location.href='/login/'+(email?`?email=${encodeURIComponent(email)}`:'');}
+    function loginToDiagnostic(lead){const email=String(lead?.email||'').trim(),query=new URLSearchParams();if(email)query.set('email',email);query.set('destination',destination);location.href='/login/?'+query.toString();}
     function renderLeadResults(leads){
       resultsNode.innerHTML=leads.map((lead,index)=>{const paid=lead.is_paid===true&&lead.account_exists===true;return `<article class="lookup-result-card" data-lead-index="${index}"><div class="lookup-result-info"><strong>${esc(lead.name)}</strong><span>${esc(lead.email)}</span><small>${esc(lead.agency_url)}</small></div><div class="lookup-result-actions"><button type="button" class="cc-btn cc-btn-secondary" data-view-lead="${index}">View Report</button>${paid?`<button type="button" class="cc-btn cc-btn-primary" data-login-lead="${index}">Login</button>`:`<button type="button" class="cc-btn cc-btn-primary" data-pay-lead="${index}">Proceed to Payment</button>`}</div></article>`}).join('');
       resultsNode.querySelectorAll('[data-view-lead]').forEach(node=>node.addEventListener('click',()=>viewLeadReport(leads[Number(node.dataset.viewLead)],node)));
