@@ -1,14 +1,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap');
 
 /* ==========================================================================
-   Creative Creatures - Light Modern Signup Page & Offer Cards
-   Matching reference design with exact colors, typography & layout
+   Creative Creatures - Universal Signup & Offer Detail Pages Design System
+   Matches 100% reference design screenshots for light mode
    ========================================================================== */
 
 :root {
-  --cc-light-bg: #f8f8f6;
-  --cc-light-card: #ffffff;
-  --cc-light-border: #e5e7eb;
+  --cc-bg: #f8f8f6;
+  --cc-card: #ffffff;
+  --cc-border: #e5e7eb;
   --cc-text-dark: #111827;
   --cc-text-muted: #6b7280;
   --cc-text-body: #374151;
@@ -18,7 +18,12 @@
   --cc-amber-pill-text: #d97706;
   
   --cc-purple-line: #6366f1;
+  --cc-purple-pill-bg: #e0e7ff;
+  --cc-purple-pill-text: #4338ca;
+  
   --cc-blue-line: #2563eb;
+  --cc-blue-pill-bg: #dbeafe;
+  --cc-blue-pill-text: #1e40af;
   
   --cc-emerald-line: #10b981;
   --cc-emerald-pill-bg: #d1fae5;
@@ -34,8 +39,9 @@
 }
 
 body.journey-choice-page,
-body.signup-light-page {
-  background-color: var(--cc-light-bg);
+body.signup-light-page,
+body.offer-detail-page {
+  background-color: var(--cc-bg);
   color: var(--cc-text-dark);
   font-family: var(--font-main);
   margin: 0;
@@ -48,11 +54,9 @@ body.signup-light-page {
 /* Background Top Glow Gradient */
 .page-top-glow {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 380px;
-  background: radial-gradient(circle at 50% 0%, rgba(224, 231, 255, 0.6) 0%, rgba(254, 243, 199, 0.4) 40%, rgba(248, 248, 246, 0) 100%);
+  top: 0; left: 0; right: 0;
+  height: 420px;
+  background: radial-gradient(circle at 50% 0%, rgba(224, 231, 255, 0.5) 0%, rgba(254, 243, 199, 0.3) 45%, rgba(248, 248, 246, 0) 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -62,10 +66,10 @@ body.signup-light-page {
   z-index: 1;
   max-width: 1040px;
   margin: 0 auto;
-  padding: 24px 20px 60px;
+  padding: 24px 20px 80px;
 }
 
-/* Top Header */
+/* Top Navigation Header */
 .top-header {
   display: flex;
   align-items: center;
@@ -84,24 +88,35 @@ body.signup-light-page {
   font-size: 17px;
 }
 
-.brand-icon {
-  width: 28px;
-  height: 28px;
-}
-
-.header-signin {
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
   font-size: 13px;
   font-weight: 500;
+  color: #4b5563;
+}
+
+.header-right a {
   color: #4b5563;
   text-decoration: none;
 }
 
-.header-signin:hover {
+.header-right a:hover {
   color: var(--cc-text-dark);
   text-decoration: underline;
 }
 
-/* Hero Section */
+.header-guarantee-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #2563eb;
+}
+
+/* Hero Section Main Page */
 .hero-header {
   text-align: center;
   max-width: 760px;
@@ -144,13 +159,325 @@ body.signup-light-page {
   color: #2563eb;
 }
 
-/* Guarantee Banner Card (TOP Banner) */
+/* Detail Hero Layout (2 Columns: Content Left, Floating Price Card Right) */
+.detail-hero {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 40px;
+  align-items: start;
+  margin-bottom: 60px;
+}
+
+.detail-hero-left {
+  max-width: 620px;
+}
+
+.offer-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.offer-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.tag-emerald { background: #d1fae5; color: #059669; }
+.tag-blue { background: #dbeafe; color: #1e40af; }
+.tag-purple { background: #e0e7ff; color: #4338ca; }
+.tag-amber { background: #fef3c7; color: #d97706; }
+
+.detail-title {
+  font-family: var(--font-heading);
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--cc-text-dark);
+  line-height: 1.15;
+  margin: 0 0 16px;
+  letter-spacing: -0.02em;
+}
+
+.detail-subtitle {
+  font-size: 15px;
+  color: var(--cc-text-muted);
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+
+.detail-callout {
+  font-size: 13.5px;
+  font-style: italic;
+  color: #4b5563;
+  border-left: 3px solid #d1d5db;
+  padding-left: 14px;
+  margin: 0;
+}
+
+/* Floating Investment Card (Right Column) */
+.investment-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 24px;
+}
+
+.invest-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 6px;
+}
+
+.invest-price {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--cc-text-dark);
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+
+.invest-sublabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin-bottom: 20px;
+}
+
+.invest-mini-guarantee {
+  background: #fafaf9;
+  border: 1px solid #f3f4f6;
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.mini-starburst {
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+}
+
+.mini-guarantee-text h4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e1b4b;
+  margin: 0 0 4px;
+}
+
+.mini-guarantee-text p {
+  font-size: 11px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.btn-get-started {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 700;
+  padding: 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+}
+
+.btn-get-started:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+/* Sections for Detail Pages */
+.detail-section {
+  margin-bottom: 56px;
+}
+
+.section-eyebrow {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.eyebrow-emerald { color: #059669; }
+.eyebrow-blue { color: #2563eb; }
+.eyebrow-purple { color: #4338ca; }
+.eyebrow-amber { color: #d97706; }
+
+.section-heading {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--cc-text-dark);
+  margin: 0 0 24px;
+}
+
+/* 2-Column Checklist Cards Grid */
+.checklist-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.checklist-item-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--cc-text-dark);
+}
+
+.check-circle {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 800;
+  flex: 0 0 auto;
+}
+
+.circle-emerald { background: #d1fae5; color: #059669; }
+.circle-blue { background: #dbeafe; color: #2563eb; }
+.circle-purple { background: #e0e7ff; color: #4338ca; }
+.circle-amber { background: #fef3c7; color: #d97706; }
+
+/* Process / Deliverables Grid Cards */
+.process-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.process-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  position: relative;
+}
+
+.process-num {
+  font-size: 11px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.num-emerald { color: #10b981; }
+.num-blue { color: #2563eb; }
+.num-purple { color: #6366f1; }
+.num-amber { color: #f59e0b; }
+
+.process-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cc-text-dark);
+  margin: 0;
+}
+
+/* Accelerator Two Formats Section */
+.formats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.format-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.format-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.format-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--cc-text-dark);
+  margin: 0;
+}
+
+.format-price-pill {
+  background: #e0f2fe;
+  color: #0369a1;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.module-accordion {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.module-row {
+  background: #f9fafb;
+  border-radius: 8px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cc-text-dark);
+}
+
+.module-row span {
+  color: #6b7280;
+  font-size: 12px;
+}
+
+/* Full Width Guarantee Banner */
 .guarantee-banner-card {
   background: var(--cc-banner-blue-bg);
   border: 1px solid var(--cc-banner-blue-border);
   border-radius: 16px;
-  padding: 24px 28px;
-  margin-bottom: 24px;
+  padding: 28px 32px;
+  margin-bottom: 40px;
   display: flex;
   align-items: center;
   gap: 24px;
@@ -170,10 +497,300 @@ body.signup-light-page {
 }
 
 .guarantee-banner-content p {
-  font-size: 14px;
+  font-size: 13.5px;
   color: #4338ca;
-  margin: 0;
+  margin: 0 0 14px;
   line-height: 1.5;
+}
+
+.guarantee-tags {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.g-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #1e40af;
+  background: #dbeafe;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+
+/* Step 1 of 3 Archetype Box */
+.archetype-step-card {
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 16px;
+  padding: 36px;
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.card-theme-blue { background: #eff6ff; border-color: #dbeafe; }
+.card-theme-purple { background: #f5f3ff; border-color: #ddd6fe; }
+.card-theme-amber { background: #fffbeb; border-color: #fef3c7; }
+.card-theme-emerald { background: #f0fdf4; border-color: #bbf7d0; }
+
+.step-num-pill {
+  display: inline-block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 999px;
+  margin-bottom: 14px;
+}
+
+.step-title {
+  font-family: var(--font-heading);
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--cc-text-dark);
+  margin: 0 0 10px;
+}
+
+.step-desc {
+  font-size: 14px;
+  color: #4b5563;
+  max-width: 600px;
+  margin: 0 auto 28px;
+  line-height: 1.5;
+}
+
+.step-options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.step-option-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: block;
+}
+
+.step-option-card:hover {
+  border-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.1);
+}
+
+.step-option-card strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cc-text-dark);
+  margin-bottom: 4px;
+}
+
+.step-option-card span {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* What Happens Next Section */
+.next-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.next-step-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.next-step-circle {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f3f4f6;
+  color: #4b5563;
+  font-size: 12px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  margin-bottom: 12px;
+}
+
+.next-step-card strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cc-text-dark);
+  margin-bottom: 4px;
+}
+
+.next-step-card span {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.4;
+  display: block;
+}
+
+.back-bottom-link {
+  display: inline-block;
+  margin-top: 36px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6b7280;
+  text-decoration: none;
+}
+
+.back-bottom-link:hover {
+  color: var(--cc-text-dark);
+}
+
+/* Main Page 4 Cards Grid - MAKE ENTIRE CARDS CLICKABLE */
+.offer-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.offer-card {
+  background: var(--cc-card);
+  border: 1px solid var(--cc-border);
+  border-radius: 16px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+  transition: all 0.2s ease;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.offer-card:hover {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  border-color: #9ca3af;
+  transform: translateY(-2px);
+}
+
+.card-top-line {
+  height: 4px;
+  width: 40px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+}
+
+.line-amber { background: var(--cc-amber-line); }
+.line-purple { background: var(--cc-purple-line); }
+.line-blue { background: var(--cc-blue-line); }
+.line-emerald { background: var(--cc-emerald-line); }
+
+.card-top-badge {
+  position: absolute;
+  top: 24px; right: 24px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.badge-most-support {
+  background: var(--cc-amber-pill-bg);
+  color: var(--cc-amber-pill-text);
+}
+
+.badge-deepest-analysis {
+  background: var(--cc-emerald-pill-bg);
+  color: var(--cc-emerald-pill-text);
+}
+
+.card-heading {
+  font-family: var(--font-heading);
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--cc-text-dark);
+  margin: 0 0 10px;
+  line-height: 1.25;
+}
+
+.card-pricing-row {
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--cc-text-dark);
+  margin-bottom: 2px;
+}
+
+.card-sublabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--cc-text-muted);
+  margin-bottom: 14px;
+}
+
+.card-description {
+  font-size: 13.5px;
+  color: #4b5563;
+  margin: 0 0 20px;
+  line-height: 1.45;
+}
+
+.card-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--cc-text-body);
+  line-height: 1.45;
+}
+
+.card-checklist li i {
+  font-style: normal;
+  font-weight: 700;
+  font-size: 13px;
+  flex: 0 0 14px;
+}
+
+.check-amber { color: #d97706; }
+.check-purple { color: #4f46e5; }
+.check-blue { color: #2563eb; }
+.check-emerald { color: #059669; }
+
+.card-learn-more {
+  margin-top: auto;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cc-text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+
+.offer-card:hover .card-learn-more {
+  color: var(--cc-text-dark);
 }
 
 /* Owner Archetype Banner Card (BOTTOM Banner) */
@@ -263,141 +880,7 @@ body.signup-light-page {
   transform: translateY(-1px);
 }
 
-/* 4 Offer Grid Cards */
-.offer-cards-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-}
-
-.offer-card {
-  background: var(--cc-light-card);
-  border: 1px solid var(--cc-light-border);
-  border-radius: 16px;
-  padding: 28px;
-  display: flex;
-  flex-direction: column;
-  position: relative;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
-  transition: all 0.2s ease;
-}
-
-.offer-card:hover {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-  border-color: #d1d5db;
-}
-
-.card-top-line {
-  height: 4px;
-  width: 40px;
-  border-radius: 999px;
-  margin-bottom: 18px;
-}
-
-.line-amber { background: var(--cc-amber-line); }
-.line-purple { background: var(--cc-purple-line); }
-.line-blue { background: var(--cc-blue-line); }
-.line-emerald { background: var(--cc-emerald-line); }
-
-.card-top-badge {
-  position: absolute;
-  top: 24px;
-  right: 24px;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 999px;
-}
-
-.badge-most-support {
-  background: var(--cc-amber-pill-bg);
-  color: var(--cc-amber-pill-text);
-}
-
-.badge-deepest-analysis {
-  background: var(--cc-emerald-pill-bg);
-  color: var(--cc-emerald-pill-text);
-}
-
-.card-heading {
-  font-family: var(--font-heading);
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--cc-text-dark);
-  margin: 0 0 10px;
-  line-height: 1.25;
-}
-
-.card-pricing-row {
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--cc-text-dark);
-  margin-bottom: 2px;
-}
-
-.card-sublabel {
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--cc-text-muted);
-  margin-bottom: 14px;
-}
-
-.card-description {
-  font-size: 13.5px;
-  color: #4b5563;
-  margin: 0 0 20px;
-  line-height: 1.45;
-}
-
-.card-checklist {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.card-checklist li {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 13px;
-  color: var(--cc-text-body);
-  line-height: 1.45;
-}
-
-.card-checklist li i {
-  font-style: normal;
-  font-weight: 700;
-  font-size: 13px;
-  flex: 0 0 14px;
-}
-
-.check-amber { color: #d97706; }
-.check-purple { color: #4f46e5; }
-.check-blue { color: #2563eb; }
-.check-emerald { color: #059669; }
-
-.card-learn-more {
-  margin-top: auto;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--cc-text-muted);
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  transition: color 0.15s ease;
-}
-
-.card-learn-more:hover {
-  color: var(--cc-text-dark);
-}
-
-/* Modal and Utility Styles */
+/* Modal Popup */
 .modal-backdrop {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -430,9 +913,20 @@ body.signup-light-page {
   cursor: pointer;
 }
 
-/* Responsive queries */
-@media (max-width: 860px) {
-  .offer-cards-grid {
+/* Responsive Queries */
+@media (max-width: 900px) {
+  .detail-hero {
+    grid-template-columns: 1fr;
+  }
+  .investment-card {
+    position: static;
+  }
+  .offer-cards-grid,
+  .checklist-grid,
+  .process-grid,
+  .formats-grid,
+  .step-options-grid,
+  .next-steps-grid {
     grid-template-columns: 1fr;
   }
   .archetype-banner-card {
@@ -442,8 +936,5 @@ body.signup-light-page {
   .guarantee-banner-card {
     flex-direction: column;
     text-align: center;
-  }
-  .hero-header h1 {
-    font-size: 32px;
   }
 }
