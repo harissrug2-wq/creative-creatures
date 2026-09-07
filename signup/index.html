@@ -3,193 +3,167 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Start Your Journey — Creative Creatures</title>
-  <meta name="description" content="Select your agency scaling path: Fractional COO, System Platform, Operations Accelerator, or Diagnostic Audit.">
+  <title>Start your journey · Creative Creatures</title>
+  <meta name="description" content="Choose how you want to work on your agency: Fractional COO, Platform, Accelerator, or Diagnostic.">
   <link rel="icon" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/portal/base.css">
   <link rel="stylesheet" href="/portal/signup.css">
 </head>
-<body class="journey-choice-page">
+<body class="journey-choice-page signup-light-page">
+  <div class="page-top-glow"></div>
 
-  <!-- Top Navigation Bar -->
-  <header class="navbar">
-    <div class="navbar-container">
-      <a href="/signup/" class="navbar-brand">
-        <span class="brand-badge">CC</span>
-        <span class="brand-text">Creative Creatures</span>
+  <div class="page-wrapper">
+    <!-- Top Navigation Header -->
+    <header class="top-header">
+      <a href="/login/" class="header-brand">
+        <svg class="header-brand-icon" width="28" height="28" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="16" fill="url(#logo-grad)"/>
+          <path d="M10 16L14 20L22 12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <linearGradient id="logo-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#2563EB"/>
+              <stop offset="1" stop-color="#7C3AED"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span>creative<br><small style="font-weight:400;font-size:12px;color:#6b7280;">CREATURES</small></span>
       </a>
-      <div class="navbar-actions">
-        <button type="button" class="btn btn-secondary btn-sm" data-account-modal-trigger>
-          <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-          Already a client? Access Account
-        </button>
-      </div>
-    </div>
-  </header>
+      <a href="/login/" class="header-signin">Sign in</a>
+    </header>
 
-  <!-- Hero Section -->
-  <section class="hero-section">
-    <div class="hero-container">
-      <div class="hero-badge badge-amber">PATH SELECTION PORTAL</div>
-      <h1 class="hero-title">Choose Your Agency Scaling Path</h1>
-      <p class="hero-subtitle">
-        Every path builds upon our evidence-based operational diagnostic. Select the engagement model that best fits your agency's stage and immediate growth goals.
+    <!-- Hero Section -->
+    <section class="hero-header">
+      <h1>Choose how you want to work<br>on your agency</h1>
+      <p>
+        Every path starts from the same place — owner identity — then goes as<br class="desktop-break">
+        deep as you want: self-guided platform, facilitated program, or senior eyes<br class="desktop-break">
+        on the business 1:1.
       </p>
-    </div>
-  </section>
+      <div class="guarantee-pill">
+        <svg class="shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        Every paid engagement is backed by our 100% money-back performance guarantee
+      </div>
+    </section>
 
-  <!-- 4 Path Cards Grid -->
-  <section class="section">
-    <div class="container">
-      <div class="path-grid">
-        
-        <!-- Option 1: Fractional COO -->
-        <div class="path-card border-amber">
-          <div class="card-badge badge-amber">TIER 01 • EMBEDDED EXECUTION</div>
-          <h2 class="card-title">Fractional COO</h2>
-          <div class="card-price">$2,500 <span>Setup</span> + $3,997<span>/mo</span></div>
-          <p class="card-desc">
-            Embedded operational leadership to build, scale, and optimize your agency's client delivery engine and team accountability.
-          </p>
-          <ul class="card-features">
-            <li><i class="blue-check">✓</i> Dedicated Fractional COO leading weekly sprint cycles</li>
-            <li><i class="blue-check">✓</i> Complete operational audit & workflow optimization</li>
-            <li><i class="blue-check">✓</i> Custom SOP playbook creation & team training</li>
-            <li><i class="blue-check">✓</i> Resourcing, capacity planning & margin tracking</li>
-            <li><i class="blue-check">✓</i> Direct Slack & decision support for leadership</li>
-          </ul>
-          <div class="card-actions">
-            <a href="/signup/fractional-coo/" class="btn btn-amber btn-block">Explore Path & Apply &rarr;</a>
-          </div>
-        </div>
-
-        <!-- Option 2: Operating System & Platform -->
-        <div class="path-card border-blue">
-          <div class="card-badge badge-blue">TIER 02 • SYSTEM PLATFORM</div>
-          <h2 class="card-title">Operating System & Platform</h2>
-          <div class="card-price">$497<span>/mo</span></div>
-          <p class="card-desc">
-            The complete tech stack, custom workspace templates, and operational engine built specifically for modern agencies.
-          </p>
-          <ul class="card-features">
-            <li><i class="blue-check">✓</i> Pre-built workspace architecture (ClickUp / Notion)</li>
-            <li><i class="blue-check">✓</i> Automated client onboarding & intake workflows</li>
-            <li><i class="blue-check">✓</i> Profitability & project margin tracking system</li>
-            <li><i class="blue-check">✓</i> 50+ SOP master library for agency operations</li>
-            <li><i class="blue-check">✓</i> Capacity & resourcing calculator</li>
-          </ul>
-          <div class="card-actions">
-            <a href="/signup/platform/" class="btn btn-blue btn-block">Explore Path & Join &rarr;</a>
-          </div>
-        </div>
-
-        <!-- Option 3: Agency Operations Accelerator -->
-        <div class="path-card border-amber">
-          <div class="card-badge badge-amber">TIER 03 • ACCELERATOR PROGRAM</div>
-          <h2 class="card-title">Operations Accelerator</h2>
-          <div class="card-price">$4,600 <span>Total</span></div>
-          <p class="card-desc">
-            Intensive 6-week guided program to transform your agency operations, install systems, and train your key team members.
-          </p>
-          <ul class="card-features">
-            <li><i class="orange-check">✓</i> 6 structured operational overhaul modules</li>
-            <li><i class="orange-check">✓</i> Pay-as-you-go per module option ($850/module)</li>
-            <li><i class="orange-check">✓</i> Weekly live group coaching & team review calls</li>
-            <li><i class="orange-check">✓</i> Full SOP library & workspace template suite</li>
-            <li><i class="orange-check">✓</i> Direct Slack channel support with ops team</li>
-          </ul>
-          <div class="card-actions">
-            <a href="/signup/accelerator/" class="btn btn-amber btn-block">Explore Path & Apply &rarr;</a>
-          </div>
-        </div>
-
-        <!-- Option 4: Agency Operations Diagnostic -->
-        <div class="path-card border-emerald">
-          <div class="card-badge badge-emerald">TIER 04 • AUDIT & DIAGNOSTIC</div>
-          <h2 class="card-title">Operations Diagnostic</h2>
-          <div class="card-price">$6,400 <span>One-time</span></div>
-          <p class="card-desc">
-            Comprehensive 2-week operational audit to pinpoint hidden margin leaks, delivery bottlenecks, and scale roadblocks.
-          </p>
-          <ul class="card-features">
-            <li><i class="purple-check">✓</i> Executive Audit Report & Margin Leak Analysis</li>
-            <li><i class="purple-check">✓</i> Team Capacity & Burnout Assessment</li>
-            <li><i class="purple-check">✓</i> Systems & Tech Stack Audit</li>
-            <li><i class="purple-check">✓</i> Customized 90-Day Operational Roadmap</li>
-            <li><i class="purple-check">✓</i> Executive Debrief Presentation & Strategy Call</li>
-          </ul>
-          <div class="card-actions">
-            <a href="/signup/diagnostic/" class="btn btn-emerald btn-block">Explore Path & Book &rarr;</a>
-          </div>
-        </div>
-
+    <!-- TOP BANNER CARD: 100% Money-Back Performance Guarantee -->
+    <div class="guarantee-banner-card">
+      <svg class="guarantee-emblem" viewBox="0 0 100 100" fill="none">
+        <path d="M50 5L55.9 12.3L65.3 10.9L68.8 19.7L78 21.6L78.6 31.1L86.6 36.2L84.1 45.4L90.1 52.8L84.8 60.7L88 70L80.4 75.8L80.9 85.3L71.4 88.2L68.8 97L59.7 96L54.4 103.8L45.6 100.9L38.4 106.8L33.7 98.4L24.3 98L22.2 88.8L13.1 85.7L14.7 76.3L6.8 71.1L10.8 62.4L4.8 55L10.1 47.1L6.9 37.8L14.5 32L14 22.5L23.5 19.6L26.1 10.8L35.2 11.8L40.5 4L50 5Z" fill="#2563EB"/>
+        <circle cx="50" cy="50" r="38" stroke="white" stroke-width="2" stroke-dasharray="3 3"/>
+        <text x="50" y="44" fill="white" font-size="14" font-weight="900" text-anchor="middle" font-family="Inter, sans-serif">100%</text>
+        <text x="50" y="54" fill="#93C5FD" font-size="7" font-weight="800" text-anchor="middle" font-family="Inter, sans-serif">MONEY-BACK</text>
+        <text x="50" y="62" fill="#93C5FD" font-size="6.5" font-weight="800" text-anchor="middle" font-family="Inter, sans-serif">PERFORMANCE</text>
+        <text x="50" y="70" fill="white" font-size="6" font-weight="800" text-anchor="middle" font-family="Inter, sans-serif">GUARANTEE</text>
+      </svg>
+      <div class="guarantee-banner-content">
+        <h2>100% money-back performance guarantee</h2>
+        <p>
+          Do the work with us and if you don't walk away with a clear scorecard, ranked priorities, and a plan you can act on, we refund your investment in full — on every paid engagement above.
+        </p>
       </div>
     </div>
-  </section>
 
-  <!-- Interactive Archetype Lookup Section -->
-  <section id="start" class="section section-dark section-flow">
-    <div class="container container-narrow">
-      <div class="flow-card">
-        <div class="flow-header">
-          <div class="step-pill">Step 1 of 3</div>
-          <h2 class="flow-title">Lookup Your Agency Archetype</h2>
-          <p class="flow-subtitle">Enter your account email to match your existing Owner Identity Report or start a new assessment.</p>
+    <!-- 4 OFFER CARDS GRID (2x2 Layout) -->
+    <div class="offer-cards-grid">
+      
+      <!-- Card 1: Fractional COO + Platform Bundle -->
+      <div class="offer-card">
+        <div class="card-top-line line-amber"></div>
+        <div class="card-top-badge badge-most-support">Most support</div>
+        <h2 class="card-heading">Fractional COO + Platform Bundle</h2>
+        <div class="card-pricing-row">$2,500 guided setup + $3,997/mo</div>
+        <div class="card-sublabel">GUIDED SETUP · MONTH TO MONTH</div>
+        <p class="card-description">An operator in your business, plus the platform that runs the plan.</p>
+        <ul class="card-checklist">
+          <li><i class="check-amber">✓</i> Fractional COO / accountability partner</li>
+          <li><i class="check-amber">✓</i> Guided setup of the full platform and back office</li>
+          <li><i class="check-amber">✓</i> Weekly leadership cadence and KPI scorecards</li>
+          <li><i class="check-amber">✓</i> 90-day priorities and 1-year growth plan owned with you</li>
+          <li><i class="check-amber">✓</i> Department dashboards across the whole agency</li>
+        </ul>
+        <a href="/signup/fractional-coo/" class="card-learn-more">Learn more & start &rarr;</a>
+      </div>
+
+      <!-- Card 2: Platform / Partner Portal -->
+      <div class="offer-card">
+        <div class="card-top-line line-purple"></div>
+        <h2 class="card-heading">Platform / Partner Portal</h2>
+        <div class="card-pricing-row">$497 / month</div>
+        <div class="card-sublabel">SELF-GUIDED SETUP</div>
+        <p class="card-description">The Agency Intelligence Platform, self-guided.</p>
+        <ul class="card-checklist">
+          <li><i class="check-purple">✓</i> Strength, Performance and Owner Dependency indexes</li>
+          <li><i class="check-purple">✓</i> Agency valuation and top issues & opportunities</li>
+          <li><i class="check-purple">✓</i> Agency dashboard and scorecard</li>
+          <li><i class="check-purple">✓</i> Executive leadership and department management</li>
+          <li><i class="check-purple">✓</i> AI monitors and intelligence layer</li>
+        </ul>
+        <a href="/signup/platform/" class="card-learn-more">Learn more & start &rarr;</a>
+      </div>
+
+      <!-- Card 3: Facilitated Breakthrough Accelerator -->
+      <div class="offer-card">
+        <div class="card-top-line line-blue"></div>
+        <h2 class="card-heading">Facilitated Breakthrough Accelerator</h2>
+        <div class="card-pricing-row">$4,600 facilitated · or from $599 pay as you go</div>
+        <div class="card-sublabel">6 SESSIONS</div>
+        <p class="card-description">A 90-day, 6-session breakthrough program.</p>
+        <ul class="card-checklist">
+          <li><i class="check-blue">✓</i> 6 sessions across 90 days</li>
+          <li><i class="check-blue">✓</i> Strength, Performance and Owner Dependency work</li>
+          <li><i class="check-blue">✓</i> Financial performance deep dive</li>
+          <li><i class="check-blue">✓</i> Clarity, goals and 90-day priorities</li>
+          <li><i class="check-blue">✓</i> Facilitated cohort saves 20% vs. module pricing</li>
+        </ul>
+        <a href="/signup/accelerator/" class="card-learn-more">Learn more & start &rarr;</a>
+      </div>
+
+      <!-- Card 4: 1:1 Analysis & Planning Diagnostic -->
+      <div class="offer-card">
+        <div class="card-top-line line-emerald"></div>
+        <div class="card-top-badge badge-deepest-analysis">Deepest analysis</div>
+        <h2 class="card-heading">1:1 Analysis & Planning Diagnostic</h2>
+        <div class="card-pricing-row">$6,400</div>
+        <div class="card-sublabel">PER AGENCY · ONE-TIME</div>
+        <p class="card-description">A private, done-with-you analysis of the whole agency.</p>
+        <ul class="card-checklist">
+          <li><i class="check-emerald">✓</i> 1:1 sessions with Tony Lael</li>
+          <li><i class="check-emerald">✓</i> Strength, Performance and Owner Dependency analysis</li>
+          <li><i class="check-emerald">✓</i> Agency valuation and risk review</li>
+          <li><i class="check-emerald">✓</i> Top issues and opportunities, ranked</li>
+          <li><i class="check-emerald">✓</i> 90 day priorities plus a 1 year growth plan</li>
+        </ul>
+        <a href="/signup/diagnostic/" class="card-learn-more">Learn more & start &rarr;</a>
+      </div>
+
+    </div>
+
+    <!-- BOTTOM BANNER CARD: Get your Owner Archetype (Identity Report) -->
+    <div class="archetype-banner-card">
+      <div class="archetype-banner-left">
+        <div class="archetype-icon-box">
+          <svg class="spark-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/>
+          </svg>
         </div>
-
-        <form id="archetypeLookupForm" class="archetype-form">
-          <input type="hidden" name="selectedPath" value="diagnostic">
-          <div class="form-group">
-            <label for="lookupEmail" class="form-label">Account Email Address</label>
-            <input type="email" id="lookupEmail" name="email" class="form-input" placeholder="you@youragency.com" required>
+        <div>
+          <div class="archetype-title-row">
+            <h3>Get your Owner Archetype (Identity Report)</h3>
+            <span class="free-pill">Free</span>
           </div>
-          <button type="submit" class="btn btn-blue btn-block btn-lg">
-            Lookup Profile & Continue &rarr;
-          </button>
-        </form>
-
-        <div id="lookupResult" class="lookup-result hidden">
-          <!-- Dynamic JS content injected here -->
+          <p class="archetype-desc">
+            A short questionnaire that names the owner style setting your agency's ceiling — and the freedom implications of it. No card required, and it is the starting point for every paid engagement below.
+          </p>
         </div>
       </div>
+      <a href="/signup/lookup/?destination=diagnostic" class="btn-start-free">Start free &rarr;</a>
     </div>
-  </section>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-content">
-        <div class="footer-brand">
-          <span class="brand-badge">CC</span>
-          <span>Creative Creatures</span>
-        </div>
-        <p class="footer-copy">&copy; 2026 Creative Creatures Inc. All rights reserved.</p>
-      </div>
-    </div>
-  </footer>
-
-  <!-- Account Modal -->
-  <div id="accountModal" class="modal-backdrop hidden">
-    <div class="modal-card">
-      <button type="button" class="modal-close" data-account-modal-close>&times;</button>
-      <div class="modal-header">
-        <h3 class="modal-title">Client Account Access</h3>
-        <p class="modal-subtitle">Enter your registered email address to access your agency dashboard.</p>
-      </div>
-      <form id="accountModalForm" class="modal-form">
-        <div class="form-group">
-          <label for="modalEmail" class="form-label">Registered Email</label>
-          <input type="email" id="modalEmail" class="form-input" placeholder="name@agency.com" required>
-        </div>
-        <button type="submit" class="btn btn-primary btn-block">Find Account &rarr;</button>
-      </form>
-    </div>
   </div>
 
   <script type="module" src="/portal/signup-3.js"></script>
