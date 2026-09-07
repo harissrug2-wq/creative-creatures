@@ -1,68 +1,197 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Start your journey · Creative Creatures</title>
-  <meta name="theme-color" content="#f8f8f6">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Start Your Journey — Creative Creatures</title>
+  <meta name="description" content="Select your agency scaling path: Fractional COO, System Platform, Operations Accelerator, or Diagnostic Audit.">
   <link rel="icon" href="/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/portal/base.css">
   <link rel="stylesheet" href="/portal/signup.css">
 </head>
 <body class="journey-choice-page">
-  <div class="journey-choice-glow" aria-hidden="true"></div>
-  <main class="journey-choice-shell">
-    <header class="journey-choice-top">
-      <a href="/login/" class="journey-choice-logo"><img src="/portal/creative-creatures-logo.png" alt="Creative Creatures"></a>
-      <a href="/login/" class="journey-choice-signin">Sign in</a>
-    </header>
 
-    <section class="journey-choice-hero">
-      <h1>Choose how you want to work<br>on your agency</h1>
-      <p>Every path runs the same evidence-based diagnostic. Pick the format that<br class="desktop-break"> fits you — privately with our team, alongside a cohort of peer owners, or<br class="desktop-break"> straight through to the platform.</p>
-    </section>
-
-    <section class="journey-choice-grid" aria-label="Choose your journey">
-      <button type="button" class="journey-option" data-destination="diagnostic" aria-pressed="false">
-        <span class="journey-icon blue"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 18V8M5 18h14"/><path d="m8 15 3-4 3 2 4-6"/></svg></span>
-        <span class="popular-pill">Most popular</span>
-        <h2>Agency Diagnostic</h2><div class="journey-price">$6,800 · PER AGENCY · ONE-TIME</div>
-        <p class="journey-description">A private, 14-day look under the hood of your agency.</p>
-        <ul><li><i class="blue-check">✓</i><span>Owner archetype + team &amp; leadership review</span></li><li><i class="blue-check">✓</i><span>14-point risk assessment and valuation</span></li><li><i class="blue-check">✓</i><span>Back office systems performance analysis</span></li><li><i class="blue-check">✓</i><span>90-day + 1-year strategic roadmap</span></li></ul>
-        <span class="choose-path">Choose this path</span>
-      </button>
-
-      <button type="button" class="journey-option" data-destination="accelerator" aria-pressed="false">
-        <span class="journey-icon orange"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3.5 19v-2.2A4.8 4.8 0 0 1 8.3 12h1.4a4.8 4.8 0 0 1 4.8 4.8V19"/><path d="M17 7a3 3 0 0 1 0 6M18 19v-2a4.5 4.5 0 0 0-2.5-4"/></svg></span>
-        <span class="temporary-lock-pill">Available</span><h2>Breakthrough Accelerator</h2><div class="journey-price">$4,500 · PER PERSON · 90 DAYS</div>
-        <p class="journey-description">The same diagnostic in a 90-day peer cohort.</p>
-        <ul><li><i class="orange-check">✓</i><span>Owner archetype + team &amp; leadership review</span></li><li><i class="orange-check">✓</i><span>14-point risk assessment and valuation</span></li><li><i class="orange-check">✓</i><span>Back office systems performance analysis</span></li><li><i class="orange-check">✓</i><span>90-day + 1-year strategic roadmap</span></li></ul>
-        <span class="choose-path">Choose this path</span>
-      </button>
-
-      <button type="button" class="journey-option portal-option" data-destination="platform" aria-pressed="false">
-        <span class="journey-icon purple"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/></svg></span>
-        <span class="temporary-lock-pill">Available</span><h2>Platform &amp; Partner Portal</h2><div class="journey-price">UNLOCKS AFTER THE DIAGNOSTIC</div>
-        <p class="journey-description">Run the plan day to day — goals, rocks, weekly L10s, and live KPIs across every department.</p>
-        <ul><li><i class="purple-check">✓</i><span>Full agency workspace + department dashboards</span></li><li><i class="purple-check">✓</i><span>Annual goals cascaded to quarters and weeks</span></li><li><i class="purple-check">✓</i><span>Weekly L10 cadence with auto agendas</span></li><li><i class="purple-check">✓</i><span>Back office integrations &amp; intelligence layer</span></li></ul>
-        <div class="portal-lock-note"><span>♙</span><span>Starts with the Agency Diagnostic — it produces the scorecard the portal runs on.</span></div>
-        <span class="choose-path">Choose this path</span>
-      </button>
-    </section>
-
-    <footer class="journey-choice-footer" style="flex-wrap:wrap;gap:16px;">
-      <div>Not ready yet? <a href="/owner-archetype/">Start with the free Owner Archetype report</a></div>
-      <div style="margin-left:auto;display:flex;align-items:center;gap:16px;font-size:13px;">
-        <a href="/privacy-policy/" style="color:var(--cc-muted,#5f6675);text-decoration:none;">Privacy Policy</a>
-        <span style="color:var(--cc-subtle,#8991a2);">·</span>
-        <a href="/terms-of-service/" style="color:var(--cc-muted,#5f6675);text-decoration:none;">Terms of Service</a>
-        <button type="button" class="journey-continue" id="journeyContinue" disabled>Continue <span>→</span></button>
+  <!-- Top Navigation Bar -->
+  <header class="navbar">
+    <div class="navbar-container">
+      <a href="/signup/" class="navbar-brand">
+        <span class="brand-badge">CC</span>
+        <span class="brand-text">Creative Creatures</span>
+      </a>
+      <div class="navbar-actions">
+        <button type="button" class="btn btn-secondary btn-sm" data-account-modal-trigger>
+          <svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          Already a client? Access Account
+        </button>
       </div>
-    </footer>
-  </main>
+    </div>
+  </header>
 
-  <script>
-  (()=>{let selected='';const cards=[...document.querySelectorAll('.journey-option')],continueBtn=document.getElementById('journeyContinue');const select=card=>{selected=card.dataset.destination;cards.forEach(item=>{const active=item===card;item.classList.toggle('selected',active);item.setAttribute('aria-pressed',String(active))});continueBtn.disabled=false};cards.forEach(card=>card.addEventListener('click',()=>select(card)));continueBtn.addEventListener('click',()=>{if(!selected)return;localStorage.setItem('ccProgramPath',selected);location.href='/signup/lookup/?destination='+encodeURIComponent(selected)})})();
-  </script>
+  <!-- Hero Section -->
+  <section class="hero-section">
+    <div class="hero-container">
+      <div class="hero-badge badge-amber">PATH SELECTION PORTAL</div>
+      <h1 class="hero-title">Choose Your Agency Scaling Path</h1>
+      <p class="hero-subtitle">
+        Every path builds upon our evidence-based operational diagnostic. Select the engagement model that best fits your agency's stage and immediate growth goals.
+      </p>
+    </div>
+  </section>
+
+  <!-- 4 Path Cards Grid -->
+  <section class="section">
+    <div class="container">
+      <div class="path-grid">
+        
+        <!-- Option 1: Fractional COO -->
+        <div class="path-card border-amber">
+          <div class="card-badge badge-amber">TIER 01 • EMBEDDED EXECUTION</div>
+          <h2 class="card-title">Fractional COO</h2>
+          <div class="card-price">$2,500 <span>Setup</span> + $3,997<span>/mo</span></div>
+          <p class="card-desc">
+            Embedded operational leadership to build, scale, and optimize your agency's client delivery engine and team accountability.
+          </p>
+          <ul class="card-features">
+            <li><i class="blue-check">✓</i> Dedicated Fractional COO leading weekly sprint cycles</li>
+            <li><i class="blue-check">✓</i> Complete operational audit & workflow optimization</li>
+            <li><i class="blue-check">✓</i> Custom SOP playbook creation & team training</li>
+            <li><i class="blue-check">✓</i> Resourcing, capacity planning & margin tracking</li>
+            <li><i class="blue-check">✓</i> Direct Slack & decision support for leadership</li>
+          </ul>
+          <div class="card-actions">
+            <a href="/signup/fractional-coo/" class="btn btn-amber btn-block">Explore Path & Apply &rarr;</a>
+          </div>
+        </div>
+
+        <!-- Option 2: Operating System & Platform -->
+        <div class="path-card border-blue">
+          <div class="card-badge badge-blue">TIER 02 • SYSTEM PLATFORM</div>
+          <h2 class="card-title">Operating System & Platform</h2>
+          <div class="card-price">$497<span>/mo</span></div>
+          <p class="card-desc">
+            The complete tech stack, custom workspace templates, and operational engine built specifically for modern agencies.
+          </p>
+          <ul class="card-features">
+            <li><i class="blue-check">✓</i> Pre-built workspace architecture (ClickUp / Notion)</li>
+            <li><i class="blue-check">✓</i> Automated client onboarding & intake workflows</li>
+            <li><i class="blue-check">✓</i> Profitability & project margin tracking system</li>
+            <li><i class="blue-check">✓</i> 50+ SOP master library for agency operations</li>
+            <li><i class="blue-check">✓</i> Capacity & resourcing calculator</li>
+          </ul>
+          <div class="card-actions">
+            <a href="/signup/platform/" class="btn btn-blue btn-block">Explore Path & Join &rarr;</a>
+          </div>
+        </div>
+
+        <!-- Option 3: Agency Operations Accelerator -->
+        <div class="path-card border-amber">
+          <div class="card-badge badge-amber">TIER 03 • ACCELERATOR PROGRAM</div>
+          <h2 class="card-title">Operations Accelerator</h2>
+          <div class="card-price">$4,600 <span>Total</span></div>
+          <p class="card-desc">
+            Intensive 6-week guided program to transform your agency operations, install systems, and train your key team members.
+          </p>
+          <ul class="card-features">
+            <li><i class="orange-check">✓</i> 6 structured operational overhaul modules</li>
+            <li><i class="orange-check">✓</i> Pay-as-you-go per module option ($850/module)</li>
+            <li><i class="orange-check">✓</i> Weekly live group coaching & team review calls</li>
+            <li><i class="orange-check">✓</i> Full SOP library & workspace template suite</li>
+            <li><i class="orange-check">✓</i> Direct Slack channel support with ops team</li>
+          </ul>
+          <div class="card-actions">
+            <a href="/signup/accelerator/" class="btn btn-amber btn-block">Explore Path & Apply &rarr;</a>
+          </div>
+        </div>
+
+        <!-- Option 4: Agency Operations Diagnostic -->
+        <div class="path-card border-emerald">
+          <div class="card-badge badge-emerald">TIER 04 • AUDIT & DIAGNOSTIC</div>
+          <h2 class="card-title">Operations Diagnostic</h2>
+          <div class="card-price">$6,400 <span>One-time</span></div>
+          <p class="card-desc">
+            Comprehensive 2-week operational audit to pinpoint hidden margin leaks, delivery bottlenecks, and scale roadblocks.
+          </p>
+          <ul class="card-features">
+            <li><i class="purple-check">✓</i> Executive Audit Report & Margin Leak Analysis</li>
+            <li><i class="purple-check">✓</i> Team Capacity & Burnout Assessment</li>
+            <li><i class="purple-check">✓</i> Systems & Tech Stack Audit</li>
+            <li><i class="purple-check">✓</i> Customized 90-Day Operational Roadmap</li>
+            <li><i class="purple-check">✓</i> Executive Debrief Presentation & Strategy Call</li>
+          </ul>
+          <div class="card-actions">
+            <a href="/signup/diagnostic/" class="btn btn-emerald btn-block">Explore Path & Book &rarr;</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Archetype Lookup Section -->
+  <section id="start" class="section section-dark section-flow">
+    <div class="container container-narrow">
+      <div class="flow-card">
+        <div class="flow-header">
+          <div class="step-pill">Step 1 of 3</div>
+          <h2 class="flow-title">Lookup Your Agency Archetype</h2>
+          <p class="flow-subtitle">Enter your account email to match your existing Owner Identity Report or start a new assessment.</p>
+        </div>
+
+        <form id="archetypeLookupForm" class="archetype-form">
+          <input type="hidden" name="selectedPath" value="diagnostic">
+          <div class="form-group">
+            <label for="lookupEmail" class="form-label">Account Email Address</label>
+            <input type="email" id="lookupEmail" name="email" class="form-input" placeholder="you@youragency.com" required>
+          </div>
+          <button type="submit" class="btn btn-blue btn-block btn-lg">
+            Lookup Profile & Continue &rarr;
+          </button>
+        </form>
+
+        <div id="lookupResult" class="lookup-result hidden">
+          <!-- Dynamic JS content injected here -->
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <span class="brand-badge">CC</span>
+          <span>Creative Creatures</span>
+        </div>
+        <p class="footer-copy">&copy; 2026 Creative Creatures Inc. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Account Modal -->
+  <div id="accountModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <button type="button" class="modal-close" data-account-modal-close>&times;</button>
+      <div class="modal-header">
+        <h3 class="modal-title">Client Account Access</h3>
+        <p class="modal-subtitle">Enter your registered email address to access your agency dashboard.</p>
+      </div>
+      <form id="accountModalForm" class="modal-form">
+        <div class="form-group">
+          <label for="modalEmail" class="form-label">Registered Email</label>
+          <input type="email" id="modalEmail" class="form-input" placeholder="name@agency.com" required>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block">Find Account &rarr;</button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module" src="/portal/signup-3.js"></script>
 </body>
 </html>
