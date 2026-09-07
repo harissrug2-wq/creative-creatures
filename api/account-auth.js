@@ -803,10 +803,12 @@ async function loadMonitorDepartment(c,accountId,department){
 const ACCELERATOR_ENROLLMENT_SELECT='id,account_id,facilitator_id,cohort_name,cohort_size,status,payment_plan,package_price_cents,package_checkout_url,package_paid_at,started_at,target_completion_at,completed_at,created_at,updated_at';
 const ACCELERATOR_SESSION_SELECT='session_number,title,summary,price_cents,checkout_url,primary_action_label,primary_action_url,secondary_action_label,secondary_action_url,updated_at';
 const ACCELERATOR_PROGRESS_SELECT='session_number,status,scheduled_at,paid_at,amount_paid_cents,started_at,completed_at,notes,preparation_notes,questions,desired_outcome,decisions,action_items,updated_at';
+const ACCELERATOR_PLAN_SELECT='id,account_id,enrollment_id,status,one_year_vision,annual_outcomes,priorities,finalized_at,created_at,updated_at';
 const safeHttpsUrl=value=>{try{const url=new URL(clean(value));return url.protocol==='https:'?url.href:''}catch{return''}};
 const publicAcceleratorEnrollment=row=>row?{id:row.id,status:row.status,paymentPlan:row.payment_plan,cohortName:row.cohort_name||'',cohortSize:row.cohort_size||null,packagePriceCents:Number(row.package_price_cents)||0,packageCheckoutUrl:safeHttpsUrl(row.package_checkout_url),packagePaidAt:row.package_paid_at||null,startedAt:row.started_at||null,targetCompletionAt:row.target_completion_at||null,completedAt:row.completed_at||null,updatedAt:row.updated_at||null}:null;
 const publicAcceleratorFacilitator=row=>row?{name:row.name,title:row.title||'',experienceSummary:row.experience_summary||'',photoUrl:safeHttpsUrl(row.photo_url),highlights:Array.isArray(row.highlights)?row.highlights.map(clean).filter(Boolean).slice(0,8):[]}:null;
 const acceleratorActionUrl=value=>{const url=clean(value);return url.startsWith('/')&&!url.startsWith('//')?url:safeHttpsUrl(url)};
+const publicAcceleratorPlan=row=>row?{id:row.id,status:row.status,oneYearVision:row.one_year_vision||'',annualOutcomes:Array.isArray(row.annual_outcomes)?row.annual_outcomes:[],priorities:Array.isArray(row.priorities)?row.priorities:[],finalizedAt:row.finalized_at||null,updatedAt:row.updated_at||null}:null;
 async function loadAccelerator(c,accountId){
   const [accountRows,enrollmentRows,sessions]=await Promise.all([
     db(c,`accounts?select=id,archetype_result,diagnostic_state&id=eq.${encodeURIComponent(accountId)}&limit=1`),
@@ -814,17 +816,17 @@ async function loadAccelerator(c,accountId){
     db(c,`accelerator_program_sessions?select=${ACCELERATOR_SESSION_SELECT}&order=session_number.asc`)
   ]);
   const account=Array.isArray(accountRows)?accountRows[0]||{}:{},enrollment=Array.isArray(enrollmentRows)?enrollmentRows[0]||null:null;
-  let facilitator=null,progress=[];
+  let facilitator=null,progress=[],plan=null;
   if(enrollment){
-    const tasks=[db(c,`accelerator_session_progress?select=${ACCELERATOR_PROGRESS_SELECT}&enrollment_id=eq.${encodeURIComponent(enrollment.id)}&order=session_number.asc`)];
+    const tasks=[db(c,`accelerator_session_progress?select=${ACCELERATOR_PROGRESS_SELECT}&enrollment_id=eq.${encodeURIComponent(enrollment.id)}&order=session_number.asc`),db(c,`accelerator_plans?select=${ACCELERATOR_PLAN_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&enrollment_id=eq.${encodeURIComponent(enrollment.id)}&limit=1`)];
     if(enrollment.facilitator_id)tasks.push(db(c,`accelerator_facilitators?select=name,title,experience_summary,photo_url,highlights,status&id=eq.${encodeURIComponent(enrollment.facilitator_id)}&status=eq.active&limit=1`));
-    const results=await Promise.all(tasks);progress=Array.isArray(results[0])?results[0]:[];if(results[1])facilitator=Array.isArray(results[1])?results[1][0]||null:null;
+    const results=await Promise.all(tasks);progress=Array.isArray(results[0])?results[0]:[];plan=Array.isArray(results[1])?results[1][0]||null:null;if(results[2])facilitator=Array.isArray(results[2])?results[2][0]||null:null;
   }
   const progressBySession=new Map(progress.map(row=>[Number(row.session_number),row]));
   const archetype=account.archetype_result&&typeof account.archetype_result==='object'?account.archetype_result:{};
   const diagnostic=account.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
   return{
-    enrollment:publicAcceleratorEnrollment(enrollment),facilitator:publicAcceleratorFacilitator(facilitator),
+    enrollment:publicAcceleratorEnrollment(enrollment),facilitator:publicAcceleratorFacilitator(facilitator),plan:publicAcceleratorPlan(plan),
     foundationComplete:Boolean(archetype.name||archetype.title||archetype.archetype||archetype.primary),
     integrationsComplete:Boolean(diagnostic.integrationsComplete||diagnostic.integrationComplete||diagnostic.integrations_complete),
     sessions:(Array.isArray(sessions)?sessions:[]).map(row=>{const item=progressBySession.get(Number(row.session_number));return{sessionNumber:Number(row.session_number),title:row.title,summary:row.summary,priceCents:Number(row.price_cents)||0,checkoutUrl:safeHttpsUrl(row.checkout_url),primaryActionLabel:row.primary_action_label||'',primaryActionUrl:acceleratorActionUrl(row.primary_action_url),secondaryActionLabel:row.secondary_action_label||'',secondaryActionUrl:acceleratorActionUrl(row.secondary_action_url),status:item?.status||(Number(row.session_number)===0?'available':'locked'),scheduledAt:item?.scheduled_at||null,paidAt:item?.paid_at||null,amountPaidCents:Number(item?.amount_paid_cents)||0,startedAt:item?.started_at||null,completedAt:item?.completed_at||null,notes:item?.notes||'',preparationNotes:item?.preparation_notes||'',questions:item?.questions||'',desiredOutcome:item?.desired_outcome||'',decisions:item?.decisions||'',actionItems:Array.isArray(item?.action_items)?item.action_items:[],updatedAt:item?.updated_at||row.updated_at||null}})
@@ -862,6 +864,26 @@ async function setAcceleratorSessionStatus(c,accountId,input){
   if(next==='completed'&&number<6){await db(c,'accelerator_session_progress?on_conflict=enrollment_id,session_number',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({enrollment_id:enrollment.id,session_number:number+1,status:'available',created_at:now,updated_at:now})})}
   if(next==='completed'&&number===6)await db(c,`accelerator_enrollments?id=eq.${encodeURIComponent(enrollment.id)}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({status:'completed',completed_at:now,updated_at:now})});
   return{sessionNumber:number,status:next};
+}
+const acceleratorPlanRows=(value,type)=>(Array.isArray(value)?value:[]).slice(0,20).map(item=>({title:acceleratorText(item?.title,500),owner:acceleratorText(item?.owner,120),dueDate:/^\d{4}-\d{2}-\d{2}$/.test(clean(item?.dueDate))?clean(item.dueDate):'',status:type==='priority'&&['not_started','on_track','watch','off_track','complete'].includes(clean(item?.status))?clean(item.status):'not_started'})).filter(item=>item.title);
+async function acceleratorPlanContext(c,accountId){
+  const enrollments=await db(c,`accelerator_enrollments?select=id&account_id=eq.${encodeURIComponent(accountId)}&limit=1`),enrollment=Array.isArray(enrollments)?enrollments[0]||null:null;
+  if(!enrollment)throw Object.assign(new Error('Choose an Accelerator payment plan first.'),{status:409});
+  const progressRows=await db(c,`accelerator_session_progress?select=status&enrollment_id=eq.${encodeURIComponent(enrollment.id)}&session_number=eq.6&limit=1`),progress=Array.isArray(progressRows)?progressRows[0]||null:null;
+  if(!progress||['locked','cancelled'].includes(progress.status))throw Object.assign(new Error('Complete the earlier Accelerator sessions before opening the final plan.'),{status:409});
+  const planRows=await db(c,`accelerator_plans?select=${ACCELERATOR_PLAN_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&enrollment_id=eq.${encodeURIComponent(enrollment.id)}&limit=1`),plan=Array.isArray(planRows)?planRows[0]||null:null;
+  return{enrollment,plan};
+}
+async function saveAcceleratorPlan(c,accountId,input){
+  const {enrollment,plan}=await acceleratorPlanContext(c,accountId);if(plan?.status==='finalized')throw Object.assign(new Error('Reopen the finalized plan before editing it.'),{status:409});
+  const now=new Date().toISOString(),payload={account_id:accountId,enrollment_id:enrollment.id,status:'draft',one_year_vision:acceleratorText(input.oneYearVision,5000),annual_outcomes:acceleratorPlanRows(input.annualOutcomes,'outcome'),priorities:acceleratorPlanRows(input.priorities,'priority'),finalized_at:null,updated_at:now};if(!plan)payload.created_at=now;
+  const rows=await db(c,`accelerator_plans?on_conflict=account_id&select=${ACCELERATOR_PLAN_SELECT}`,{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:JSON.stringify(payload)});return publicAcceleratorPlan(Array.isArray(rows)?rows[0]||payload:payload);
+}
+async function setAcceleratorPlanStatus(c,accountId,input){
+  const {plan}=await acceleratorPlanContext(c,accountId);if(!plan)throw Object.assign(new Error('Save the final plan before changing its status.'),{status:409});const next=clean(input.status);
+  if(!((plan.status==='draft'&&next==='finalized')||(plan.status==='finalized'&&next==='draft')))throw Object.assign(new Error(`Plan cannot move from ${plan.status} to ${next}.`),{status:409});
+  const priorities=Array.isArray(plan.priorities)?plan.priorities:[],outcomes=Array.isArray(plan.annual_outcomes)?plan.annual_outcomes:[];if(next==='finalized'&&(!priorities.length||!outcomes.length))throw Object.assign(new Error('Add at least one 90-day priority and one one-year outcome before finalizing.'),{status:422});
+  const now=new Date().toISOString(),rows=await db(c,`accelerator_plans?id=eq.${encodeURIComponent(plan.id)}&account_id=eq.${encodeURIComponent(accountId)}&select=${ACCELERATOR_PLAN_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({status:next,finalized_at:next==='finalized'?now:null,updated_at:now})});return publicAcceleratorPlan(Array.isArray(rows)?rows[0]||plan:plan);
 }
 
 const PARTNER_APP_SELECT='id,name,category,placement,summary,logo_url,learn_url,checkout_url,status,sort_order,updated_at';
@@ -1044,6 +1066,8 @@ export default async function handler(req,res){
     if(bodyAction==='accelerator_choose_plan'){if(!session)return json(res,401,{error:'Sign in before choosing an Accelerator payment plan.'});return json(res,200,{success:true,enrollment:await chooseAcceleratorPlan(c,session.accountId,clean(b.paymentPlan))})}
     if(bodyAction==='accelerator_save_workspace'){if(!session)return json(res,401,{error:'Sign in before saving Accelerator work.'});return json(res,200,{success:true,progress:await saveAcceleratorWorkspace(c,session.accountId,b)})}
     if(bodyAction==='accelerator_set_session_status'){if(!session)return json(res,401,{error:'Sign in before updating Accelerator progress.'});return json(res,200,{success:true,progress:await setAcceleratorSessionStatus(c,session.accountId,b)})}
+    if(bodyAction==='accelerator_save_plan'){if(!session)return json(res,401,{error:'Sign in before saving the Accelerator plan.'});return json(res,200,{success:true,plan:await saveAcceleratorPlan(c,session.accountId,b)})}
+    if(bodyAction==='accelerator_set_plan_status'){if(!session)return json(res,401,{error:'Sign in before updating the Accelerator plan.'});return json(res,200,{success:true,plan:await setAcceleratorPlanStatus(c,session.accountId,b)})}
     if(bodyAction==='partner_referral'){if(!session)return json(res,401,{error:'Sign in before contacting a strategic partner.'});return json(res,200,{success:true,referral:await savePartnerReferral(c,session.accountId,b.partnerAppId,clean(b.intent))})}
 
     if(bodyAction==='monitor_department'){
