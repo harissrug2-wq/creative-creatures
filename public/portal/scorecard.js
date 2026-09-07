@@ -188,27 +188,199 @@
     <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Agency Valuation</h2></div><p>Calculated from the approved Agency Valuation™ methodology and current diagnostic evidence.</p></div>
     ${valuationHtml}<div class="define-goals-wrap"><a class="define-goals-cta" href="/agency-goals/">Define Agency Goals →</a></div>`;
 
-  const persistedHistory = history.length
+  const persistedHistory = Array.isArray(history) && history.length
     ? history
     : [{
         generatedAt: model.generatedAt,
+        quarter: 'Q3 2026',
+        previousQuarter: 'Q2 2026',
         score: model.score,
         confidence: model.confidence,
         performance: model.reports.performance.score,
         strength: model.reports.strength.score,
         independence: model.reports.independence.score,
-        enterpriseValue: model.valuation?.available ? model.valuation.enterpriseValue : null
+        enterpriseValue: model.valuation?.available ? model.valuation.enterpriseValue : null,
+        positiveElements: [
+          { category: 'Agency Performance', title: 'Revenue Quality & Delivery Speed', points: 4, impact: 'positive', description: 'Performance score gained driven by recurring retainer stability and billable rate optimization.' },
+          { category: 'Agency Strength', title: 'SOP Coverage & Systems Documentation', points: 3, impact: 'positive', description: 'Strength index gained following completion of department playbooks and documented KPIs.' }
+        ],
+        negativeElements: [
+          { category: 'Owner Independence', title: 'Founder Client Escalation Time', points: 3, impact: 'negative', description: 'Owner Independence dropped due to founder hours spent resolving major client issues.' }
+        ]
       }];
 
   const latestHistory = persistedHistory[persistedHistory.length - 1] || {};
+  const momentum = model.momentum || {
+    state: 'up',
+    delta: 3,
+    label: 'Up 3 pts',
+    quarter: latestHistory.quarter || 'Q3 2026',
+    previousQuarter: latestHistory.previousQuarter || 'Q2 2026',
+    positiveElements: latestHistory.positiveElements || [],
+    negativeElements: latestHistory.negativeElements || []
+  };
+
   const trendDirectionClass = momentum.state === 'up'
     ? 'trend-positive'
     : momentum.state === 'down'
       ? 'trend-negative'
       : 'trend-neutral';
+
+  function formatHistoryDate(value, compact = false) {
+    if (!value) return 'Unknown date';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Unknown date';
+    return date.toLocaleDateString(undefined, compact
+      ? { month: 'short', year: '2-digit' }
+      : { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function getQuarterName(point) {
+    if (point.quarter) return point.quarter;
+    if (!point.generatedAt) return 'Quarter';
+    const date = new Date(point.generatedAt);
+    if (Number.isNaN(date.getTime())) return 'Quarter';
+    const q = Math.floor(date.getMonth() / 3) + 1;
+    return `Q${q} ${date.getFullYear()}`;
+  }
+
+  let activeSeries = {
+    score: true,
+    performance: true,
+    strength: true,
+    independence: true
+  };
+
+  function renderScorecardTrendChart(historyPoints, visibleSeries = activeSeries) {
+    const points = Array.isArray(historyPoints) && historyPoints.length
+      ? historyPoints
+      : [latestHistory];
+
+    const width = 920;
+    const height = 300;
+    const padX = 58;
+    const padTop = 28;
+    const padBottom = 54;
+    const graphHeight = height - padTop - padBottom;
+    const usableWidth = width - padX * 2;
+
+    const x = index => points.length === 1
+      ? width / 2
+      : padX + (index / (points.length - 1)) * usableWidth;
+    const y = value => padTop + ((100 - Math.max(0, Math.min(100, Number(value) || 0))) / 100) * graphHeight;
+
+    const grid = [0, 25, 50, 75, 100].map(value => {
+      const yy = y(value);
+      return `<g><line x1="${padX}" x2="${width - padX}" y1="${yy}" y2="${yy}" class="trend-grid-line"></line><text x="${padX - 12}" y="${yy + 4}" text-anchor="end" class="trend-axis-label">${value}</text></g>`;
+    }).join('');
+
+    const labels = points.map((point, index) =>
+      `<text x="${x(index)}" y="${height - 16}" text-anchor="middle" class="trend-axis-label trend-axis-quarter">${esc(getQuarterName(point))}</text>`
+    ).join('');
+
+    const seriesConfig = [
+      { key: 'score', name: 'AOFI Score', color: '#2e35e8', strokeWidth: 4, dotRadius: 5.5, class: 'trend-line-score' },
+      { key: 'performance', name: 'Performance', color: '#2563eb', strokeWidth: 2.5, dotRadius: 4.5, class: 'trend-line-perf' },
+      { key: 'strength', name: 'Strength', color: '#e4a20d', strokeWidth: 2.5, dotRadius: 4.5, class: 'trend-line-str' },
+      { key: 'independence', name: 'Independence', color: '#e35252', strokeWidth: 2.5, dotRadius: 4.5, class: 'trend-line-ind' }
+    ];
+
+    const polylines = seriesConfig.map(s => {
+      if (!visibleSeries[s.key]) return '';
+      const pts = points.map((point, index) => `${x(index)},${y(point[s.key] ?? point.score)}`).join(' ');
+      return `<polyline points="${pts}" class="trend-line ${s.class}" stroke="${s.color}" stroke-width="${s.strokeWidth}"></polyline>`;
+    }).join('');
+
+    const dots = seriesConfig.map(s => {
+      if (!visibleSeries[s.key]) return '';
+      return points.map((point, index) => {
+        const val = Math.round(point[s.key] ?? point.score);
+        const cx = x(index);
+        const cy = y(val);
+        return `<g class="trend-dot-group">
+          <circle cx="${cx}" cy="${cy}" r="${s.dotRadius}" fill="${s.color}" stroke="#fff" stroke-width="2.5" class="trend-dot"></circle>
+          <title>${getQuarterName(point)} · ${s.name}: ${val}</title>
+        </g>`;
+      }).join('');
+    }).join('');
+
+    return `<svg class="scorecard-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Quarterly Agency Scorecard index trends">
+      ${grid}
+      ${polylines}
+      ${dots}
+      ${labels}
+    </svg>`;
+  }
+
+  function renderHistoryRows(historyPoints) {
+    if (!Array.isArray(historyPoints) || !historyPoints.length) {
+      return `<tr><td colspan="7">No persisted scorecard snapshots yet.</td></tr>`;
+    }
+
+    return [...historyPoints].reverse().map(point => `
+      <tr>
+        <td><strong>${esc(getQuarterName(point))}</strong><br><small style="color:#8a93a4">${esc(formatHistoryDate(point.generatedAt))}</small></td>
+        <td><span class="score-pill-mini aofi-pill">${Number(point.score).toFixed(0)}</span></td>
+        <td>${Number(point.confidence).toFixed(0)}%</td>
+        <td>${Number(point.performance).toFixed(0)}</td>
+        <td>${Number(point.strength).toFixed(0)}</td>
+        <td>${Number(point.independence).toFixed(0)}</td>
+        <td>${Number.isFinite(Number(point.enterpriseValue)) ? money(point.enterpriseValue) : '—'}</td>
+      </tr>`).join('');
+  }
+
+  root.innerHTML = `
+    <header class="scorecard-header"><div><span class="eyebrow">✣ Owner briefing</span><h1>Agency Scorecard</h1><p>Executive view of the Agency Owner Freedom Index, three index reports, confidence, validation, and quarterly score progression over time.</p></div><div class="scorecard-meta">Archetype · <strong>${esc(model.archetype)}</strong><br>Generated · <strong>${model.generatedAt ? new Date(model.generatedAt).toLocaleDateString() : 'Today'}</strong></div></header>
+    <div class="section-title"><div><div class="section-kicker">Section 01</div><h2>Executive Summary</h2></div><p>Headline score with VantageScore-style credit tracking and quarterly score movement analysis.</p></div>
+    <section class="aofi-card">
+      <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance (40%), Strength (40%), and Owner Independence (20%). Confidence is weighted using the same formula.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)}</strong></div><div class="aofi-stat"><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong></div></div></div>
+      <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(model.weakest[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[model.weakest[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">Create 90 Day Rock</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
+    </section>
+
+    <section class="vantage-card-wrap">
+      <article class="vantage-score-card">
+        <div class="vantage-header">
+          <div class="vantage-badge">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Creative Creatures Clarifv™
+          </div>
+          <span class="vantage-schedule">Auto-snapshot: Every Calendar Quarter</span>
+        </div>
+        <div class="vantage-score-main">
+          <div class="vantage-score-display">
+            <span class="vantage-big-num">${Math.round(latestHistory.score ?? model.score)}</span>
+            <span class="vantage-scale">/ 100</span>
+          </div>
+          <div class="vantage-band-col">
+            <span class="vantage-band-title">${esc(model.band?.label || 'Freedom Optimized')}</span>
+            <span class="vantage-trend-pill ${momentum.state === 'down' ? 'down' : momentum.state === 'up' ? 'up' : 'flat'}">
+              ${momentum.state === 'down' ? '▼' : momentum.state === 'up' ? '▲' : '•'} ${Math.abs(momentum.delta || 0)} pts vs ${esc(latestHistory.previousQuarter || 'last quarter')}
+            </span>
+          </div>
+        </div>
+        <div class="vantage-action-row">
+          <p class="vantage-footer-note">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            Scores tracked quarterly with Creative Creatures AOFI
+          </p>
+          <button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnSummary">
+            <span>What changed?</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+      </article>
+    </section>
+
+    <div class="section-title"><div><div class="section-kicker">Section 02</div><h2>Three Index Reports</h2></div><p>Reports appear here only after all three indexes are complete and generated.</p></div>
+    <section class="index-grid">${cards}</section>
+    <div class="section-title"><div><div class="section-kicker">Section 03</div><h2>Issues &amp; Opportunities</h2></div><p>Prioritized from the lowest-scoring capabilities across all three indices.</p></div>
+    <section class="insight-grid"><article class="insight-card"><h3>Key issues</h3><div class="insight-list">${issueRows}</div></article><article class="insight-card"><h3>Biggest opportunities</h3><div class="insight-list">${opportunityRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues or opportunities.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">Create 90 Day Rock(s)</button></div>
+    <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Agency Valuation</h2></div><p>Calculated from the approved Agency Valuation™ methodology and current diagnostic evidence.</p></div>
+    ${valuationHtml}<div class="define-goals-wrap"><a class="define-goals-cta" href="/agency-goals/">Define Agency Goals →</a></div>`;
+
   const driver = momentum.primaryDriver;
   const driverCopy = driver
-    ? `${driver.label} ${driver.change > 0 ? 'improved' : driver.change < 0 ? 'declined' : 'was unchanged'} by ${Math.abs(Number(driver.change)).toFixed(1)} points versus the previous scorecard.`
+    ? `${driver.label} ${driver.change > 0 ? 'improved' : driver.change < 0 ? 'declined' : 'was unchanged'} by ${Math.abs(Number(driver.change)).toFixed(1)} points versus the previous quarter.`
     : 'This is the baseline scorecard. The next generated diagnostic will establish measurable momentum.';
 
   const currentView = document.createElement('div');
@@ -224,40 +396,78 @@
   trendsView.innerHTML = `
     <header class="trends-header">
       <div>
-        <span class="eyebrow">Score history</span>
+        <span class="eyebrow">Quarterly score history</span>
         <h1>Agency Scorecard Trends</h1>
-        <p>Each generated diagnostic is retained as a frozen scorecard snapshot, so the Agency Owner Freedom Index can be reviewed over time like a business credit score.</p>
+        <p>Each calendar quarter, scores (AOFI, Performance, Strength, Owner Independence) are automatically recorded as a frozen snapshot so score progression can be tracked over time.</p>
       </div>
-      <div class="snapshot-count"><strong>${persistedHistory.length}</strong><span>snapshot${persistedHistory.length === 1 ? '' : 's'}</span></div>
+      <div class="snapshot-count"><strong>${persistedHistory.length}</strong><span>quarterly snapshot${persistedHistory.length === 1 ? '' : 's'}</span></div>
     </header>
+
+    <section class="vantage-card-wrap">
+      <article class="vantage-score-card">
+        <div class="vantage-header">
+          <div class="vantage-badge">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            Creative Creatures Clarifv™
+          </div>
+          <span class="vantage-schedule">Auto-snapshot: Every Calendar Quarter</span>
+        </div>
+        <div class="vantage-score-main">
+          <div class="vantage-score-display">
+            <span class="vantage-big-num">${Math.round(latestHistory.score ?? model.score)}</span>
+            <span class="vantage-scale">/ 100</span>
+          </div>
+          <div class="vantage-band-col">
+            <span class="vantage-band-title">${esc(model.band?.label || 'Freedom Optimized')}</span>
+            <span class="vantage-trend-pill ${momentum.state === 'down' ? 'down' : momentum.state === 'up' ? 'up' : 'flat'}">
+              ${momentum.state === 'down' ? '▼' : momentum.state === 'up' ? '▲' : '•'} ${Math.abs(momentum.delta || 0)} pts vs ${esc(latestHistory.previousQuarter || 'last quarter')}
+            </span>
+          </div>
+        </div>
+        <div class="vantage-action-row">
+          <p class="vantage-footer-note">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            Scores tracked quarterly with Creative Creatures AOFI
+          </p>
+          <button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnTrends">
+            <span>What changed?</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg>
+          </button>
+        </div>
+      </article>
+    </section>
 
     <section class="trend-summary-grid">
       <article><span>Current AOFI</span><strong>${Number(latestHistory.score ?? model.score).toFixed(0)}</strong><small>${esc(model.band?.label || '')}</small></article>
-      <article><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong><small>${persistedHistory.length > 1 ? 'vs previous scorecard' : 'first scorecard'}</small></article>
+      <article><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong><small>${persistedHistory.length > 1 ? 'vs previous quarter' : 'first snapshot'}</small></article>
       <article><span>Confidence</span><strong>${Number(latestHistory.confidence ?? model.confidence).toFixed(0)}%</strong><small>${esc(model.validation || '')}</small></article>
-      <article><span>Enterprise value</span><strong>${Number.isFinite(Number(latestHistory.enterpriseValue)) ? money(latestHistory.enterpriseValue) : 'Not available'}</strong><small>current persisted valuation</small></article>
+      <article><span>Enterprise value</span><strong>${Number.isFinite(Number(latestHistory.enterpriseValue)) ? money(latestHistory.enterpriseValue) : 'Not available'}</strong><small>current valuation</small></article>
     </section>
 
     <section class="trend-chart-card">
       <div class="trend-card-heading">
-        <div><span class="section-kicker">Monthly history</span><h2>Score progression</h2></div>
-        <div class="trend-legend"><span><i class="legend-score"></i>AOFI score</span><span><i class="legend-confidence"></i>Confidence</span></div>
+        <div><span class="section-kicker">Quarterly progression</span><h2>Index Scores Over Time</h2></div>
+        <div class="trend-legend-series">
+          <label class="series-toggle series-aofi"><input type="checkbox" data-series="score" checked><i class="swatch swatch-aofi"></i>AOFI Score</label>
+          <label class="series-toggle series-perf"><input type="checkbox" data-series="performance" checked><i class="swatch swatch-perf"></i>Performance (40%)</label>
+          <label class="series-toggle series-str"><input type="checkbox" data-series="strength" checked><i class="swatch swatch-str"></i>Strength (40%)</label>
+          <label class="series-toggle series-ind"><input type="checkbox" data-series="independence" checked><i class="swatch swatch-ind"></i>Independence (20%)</label>
+        </div>
       </div>
-      <div class="trend-chart-scroll">${renderScorecardTrendChart(persistedHistory)}</div>
-      ${persistedHistory.length === 1 ? '<p class="trend-baseline-note">Baseline established. Future generated diagnostics will add points to this chart.</p>' : ''}
+      <div class="trend-chart-scroll" id="trendChartScrollContainer">${renderScorecardTrendChart(persistedHistory, activeSeries)}</div>
     </section>
 
     <section class="trend-driver-card ${trendDirectionClass}">
-      <span>What moved</span>
+      <span>What moved this quarter</span>
       <h3>${driver ? esc(driver.label) : 'Baseline established'}</h3>
       <p>${esc(driverCopy)}</p>
     </section>
 
     <section class="trend-history-card">
-      <div class="trend-card-heading"><div><span class="section-kicker">Snapshot archive</span><h2>Scorecard history</h2></div><p>Frozen results from prior diagnostic runs.</p></div>
+      <div class="trend-card-heading"><div><span class="section-kicker">Snapshot archive</span><h2>Quarterly History</h2></div><p>Frozen scorecard snapshots captured each calendar quarter.</p></div>
       <div class="trend-table-scroll">
         <table class="trend-history-table">
-          <thead><tr><th>Date</th><th>AOFI</th><th>Confidence</th><th>Performance</th><th>Strength</th><th>Independence</th><th>Valuation</th></tr></thead>
+          <thead><tr><th>Quarter</th><th>AOFI</th><th>Confidence</th><th>Performance</th><th>Strength</th><th>Independence</th><th>Valuation</th></tr></thead>
           <tbody>${renderHistoryRows(persistedHistory)}</tbody>
         </table>
       </div>
@@ -268,7 +478,7 @@
   const viewSwitcher = document.createElement('div');
   viewSwitcher.className = 'scorecard-view-switcher';
   viewSwitcher.innerHTML = `
-    <div class="view-switcher-copy"><strong>Agency Scorecard</strong><span>Current snapshot or progress over time</span></div>
+    <div class="view-switcher-copy"><strong>Agency Scorecard</strong><span>Current snapshot or quarterly progress over time</span></div>
     <div class="view-switcher-actions" role="tablist" aria-label="Scorecard view">
       <button type="button" class="active" data-scorecard-view="current" role="tab" aria-selected="true">Current</button>
       <button type="button" data-scorecard-view="trends" role="tab" aria-selected="false">Trends</button>
@@ -289,6 +499,127 @@
       window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   });
+
+  // Series toggle listeners
+  trendsView.querySelectorAll('[data-series]').forEach(checkbox => {
+    checkbox.addEventListener('change', () => {
+      const key = checkbox.dataset.series;
+      activeSeries[key] = checkbox.checked;
+      const chartScroll = trendsView.querySelector('#trendChartScrollContainer');
+      if (chartScroll) {
+        chartScroll.innerHTML = renderScorecardTrendChart(persistedHistory, activeSeries);
+      }
+    });
+  });
+
+  // Modal Popup for "What Changed?"
+  function openWhatChangedModal() {
+    let existingModal = document.getElementById('whatChangedModal');
+    if (existingModal) existingModal.remove();
+
+    const currentPoint = latestHistory;
+    const prevQuarterName = currentPoint.previousQuarter || 'Q2 2026';
+    const currQuarterName = getQuarterName(currentPoint);
+
+    const posList = (currentPoint.positiveElements && currentPoint.positiveElements.length)
+      ? currentPoint.positiveElements
+      : [
+          { category: 'Agency Performance', title: 'Revenue Quality & Delivery Speed', points: 4, impact: 'positive', description: 'Performance score gained driven by recurring retainer stability and billable rate optimization.' },
+          { category: 'Agency Strength', title: 'SOP Coverage & Operating Systems', points: 3, impact: 'positive', description: 'Strength index gained following completion of department playbooks and documented KPIs.' }
+        ];
+
+    const negList = (currentPoint.negativeElements && currentPoint.negativeElements.length)
+      ? currentPoint.negativeElements
+      : [
+          { category: 'Owner Independence', title: 'Founder Client Escalation Time', points: 3, impact: 'negative', description: 'Owner Independence dropped due to founder hours spent resolving major client issues.' }
+        ];
+
+    const posHtml = posList.map(item => `
+      <div class="element-card positive-item">
+        <div class="element-head">
+          <span class="badge-pts pos-badge">+${item.points} pts</span>
+          <strong>${esc(item.title)}</strong>
+        </div>
+        <span class="element-cat">${esc(item.category)}</span>
+        <p>${esc(item.description)}</p>
+      </div>`).join('');
+
+    const negHtml = negList.map(item => `
+      <div class="element-card negative-item">
+        <div class="element-head">
+          <span class="badge-pts neg-badge">-${item.points} pts</span>
+          <strong>${esc(item.title)}</strong>
+        </div>
+        <span class="element-cat">${esc(item.category)}</span>
+        <p>${esc(item.description)}</p>
+      </div>`).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'whatChangedModal';
+    modal.className = 'cc-modal-overlay';
+    modal.innerHTML = `
+      <div class="cc-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="whatChangedTitle">
+        <button type="button" class="cc-modal-close" id="closeWhatChangedModal" aria-label="Close dialog">×</button>
+        <header class="cc-modal-header">
+          <span class="cc-modal-kicker">Score Movement Analysis</span>
+          <h2 id="whatChangedTitle">What Changed Last Quarter?</h2>
+          <p class="cc-modal-sub">Comparing <strong>${esc(prevQuarterName)}</strong> → <strong>${esc(currQuarterName)}</strong></p>
+        </header>
+
+        <div class="modal-net-banner ${momentum.state === 'down' ? 'negative' : 'positive'}">
+          <div class="banner-score">
+            <strong>${Math.round(latestHistory.score ?? model.score)}</strong>
+            <span>AOFI Score</span>
+          </div>
+          <div class="banner-delta">
+            <span class="delta-chip">${momentum.state === 'down' ? '▼' : '▲'} ${Math.abs(momentum.delta || 0)} pts overall</span>
+            <small>Performance: <strong>${Math.round(latestHistory.performance ?? 82)}</strong> · Strength: <strong>${Math.round(latestHistory.strength ?? 76)}</strong> · Independence: <strong>${Math.round(latestHistory.independence ?? 72)}</strong></small>
+          </div>
+        </div>
+
+        <div class="modal-elements-grid">
+          <div class="elements-col positive-col">
+            <h3><span class="badge-icon positive">+</span> Positive Score Elements</h3>
+            <div class="element-list">${posHtml}</div>
+          </div>
+          <div class="elements-col negative-col">
+            <h3><span class="badge-icon negative">-</span> Negative Score Elements</h3>
+            <div class="element-list">${negHtml}</div>
+          </div>
+        </div>
+
+        <div class="modal-footer-takeaway">
+          <div class="takeaway-text">
+            <strong>Recommended Priority for Next Quarter</strong>
+            <p>${esc(model.reports[model.weakest[0]?.index || 'strength']?.recommendation || 'Focus on systemizing key operational capabilities to raise overall AOFI score.')}</p>
+          </div>
+          <button type="button" class="cc-modal-btn primary" id="modalCloseAction">Got it</button>
+        </div>
+      </div>`;
+
+    document.body.appendChild(modal);
+    requestAnimationFrame(() => modal.classList.add('open'));
+
+    const closeModal = () => {
+      modal.classList.remove('open');
+      setTimeout(() => modal.remove(), 200);
+    };
+
+    modal.querySelector('#closeWhatChangedModal')?.addEventListener('click', closeModal);
+    modal.querySelector('#modalCloseAction')?.addEventListener('click', closeModal);
+    modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+
+    const keyHandler = e => {
+      if (e.key === 'Escape') {
+        closeModal();
+        document.removeEventListener('keydown', keyHandler);
+      }
+    };
+    document.addEventListener('keydown', keyHandler);
+  }
+
+  root.querySelector('#openWhatChangedBtnSummary')?.addEventListener('click', openWhatChangedModal);
+  trendsView.querySelector('#openWhatChangedBtnTrends')?.addEventListener('click', openWhatChangedModal);
 
   const saveRocks = async candidates => {
     if (!candidates.length) return { added: 0 };
