@@ -87,6 +87,8 @@
     const closeMobileNav=()=>{panel?.classList.remove('open');toggle?.setAttribute('aria-expanded','false');};
     toggle?.addEventListener('click',()=>{const open=!panel?.classList.contains('open');panel?.classList.toggle('open',open);toggle.setAttribute('aria-expanded',String(open));});
     panel?.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMobileNav));
+    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});loadWorkspace().catch(()=>{});
+    el.querySelector('.ask-creature')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{}});
     el.querySelector('.mobile-ask-creature')?.addEventListener('click',()=>{el.querySelector('.ask-creature')?.click();closeMobileNav();});
     document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMobileNav();});
     el.querySelector('.mobile-signout')?.addEventListener('click',signOut);

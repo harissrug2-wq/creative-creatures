@@ -164,6 +164,28 @@ function accountSession(req) {
   return session?.role === 'account' && session?.accountId ? session : null;
 }
 
+async function requireLeadershipAccess(config, session) {
+  if (!session?.memberId) return;
+  const params = new URLSearchParams({
+    select: 'id,departments,status',
+    id: `eq.${session.memberId}`,
+    account_id: `eq.${session.accountId}`,
+    limit: '1'
+  });
+  const rows = await supabaseRequest(config, `account_members?${params.toString()}`);
+  const member = Array.isArray(rows) ? rows[0] : null;
+  if (!member || member.status !== 'active') {
+    const error = new Error('Your account access is no longer active.');
+    error.status = 401;
+    throw error;
+  }
+  if (!Array.isArray(member.departments) || !member.departments.includes('leadership')) {
+    const error = new Error('Your account does not have access to Leadership.');
+    error.status = 403;
+    throw error;
+  }
+}
+
 async function assertOwnedMeeting(config, accountId, meetingId) {
   if (!meetingId) return null;
   const params = new URLSearchParams({
@@ -526,6 +548,7 @@ export default async function handler(req, res) {
     const session = accountSession(req);
     const admin = requireAdmin(req);
     if (!session && !admin) return json(res, 401, { error: 'Sign in to open Agency Leadership.', code: 'AUTH_REQUIRED' });
+    if (session) await requireLeadershipAccess(config, session);
     const identity = session
       ? { accountId: session.accountId }
       : suppliedIdentity;
@@ -573,7 +596,7 @@ export default async function handler(req, res) {
     return json(res, 422, { error: 'Unknown Leadership action.', code: 'INVALID_ACTION' });
   } catch (error) {
     console.error('leadership API error', error);
-    const status = [400, 404, 409, 422].includes(error.status) ? error.status : 500;
+    const status = [400, 401, 403, 404, 409, 422].includes(error.status) ? error.status : 500;
     return json(res, status, {
       error: error.message || 'Leadership data could not be loaded or saved.',
       code: error.code || 'LEADERSHIP_API_ERROR'

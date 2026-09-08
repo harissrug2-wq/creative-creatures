@@ -76,7 +76,9 @@
     if (key === 'scorecard' || key === 'goals') setTimeout(() => location.href = '/diagnostic/?locked=' + key, 650);
   }));
 
-  host.querySelector('[data-cc-ask]')?.addEventListener('click', () => show('Ask Creature requires the conversational backend.'));
+  const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
+  loadWorkspace().catch(()=>{});
+  host.querySelector('[data-cc-ask]')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{show('Ask Creature is unavailable right now.')}});
 
   // Phase 3 Horizontal Status Bar
   const states = [ownerIdentityReady, paymentReady, integrationsReady, strengthReady || integrationsReady, ownerReady || integrationsReady, performanceReady || scorecardGenerated, scorecardGenerated];

@@ -190,13 +190,49 @@ const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-T
 const clean=v=>String(v??'').trim();const lower=v=>clean(v).toLowerCase();
 function cfg(){const url=clean(process.env.SUPABASE_URL).replace(/\/+$/,'');const key=clean(process.env.SUPABASE_SERVICE_ROLE_KEY);return url&&key?{url,key}:null}
 async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${path}`,{...options,headers:{apikey:c.key,'Content-Type':'application/json',...(options.headers||{})}});const t=await r.text();let p=null;try{p=t?JSON.parse(t):null}catch{p=t}if(!r.ok){const e=new Error(p?.message||p?.hint||'Database request failed.');e.status=r.status;e.payload=p;throw e}return p}
-const SELECT='id,name,email,agency_url,agency_name,journey,source,archetype_result,report_data,diagnostic_state,password_hash,password_reset_token_hash,password_reset_expires_at,created_at,updated_at';
-function pub(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_url,agency_name:a.agency_name,journey:a.journey,source:a.source,archetype_result:a.archetype_result||{},report_data:a.report_data||{},diagnostic_state:a.diagnostic_state||{},created_at:a.created_at,updated_at:a.updated_at}:null}
+const SELECT='id,name,email,agency_url,agency_name,journey,access_plan,source,archetype_result,report_data,diagnostic_state,password_hash,password_reset_token_hash,password_reset_expires_at,created_at,updated_at';
+function pub(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_url,agency_name:a.agency_name,journey:a.journey,accessPlan:a.access_plan||planFromJourney(a.journey),source:a.source,archetype_result:a.archetype_result||{},report_data:a.report_data||{},diagnostic_state:a.diagnostic_state||{},created_at:a.created_at,updated_at:a.updated_at}:null}
 async function findById(c,id){const rows=await db(c,`accounts?select=${SELECT}&id=eq.${encodeURIComponent(id)}&limit=1`);return Array.isArray(rows)?rows[0]:null}
 
 function currentSession(req, secret){
   const session=verifySession(parseCookies(req).cc_account_session,secret);
   return session?.role==='account'&&session?.accountId?session:null;
+}
+
+const DEPARTMENTS=['leadership','marketing','sales','billing','onboarding','service-delivery','client-success','talent-acquisition','finance','communication','systems','sops'];
+const PLAN_FEATURES={
+  owner_archetype:['owner-archetype'],
+  diagnostic:['owner-archetype','diagnostic','scorecard','goals','ask'],
+  accelerator:['owner-archetype','accelerator','diagnostic','scorecard','goals','ask'],
+  platform:['owner-archetype','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask'],
+  fractional_coo:['owner-archetype','accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask']
+};
+function planFromJourney(journey){return journey==='platform'?'platform':journey==='accelerator'?'accelerator':'diagnostic'}
+function accessPlan(account){return PLAN_FEATURES[account?.access_plan]?account.access_plan:planFromJourney(account?.journey)}
+function publicMember(row){return row?{id:row.id,name:row.name,email:row.email,role:'member',departments:Array.isArray(row.departments)?row.departments:[],status:row.status,invitedAt:row.invited_at,lastLoginAt:row.last_login_at}:null}
+async function sessionActor(c,session){
+  if(!session)return null;
+  if(!session.memberId)return{role:'owner',accountId:session.accountId,memberId:null,departments:DEPARTMENTS};
+  const rows=await db(c,`account_members?select=id,account_id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(session.accountId)}&id=eq.${encodeURIComponent(session.memberId)}&limit=1`),member=Array.isArray(rows)?rows[0]:null;
+  return member?.status==='active'?{role:'member',accountId:session.accountId,memberId:member.id,name:member.name,email:member.email,departments:Array.isArray(member.departments)?member.departments:[]}:null;
+}
+function sanitizeDepartments(value){return [...new Set((Array.isArray(value)?value:[]).map(clean).filter(v=>DEPARTMENTS.includes(v)))]}
+function requireOwner(actor){if(actor?.role!=='owner')throw Object.assign(new Error('Only the agency owner can manage users or integrations.'),{status:403})}
+function requireDepartment(actor,department){if(actor?.role==='member'&&!actor.departments.includes(department))throw Object.assign(new Error('Your account does not have access to this department.'),{status:403})}
+function requireFeature(account,feature){if(!(PLAN_FEATURES[accessPlan(account)]||[]).includes(feature))throw Object.assign(new Error(`${feature.replace(/-/g,' ')} is not included in this agency plan.`),{status:403})}
+function publicAccess(account,actor){const plan=accessPlan(account);return{plan,features:PLAN_FEATURES[plan]||PLAN_FEATURES.diagnostic,actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS}}
+async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
+function responseText(payload){if(clean(payload?.output_text))return clean(payload.output_text);for(const item of payload?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&clean(part.text))return clean(part.text);return''}
+async function askCreature(c,account,actor,input){
+  const message=clean(input.message).slice(0,4000);if(!message)throw Object.assign(new Error('Enter a question for Ask Creature.'),{status:422});
+  const memberFilter=actor.role==='member'?`&member_id=eq.${encodeURIComponent(actor.memberId)}`:'';
+  const since=new Date(Date.now()-10*60*1000).toISOString(),recent=await db(c,`ask_creature_messages?select=id&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&role=eq.user&created_at=gte.${encodeURIComponent(since)}`);if((recent||[]).length>=20)throw Object.assign(new Error('Ask Creature has reached the short-term message limit. Try again in a few minutes.'),{status:429});
+  const history=await db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.desc&limit=12`),ordered=(Array.isArray(history)?history:[]).reverse();
+  const key=clean(process.env.OPENAI_API_KEY);if(!key)throw Object.assign(new Error('Ask Creature is not configured.'),{status:503});
+  const context={agency:account.agency_name||account.name,plan:accessPlan(account),actorRole:actor.role,departments:actor.departments,currentPage:clean(input.currentPath).slice(0,200),diagnostic:actor.role==='owner'?(account.diagnostic_state||{}):undefined,report:actor.role==='owner'?(account.report_data||{}):undefined};
+  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:clean(process.env.OPENAI_MODEL)||'gpt-5-mini',instructions:'You are Ask Creature, the Creative Creatures agency operations assistant. Use only the supplied agency context and conversation. Never claim access to missing data, never invent metrics, never reveal another agency, and respect the member department list. Give concise, practical guidance.',input:[...ordered.map(row=>({role:row.role,content:row.content})),{role:'user',content:`Agency context: ${JSON.stringify(context)}\n\nQuestion: ${message}`}],max_output_tokens:900})});
+  const payload=await response.json();if(!response.ok)throw Object.assign(new Error(payload?.error?.message||'Ask Creature could not respond.'),{status:502});const answer=responseText(payload);if(!answer)throw Object.assign(new Error('Ask Creature returned an empty response.'),{status:502});
+  await db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([{account_id:account.id,member_id:actor.memberId||null,role:'user',content:message},{account_id:account.id,member_id:actor.memberId||null,role:'assistant',content:answer}])});return answer;
 }
 
 const QB_SELECT='id,account_id,realm_id,company_name,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,refresh_token_expires_at,scope,status,last_synced_at,last_sync_error,created_at,updated_at';
@@ -839,6 +875,7 @@ async function chooseAcceleratorPlan(c,accountId,paymentPlan){
   if(existing){const rows=await db(c,`accelerator_enrollments?id=eq.${encodeURIComponent(existing.id)}&select=${ACCELERATOR_ENROLLMENT_SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({payment_plan:plan,status:existing.status==='cancelled'?'active':existing.status,started_at:existing.started_at||now,updated_at:now})});saved=Array.isArray(rows)?rows[0]||existing:existing}
   else{const rows=await db(c,`accelerator_enrollments?select=${ACCELERATOR_ENROLLMENT_SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:accountId,payment_plan:plan,status:'active',started_at:now,created_at:now,updated_at:now})});saved=Array.isArray(rows)?rows[0]||null:null}
   if(saved){await db(c,'accelerator_session_progress?on_conflict=enrollment_id,session_number',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify([{enrollment_id:saved.id,session_number:0,status:'available',created_at:now,updated_at:now},{enrollment_id:saved.id,session_number:1,status:'available',created_at:now,updated_at:now}])})}
+  const accounts=await db(c,`accounts?select=access_plan&id=eq.${encodeURIComponent(accountId)}&limit=1`),current=accounts?.[0]?.access_plan;if(!['platform','fractional_coo'].includes(current))await db(c,`accounts?id=eq.${encodeURIComponent(accountId)}`,{method:'PATCH',body:JSON.stringify({access_plan:'accelerator',updated_at:now})});
   return publicAcceleratorEnrollment(saved);
 }
 const acceleratorText=(value,max=5000)=>clean(value).slice(0,max);
@@ -926,6 +963,16 @@ export default async function handler(req,res){
       return json(res,200,{received:true});
     }
     if(req.method==='GET'){
+
+      if(action==='workspace_access'||action==='workspace_users'||action==='ask_creature_history'){
+        if(!session)return json(res,401,{authenticated:false,error:'Sign in to continue.'});const account=await findById(c,session.accountId),actor=await sessionActor(c,session);if(!account||!actor)return json(res,401,{authenticated:false,error:'Your account access is no longer active.'});
+        if(action==='workspace_access')return json(res,200,{authenticated:true,account:pub(account),access:publicAccess(account,actor)});
+        if(action==='workspace_users'){requireOwner(actor);return json(res,200,{owner:{name:account.name,email:account.email},users:await listWorkspaceUsers(c,account.id),departments:DEPARTMENTS})}
+        const memberFilter=actor.role==='member'?`&member_id=eq.${encodeURIComponent(actor.memberId)}`:'';const rows=await db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.asc&limit=50`);return json(res,200,{messages:Array.isArray(rows)?rows:[]});
+      }
+
+      if(session?.memberId&&action){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});return json(res,403,{error:'Only the agency owner can manage integrations and agency-wide programs.'})}
+      if(session&&action){const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});requireFeature(account,action==='accelerator'?'accelerator':action==='partner_portal'?'portal':'integrations')}
 
       if(action==='callback'){
         if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect GHL CRM.'});
@@ -1059,10 +1106,28 @@ export default async function handler(req,res){
       }
       if(!session)return json(res,401,{authenticated:false});
       const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});
-      return json(res,200,{authenticated:true,account:pub(account)});
+      const actor=await sessionActor(c,session);if(!actor)return json(res,401,{authenticated:false});return json(res,200,{authenticated:true,account:pub(account),access:publicAccess(account,actor)});
     }
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
     const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const bodyAction=clean(b.action);
+    if(['workspace_invite_user','workspace_update_user','workspace_remove_user','ask_creature'].includes(bodyAction)){
+      if(!session)return json(res,401,{error:'Sign in to continue.'});const account=await findById(c,session.accountId),actor=await sessionActor(c,session);if(!account||!actor)return json(res,401,{error:'Your account access is no longer active.'});
+      if(bodyAction==='ask_creature'){if(!(PLAN_FEATURES[accessPlan(account)]||[]).includes('ask'))return json(res,403,{error:'Ask Creature is not included in this plan.'});return json(res,200,{success:true,answer:await askCreature(c,account,actor,b)})}
+      requireOwner(actor);if(!(PLAN_FEATURES[accessPlan(account)]||[]).includes('users'))return json(res,403,{error:'User management is not included in this plan.'});
+      if(bodyAction==='workspace_invite_user'){
+        const name=clean(b.name).slice(0,120),email=lower(b.email),password=clean(b.password),departments=sanitizeDepartments(b.departments);if(!name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<10||!departments.length)return json(res,422,{error:'Name, valid email, temporary password (10+ characters), and at least one department are required.'});
+        const rows=await db(c,'account_members?select=id,name,email,departments,status,invited_at,last_login_at',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:account.id,name,email,email_normalized:email,password_hash:hashPassword(password),departments,status:'active'})});return json(res,200,{success:true,user:publicMember(rows?.[0])});
+      }
+      const id=clean(b.id);if(!id)return json(res,422,{error:'User ID is required.'});
+      if(bodyAction==='workspace_remove_user'){await db(c,`account_members?account_id=eq.${encodeURIComponent(account.id)}&id=eq.${encodeURIComponent(id)}`,{method:'DELETE'});return json(res,200,{success:true})}
+      const patch={name:clean(b.name).slice(0,120),departments:sanitizeDepartments(b.departments),status:b.status==='disabled'?'disabled':'active',updated_at:new Date().toISOString()};if(!patch.name||!patch.departments.length)return json(res,422,{error:'Name and at least one department are required.'});if(clean(b.password)){if(clean(b.password).length<10)return json(res,422,{error:'New password must be at least 10 characters.'});patch.password_hash=hashPassword(clean(b.password))}const rows=await db(c,`account_members?account_id=eq.${encodeURIComponent(account.id)}&id=eq.${encodeURIComponent(id)}&select=id,name,email,departments,status,invited_at,last_login_at`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});return json(res,200,{success:true,user:publicMember(rows?.[0])});
+    }
+    if(session?.memberId&&bodyAction&&!['monitor_department','google_calendar_events','forgot_password','reset_password'].includes(bodyAction)){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});return json(res,403,{error:'Your department account cannot manage agency-wide programs or integrations.'})}
+    if(session&&bodyAction&&!['forgot_password','reset_password'].includes(bodyAction)){
+      const account=await findById(c,session.accountId);if(!account)return json(res,401,{error:'Your account access is no longer active.'});
+      const feature=bodyAction.startsWith('accelerator_')?'accelerator':bodyAction==='partner_referral'?'portal':bodyAction==='monitor_department'?'monitor':bodyAction==='google_calendar_events'?'leadership':'integrations';requireFeature(account,feature);
+      if(session.memberId&&bodyAction==='google_calendar_events'){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});requireDepartment(actor,'leadership')}
+    }
     if(bodyAction==='accelerator_choose_plan'){if(!session)return json(res,401,{error:'Sign in before choosing an Accelerator payment plan.'});return json(res,200,{success:true,enrollment:await chooseAcceleratorPlan(c,session.accountId,clean(b.paymentPlan))})}
     if(bodyAction==='accelerator_save_workspace'){if(!session)return json(res,401,{error:'Sign in before saving Accelerator work.'});return json(res,200,{success:true,progress:await saveAcceleratorWorkspace(c,session.accountId,b)})}
     if(bodyAction==='accelerator_set_session_status'){if(!session)return json(res,401,{error:'Sign in before updating Accelerator progress.'});return json(res,200,{success:true,progress:await setAcceleratorSessionStatus(c,session.accountId,b)})}
@@ -1072,7 +1137,7 @@ export default async function handler(req,res){
 
     if(bodyAction==='monitor_department'){
       if(!session)return json(res,401,{error:'Sign in before viewing Monitor department data.'});
-      const result=await loadMonitorDepartment(c,session.accountId,clean(b.department));
+      const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});requireDepartment(actor,clean(b.department));const result=await loadMonitorDepartment(c,session.accountId,clean(b.department));
       return json(res,200,result);
     }
 
@@ -1421,9 +1486,10 @@ export default async function handler(req,res){
 
     const email=lower(b.email),password=clean(b.password);
     if(!email||!password)return json(res,422,{error:'Email and password are required.'});
-    const rows=await db(c,`accounts?select=${SELECT}&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);const account=Array.isArray(rows)?rows[0]:null;
-    if(!account||!account.password_hash||!verifyPassword(password,account.password_hash))return json(res,401,{error:'Invalid email or password.'});
-    const token=signSession({role:'account',accountId:account.id,email:account.email},secret,30*24*60*60);setSessionCookie(res,'cc_account_session',token,30*24*60*60);
-    return json(res,200,{authenticated:true,account:pub(account)});
-  }catch(e){console.error('account auth error',e);const status=[400,401,403,404,409,422].includes(Number(e.status))?Number(e.status):500;return json(res,status,{error:e.message||'Unable to process the account request right now.',code:e.code||'ACCOUNT_AUTH_ERROR'})}
+    const rows=await db(c,`accounts?select=${SELECT}&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);let account=Array.isArray(rows)?rows[0]:null,member=null;
+    if(!account){const members=await db(c,`account_members?select=id,account_id,name,email,password_hash,departments,status&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);member=Array.isArray(members)?members[0]:null;if(member?.status==='active')account=await findById(c,member.account_id)}
+    const passwordHash=member?.password_hash||account?.password_hash;if(!account||!passwordHash||!verifyPassword(password,passwordHash))return json(res,401,{error:'Invalid email or password.'});
+    if(member)await db(c,`account_members?id=eq.${encodeURIComponent(member.id)}`,{method:'PATCH',body:JSON.stringify({last_login_at:new Date().toISOString()})});const token=signSession({role:'account',accountId:account.id,memberId:member?.id||null,email:member?.email||account.email},secret,30*24*60*60);setSessionCookie(res,'cc_account_session',token,30*24*60*60);
+    const actor=member?{role:'member',memberId:member.id,name:member.name,email:member.email,departments:member.departments||[]}:await sessionActor(c,{accountId:account.id});return json(res,200,{authenticated:true,account:pub(account),access:publicAccess(account,actor)});
+  }catch(e){console.error('account auth error',e);const status=[400,401,403,404,409,422,429,502,503].includes(Number(e.status))?Number(e.status):500;return json(res,status,{error:e.message||'Unable to process the account request right now.',code:e.code||'ACCOUNT_AUTH_ERROR'})}
 }

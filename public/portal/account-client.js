@@ -105,7 +105,7 @@
     if (account.email) localStorage.setItem('ccOwnerEmail', String(account.email));
     if (agencyUrl) localStorage.setItem('ccAgencyWebsite', agencyUrl);
     if (agencyName) localStorage.setItem('ccAgencyName', agencyName);
-    if (account.journey) localStorage.setItem('ccProgramPath', account.journey);
+    if (account.accessPlan || account.access_plan || account.journey) localStorage.setItem('ccProgramPath', account.accessPlan || account.access_plan || account.journey);
 
     if (reportData && Object.keys(reportData).length) {
       localStorage.setItem('ownerArchetypeReportData', JSON.stringify(reportData));

@@ -37,7 +37,8 @@
   </main>
   <script src="/portal/diagnostic-state.js"></script><script src="/portal/account-client.js"></script><script src="/portal/archetype-pdf.js"></script>
   <script>
-    const params=new URLSearchParams(location.search),requestedDestination=params.get('destination')||'diagnostic',destination=['diagnostic','accelerator','platform'].includes(requestedDestination)?requestedDestination:'diagnostic';
+    const params=new URLSearchParams(location.search),requestedDestination=(params.get('destination')||'diagnostic').replace(/-/g,'_'),destination=['diagnostic','accelerator','platform','fractional_coo','owner_archetype'].includes(requestedDestination)?requestedDestination:'diagnostic';
+    localStorage.setItem('ccProgramPath',destination);
     const yesOption=document.getElementById('yesOption'),noOption=document.getElementById('noOption'),yesPanel=document.getElementById('yesPanel'),noPanel=document.getElementById('noPanel'),cta=document.getElementById('archetypeCta');
     cta.href='/owner-archetype/assessment/?destination='+encodeURIComponent(destination)+'&source=signup';
     cta.addEventListener('click',()=>localStorage.setItem('ccProgramPath',destination));

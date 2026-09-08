@@ -9,7 +9,17 @@ const json = (res, status, payload) => {
 const clean = value => String(value ?? '').trim();
 const lower = value => clean(value).toLowerCase();
 const finite = value => { const n = Number(value); return Number.isFinite(n) ? n : null; };
-const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
+const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,access_plan,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
+const ACCESS_PLANS = ['owner_archetype', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
+function normalizePlan(value, fallback = 'diagnostic') {
+  const plan = lower(value).replace(/-/g, '_');
+  return ACCESS_PLANS.includes(plan) ? plan : fallback;
+}
+function planJourney(plan) {
+  if (plan === 'accelerator') return 'accelerator';
+  if (plan === 'platform' || plan === 'fractional_coo') return 'platform';
+  return 'diagnostic';
+}
 
 const EMPTY_DIAGNOSTIC_STATE = {
   indexes: {},
@@ -81,6 +91,7 @@ function publicAccount(row) {
     agency_url_normalized: row.agency_url_normalized,
     agency_name: row.agency_name,
     journey: row.journey,
+    accessPlan: row.access_plan || normalizePlan(row.journey),
     source: row.source,
     archetype_result: row.archetype_result || {},
     report_data: row.report_data || {},
@@ -353,7 +364,8 @@ export default async function handler(req, res) {
       const email = lower(body.email);
       const agencyUrl = clean(body.agencyUrl || body.agency_url);
       const normalizedUrl = normalizeAgencyUrl(agencyUrl);
-      const journey = ['platform', 'diagnostic', 'accelerator'].includes(body.journey) ? body.journey : 'diagnostic';
+      const accessPlan = normalizePlan(body.accessPlan || body.access_plan || body.journey);
+      const journey = planJourney(accessPlan);
 
       if (!name || !email || !normalizedUrl) return json(res, 422, { error: 'Name, email, and agency URL are required.' });
       if (!/^\S+@\S+\.\S+$/.test(email)) return json(res, 422, { error: 'Enter a valid email address.' });
@@ -367,6 +379,7 @@ export default async function handler(req, res) {
         agency_url_normalized: normalizedUrl,
         agency_name: clean(body.agencyName || body.agency_name) || deriveAgencyName(agencyUrl),
         journey,
+        access_plan: accessPlan,
         source: clean(body.source) || 'owner-archetype',
         archetype_answers: body.archetypeAnswers || body.archetype_answers || {},
         archetype_result: body.archetypeResult || body.archetype_result || {},
@@ -413,6 +426,10 @@ export default async function handler(req, res) {
       if (body.reportData || body.report_data) patch.report_data = body.reportData || body.report_data;
       if (body.archetypeResult || body.archetype_result) patch.archetype_result = body.archetypeResult || body.archetype_result;
       if (body.journey && ['platform', 'diagnostic', 'accelerator'].includes(body.journey)) patch.journey = body.journey;
+      if (body.accessPlan || body.access_plan) {
+        patch.access_plan = normalizePlan(body.accessPlan || body.access_plan);
+        patch.journey = planJourney(patch.access_plan);
+      }
       if (!Object.keys(patch).length) return json(res, 422, { error: 'No supported fields were supplied.' });
 
       const account = await updateById(config, accountId, patch);
