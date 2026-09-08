@@ -688,6 +688,71 @@ async function markAccountGenerated(config, account, model) {
   });
 }
 
+async function handleQuarterlySnapshotCron(config, res) {
+  try {
+    const d = new Date();
+    const year = d.getFullYear();
+    const quarter = Math.floor(d.getMonth() / 3) + 1;
+    const label = `Q${quarter} ${year}`;
+
+    const accounts = await supabaseRequest(config, 'accounts?select=id,name,agency_name,report_data,diagnostic_state');
+    if (!Array.isArray(accounts) || !accounts.length) {
+      return json(res, 200, { ok: true, snapshotsCreated: 0, message: 'No accounts found.' });
+    }
+
+    let createdCount = 0;
+    for (const account of accounts) {
+      try {
+        const runs = await supabaseRequest(config, `diagnostic_runs?select=id&account_id=eq.${account.id}&is_current=eq.true&limit=1`);
+        const run = Array.isArray(runs) ? runs[0] : null;
+        if (!run) continue;
+
+        const cards = await supabaseRequest(config, `scorecards?select=*&diagnostic_run_id=eq.${run.id}&limit=1`);
+        const card = Array.isArray(cards) ? cards[0] : null;
+        if (!card || !card.aofi_score) continue;
+
+        const report = card.report_data && typeof card.report_data === 'object' ? card.report_data : {};
+        const snapshotRecord = {
+          account_id: account.id,
+          diagnostic_run_id: run.id,
+          scorecard_id: card.id,
+          quarter_label: label,
+          calendar_year: year,
+          calendar_quarter: quarter,
+          aofi_score: Number(card.aofi_score),
+          performance_score: Number(card.performance_score || 0),
+          strength_score: Number(card.strength_score || 0),
+          independence_score: Number(card.independence_score || 0),
+          confidence: Number(card.confidence || 0),
+          validation_status: card.validation_status || 'needs_validation',
+          enterprise_value: report.valuation?.available ? Number(report.valuation.enterpriseValue) : null,
+          snapshot_data: report,
+          updated_at: new Date().toISOString()
+        };
+
+        await supabaseRequest(config, 'scorecard_snapshots?on_conflict=account_id,calendar_year,calendar_quarter', {
+          method: 'POST',
+          headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify(snapshotRecord)
+        });
+        createdCount++;
+      } catch (err) {
+        console.warn(`Snapshot failed for account ${account.id}:`, err.message);
+      }
+    }
+
+    return json(res, 200, {
+      ok: true,
+      quarter: label,
+      snapshotsProcessed: createdCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Cron snapshot error:', error);
+    return json(res, 500, { error: error.message || 'Quarterly snapshot task failed.' });
+  }
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -703,6 +768,11 @@ export default async function handler(req, res) {
       ? (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}))
       : {};
     const query = req.query || {};
+
+    if (query.action === 'cron_snapshot' || query.action === 'snapshot' || body.action === 'cron_snapshot') {
+      return handleQuarterlySnapshotCron(config, res);
+    }
+
     const account = await findAccount(config, {
       accountId: body.accountId || body.account_id || query.accountId || query.account_id,
       email: body.email || query.email,
