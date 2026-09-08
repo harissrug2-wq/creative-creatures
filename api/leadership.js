@@ -118,6 +118,33 @@ function parseRating(value) {
   return Math.round(rating * 10) / 10;
 }
 
+function parseAgenda(value) {
+  const input = value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+  const list = (items, max = 100) => (Array.isArray(items) ? items : []).slice(0, max).map(item => ({
+    id: clipped(item?.id || crypto.randomUUID(), 80),
+    text: clipped(item?.text, 1000)
+  })).filter(item => item.text);
+  const ratings = (Array.isArray(input.ratings) ? input.ratings : []).slice(0, 100).map(item => ({
+    id: clipped(item?.id || crypto.randomUUID(), 80),
+    name: clipped(item?.name, 160),
+    score: parseRating(item?.score),
+    note: clipped(item?.note, 1000)
+  })).filter(item => item.name || item.score !== null || item.note);
+  const rockNotes = {};
+  Object.entries(input.rockNotes && typeof input.rockNotes === 'object' ? input.rockNotes : {}).slice(0, 200).forEach(([id, note]) => {
+    if (!uuidPattern.test(id)) return;
+    rockNotes[id] = { note: clipped(note?.note, 1000) };
+  });
+  return {
+    version: 1,
+    goodNews: list(input.goodNews),
+    headlines: list(input.headlines),
+    cascadeMessages: list(input.cascadeMessages),
+    ratings,
+    rockNotes
+  };
+}
+
 function textArray(value, maxItems, maxLength) {
   const input = Array.isArray(value) ? value : clean(value).split(/\r?\n|,/);
   return input.map(item => clipped(item, maxLength)).filter(Boolean).slice(0, maxItems);
@@ -153,7 +180,7 @@ async function assertOwnedMeeting(config, accountId, meetingId) {
 
 async function loadLeadership(config, account) {
   const [meetings, todos, issues, plans, rocks] = await Promise.all([
-    getRows(config, 'leadership_meetings', account.id, 'id,title,meeting_date,status,facilitator_name,notes,transcript_url,rating,rocks_total,rocks_on_track,created_at,updated_at', 'meeting_date.desc,created_at.desc'),
+    getRows(config, 'leadership_meetings', account.id, 'id,title,meeting_date,status,facilitator_name,notes,transcript_url,rating,rocks_total,rocks_on_track,source,calendar_event_id,calendar_html_url,source_updated_at,agenda,created_at,updated_at', 'meeting_date.desc,created_at.desc'),
     getRows(config, 'leadership_todos', account.id, 'id,meeting_id,title,owner_name,due_date,status,created_at,updated_at', 'status.asc,due_date.asc.nullslast,created_at.desc'),
     getRows(config, 'leadership_issues', account.id, 'id,meeting_id,title,description,owner_name,priority,status,solved_at,created_at,updated_at', 'status.asc,created_at.desc'),
     getRows(config, 'leadership_plans', account.id, 'account_id,core_values,core_focus,ten_year_target,three_year_picture,one_year_plan,quarterly_focus,target_market,three_uniques,proven_process,guarantee,updated_at', null),
@@ -249,6 +276,7 @@ async function saveMeeting(config, accountId, body) {
     notes: clipped(body.notes, 12000),
     transcript_url: parseUrl(body.transcriptUrl ?? body.transcript_url),
     rating: parseRating(body.rating),
+    agenda: parseAgenda(body.agenda),
     updated_at: new Date().toISOString()
   };
 
@@ -276,6 +304,48 @@ async function saveMeeting(config, accountId, body) {
     body: JSON.stringify({ account_id: accountId, ...record })
   });
   return Array.isArray(rows) ? rows[0] || null : rows;
+}
+
+async function syncCalendarMeeting(config, accountId, body) {
+  const eventId = clipped(body.calendarEventId, 500);
+  const meetingDate = clean(body.meetingDate);
+  if (!eventId || !datePattern.test(meetingDate)) {
+    const error = new Error('A valid calendar event and date are required.');
+    error.status = 422;
+    throw error;
+  }
+  const params = new URLSearchParams({
+    select: 'id,source_updated_at', account_id: `eq.${accountId}`,
+    calendar_event_id: `eq.${eventId}`, limit: '1'
+  });
+  const existing = await supabaseRequest(config, `leadership_meetings?${params.toString()}`);
+  let sourceUpdatedAt = null;
+  if (body.sourceUpdatedAt) {
+    const parsedSourceDate = new Date(body.sourceUpdatedAt);
+    if (!Number.isNaN(parsedSourceDate.getTime())) sourceUpdatedAt = parsedSourceDate.toISOString();
+  }
+  const record = {
+    title: clipped(body.title, 220) || `Weekly Leadership L10 — ${meetingDate}`,
+    meeting_date: meetingDate,
+    source: 'google_calendar',
+    calendar_event_id: eventId,
+    calendar_html_url: parseUrl(body.calendarHtmlUrl),
+    source_updated_at: sourceUpdatedAt,
+    updated_at: new Date().toISOString()
+  };
+  if (Array.isArray(existing) && existing[0]) {
+    if (existing[0].source_updated_at === sourceUpdatedAt) return { meeting: existing[0], changed: false };
+    const updateParams = new URLSearchParams({ id: `eq.${existing[0].id}`, account_id: `eq.${accountId}`, select: '*' });
+    const rows = await supabaseRequest(config, `leadership_meetings?${updateParams.toString()}`, {
+      method: 'PATCH', headers: { Prefer: 'return=representation' }, body: JSON.stringify(record)
+    });
+    return { meeting: rows?.[0] || existing[0], changed: true };
+  }
+  const rows = await supabaseRequest(config, 'leadership_meetings', {
+    method: 'POST', headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({ account_id: accountId, status: 'planned', agenda: {}, ...record })
+  });
+  return { meeting: rows?.[0] || null, changed: true };
 }
 
 async function saveIssue(config, accountId, body) {
@@ -425,6 +495,19 @@ async function saveRock(config, accountId, body) {
   return Array.isArray(rows) ? rows[0] || null : rows;
 }
 
+async function deleteLeadershipItem(config, accountId, body) {
+  const id = optionalUuid(body.id);
+  const table = body.itemType === 'todo' ? 'leadership_todos' : body.itemType === 'issue' ? 'leadership_issues' : '';
+  if (!id || !table) {
+    const error = new Error('A valid Leadership item is required.');
+    error.status = 422;
+    throw error;
+  }
+  const params = new URLSearchParams({ id: `eq.${id}`, account_id: `eq.${accountId}` });
+  await supabaseRequest(config, `${table}?${params.toString()}`, { method: 'DELETE' });
+  return true;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -463,6 +546,10 @@ export default async function handler(req, res) {
       const meeting = await saveMeeting(config, account.id, body);
       return json(res, 200, { ok: true, meeting });
     }
+    if (action === 'sync_calendar_meeting') {
+      const result = await syncCalendarMeeting(config, account.id, body);
+      return json(res, 200, { ok: true, ...result });
+    }
     if (action === 'save_issue') {
       const issue = await saveIssue(config, account.id, body);
       return json(res, 200, { ok: true, issue });
@@ -478,6 +565,10 @@ export default async function handler(req, res) {
     if (action === 'save_rock') {
       const rock = await saveRock(config, account.id, body);
       return json(res, 200, { ok: true, rock });
+    }
+    if (action === 'delete_leadership_item') {
+      await deleteLeadershipItem(config, account.id, body);
+      return json(res, 200, { ok: true });
     }
     return json(res, 422, { error: 'Unknown Leadership action.', code: 'INVALID_ACTION' });
   } catch (error) {

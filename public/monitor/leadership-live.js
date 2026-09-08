@@ -55,7 +55,8 @@
     tab: 'meetings',
     loading: true,
     saving: false,
-    error: null
+    error: null,
+    calendar: { checked:false, connected:false, imported:0 }
   };
 
   function dateLabel(value) {
@@ -131,7 +132,7 @@
 
   function meetingsTab() {
     return `<section class="lead-panel">
-      <div class="lead-source-notice"><span>Native</span><div><strong>Leadership meeting workspace</strong><p>Create meetings, store notes, assign to-dos, and record the meeting rating. Automatic note-taker import is not connected, so no transcript or agenda is invented.</p></div></div>
+      <div class="lead-source-notice"><span>L10</span><div><strong>Weekly leadership operating workspace</strong><p>${state.calendar.connected ? 'Matching Leadership, L10, and Level 10 events are scheduled automatically from this agency’s connected Google Calendar.' : 'Connect Google Calendar to schedule matching Leadership, L10, and Level 10 events automatically.'} Calendar events never create transcript content.</p></div></div>
       <div class="lead-section-head"><div><span>Meeting cadence</span><h2>Weekly leadership meetings</h2></div><button type="button" class="lead-primary" data-new-meeting>＋ New meeting</button></div>
       <section class="lead-card">${meetingRows()}</section>
       <div class="lead-section-head"><div><span>Follow-through</span><h2>Leadership to-dos</h2></div><button type="button" class="lead-secondary" data-new-todo>＋ Add to-do</button></div>
@@ -230,6 +231,66 @@
     return `<option value="">No meeting</option>${(state.leadership?.meetings || []).map(meeting => `<option value="${esc(meeting.id)}" ${meeting.id === selected ? 'selected' : ''}>${esc(meeting.title)} · ${esc(dateLabel(meeting.meeting_date))}</option>`).join('')}`;
   }
 
+  function agendaFor(item) {
+    const agenda = item?.agenda && typeof item.agenda === 'object' ? item.agenda : {};
+    return {
+      goodNews: Array.isArray(agenda.goodNews) ? agenda.goodNews : [],
+      headlines: Array.isArray(agenda.headlines) ? agenda.headlines : [],
+      cascadeMessages: Array.isArray(agenda.cascadeMessages) ? agenda.cascadeMessages : [],
+      ratings: Array.isArray(agenda.ratings) ? agenda.ratings : [],
+      rockNotes: agenda.rockNotes && typeof agenda.rockNotes === 'object' ? agenda.rockNotes : {}
+    };
+  }
+
+  function agendaInputs(kind, items, placeholder) {
+    return `<div class="lead-l10-items" data-agenda-list="${kind}">${items.map(item => `<div class="lead-l10-inline" data-agenda-item><input value="${esc(item.text || '')}" placeholder="${esc(placeholder)}"><button type="button" data-remove-row aria-label="Remove">×</button></div>`).join('')}</div><div class="lead-l10-add"><input data-agenda-input="${kind}" placeholder="${esc(placeholder)}"><button type="button" data-add-agenda="${kind}">Add</button></div>`;
+  }
+
+  function meetingSource(item) {
+    if (item?.source === 'google_calendar') return 'Scheduled from Google Calendar. The agenda is editable; no transcript content was inferred.';
+    if (item?.transcript_url) return 'A transcript link is attached. Agenda content remains editable and is saved only for this agency.';
+    return 'Created manually. Anyone signed in to this agency account can view or edit.';
+  }
+
+  function rockReview(item) {
+    const agenda = agendaFor(item);
+    const rocks = state.leadership?.rocks || [];
+    return `<div class="lead-l10-rocks" data-l10-rocks>${rocks.map(rock => `<div class="lead-l10-rock" data-rock-id="${esc(rock.id)}"><div><input class="rock-title" value="${esc(rock.title)}" aria-label="Rock title"><select class="rock-status" aria-label="Rock status">${['Not started','On track','Watch','Complete'].map(value => `<option ${rock.status === value ? 'selected':''}>${value}</option>`).join('')}</select></div><div><input class="rock-owner" value="${esc(rock.owner || '')}" placeholder="Owner"><input class="rock-note" value="${esc(agenda.rockNotes[rock.id]?.note || '')}" placeholder="Next step / note"></div></div>`).join('')}</div><button type="button" class="lead-l10-row-button" data-add-rock-row>＋ Add rock</button>`;
+  }
+
+  function todoReview(item) {
+    const rows = (state.leadership?.todos || []).filter(row => row.meeting_id === item?.id);
+    return `<div class="lead-l10-items" data-l10-todos>${rows.map(row => `<div class="lead-l10-task" data-todo-id="${esc(row.id)}"><input type="checkbox" class="todo-status" ${row.status === 'complete' ? 'checked':''}><input class="todo-title" value="${esc(row.title)}"><input class="todo-owner" value="${esc(row.owner_name || '')}" placeholder="Owner"><button type="button" data-remove-row>×</button></div>`).join('')}</div><div class="lead-l10-add lead-l10-add-owner"><input data-new-todo placeholder="To-do for the week…"><input data-new-todo-owner placeholder="Owner"><button type="button" data-add-todo>Add</button></div>`;
+  }
+
+  function issueReview(item) {
+    const rows = (state.leadership?.issues || []).filter(row => row.meeting_id === item?.id);
+    return `<div class="lead-l10-items" data-l10-issues>${rows.map(row => `<div class="lead-l10-task" data-issue-id="${esc(row.id)}"><input type="checkbox" class="issue-status" ${row.status === 'solved' ? 'checked':''}><input class="issue-title" value="${esc(row.title)}"><button type="button" data-remove-row>×</button></div>`).join('')}</div><div class="lead-l10-add"><textarea data-new-issue rows="2" placeholder="Identify an issue to discuss & solve…"></textarea><button type="button" data-add-issue>Add</button></div>`;
+  }
+
+  function ratingsReview(item) {
+    const ratings = agendaFor(item).ratings;
+    return `<div class="lead-l10-items" data-rating-list>${ratings.map(rating => `<div class="lead-l10-rating" data-rating-item><input class="rating-name" value="${esc(rating.name || '')}" placeholder="Name"><input class="rating-score" type="number" min="1" max="10" value="${esc(rating.score ?? '')}"><input class="rating-note" value="${esc(rating.note || '')}" placeholder="Note (optional)"><button type="button" data-remove-row>×</button></div>`).join('')}</div><div class="lead-l10-rating lead-l10-new-rating"><input data-new-rating-name placeholder="Name"><input data-new-rating-score type="number" min="1" max="10" value="8"><input data-new-rating-note placeholder="Note (optional)"><button type="button" data-add-rating>Add</button></div>`;
+  }
+
+  function meetingFields(item, today) {
+    const agenda = agendaFor(item);
+    const meetingDate = item?.meeting_date || today;
+    const metrics = Array.isArray(state.leadership?.scorecardMetrics) ? state.leadership.scorecardMetrics : [];
+    const onTrack = metrics.filter(metric => metric.status === 'on_track').length;
+    const offTrack = metrics.filter(metric => metric.status === 'off_track').length;
+    return `<input type="hidden" name="id" value="${esc(item?.id || '')}"><input type="hidden" name="transcriptUrl" value="${esc(item?.transcript_url || '')}">
+      <div class="lead-l10-title"><input name="title" required maxlength="220" value="${esc(item?.title || `Weekly Leadership L10 — ${meetingDate}`)}"><input type="date" name="meetingDate" required value="${esc(meetingDate)}"></div>
+      <div class="lead-l10-source">✣ <span>${esc(meetingSource(item))}</span>${item?.calendar_html_url ? `<a href="${esc(item.calendar_html_url)}" target="_blank" rel="noopener">Open calendar ↗</a>` : ''}</div>
+      <section class="lead-l10-section"><h4><small>5m</small> Segue — Good News</h4>${agendaInputs('goodNews', agenda.goodNews, 'Add a positive headline…')}</section>
+      <section class="lead-l10-section"><h4><small>5m</small> Customer / Employee Headlines</h4>${agendaInputs('headlines', agenda.headlines, 'Add a headline…')}</section>
+      <section class="lead-l10-section"><div class="lead-l10-section-head"><h4><small>5m</small> KPI Score Card</h4><a href="/agency-scorecard/" target="_blank">Open full scorecard ↗</a></div><div class="lead-l10-counts"><span>On track <b>${onTrack}</b></span><span>Off track <b>${offTrack}</b></span></div>${metrics.length ? `<div class="lead-l10-kpis">${metrics.slice(0,4).map(metric => `<article><span>${esc(metric.label)}</span><strong>${esc(metric.value)}</strong></article>`).join('')}</div>` : '<p class="lead-l10-empty-copy">No scorecard metrics are available for this meeting. No demo KPI values were inserted.</p>'}</section>
+      <section class="lead-l10-section"><h4><small>5m</small> Rock Review</h4>${rockReview(item)}</section>
+      <section class="lead-l10-section"><h4><small>10m</small> To-Do List &amp; Review</h4>${todoReview(item)}</section>
+      <section class="lead-l10-section"><h4><small>60m</small> IDS — Identify, Discuss, Solve</h4>${issueReview(item)}</section>
+      <section class="lead-l10-section"><h4><small>5m</small> Conclude — Cascading Messages &amp; Rating</h4><label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>`;
+  }
+
   function openModal(type, item = null) {
     const backdrop = document.querySelector('[data-lead-modal]');
     const target = document.querySelector('[data-lead-modal-content]');
@@ -239,13 +300,8 @@
     let fields = '';
 
     if (type === 'meeting') {
-      title = item ? 'Edit leadership meeting' : 'New leadership meeting';
-      fields = `<input type="hidden" name="id" value="${esc(item?.id || '')}">
-        <label><span>Meeting title</span><input name="title" required maxlength="220" value="${esc(item?.title || '')}" placeholder="Weekly Leadership Meeting"></label>
-        <div class="lead-modal-grid"><label><span>Date</span><input type="date" name="meetingDate" required value="${esc(item?.meeting_date || today)}"></label><label><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${esc(statusLabel(value))}</option>`).join('')}</select></label></div>
-        <div class="lead-modal-grid"><label><span>Facilitator</span><input name="facilitatorName" maxlength="160" value="${esc(item?.facilitator_name || '')}" placeholder="Name"></label><label><span>Rating (0–10)</span><input type="number" min="0" max="10" step="0.1" name="rating" value="${esc(item?.rating ?? '')}"></label></div>
-        <label><span>Transcript URL <small>optional</small></span><input type="url" name="transcriptUrl" value="${esc(item?.transcript_url || '')}" placeholder="https://…"></label>
-        <label><span>Meeting notes</span><textarea name="notes" rows="7" placeholder="Segue, KPI review, Rock check-in, to-dos and IDS notes…">${esc(item?.notes || '')}</textarea></label>`;
+      title = '';
+      fields = meetingFields(item, today);
     } else if (type === 'issue') {
       title = item ? 'Edit issue' : 'Add leadership issue';
       fields = `<input type="hidden" name="id" value="${esc(item?.id || '')}"><label><span>Issue</span><input name="title" required maxlength="220" value="${esc(item?.title || '')}" placeholder="Name the issue clearly"></label>
@@ -265,7 +321,8 @@
         <label><span>Status</span><select name="status">${['Not started','On track','Watch','Complete'].map(value => `<option value="${esc(value)}" ${item?.status === value ? 'selected':''}>${esc(value)}</option>`).join('')}</select></label>`;
     }
 
-    target.innerHTML = `<form data-lead-modal-form="${type}"><div class="lead-modal-head"><h3>${esc(title)}</h3><button type="button" data-close-lead-modal aria-label="Close">×</button></div><div class="lead-modal-fields">${fields}</div><div class="lead-modal-actions"><button type="button" class="lead-secondary" data-close-lead-modal>Cancel</button><button type="submit" class="lead-primary">Save</button></div><p class="lead-form-error" data-form-error></p></form>`;
+    target.innerHTML = `<form data-lead-modal-form="${type}" class="${type === 'meeting' ? 'lead-l10-form':''}"><div class="lead-modal-head">${title ? `<h3>${esc(title)}</h3>` : '<span></span>'}<button type="button" data-close-lead-modal aria-label="Close">×</button></div><div class="lead-modal-fields">${fields}</div><div class="lead-modal-actions"><button type="button" class="lead-secondary" data-close-lead-modal>Cancel</button><button type="submit" class="lead-primary">${type === 'meeting' ? 'Save meeting' : 'Save'}</button></div><p class="lead-form-error" data-form-error></p></form>`;
+    document.querySelector('.lead-modal')?.classList.toggle('lead-modal-l10', type === 'meeting');
     backdrop.hidden = false;
     bindModal();
     target.querySelector('input:not([type="hidden"]),textarea,select')?.focus();
@@ -274,6 +331,7 @@
   function closeModal() {
     const modal = document.querySelector('[data-lead-modal]');
     if (modal) modal.hidden = true;
+    document.querySelector('.lead-modal')?.classList.remove('lead-modal-l10');
   }
 
   function formObject(form) {
@@ -314,6 +372,48 @@
       const fields = formObject(form);
       if (type === 'rock') {
         await leadershipAction('save_rock', { ...fields, due:'This quarter' });
+      } else if (type === 'meeting') {
+        const agenda = { version:1, rockNotes:{} };
+        ['goodNews','headlines','cascadeMessages'].forEach(kind => {
+          agenda[kind] = [...form.querySelectorAll(`[data-agenda-list="${kind}"] [data-agenda-item] input`)]
+            .map(input => ({ id: crypto.randomUUID(), text: clean(input.value) })).filter(item => item.text);
+        });
+        agenda.ratings = [...form.querySelectorAll('[data-rating-item]')].map(row => ({
+          id: crypto.randomUUID(), name: clean(row.querySelector('.rating-name')?.value),
+          score: row.querySelector('.rating-score')?.value || null,
+          note: clean(row.querySelector('.rating-note')?.value)
+        })).filter(item => item.name || item.score || item.note);
+        [...form.querySelectorAll('[data-rock-id]')].forEach(row => {
+          agenda.rockNotes[row.dataset.rockId] = { note: clean(row.querySelector('.rock-note')?.value) };
+        });
+        const scores = agenda.ratings.map(item => Number(item.score)).filter(Number.isFinite);
+        const result = await leadershipAction('save_meeting', {
+          ...fields, agenda, rating: scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null
+        });
+        const meetingId = result.meeting?.id || fields.id;
+        const saves = [];
+        form.querySelectorAll('[data-rock-id]').forEach(row => {
+          const title = clean(row.querySelector('.rock-title')?.value);
+          if (!title) return;
+          saves.push(leadershipAction('save_rock', {
+            id: row.dataset.rockId, title,
+            owner: row.querySelector('.rock-owner')?.value, status: row.querySelector('.rock-status')?.value,
+            due:'This quarter'
+          }));
+        });
+        form.querySelectorAll('[data-l10-todos] [data-todo-id]').forEach(row => saves.push(leadershipAction('save_todo', {
+          id: row.dataset.todoId.startsWith('new-') ? '' : row.dataset.todoId, meetingId,
+          title: row.querySelector('.todo-title')?.value, ownerName: row.querySelector('.todo-owner')?.value,
+          status: row.querySelector('.todo-status')?.checked ? 'complete' : 'open'
+        })));
+        form.querySelectorAll('[data-l10-issues] [data-issue-id]').forEach(row => saves.push(leadershipAction('save_issue', {
+          id: row.dataset.issueId.startsWith('new-') ? '' : row.dataset.issueId, meetingId,
+          title: row.querySelector('.issue-title')?.value,
+          status: row.querySelector('.issue-status')?.checked ? 'solved' : 'open', priority:'normal'
+        })));
+        const removed = safeJson(form.dataset.removedItems || '[]', []);
+        removed.forEach(item => saves.push(leadershipAction('delete_leadership_item', { itemType:item.type, id:item.id })));
+        await Promise.all(saves);
       } else {
         await leadershipAction(`save_${type}`, fields);
       }
@@ -325,7 +425,7 @@
       if (errorNode) errorNode.textContent = error.message;
     } finally {
       state.saving = false;
-      if (submit) { submit.disabled = false; submit.textContent = 'Save'; }
+      if (submit) { submit.disabled = false; submit.textContent = form.dataset.leadModalForm === 'meeting' ? 'Save meeting' : 'Save'; }
     }
   }
 
@@ -335,6 +435,88 @@
       event.preventDefault();
       handleModalSubmit(event.currentTarget);
     });
+    const form = document.querySelector('.lead-l10-form');
+    if (!form) return;
+    form.dataset.removedItems = '[]';
+    form.addEventListener('click', event => {
+      const button = event.target.closest('button');
+      if (!button) return;
+      if (button.matches('[data-remove-row]')) {
+        const todo = button.closest('[data-todo-id]');
+        const issue = button.closest('[data-issue-id]');
+        const removed = safeJson(form.dataset.removedItems || '[]', []);
+        if (todo && !todo.dataset.todoId.startsWith('new-')) removed.push({ type:'todo', id:todo.dataset.todoId });
+        if (issue && !issue.dataset.issueId.startsWith('new-')) removed.push({ type:'issue', id:issue.dataset.issueId });
+        form.dataset.removedItems = JSON.stringify(removed);
+        button.closest('[data-agenda-item],[data-rating-item],[data-todo-id],[data-issue-id]')?.remove();
+      }
+      if (button.matches('[data-add-agenda]')) {
+        const kind = button.dataset.addAgenda;
+        const input = form.querySelector(`[data-agenda-input="${kind}"]`);
+        if (!clean(input?.value)) return;
+        form.querySelector(`[data-agenda-list="${kind}"]`)?.insertAdjacentHTML('beforeend', `<div class="lead-l10-inline" data-agenda-item><input value="${esc(input.value)}"><button type="button" data-remove-row aria-label="Remove">×</button></div>`);
+        input.value = '';
+      }
+      if (button.matches('[data-add-todo]')) {
+        const title = form.querySelector('[data-new-todo]');
+        const owner = form.querySelector('[data-new-todo-owner]');
+        if (!clean(title?.value)) return;
+        form.querySelector('[data-l10-todos]')?.insertAdjacentHTML('beforeend', `<div class="lead-l10-task" data-todo-id="new-${Date.now()}"><input type="checkbox" class="todo-status"><input class="todo-title" value="${esc(title.value)}"><input class="todo-owner" value="${esc(owner?.value || '')}" placeholder="Owner"><button type="button" data-remove-row>×</button></div>`);
+        title.value = ''; if (owner) owner.value = '';
+      }
+      if (button.matches('[data-add-issue]')) {
+        const title = form.querySelector('[data-new-issue]');
+        if (!clean(title?.value)) return;
+        form.querySelector('[data-l10-issues]')?.insertAdjacentHTML('beforeend', `<div class="lead-l10-task" data-issue-id="new-${Date.now()}"><input type="checkbox" class="issue-status"><input class="issue-title" value="${esc(title.value)}"><button type="button" data-remove-row>×</button></div>`);
+        title.value = '';
+      }
+      if (button.matches('[data-add-rating]')) {
+        const name = form.querySelector('[data-new-rating-name]');
+        const score = form.querySelector('[data-new-rating-score]');
+        const note = form.querySelector('[data-new-rating-note]');
+        if (!clean(name?.value) && !clean(score?.value) && !clean(note?.value)) return;
+        form.querySelector('[data-rating-list]')?.insertAdjacentHTML('beforeend', `<div class="lead-l10-rating" data-rating-item><input class="rating-name" value="${esc(name?.value || '')}" placeholder="Name"><input class="rating-score" type="number" min="1" max="10" value="${esc(score?.value || '')}"><input class="rating-note" value="${esc(note?.value || '')}" placeholder="Note (optional)"><button type="button" data-remove-row>×</button></div>`);
+        if (name) name.value = ''; if (score) score.value = '8'; if (note) note.value = '';
+      }
+      if (button.matches('[data-add-rock-row]')) {
+        form.querySelector('[data-l10-rocks]')?.insertAdjacentHTML('beforeend', `<div class="lead-l10-rock" data-rock-id="new-${Date.now()}"><div><input class="rock-title" placeholder="Rock title" aria-label="Rock title"><select class="rock-status" aria-label="Rock status"><option>Not started</option><option>On track</option><option>Watch</option><option>Complete</option></select></div><div><input class="rock-owner" placeholder="Owner"><input class="rock-note" placeholder="Next step / note"></div></div>`);
+      }
+    });
+  }
+
+  function calendarEventDate(event) {
+    const raw = clean(event?.start?.date || event?.start?.dateTime);
+    return /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0,10) : '';
+  }
+
+  async function syncCalendarMeetings() {
+    const now = new Date();
+    const from = new Date(now); from.setDate(from.getDate() - 30);
+    const to = new Date(now); to.setDate(to.getDate() + 180);
+    try {
+      const payload = await request('/api/account-auth', {
+        method:'POST',
+        body: JSON.stringify({ action:'google_calendar_events', maxResults:100, timeMin:from.toISOString(), timeMax:to.toISOString() })
+      });
+      state.calendar.checked = true;
+      state.calendar.connected = true;
+      const matches = (payload.events || []).filter(event => event?.status !== 'cancelled'
+        && /(^|\b)(l\s*10|level\s*10|leadership)(\b|$)/i.test(clean(event?.summary))
+        && calendarEventDate(event));
+      const results = await Promise.all(matches.map(event => leadershipAction('sync_calendar_meeting', {
+        calendarEventId:event.id,
+        title:event.summary,
+        meetingDate:calendarEventDate(event),
+        calendarHtmlUrl:event.htmlLink || '',
+        sourceUpdatedAt:event.updated || ''
+      })));
+      state.calendar.imported = results.filter(result => result.changed).length;
+      if (state.calendar.imported) await refreshData();
+    } catch {
+      state.calendar.checked = true;
+      state.calendar.connected = false;
+      state.calendar.imported = 0;
+    }
   }
 
   async function savePlan(form) {
@@ -410,6 +592,7 @@
     render();
     try {
       await refreshData();
+      await syncCalendarMeetings();
     } catch (error) {
       state.error = error.message;
     } finally {
