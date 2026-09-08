@@ -219,10 +219,12 @@
 
   function renderHistoryRows(historyPoints) {
     if (!Array.isArray(historyPoints) || !historyPoints.length) {
-      return `<tr><td colspan="7">No persisted scorecard snapshots yet.</td></tr>`;
+      return `<tr><td colspan="8">No persisted scorecard snapshots yet.</td></tr>`;
     }
 
-    return [...historyPoints].reverse().map(point => `
+    return [...historyPoints].reverse().map((point, index) => {
+      const origIndex = historyPoints.indexOf(point);
+      return `
       <tr>
         <td><strong>${esc(getQuarterName(point))}</strong><br><small style="color:#8a93a4">${esc(formatHistoryDate(point.generatedAt))}</small></td>
         <td><span class="score-pill-mini aofi-pill">${Number(point.score).toFixed(0)}</span></td>
@@ -231,7 +233,9 @@
         <td>${Number(point.strength).toFixed(0)}</td>
         <td>${Number(point.independence).toFixed(0)}</td>
         <td>${Number.isFinite(Number(point.enterpriseValue)) ? money(point.enterpriseValue) : '—'}</td>
-      </tr>`).join('');
+        <td><button type="button" class="btn-table-what-changed" data-history-idx="${origIndex}">What changed?</button></td>
+      </tr>`;
+    }).join('');
   }
 
   root.innerHTML = `
@@ -372,7 +376,7 @@
       <div class="trend-card-heading"><div><span class="section-kicker">Snapshot archive</span><h2>Quarterly History</h2></div><p>Frozen scorecard snapshots captured each calendar quarter.</p></div>
       <div class="trend-table-scroll">
         <table class="trend-history-table">
-          <thead><tr><th>Quarter</th><th>AOFI</th><th>Confidence</th><th>Performance</th><th>Strength</th><th>Independence</th><th>Valuation</th></tr></thead>
+          <thead><tr><th>Quarter</th><th>AOFI</th><th>Confidence</th><th>Performance</th><th>Strength</th><th>Independence</th><th>Valuation</th><th>Analysis</th></tr></thead>
           <tbody>${renderHistoryRows(persistedHistory)}</tbody>
         </table>
       </div>
@@ -418,25 +422,43 @@
   });
 
   // Modal Popup for "What Changed?"
-  function openWhatChangedModal() {
+  function openWhatChangedModal(pointIndex = null) {
     let existingModal = document.getElementById('whatChangedModal');
     if (existingModal) existingModal.remove();
 
-    const currentPoint = latestHistory;
-    const prevQuarterName = currentPoint.previousQuarter || 'Q2 2026';
+    const idx = (pointIndex !== null && pointIndex >= 0 && pointIndex < persistedHistory.length)
+      ? pointIndex
+      : persistedHistory.length - 1;
+
+    const currentPoint = persistedHistory[idx] || latestHistory;
+    const previousPoint = idx > 0 ? persistedHistory[idx - 1] : null;
+
+    const prevQuarterName = currentPoint.previousQuarter || (previousPoint ? getQuarterName(previousPoint) : 'Previous Quarter');
     const currQuarterName = getQuarterName(currentPoint);
+
+    const prevScore = previousPoint ? Math.round(Number(previousPoint.score || 0)) : Math.max(0, Math.round(Number(currentPoint.score || 0) - (momentum.delta || 0)));
+    const currScore = Math.round(Number(currentPoint.score || 0));
+    const scoreDiff = currScore - prevScore;
+
+    const headerTitle = currentPoint.transitionTitle
+      ? currentPoint.transitionTitle
+      : scoreDiff > 0
+        ? `AOFI increased from ${prevScore} to ${currScore}`
+        : scoreDiff < 0
+          ? `AOFI decreased from ${prevScore} to ${currScore}`
+          : `AOFI remained stable at ${currScore}`;
 
     const posList = (currentPoint.positiveElements && currentPoint.positiveElements.length)
       ? currentPoint.positiveElements
       : [
-          { category: 'Agency Performance', title: 'Revenue Quality & Delivery Speed', points: 4, impact: 'positive', description: 'Performance score gained driven by recurring retainer stability and billable rate optimization.' },
-          { category: 'Agency Strength', title: 'SOP Coverage & Operating Systems', points: 3, impact: 'positive', description: 'Strength index gained following completion of department playbooks and documented KPIs.' }
+          { category: 'Agency Performance', title: 'Net profit margin improved', points: 4, impact: 'positive', description: 'Performance score gained driven by recurring retainer stability and billable rate optimization.' },
+          { category: 'Owner Independence', title: 'Owner dependency decreased', points: 3, impact: 'positive', description: 'Leadership team took over primary client relationship management.' }
         ];
 
     const negList = (currentPoint.negativeElements && currentPoint.negativeElements.length)
       ? currentPoint.negativeElements
       : [
-          { category: 'Owner Independence', title: 'Founder Client Escalation Time', points: 3, impact: 'negative', description: 'Owner Independence dropped due to founder hours spent resolving major client issues.' }
+          { category: 'Risk Management', title: 'Client concentration increased', points: 3, impact: 'negative', description: 'Top client revenue concentration represents over 35% of total recurring revenue.' }
         ];
 
     const posHtml = posList.map(item => `
@@ -466,39 +488,39 @@
       <div class="cc-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="whatChangedTitle">
         <button type="button" class="cc-modal-close" id="closeWhatChangedModal" aria-label="Close dialog">×</button>
         <header class="cc-modal-header">
-          <span class="cc-modal-kicker">Score Movement Analysis</span>
-          <h2 id="whatChangedTitle">What Changed Last Quarter?</h2>
-          <p class="cc-modal-sub">Comparing <strong>${esc(prevQuarterName)}</strong> → <strong>${esc(currQuarterName)}</strong></p>
+          <span class="cc-modal-kicker">Score Movement Analysis · ${esc(currQuarterName)}</span>
+          <h2 id="whatChangedTitle">${esc(headerTitle)}</h2>
+          <p class="cc-modal-sub">Quarterly snapshot comparison: <strong>${esc(prevQuarterName)}</strong> → <strong>${esc(currQuarterName)}</strong></p>
         </header>
 
-        <div class="modal-net-banner ${momentum.state === 'down' ? 'negative' : 'positive'}">
+        <div class="modal-net-banner ${scoreDiff < 0 ? 'negative' : 'positive'}">
           <div class="banner-score">
-            <strong>${Math.round(latestHistory.score ?? model.score)}</strong>
+            <strong>${currScore}</strong>
             <span>AOFI Score</span>
           </div>
           <div class="banner-delta">
-            <span class="delta-chip">${momentum.state === 'down' ? '▼' : '▲'} ${Math.abs(momentum.delta || 0)} pts overall</span>
-            <small>Performance: <strong>${Math.round(latestHistory.performance ?? 82)}</strong> · Strength: <strong>${Math.round(latestHistory.strength ?? 76)}</strong> · Independence: <strong>${Math.round(latestHistory.independence ?? 72)}</strong></small>
+            <span class="delta-chip">${scoreDiff < 0 ? '▼' : '▲'} ${Math.abs(scoreDiff)} pts change</span>
+            <small>Performance: <strong>${Math.round(currentPoint.performance ?? 82)}</strong> · Strength: <strong>${Math.round(currentPoint.strength ?? 76)}</strong> · Independence: <strong>${Math.round(currentPoint.independence ?? 72)}</strong></small>
           </div>
         </div>
 
         <div class="modal-elements-grid">
           <div class="elements-col positive-col">
-            <h3><span class="badge-icon positive">+</span> Positive Score Elements</h3>
+            <h3><span class="badge-icon positive">+</span> Positive Score Factors</h3>
             <div class="element-list">${posHtml}</div>
           </div>
           <div class="elements-col negative-col">
-            <h3><span class="badge-icon negative">-</span> Negative Score Elements</h3>
+            <h3><span class="badge-icon negative">-</span> Negative Score Factors</h3>
             <div class="element-list">${negHtml}</div>
           </div>
         </div>
 
         <div class="modal-footer-takeaway">
           <div class="takeaway-text">
-            <strong>Recommended Priority for Next Quarter</strong>
-            <p>${esc(model.reports[model.weakest[0]?.index || 'strength']?.recommendation || 'Focus on systemizing key operational capabilities to raise overall AOFI score.')}</p>
+            <strong>Recommended Focus Area</strong>
+            <p>${esc(model.reports[model.weakest[0]?.index || 'strength']?.recommendation || 'Systemize core agency operations to expand Owner Independence and margin stability.')}</p>
           </div>
-          <button type="button" class="cc-modal-btn primary" id="modalCloseAction">Got it</button>
+          <button type="button" class="cc-modal-btn primary" id="modalCloseAction">Close Analysis</button>
         </div>
       </div>`;
 
@@ -523,8 +545,17 @@
     document.addEventListener('keydown', keyHandler);
   }
 
-  root.querySelector('#openWhatChangedBtnSummary')?.addEventListener('click', openWhatChangedModal);
-  trendsView.querySelector('#openWhatChangedBtnTrends')?.addEventListener('click', openWhatChangedModal);
+  root.querySelector('#openWhatChangedBtnSummary')?.addEventListener('click', () => openWhatChangedModal());
+  trendsView.querySelector('#openWhatChangedBtnTrends')?.addEventListener('click', () => openWhatChangedModal());
+
+  // Attach listener to table rows
+  root.addEventListener('click', e => {
+    const btn = e.target.closest('.btn-table-what-changed');
+    if (btn) {
+      const idx = parseInt(btn.dataset.historyIdx, 10);
+      openWhatChangedModal(idx);
+    }
+  });
 
   const saveRocks = async candidates => {
     if (!candidates.length) return { added: 0 };

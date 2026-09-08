@@ -181,17 +181,27 @@ function getCalendarQuarterLabel(dateInput) {
 function calculateQuarterlyDrivers(current, previous) {
   if (!previous) {
     return {
+      transitionTitle: `AOFI baseline established at ${Math.round(current?.score || 0)}`,
       positiveElements: [
-        { category: 'Baseline Established', title: 'Initial Score Snapshot', points: 0, impact: 'positive', description: 'Baseline diagnostic scores recorded for Performance, Strength, and Owner Independence.' }
+        { category: 'Baseline Established', title: 'Initial Score Snapshot', points: Math.round(current?.score || 0), impact: 'positive', description: 'Baseline diagnostic scores recorded for Performance, Strength, and Owner Independence.' }
       ],
       negativeElements: []
     };
   }
 
+  const prevScore = Math.round(Number(previous.score || 0));
+  const currScore = Math.round(Number(current.score || 0));
+  const aofiDiff = currScore - prevScore;
+
   const perfDiff = Math.round((Number(current.performance || 0) - Number(previous.performance || 0)) * 10) / 10;
   const strDiff = Math.round((Number(current.strength || 0) - Number(previous.strength || 0)) * 10) / 10;
   const indDiff = Math.round((Number(current.independence || 0) - Number(previous.independence || 0)) * 10) / 10;
-  const aofiDiff = Math.round((Number(current.score || 0) - Number(previous.score || 0)) * 10) / 10;
+
+  const transitionTitle = aofiDiff > 0
+    ? `AOFI increased from ${prevScore} to ${currScore}`
+    : aofiDiff < 0
+      ? `AOFI decreased from ${prevScore} to ${currScore}`
+      : `AOFI remained stable at ${currScore}`;
 
   const positive = [];
   const negative = [];
@@ -199,77 +209,78 @@ function calculateQuarterlyDrivers(current, previous) {
   if (perfDiff > 0) {
     positive.push({
       category: 'Agency Performance',
-      title: 'Revenue Quality & Delivery Speed',
+      title: 'Net profit margin improved',
       points: Math.abs(perfDiff),
       impact: 'positive',
-      description: `Performance score gained +${perfDiff} pts driven by recurring retainer stability and billable rate optimization.`
+      description: `Performance gained +${perfDiff} pts driven by improved gross margin and recurring retainer stability.`
     });
   } else if (perfDiff < 0) {
     negative.push({
       category: 'Agency Performance',
-      title: 'Delivery Capacity & Margin Squeeze',
+      title: 'Margin pressure & cost inflation',
       points: Math.abs(perfDiff),
       impact: 'negative',
-      description: `Performance contracted by -${Math.abs(perfDiff)} pts due to project scope creep and overtime costs.`
-    });
-  }
-
-  if (strDiff > 0) {
-    positive.push({
-      category: 'Agency Strength',
-      title: 'SOP Coverage & Systems Documentation',
-      points: Math.abs(strDiff),
-      impact: 'positive',
-      description: `Strength index gained +${strDiff} pts following completion of department playbooks and documented KPIs.`
-    });
-  } else if (strDiff < 0) {
-    negative.push({
-      category: 'Agency Strength',
-      title: 'Operating System Verification Gaps',
-      points: Math.abs(strDiff),
-      impact: 'negative',
-      description: `Strength score dipped by -${Math.abs(strDiff)} pts as key operational playbooks pending quarterly audit.`
+      description: `Performance contracted by -${Math.abs(perfDiff)} pts due to project scope expansion and delivery costs.`
     });
   }
 
   if (indDiff > 0) {
     positive.push({
       category: 'Owner Independence',
-      title: 'Founder Delegation & System Autonomy',
+      title: 'Owner dependency decreased',
       points: Math.abs(indDiff),
       impact: 'positive',
-      description: `Owner Independence improved +${indDiff} pts as leadership team took over account management.`
+      description: `Owner Independence improved +${indDiff} pts as leadership team took over key client approvals and delivery.`
     });
   } else if (indDiff < 0) {
     negative.push({
       category: 'Owner Independence',
-      title: 'Founder Client Escalation Time',
+      title: 'Founder client escalation time',
       points: Math.abs(indDiff),
       impact: 'negative',
-      description: `Owner Independence dropped -${Math.abs(indDiff)} pts due to founder hours spent resolving major client issues.`
+      description: `Owner Independence dropped -${Math.abs(indDiff)} pts due to increased founder hours in daily fulfillment.`
+    });
+  }
+
+  if (strDiff > 0) {
+    positive.push({
+      category: 'Agency Strength',
+      title: 'SOP coverage & infrastructure enhanced',
+      points: Math.abs(strDiff),
+      impact: 'positive',
+      description: `Strength index gained +${strDiff} pts following completion of department playbooks and documented Cadence.`
+    });
+  } else if (strDiff < 0) {
+    negative.push({
+      category: 'Agency Strength',
+      title: 'Operating system verification gaps',
+      points: Math.abs(strDiff),
+      impact: 'negative',
+      description: `Strength score dipped by -${Math.abs(strDiff)} pts as core operational playbooks await quarterly audit.`
+    });
+  }
+
+  if (!negative.length) {
+    negative.push({
+      category: 'Risk Management',
+      title: 'Client concentration increased',
+      points: Math.max(1, Math.round(Math.abs(aofiDiff * 0.4)) || 2),
+      impact: 'negative',
+      description: 'Top 3 client revenue accounts represent over 35% of monthly recurring revenue.'
     });
   }
 
   if (!positive.length) {
     positive.push({
       category: 'Financial Evidence',
-      title: 'Recurring Revenue Stability',
+      title: 'Recurring retainer stability',
       points: Math.max(1, Math.abs(Math.round(aofiDiff * 0.5)) || 2),
       impact: 'positive',
-      description: 'Retainer renewal rate remained high with healthy cash flow predictability.'
-    });
-  }
-  if (!negative.length) {
-    negative.push({
-      category: 'Risk Management',
-      title: 'Client Concentration Dependence',
-      points: Math.max(1, Math.round(Math.abs(aofiDiff * 0.4)) || 2),
-      impact: 'negative',
-      description: 'Top revenue clients represent over 30% of total monthly recurring revenue.'
+      description: 'Monthly client retention rate remained high with predictable cash flow.'
     });
   }
 
-  return { positiveElements: positive, negativeElements: negative };
+  return { transitionTitle, positiveElements: positive, negativeElements: negative };
 }
 
 function enrichQuarterlyHistory(history, currentModel) {
@@ -329,6 +340,7 @@ function enrichQuarterlyHistory(history, currentModel) {
       ...point,
       quarter,
       previousQuarter,
+      transitionTitle: drivers.transitionTitle,
       positiveElements: drivers.positiveElements,
       negativeElements: drivers.negativeElements
     };
