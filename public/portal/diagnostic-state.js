@@ -275,6 +275,12 @@
       localStorage.removeItem('agencySelectedTools');
     }
 
+    const integrationRequests = Array.isArray(source.integrationRequests)
+      ? source.integrationRequests
+      : Array.isArray(source.integration_requests) ? source.integration_requests : null;
+    if (integrationRequests) localStorage.setItem('agencyIntegrationRequests', JSON.stringify(integrationRequests));
+    else if (options.replace === true) localStorage.removeItem('agencyIntegrationRequests');
+
     if (source.goalsComplete === true || source.goals_complete === true) localStorage.setItem('agencyGoalsComplete','true');
     else if (options.replace === true) localStorage.removeItem('agencyGoalsComplete');
 
@@ -292,6 +298,7 @@
       paymentComplete: localStorage.getItem('ccPaymentComplete') === 'true' || localStorage.getItem('agencyPaymentComplete') === 'true',
       integrationsComplete: localStorage.getItem('agencyIntegrationsComplete') === 'true',
       selectedTools: safeJson(localStorage.getItem('agencySelectedTools'), []),
+      integrationRequests: safeJson(localStorage.getItem('agencyIntegrationRequests'), []),
       goalsComplete: localStorage.getItem('agencyGoalsComplete') === 'true',
       updatedAt: localStorage.getItem('ccDiagnosticUpdatedAt') || new Date().toISOString()
     };

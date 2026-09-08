@@ -19,7 +19,7 @@
     .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}.stat label{display:block;color:#7c8796;text-transform:uppercase;letter-spacing:.08em;font-size:10px;font-weight:800;margin-bottom:7px}.stat strong{display:block;font-size:30px;letter-spacing:-.04em;line-height:1}.stat small{display:block;color:#94a0ae;font-size:11px;margin-top:7px}.stat .green{color:var(--green)}.stat .amber{color:#b98300}
     #emptyState{background:#fff;border:1px solid var(--line);border-radius:16px;padding:44px;text-align:center}.empty-icon{font-size:34px;margin-bottom:10px}#emptyState h2{margin:0 0 8px}#emptyState p{color:var(--muted);margin:0 auto 18px;max-width:560px}
     .groups{display:grid;gap:16px}.group{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
-    .group-head{padding:15px 18px;border-bottom:1px solid #efefeb;display:flex;justify-content:space-between;gap:14px;align-items:center}.group-title{display:flex;align-items:center;gap:9px}.group-title h2{font-size:17px;margin:0}.group-tag{font-size:10px;border-radius:999px;padding:4px 8px;background:#edf8f1;color:#158347;border:1px solid #ccebd6}.group-feed{font-size:11px;color:#9aa5b2}
+    .group-head{padding:15px 18px;border-bottom:1px solid #efefeb;display:flex;justify-content:space-between;gap:14px;align-items:center}.group-title{display:flex;align-items:center;gap:9px}.group-title h2{font-size:17px;margin:0}.group-tag{font-size:10px;border-radius:999px;padding:4px 8px;background:#edf8f1;color:#158347;border:1px solid #ccebd6}.group-feed{font-size:11px;color:#9aa5b2}.group-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}.group-add{min-height:34px;padding:0 12px}.group-empty{padding:18px;color:var(--muted);font-size:12px}
     .integration-row{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;align-items:center;padding:15px 18px;border-top:1px solid #f0f0ed}.integration-row:first-of-type{border-top:0}
     .logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:900;font-size:12px;color:#fff}
     .row-main{min-width:0}.row-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.row-title strong{font-size:14px}.active-source{font-size:9px;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:3px 6px;background:#ecf9f0;color:#188549;border:1px solid #caecd5}
@@ -34,7 +34,8 @@
     .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.metric{border:1px solid #cde8d5;background:#f8fdf9;border-radius:12px;padding:14px}.metric strong{font-size:20px;display:block}.metric span{font-size:11px;color:#6f7d8d}
     .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.field{display:grid;gap:5px;min-width:220px;flex:1}.field label{font-size:11px;font-weight:750}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:12px}.field textarea{min-height:85px;resize:vertical}
     .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field.full{grid-column:1/-1}
-    @media(max-width:900px){.page{width:calc(100% - 26px);padding-top:24px}.hero{flex-direction:column}.hero .btn{width:100%}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-row{grid-template-columns:38px minmax(0,1fr)}.row-actions{grid-column:1/-1;justify-content:flex-start;padding-left:50px}.group-feed{display:none}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+    .category-modal{width:min(840px,calc(100vw - 32px))}.catalog-section{padding:16px 0}.catalog-section+.catalog-section{border-top:1px solid var(--line)}.catalog-section h3{font-size:15px;margin:0 0 4px}.catalog-section>p{font-size:12px;color:var(--muted);margin:0 0 12px}.catalog-list{display:grid;gap:9px}.catalog-tool{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:11px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:11px}.catalog-tool .btn{min-height:34px}.catalog-copy{min-width:0}.catalog-copy strong{display:block;font-size:13px}.catalog-copy span{display:block;color:var(--muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}.request-grid{display:grid;grid-template-columns:1fr 1.4fr auto;gap:9px;align-items:end}.request-grid .field{min-width:0}.request-success{color:var(--green);font-size:12px;font-weight:700;margin-top:10px}
+    @media(max-width:900px){.page{width:calc(100% - 26px);padding-top:24px}.hero{flex-direction:column}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-row{grid-template-columns:38px minmax(0,1fr)}.row-actions{grid-column:1/-1;justify-content:flex-start;padding-left:50px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.request-grid{grid-template-columns:1fr}}
     @media(max-width:600px){.stats{grid-template-columns:1fr 1fr}.stat{padding:15px}.stat strong{font-size:25px}.group-head{align-items:flex-start}.integration-row{padding:14px}.row-actions{padding-left:0}.row-actions>*{flex:1}.row-actions .status{flex:0 0 100%;justify-content:center}.modal{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:18px 14px;border-radius:14px}.metric-grid,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions .btn{width:100%}.row-copy{white-space:normal}}
 
     /* CC_INTEGRATIONS_RESPONSIVE_HOTFIX_V1 */
@@ -51,6 +52,7 @@
       .hero h1{font-size:32px}
       .stats{grid-template-columns:1fr}
       .group-head{flex-wrap:wrap}
+      .group-head-actions{width:100%;justify-content:space-between}.group-add{flex:1}.group-feed{white-space:normal}
       .integration-row{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:13px 12px}
       .row-actions{grid-column:1/-1;padding-left:0;display:grid;grid-template-columns:1fr 1fr;width:100%}
       .row-actions .status{grid-column:1/-1;width:100%}
@@ -59,6 +61,7 @@
       .modal-actions .btn{width:100%}
       .tabs .btn{flex:1 1 140px;white-space:normal}
       .field{min-width:0}
+      .catalog-tool{grid-template-columns:34px minmax(0,1fr)}.catalog-tool .btn{grid-column:1/-1;width:100%}
     }
   </style>
 </head>
@@ -68,9 +71,8 @@
     <header class="hero">
       <div>
         <h1>Integrations</h1>
-        <p>Connect the tools your agency uses. This dashboard is generated from the software selected in Integration Information, so each agency sees only its own relevant integration stack.</p>
+        <p>Connect and manage the tools your agency uses. Add available systems, track upcoming options, or request a new integration directly inside each category.</p>
       </div>
-      <a class="btn primary" href="/integration-information/?request=1">＋ Request integration</a>
     </header>
 
     <section class="stats">
@@ -83,13 +85,19 @@
     <section id="emptyState" hidden>
       <div class="empty-icon">⌁</div>
       <h2>No integration tools selected yet</h2>
-      <p>Choose the software your agency uses first. Only those systems will appear on this dashboard.</p>
-      <a class="btn primary" href="/integration-information/">Open Integration Information</a>
+      <p>Use the Add button on a category to select an available or upcoming integration.</p>
     </section>
 
     <section class="groups" id="groups"></section>
     <p class="footnote">Connect → OAuth handshake → token stored for this agency account → explicit Sync Now where applicable. Financial data is not pushed into the Agency Performance Index until you trigger a sync.</p>
   </main>
+
+  <div class="modal-backdrop" id="categoryModal">
+    <section class="modal category-modal" role="dialog" aria-modal="true" aria-labelledby="categoryModalTitle">
+      <h2 id="categoryModalTitle">Add integration</h2><p id="categoryModalCopy"></p><div id="categoryModalBody"></div>
+      <div class="modal-actions"><button class="btn" id="categoryModalClose">Close</button></div>
+    </section>
+  </div>
 
   <div class="modal-backdrop" id="dataModal">
     <section class="modal">
@@ -126,19 +134,19 @@
   <script>
     const safeJson=(v,f)=>{try{return JSON.parse(v)??f}catch{return f}};
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    const selected=Array.from(new Set(safeJson(localStorage.getItem('agencySelectedTools'),[]).map(x=>x==='GoHighLevel'||x==='CRM Connector'?'GHL CRM':x))).filter(Boolean);
+    let selected=Array.from(new Set(safeJson(localStorage.getItem('agencySelectedTools'),[]).map(x=>x==='GoHighLevel'||x==='CRM Connector'?'GHL CRM':x))).filter(Boolean);
 
     const meta={
-      'QuickBooks Online':{group:'Finance & Billing',code:'QB',color:'#2ca01c',copy:'OAuth2 · P&L · A/R · expenses',status:'quickbooks_status',connect:'quickbooks_connect',sync:'quickbooks_sync',disconnect:'quickbooks_disconnect'},
-      'Xero':{group:'Finance & Billing',code:'Xe',color:'#13b5ea',copy:'Accounting · invoices · expenses'},
-      'Sage':{group:'Finance & Billing',code:'Sg',color:'#00a376',copy:'Accounting · reporting'},
-      'FreshBooks':{group:'Finance & Billing',code:'Fb',color:'#0075dd',copy:'OAuth2 · clients · invoices · payments · expenses · reports',status:'freshbooks_status',connect:'freshbooks_connect',sync:'freshbooks_sync',disconnect:'freshbooks_disconnect',manage:'freshbooks'},
-      'NetSuite':{group:'Finance & Billing',code:'Ns',color:'#425563',copy:'ERP · finance · reporting'},
-      'Stripe':{group:'Finance & Billing',code:'St',color:'#635bff',copy:'OAuth2 · charges · invoices · subscriptions'},
-      'Square':{group:'Finance & Billing',code:'Sq',color:'#111',copy:'Payments · customers · orders'},
-      'PayPal':{group:'Finance & Billing',code:'PP',color:'#0070ba',copy:'Payments · transactions'},
-      'Chargebee':{group:'Finance & Billing',code:'Cb',color:'#6c48ff',copy:'Subscriptions · invoices'},
-      'Bill.com':{group:'Finance & Billing',code:'Bi',color:'#0068ff',copy:'AP · AR · payments'},
+      'QuickBooks Online':{group:'Bookkeeping',code:'QB',color:'#2ca01c',copy:'OAuth2 · P&L · A/R · expenses',status:'quickbooks_status',connect:'quickbooks_connect',sync:'quickbooks_sync',disconnect:'quickbooks_disconnect'},
+      'Xero':{group:'Bookkeeping',code:'Xe',color:'#13b5ea',copy:'Accounting · invoices · expenses'},
+      'Sage':{group:'Bookkeeping',code:'Sg',color:'#00a376',copy:'Accounting · reporting'},
+      'FreshBooks':{group:'Bookkeeping',code:'Fb',color:'#0075dd',copy:'OAuth2 · clients · invoices · payments · expenses · reports',status:'freshbooks_status',connect:'freshbooks_connect',sync:'freshbooks_sync',disconnect:'freshbooks_disconnect',manage:'freshbooks'},
+      'NetSuite':{group:'Bookkeeping',code:'Ns',color:'#425563',copy:'ERP · finance · reporting'},
+      'Stripe':{group:'Billing',code:'St',color:'#635bff',copy:'OAuth2 · charges · invoices · subscriptions'},
+      'Square':{group:'Billing',code:'Sq',color:'#111',copy:'Payments · customers · orders'},
+      'PayPal':{group:'Billing',code:'PP',color:'#0070ba',copy:'Payments · transactions'},
+      'Chargebee':{group:'Billing',code:'Cb',color:'#6c48ff',copy:'Subscriptions · invoices'},
+      'Bill.com':{group:'Billing',code:'Bi',color:'#0068ff',copy:'AP · AR · payments'},
       'GHL CRM':{group:'CRM',code:'GH',color:'#168ce5',copy:'OAuth2 · location-scoped · contacts · opportunities · pipelines',status:'ghl_status',connect:'ghl_connect',sync:'ghl_sync',disconnect:'ghl_disconnect',manage:'ghl'},
       'HubSpot':{group:'CRM',code:'Hs',color:'#ff5c35',copy:'OAuth2 · contacts · companies · deals · pipelines',status:'hubspot_status',connect:'hubspot_connect',sync:'hubspot_dashboard',disconnect:'hubspot_disconnect',manage:'hubspot'},
       'Salesforce':{group:'CRM',code:'Sf',color:'#00a1e0',copy:'CRM · accounts · opportunities'},
@@ -151,17 +159,17 @@
       'Teamwork':{group:'Project Management',code:'Tw',color:'#ef2929',copy:'OAuth2 - projects - tasks - people - time',status:'teamwork_status',connect:'teamwork_connect',sync:'teamwork_dashboard',disconnect:'teamwork_disconnect',manage:'teamwork'},
       'Jira':{group:'Project Management',code:'Ji',color:'#0052cc',copy:'OAuth2 · projects · issues · workflow transitions',status:'jira_status',connect:'jira_connect',sync:'jira_sync',disconnect:'jira_disconnect',manage:'jira'},
       'Basecamp':{group:'Project Management',code:'Ba',color:'#63b954',copy:'Projects · to-dos · messages'},
-      'Slack':{group:'Communication',code:'Sl',color:'#4a154b',copy:'OAuth2 · channels · users · workspace',status:'slack_status',connect:'slack_connect',sync:'slack_dashboard',disconnect:'slack_disconnect',manage:'slack'},
-      'Microsoft Teams':{group:'Communication',code:'Ms',color:'#6264a7',copy:'Teams · channels · meetings'},
-      'Google Chat':{group:'Communication',code:'Gc',color:'#00ac47',copy:'OAuth2 · spaces · members · send messages · no history access',status:'google_chat_status',connect:'google_chat_connect',sync:'google_chat_sync',disconnect:'google_chat_disconnect',manage:'google_chat'},
+      'Slack':{group:'Communications',code:'Sl',color:'#4a154b',copy:'OAuth2 · channels · users · workspace',status:'slack_status',connect:'slack_connect',sync:'slack_dashboard',disconnect:'slack_disconnect',manage:'slack'},
+      'Microsoft Teams':{group:'Communications',code:'Ms',color:'#6264a7',copy:'Teams · channels · meetings'},
+      'Google Chat':{group:'Communications',code:'Gc',color:'#00ac47',copy:'OAuth2 · spaces · members · send messages · no history access',status:'google_chat_status',connect:'google_chat_connect',sync:'google_chat_sync',disconnect:'google_chat_disconnect',manage:'google_chat'},
       'Google Calendar':{group:'Calendar & Meetings',code:'31',color:'#4285f4',copy:'OAuth2 · calendars · events',status:'google_calendar_status',connect:'google_calendar_connect',disconnect:'google_calendar_disconnect',manage:'calendar'},
       'Outlook Calendar':{group:'Calendar & Meetings',code:'Oc',color:'#0078d4',copy:'Microsoft 365 · calendars · events'},
       'Zoom':{group:'Calendar & Meetings',code:'Zm',color:'#2d8cff',copy:'OAuth2 · connected host · upcoming meetings',status:'zoom_status',connect:'zoom_connect',sync:'zoom_sync',disconnect:'zoom_disconnect',manage:'zoom'},
       'Calendly':{group:'Calendar & Meetings',code:'Ca',color:'#006bff',copy:'Scheduling · event types · invitees'},
-      'Google Drive':{group:'Document Storage',code:'Dr',color:'#1a73e8',copy:'OAuth2 · files · folders · revisions',status:'google_drive_status',connect:'google_drive_connect',sync:'google_drive_refresh',disconnect:'google_drive_disconnect',manage:'drive'},
-      'Dropbox':{group:'Document Storage',code:'Db',color:'#0061ff',copy:'Files · folders · sharing'},
-      'OneDrive':{group:'Document Storage',code:'Od',color:'#0078d4',copy:'Files · folders · Microsoft 365'},
-      'Box':{group:'Document Storage',code:'Bx',color:'#0061d5',copy:'Files · folders · collaboration'},
+      'Google Drive':{group:'Central Drive',code:'Dr',color:'#1a73e8',copy:'OAuth2 · files · folders · revisions',status:'google_drive_status',connect:'google_drive_connect',sync:'google_drive_refresh',disconnect:'google_drive_disconnect',manage:'drive'},
+      'Dropbox':{group:'Central Drive',code:'Db',color:'#0061ff',copy:'Files · folders · sharing'},
+      'OneDrive':{group:'Central Drive',code:'Od',color:'#0078d4',copy:'Files · folders · Microsoft 365'},
+      'Box':{group:'Central Drive',code:'Bx',color:'#0061d5',copy:'Files · folders · collaboration'},
       'Gusto':{group:'HR & People',code:'Gu',color:'#f45d48',copy:'Payroll · people · benefits'},
       'BambooHR':{group:'HR & People',code:'Bh',color:'#73bd43',copy:'Employees · time off · HRIS'},
       'Rippling':{group:'HR & People',code:'Rp',color:'#f4cf00',copy:'People · payroll · devices'},
@@ -173,14 +181,27 @@
       'Cloudflare':{group:'IT & Security',code:'Cf',color:'#f48120',copy:'DNS · security · traffic'},
       'Okta':{group:'IT & Security',code:'Ok',color:'#007dc1',copy:'Identity · SSO · users'}
     };
+    const catalog={
+      'CRM':['GHL CRM','HubSpot','Salesforce','Pipedrive','Keap','Zoho CRM'],
+      'Bookkeeping':['QuickBooks Online','Xero','Sage','FreshBooks','NetSuite'],
+      'Project Management':['ClickUp','Asana','Monday.com','Teamwork','Jira','Basecamp'],
+      'Communications':['Slack','Microsoft Teams','Google Chat'],
+      'Calendar & Meetings':['Google Calendar','Outlook Calendar','Zoom','Calendly'],
+      'Central Drive':['Google Drive','Dropbox','OneDrive','Box'],
+      'HR & People':['Gusto','BambooHR','Rippling','ADP','Justworks'],
+      'Billing':['Stripe','Square','PayPal','Chargebee','Bill.com'],
+      'IT & Security':['Keeper','Bitwarden','1Password','Cloudflare','Okta']
+    };
+    const categoryOrder=Object.keys(catalog);
     const groupFeeds={
-      'Finance & Billing':'feeds: Billing · Finance',
       'CRM':'feeds: Marketing · Sales',
+      'Bookkeeping':'feeds: Billing · Finance',
       'Project Management':'feeds: Onboarding · Service Delivery · Client Success',
-      'Communication':'feeds: Communication · Client Success',
+      'Communications':'feeds: Communication · Client Success',
       'Calendar & Meetings':'feeds: Scheduling · Operations',
-      'Document Storage':'feeds: SOPs',
+      'Central Drive':'feeds: SOPs',
       'HR & People':'feeds: Talent · Operations',
+      'Billing':'feeds: Billing · Finance',
       'IT & Security':'feeds: Systems · Security'
     };
 
@@ -213,18 +234,12 @@
     }
 
     function render(){
-      empty.hidden=selected.length!==0;
-      groupsEl.innerHTML='';
-      if(!selected.length){updateStats();return}
-      const grouped={};
-      selected.forEach(tool=>{
-        const m=meta[tool]||{group:'Other',code:tool.slice(0,2),color:'#667085',copy:'Selected agency integration'};
-        (grouped[m.group]||(grouped[m.group]=[])).push(tool);
-      });
-      Object.entries(grouped).forEach(([group,tools])=>{
+      empty.hidden=true;groupsEl.innerHTML='';
+      categoryOrder.forEach(group=>{
+        const tools=selected.filter(tool=>meta[tool]?.group===group);
         const section=document.createElement('section');section.className='group';
-        section.innerHTML=`<header class="group-head"><div class="group-title"><h2>${esc(group)}</h2><span class="group-tag">${tools.some(t=>meta[t]?.status)?'served':'provisioning'}</span></div><span class="group-feed">${esc(groupFeeds[group]||'selected integrations')}</span></header>
-          <div>${tools.map(rowHtml).join('')}</div>`;
+        const served=catalog[group].some(tool=>Boolean(meta[tool]?.status));
+        section.innerHTML=`<header class="group-head"><div class="group-title"><h2>${esc(group)}</h2><span class="group-tag">${served?'served':'provisioning'}</span></div><div class="group-head-actions"><span class="group-feed">${esc(groupFeeds[group])}</span><button class="btn group-add" data-add-category="${esc(group)}">＋ Add ${esc(group)}</button></div></header><div>${tools.length?tools.map(rowHtml).join(''):`<div class="group-empty">No ${esc(group)} integration selected.</div>`}</div>`;
         groupsEl.appendChild(section);
       });
       wireButtons();updateStats();
@@ -247,7 +262,7 @@
       document.querySelector('#connectedStat').textContent=`${connected.length} / ${selected.length}`;
       document.querySelector('#healthyStat').textContent=String(connected.filter(t=>!stateMap.get(t)?.error).length);
       document.querySelector('#attentionStat').textContent=String(attention.length);
-      document.querySelector('#emptyStat').textContent='0';
+      document.querySelector('#emptyStat').textContent=String(categoryOrder.length-cats.size);
       document.querySelector('#categoryStat').textContent=`across ${cats.size} ${cats.size===1?'category':'categories'}`;
     }
     function wireButtons(){
@@ -255,18 +270,63 @@
       document.querySelectorAll('[data-sync]').forEach(b=>b.onclick=()=>syncTool(b.dataset.sync,b));
       document.querySelectorAll('[data-disconnect]').forEach(b=>b.onclick=()=>disconnectTool(b.dataset.disconnect,b));
       document.querySelectorAll('[data-manage]').forEach(b=>b.onclick=()=>manageTool(b.dataset.manage));
+      document.querySelectorAll('[data-add-category]').forEach(b=>b.onclick=()=>openCategoryModal(b.dataset.addCategory));
     }
+    const categoryModal=document.querySelector('#categoryModal');
+    const categoryModalTitle=document.querySelector('#categoryModalTitle');
+    const categoryModalCopy=document.querySelector('#categoryModalCopy');
+    const categoryModalBody=document.querySelector('#categoryModalBody');
+    let activeCategory='';
+
+    function catalogToolHtml(tool,available){
+      const m=meta[tool],isSelected=selected.includes(tool);
+      return `<article class="catalog-tool"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="catalog-copy"><strong>${esc(tool)}</strong><span>${esc(m.copy)}</span></div><button class="btn ${isSelected?'danger':available?'primary':''}" data-catalog-tool="${esc(tool)}">${isSelected?'Remove':available?'Add':'Add to list'}</button></article>`;
+    }
+    function openCategoryModal(category){
+      activeCategory=category;
+      const tools=catalog[category]||[];
+      const available=tools.filter(tool=>Boolean(meta[tool]?.status));
+      const upcoming=tools.filter(tool=>!meta[tool]?.status);
+      categoryModalTitle.textContent=`Add ${category}`;
+      categoryModalCopy.textContent='Choose a live connection, track an upcoming option, or request another system for this category.';
+      categoryModalBody.innerHTML=`<section class="catalog-section"><h3>Available integrations</h3><p>These integrations can be connected now.</p><div class="catalog-list">${available.map(tool=>catalogToolHtml(tool,true)).join('')||'<p>No live integrations are available in this category yet.</p>'}</div></section><section class="catalog-section"><h3>Listed integrations coming soon</h3><p>Add these to your agency stack while the connection is being provisioned.</p><div class="catalog-list">${upcoming.map(tool=>catalogToolHtml(tool,false)).join('')||'<p>Every listed option in this category is available.</p>'}</div></section><section class="catalog-section"><h3>Request another integration</h3><p>Request a system that is not already listed for ${esc(category)}.</p><div class="request-grid"><div class="field"><label>Integration name</label><input id="categoryRequestName" maxlength="100" placeholder="Vendor or product name"></div><div class="field"><label>What should it support?</label><input id="categoryRequestNote" maxlength="240" placeholder="Optional use case"></div><button class="btn primary" id="categoryRequestSave">Send request</button></div><div id="categoryRequestResult" class="request-success"></div></section>`;
+      categoryModalBody.querySelectorAll('[data-catalog-tool]').forEach(button=>button.onclick=()=>toggleCatalogTool(button.dataset.catalogTool));
+      categoryModalBody.querySelector('#categoryRequestSave').onclick=saveCategoryRequest;
+      show('#categoryModal');
+    }
+    async function persistIntegrationState(){
+      localStorage.setItem('agencySelectedTools',JSON.stringify(selected));
+      localStorage.setItem('agencyIntegrationsComplete','true');
+      try{await window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.()||{})}catch{}
+    }
+    async function toggleCatalogTool(tool){
+      if(selected.includes(tool))selected=selected.filter(item=>item!==tool);
+      else selected=[...selected,tool];
+      await persistIntegrationState();render();openCategoryModal(activeCategory);
+      if(selected.includes(tool)&&meta[tool]?.status)loadToolStatus(tool);
+    }
+    async function saveCategoryRequest(){
+      const name=categoryModalBody.querySelector('#categoryRequestName').value.trim();
+      const note=categoryModalBody.querySelector('#categoryRequestNote').value.trim();
+      if(!name){categoryModalBody.querySelector('#categoryRequestResult').textContent='Enter the integration name first.';return}
+      const requests=safeJson(localStorage.getItem('agencyIntegrationRequests'),[]);
+      requests.push({category:activeCategory,vendor:name,note,createdAt:new Date().toISOString()});
+      localStorage.setItem('agencyIntegrationRequests',JSON.stringify(requests));
+      await persistIntegrationState();
+      categoryModalBody.querySelector('#categoryRequestName').value='';categoryModalBody.querySelector('#categoryRequestNote').value='';
+      categoryModalBody.querySelector('#categoryRequestResult').textContent='✓ Request saved for this agency.';
+    }
+    async function loadToolStatus(tool){
+      stateMap.set(tool,{loading:true});render();
+      try{const result=await apiGet(meta[tool].status);const connection=connectionFrom(result);stateMap.set(tool,{...connection,loading:false,error:connection.lastError||connection.lastSyncError||''})}
+      catch(error){stateMap.set(tool,{connected:false,loading:false,error:error.message})}
+      render();
+    }
+    document.querySelector('#categoryModalClose').onclick=()=>hide('#categoryModal');
+    categoryModal.addEventListener('click',event=>{if(event.target===categoryModal)hide('#categoryModal')});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape')hide('#categoryModal')});
     async function loadStatuses(){
-      await Promise.all(selected.filter(t=>meta[t]?.status).map(async tool=>{
-        stateMap.set(tool,{loading:true});render();
-        try{
-          const result=await apiGet(meta[tool].status);
-          stateMap.set(tool,{...connectionFrom(result),loading:false,error:connectionFrom(result).lastError||connectionFrom(result).lastSyncError||''});
-        }catch(error){
-          stateMap.set(tool,{connected:false,loading:false,error:error.message});
-        }
-        render();
-      }));
+      await Promise.all(selected.filter(t=>meta[t]?.status).map(loadToolStatus));
       handleOauthReturn();
     }
     async function connectTool(tool,button){

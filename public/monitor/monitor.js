@@ -66,17 +66,16 @@
         </aside>
         <div class="main-shell">
           <header class="topbar"><button class="mobile-toggle" id="mobileToggle" aria-label="Open departments">${ico('menu')}</button><nav class="topnav">
-             <a href="/integration-information/" class="top-link">${ico('plug')} Integration Information</a>
-             <a href="/integrations/" class="top-link">${ico('plug')} Integrations</a>
+             <a href="/platform/" class="top-link active">${ico('monitor')} Monitor</a>
              <a href="/accelerator/" class="top-link">${ico('diagnostic')} Accelerator</a>
              <a href="/diagnostic/" class="top-link">${ico('diagnostic')} Diagnostic</a>
              <a href="${scorecardHref}" class="top-link ${scorecardUnlocked?'':'locked-link'}" aria-disabled="${scorecardUnlocked?'false':'true'}">${ico('score')} Agency Scorecard</a>
              <a href="${goalsUnlocked?'/agency-goals/':'#'}" class="top-link ${goalsUnlocked?'':'locked-link'}" aria-disabled="${goalsUnlocked?'false':'true'}">${ico('goals')} Agency Goals</a>
-             <a href="/platform/" class="top-link active">${ico('monitor')} Monitor</a>
+             <a href="/integrations/" class="top-link">${ico('plug')} Integrations</a>
              <a href="/portal/" class="top-link">${ico('dashboard')} Portal</a>
            </nav><button class="ask-button" id="askButton">${ico('spark')} Ask Creature</button><button class="top-menu-toggle" id="topMenuToggle" type="button" aria-label="Open main navigation" aria-expanded="false">${ico('menu')}</button></header>
            <nav class="top-menu-panel" id="topMenuPanel" aria-label="Main navigation">
-             <a href="/integration-information/">Integration Information</a><a href="/integrations/">Integrations</a><a href="/accelerator/">Accelerator</a><a href="/diagnostic/">Diagnostic</a><a href="${scorecardHref}" class="${scorecardUnlocked?'':'locked-link'}">Agency Scorecard</a><a href="${goalsUnlocked?'/agency-goals/':'#'}" class="${goalsUnlocked?'':'locked-link'}">Agency Goals</a><a href="/platform/" class="active">Monitor</a><a href="/portal/">Portal</a><button id="mobileAskButton" type="button">${ico('spark')} Ask Creature</button>
+             <a href="/platform/" class="active">Monitor</a><a href="/accelerator/">Accelerator</a><a href="/diagnostic/">Diagnostic</a><a href="${scorecardHref}" class="${scorecardUnlocked?'':'locked-link'}">Agency Scorecard</a><a href="${goalsUnlocked?'/agency-goals/':'#'}" class="${goalsUnlocked?'':'locked-link'}">Agency Goals</a><a href="/integrations/">Integrations</a><a href="/portal/">Portal</a><button id="mobileAskButton" type="button">${ico('spark')} Ask Creature</button>
            </nav>
           <main class="page-wrap">${content}</main>
         </div>

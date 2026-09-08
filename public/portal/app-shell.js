@@ -32,7 +32,7 @@
       Boolean(state.performance),
       Boolean(state.reportReady)
     ];
-    const labels = ['Identity Assessment','Payment','Integration Information','Operations','Owner Dependency','Financial Performance','Diagnostic Ready'];
+    const labels = ['Identity Assessment','Payment','Integrations','Operations','Owner Dependency','Financial Performance','Diagnostic Ready'];
     const current = done.findIndex(value => !value);
     return `<section class="diagnostic-status" aria-label="Agency Diagnostic progress">${labels.map((label,index) => {
       const cls = done[index] ? 'complete' : index === current ? 'current' : 'future';
@@ -42,7 +42,6 @@
 
   document.querySelectorAll('[data-app-header]').forEach(el => {
     const active = el.dataset.appHeader || '';
-    const accelerator = active === 'accelerator';
     const state = window.CCDiagnostic?.getState?.() || {reportReady:false, ownerComplete:false, strength:false, independence:false, performance:false};
     const account = readAccount();
     const displayName = account?.name || account?.displayName || [account?.first_name || account?.firstName, account?.last_name || account?.lastName].filter(Boolean).join(' ') || '';
@@ -60,19 +59,18 @@
 
     let status = '';
     const navigation = [
-      ['/integration-information/','Integration Information','plug','integration-information',true],
-      ['/integrations/','Integrations','plug','integrations',true],
+      ['/platform/','Monitor','monitor','monitor',monitorReady],
       ['/accelerator/','Accelerator','diagnostic','accelerator',true],
       ['/diagnostic/','Diagnostic','diagnostic','diagnostic',true],
       ['/agency-scorecard/','Agency Scorecard','score','scorecard',state.reportReady],
       ['/agency-goals/','Agency Goals','goals','goals',goalsReady],
-      ['/platform/','Monitor','monitor','monitor',monitorReady],
+      ['/integrations/','Integrations','plug','integrations',true],
       ['/portal/','Portal','portal','portal',true]
     ];
     const desktopNav = navigation.map(([href,label,name,key,enabled]) => item(href,label,name,key,enabled)).join('');
     const mobileNav = navigation.map(([href,label,name,key,enabled]) => [label,href,enabled,key]);
     const paid = bool('ccPaymentComplete') || bool('agencyPaymentComplete');
-    if (paid && (active === 'diagnostic' || active === 'integration-information')) status = diagnosticStatus(state);
+    if (paid && active === 'diagnostic') status = diagnosticStatus(state);
 
     el.innerHTML = `
       <header class="app-topbar">
