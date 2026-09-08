@@ -12,8 +12,13 @@ const finite = value => { const n = Number(value); return Number.isFinite(n) ? n
 const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,access_plan,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
 const ACCESS_PLANS = ['owner_archetype', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
 function normalizePlan(value, fallback = 'diagnostic') {
-  const plan = lower(value).replace(/-/g, '_');
-  return ACCESS_PLANS.includes(plan) ? plan : fallback;
+  const raw = lower(value).replace(/[\s\/\+]+/g, '_').replace(/-/g, '_');
+  if (raw.includes('fractional') || raw.includes('coo')) return 'fractional_coo';
+  if (raw.includes('platform') || raw.includes('partner')) return 'platform';
+  if (raw.includes('accelerator') || raw.includes('breakthrough')) return 'accelerator';
+  if (raw.includes('diagnostic') || raw.includes('planning')) return 'diagnostic';
+  if (raw.includes('archetype') || raw.includes('owner')) return 'owner_archetype';
+  return ACCESS_PLANS.includes(raw) ? raw : fallback;
 }
 function planJourney(plan) {
   if (plan === 'accelerator') return 'accelerator';
@@ -252,11 +257,11 @@ async function buildAdminPortfolio(config, accountRows) {
 
     const hash = Math.abs(String(account.id || '').split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) | 0, 0));
     const accessPlan = account.access_plan || account.accessPlan || normalizePlan(account.journey);
-    const planLabel = accessPlan === 'platform' ? 'Platform'
-      : accessPlan === 'fractional_coo' ? 'Fractional COO'
-      : accessPlan === 'accelerator' ? 'Accelerator'
-      : accessPlan === 'owner_archetype' ? 'Archetype'
-      : (latestHistory.aofi >= 85 ? 'Growth' : latestHistory.aofi >= 70 ? 'Starter' : 'Diagnostic');
+    const planLabel = accessPlan === 'platform' ? 'Platform / Partner Portal'
+      : accessPlan === 'fractional_coo' ? 'Fractional COO + Platform Bundle'
+      : accessPlan === 'accelerator' ? 'Breakthrough Accelerator'
+      : accessPlan === 'owner_archetype' ? 'Owner Archetype'
+      : 'Planning Diagnostic';
 
     const mrrRaw = supportedMrr(service) || (pnl.revenueTTM ? pnl.revenueTTM / 12 : null) || ((hash % 8) * 1250 + 1400);
     const mrrVal = Number(mrrRaw) || 1400;

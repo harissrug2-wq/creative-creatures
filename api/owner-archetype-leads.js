@@ -9,40 +9,87 @@ async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${pat
 function pub(r,accountIds=null){const accountExists=Boolean(r?.converted_account_id&&(accountIds?accountIds.has(r.converted_account_id):true));return r?{id:r.id,name:r.name,email:r.email,agency_url:r.agency_url,agency_url_normalized:r.agency_url_normalized,agency_name:r.agency_name,journey:r.journey,source:r.source,archetype_result:r.archetype_result||{},report_data:r.report_data||{},converted_account_id:r.converted_account_id,converted_at:r.converted_at,payment_completed_at:r.payment_completed_at,account_exists:accountExists,is_paid:accountExists&&Boolean(r.payment_completed_at||r.converted_at),created_at:r.created_at,updated_at:r.updated_at}:null}
 async function attachAccountState(c,rows){const list=Array.isArray(rows)?rows:[];const ids=[...new Set(list.map(r=>r.converted_account_id).filter(Boolean))];if(!ids.length)return list.map(r=>pub(r,new Set()));const filter=encodeURIComponent(`(${ids.join(',')})`);const accounts=await db(c,`accounts?select=id&id=in.${filter}`);const accountIds=new Set((Array.isArray(accounts)?accounts:[]).map(a=>a.id));return list.map(r=>pub(r,accountIds))}
 export default async function handler(req,res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');if(req.method==='OPTIONS')return json(res,204,{});const c=cfg();if(!c)return json(res,503,{error:'Lead database is not configured.'});try{
- if(req.method==='GET'){
-   const all=req.query?.all==='true'||req.query?.all==='1';
-   if(all){if(!requireAdmin(req))return json(res,401,{error:'Admin authentication required.'});const rows=await db(c,`owner_archetype_leads?select=${SELECT}&order=created_at.desc`);return json(res,200,{leads:(Array.isArray(rows)?rows:[]).map(pub)})}
-   const email=lower(req.query?.email),url=normalizeUrl(req.query?.agencyUrl||req.query?.agency_url),name=lower(req.query?.name);
-   if(!email&&!url&&!name)return json(res,422,{error:'Enter a name, email address, or agency URL.'});
-   const filters=[];if(email)filters.push(`email_normalized.eq.${email}`);if(url)filters.push(`agency_url_normalized.eq.${url}`);if(name)filters.push(`name_normalized.ilike.*${name.replace(/[,*()]/g,'')}*`);
-   const or=encodeURIComponent(`(${filters.join(',')})`);const rows=await db(c,`owner_archetype_leads?select=${SELECT}&or=${or}&order=created_at.desc&limit=20`);
-   const leads=await attachAccountState(c,rows);
-   if(leads.length)return json(res,200,{leads});
+  if(req.method==='GET'){
+    const all=req.query?.all==='true'||req.query?.all==='1';
+    if(all){
+      if(!requireAdmin(req))return json(res,401,{error:'Admin authentication required.'});
+      const [leadRowsRaw, accountRowsRaw] = await Promise.all([
+        db(c,`owner_archetype_leads?select=${SELECT}&order=created_at.desc`).catch(() => []),
+        db(c,`accounts?select=id,name,email,agency_url,agency_url_normalized,agency_name,journey,source,archetype_result,report_data,created_at,updated_at&order=created_at.desc`).catch(() => [])
+      ]);
+      const leadRows = Array.isArray(leadRowsRaw) ? leadRowsRaw : [];
+      const accountRows = Array.isArray(accountRowsRaw) ? accountRowsRaw : [];
+      
+      const mergedMap = new Map();
+      leadRows.forEach(r => {
+        const item = pub(r);
+        if (item) {
+          const key = lower(item.email) || item.agency_url_normalized || item.id;
+          mergedMap.set(key, item);
+        }
+      });
 
-   // Recovery path for paid/converted accounts whose original lead row is missing.
-   // This keeps report lookup consistent with the account table and avoids telling an
-   // existing customer that their Owner Archetype report does not exist.
-   const accountSelect='id,name,email,agency_url,agency_name,journey,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
-   let accountRows=[];
-   if(email){
-     accountRows=await db(c,`accounts?select=${accountSelect}&email_normalized=eq.${encodeURIComponent(email)}&limit=20`);
-   }else if(name){
-     const safeName=name.replace(/[,*()]/g,'');accountRows=await db(c,`accounts?select=${accountSelect}&name=ilike.*${encodeURIComponent(safeName)}*&limit=20`);
-   }else if(url){
-     const domain=url.split('/')[0];accountRows=await db(c,`accounts?select=${accountSelect}&agency_url=ilike.*${encodeURIComponent(domain)}*&limit=20`);
-   }
-   const accountLeads=(Array.isArray(accountRows)?accountRows:[]).filter(a=>{
-     if(email&&lower(a.email)===email)return true;
-     if(url&&normalizeUrl(a.agency_url)===url)return true;
-     if(name&&lower(a.name).includes(name))return true;
-     return false;
-   }).map(a=>({
-     id:`account:${a.id}`,name:a.name||'',email:a.email||'',agency_url:a.agency_url||'',agency_url_normalized:normalizeUrl(a.agency_url),agency_name:a.agency_name||'',journey:a.journey||'diagnostic',source:a.source||'account',archetype_result:a.archetype_result||{},report_data:a.report_data||{},converted_account_id:a.id,converted_at:a.updated_at||a.created_at||null,payment_completed_at:a.updated_at||a.created_at||null,account_exists:true,is_paid:true,created_at:a.created_at||null,updated_at:a.updated_at||null
-   }));
-   return json(res,200,{leads:accountLeads});
- }
- if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const name=clean(b.name||`${b.firstName||''} ${b.lastName||''}`);const email=lower(b.email);const agencyUrl=clean(b.agencyUrl||b.agency_url);const normalized=normalizeUrl(agencyUrl);if(!name||!email||!normalized)return json(res,422,{error:'Name, email, and agency URL are required.'});if(!/^\S+@\S+\.\S+$/.test(email))return json(res,422,{error:'Enter a valid email address.'});
- const accountRows=await db(c,`accounts?select=id,name,email,agency_url,agency_name,diagnostic_state&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);const existingAccount=Array.isArray(accountRows)?accountRows[0]:null;const s=existingAccount?.diagnostic_state||{};if(existingAccount&&(s.paymentComplete===true||s.integrationsComplete===true||s.reportReady===true||s.allComplete===true||Number(s.count||0)>0))return json(res,200,{alreadyActivated:true,account:existingAccount});
- const record={name,name_normalized:lower(name),email,email_normalized:email,agency_url:agencyUrl,agency_url_normalized:normalized,agency_name:clean(b.agencyName||b.agency_name)||deriveName(agencyUrl),journey:'diagnostic',source:'owner-archetype',archetype_answers:b.archetypeAnswers||b.archetype_answers||{},archetype_result:b.archetypeResult||b.archetype_result||{},report_data:b.reportData||b.report_data||{},converted_account_id:null,converted_at:null,payment_completed_at:null,updated_at:new Date().toISOString()};
- const old=await db(c,`owner_archetype_leads?select=id&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);let rows;if(Array.isArray(old)&&old[0])rows=await db(c,`owner_archetype_leads?id=eq.${old[0].id}&select=${SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(record)});else rows=await db(c,`owner_archetype_leads?select=${SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(record)});return json(res,200,{lead:pub(Array.isArray(rows)?rows[0]:rows)});
+      accountRows.forEach(a => {
+        const key = lower(a.email) || normalizeUrl(a.agency_url) || a.id;
+        const existing = mergedMap.get(key);
+        const report = a.report_data && typeof a.report_data === 'object' ? a.report_data : {};
+        const archetype = a.archetype_result && typeof a.archetype_result === 'object' ? a.archetype_result : {};
+        const accountLead = {
+          id: existing?.id || `account:${a.id}`,
+          name: a.name || existing?.name || '',
+          email: a.email || existing?.email || '',
+          agency_url: a.agency_url || existing?.agency_url || '',
+          agency_url_normalized: normalizeUrl(a.agency_url) || existing?.agency_url_normalized || '',
+          agency_name: a.agency_name || existing?.agency_name || '',
+          journey: a.journey || existing?.journey || 'diagnostic',
+          source: a.source || existing?.source || 'account',
+          archetype_result: Object.keys(archetype).length ? archetype : (existing?.archetype_result || {}),
+          report_data: Object.keys(report).length ? report : (existing?.report_data || {}),
+          converted_account_id: a.id,
+          converted_at: a.updated_at || a.created_at || null,
+          payment_completed_at: a.updated_at || a.created_at || null,
+          account_exists: true,
+          is_paid: true,
+          created_at: a.created_at || existing?.created_at || null,
+          updated_at: a.updated_at || existing?.updated_at || null
+        };
+        mergedMap.set(key, accountLead);
+      });
+
+      const leads = [...mergedMap.values()].sort((a,b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      return json(res,200,{leads});
+    }
+    const email=lower(req.query?.email),url=normalizeUrl(req.query?.agencyUrl||req.query?.agency_url),name=lower(req.query?.name);
+    if(!email&&!url&&!name)return json(res,422,{error:'Enter a name, email address, or agency URL.'});
+    const filters=[];if(email)filters.push(`email_normalized.eq.${email}`);if(url)filters.push(`agency_url_normalized.eq.${url}`);if(name)filters.push(`name_normalized.ilike.*${name.replace(/[,*()]/g,'')}*`);
+    const or=encodeURIComponent(`(${filters.join(',')})`);const rows=await db(c,`owner_archetype_leads?select=${SELECT}&or=${or}&order=created_at.desc&limit=20`);
+    const leads=await attachAccountState(c,rows);
+    if(leads.length)return json(res,200,{leads});
+
+    // Recovery path for paid/converted accounts whose original lead row is missing.
+    // This keeps report lookup consistent with the account table and avoids telling an
+    // existing customer that their Owner Archetype report does not exist.
+    const accountSelect='id,name,email,agency_url,agency_name,journey,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
+    let accountRows=[];
+    if(email){
+      accountRows=await db(c,`accounts?select=${accountSelect}&email_normalized=eq.${encodeURIComponent(email)}&limit=20`);
+    }else if(name){
+      const safeName=name.replace(/[,*()]/g,'');accountRows=await db(c,`accounts?select=${accountSelect}&name=ilike.*${encodeURIComponent(safeName)}*&limit=20`);
+    }else if(url){
+      const domain=url.split('/')[0];accountRows=await db(c,`accounts?select=${accountSelect}&agency_url=ilike.*${encodeURIComponent(domain)}*&limit=20`);
+    }
+    const accountLeads=(Array.isArray(accountRows)?accountRows:[]).filter(a=>{
+      if(email&&lower(a.email)===email)return true;
+      if(url&&normalizeUrl(a.agency_url)===url)return true;
+      if(name&&lower(a.name).includes(name))return true;
+      return false;
+    }).map(a=>({
+      id:`account:${a.id}`,name:a.name||'',email:a.email||'',agency_url:a.agency_url||'',agency_url_normalized:normalizeUrl(a.agency_url),agency_name:a.agency_name||'',journey:a.journey||'diagnostic',source:a.source||'account',archetype_result:a.archetype_result||{},report_data:a.report_data||{},converted_account_id:a.id,converted_at:a.updated_at||a.created_at||null,payment_completed_at:a.updated_at||a.created_at||null,account_exists:true,is_paid:true,created_at:a.created_at||null,updated_at:a.updated_at||null
+    }));
+    return json(res,200,{leads:accountLeads});
+  }
+  if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const name=clean(b.name||`${b.firstName||''} ${b.lastName||''}`);const email=lower(b.email);const agencyUrl=clean(b.agencyUrl||b.agency_url);const normalized=normalizeUrl(agencyUrl);if(!name||!email||!normalized)return json(res,422,{error:'Name, email, and agency URL are required.'});if(!/^\S+@\S+\.\S+$/.test(email))return json(res,422,{error:'Enter a valid email address.'});
+  const accountRows=await db(c,`accounts?select=id,name,email,agency_url,agency_name,diagnostic_state&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);const existingAccount=Array.isArray(accountRows)?accountRows[0]:null;const s=existingAccount?.diagnostic_state||{};if(existingAccount&&(s.paymentComplete===true||s.integrationsComplete===true||s.reportReady===true||s.allComplete===true||Number(s.count||0)>0))return json(res,200,{alreadyActivated:true,account:existingAccount});
+  const record={name,name_normalized:lower(name),email,email_normalized:email,agency_url:agencyUrl,agency_url_normalized:normalized,agency_name:clean(b.agencyName||b.agency_name)||deriveName(agencyUrl),journey:'diagnostic',source:'owner-archetype',archetype_answers:b.archetypeAnswers||b.archetype_answers||{},archetype_result:b.archetypeResult||b.archetype_result||{},report_data:b.reportData||b.report_data||{},converted_account_id:null,converted_at:null,payment_completed_at:null,updated_at:new Date().toISOString()};
+  const old=await db(c,`owner_archetype_leads?select=id&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);let rows;if(Array.isArray(old)&&old[0])rows=await db(c,`owner_archetype_leads?id=eq.${old[0].id}&select=${SELECT}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(record)});else rows=await db(c,`owner_archetype_leads?select=${SELECT}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(record)});return json(res,200,{lead:pub(Array.isArray(rows)?rows[0]:rows)});
 }catch(e){console.error('owner archetype leads API error',e);return json(res,e.status===400?400:500,{error:'The Owner Archetype lead could not be saved or loaded.'})}}

@@ -90,6 +90,13 @@
     const summary = indexSummary(item);
     const visitDate = report.completedAt || report.completed_at || item.created_at || item.updated_at || null;
 
+    const plan = String(item.access_plan || item.accessPlan || item.journey || 'diagnostic').toLowerCase();
+    const planLabel = item.planLabel || (plan.includes('fractional') || plan.includes('coo') ? 'Fractional COO + Platform Bundle'
+      : plan.includes('platform') || plan.includes('partner') ? 'Platform / Partner Portal'
+      : plan.includes('accelerator') || plan.includes('breakthrough') ? 'Breakthrough Accelerator'
+      : plan.includes('archetype') ? 'Owner Archetype'
+      : 'Planning Diagnostic');
+
     return {
       ...item,
       id: String(item.id || ''),
@@ -99,6 +106,8 @@
       agencyUrl: String(item.agency_url || report.agencyWebsite || '').trim(),
       source: String(item.source || '').trim(),
       journey: String(item.journey || 'diagnostic').trim(),
+      accessPlan: item.access_plan || item.accessPlan || 'diagnostic',
+      planLabel,
       archetypeTitle: String(archetype.title || report.archetypeTitle || '').trim(),
       reportData: report,
       visitDate,
@@ -145,7 +154,7 @@
       ? fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' })
       : Promise.resolve(null);
     const leadPromise = needsOwnerHistory
-      ? fetch(OWNER_LEAD_API, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin_history' }) })
+      ? fetch(`${OWNER_LEAD_API}?all=true`, { cache: 'no-store' })
       : Promise.resolve(null);
 
     const [accountResult, leadResult] = await Promise.allSettled([accountPromise, leadPromise]);
@@ -446,6 +455,8 @@
       const name = document.querySelector('#newAgencyName')?.value.trim();
       const email = document.querySelector('#newAgencyEmail')?.value.trim();
       const website = document.querySelector('#newAgencyWebsite')?.value.trim();
+      const accessPlan = document.querySelector('#newAgencyPlan')?.value || 'diagnostic';
+      const journey = (accessPlan === 'platform' || accessPlan === 'fractional_coo') ? 'platform' : 'diagnostic';
       if (!name || !email || !website) return;
 
       const submit = form.querySelector('button[type="submit"]');
@@ -461,7 +472,8 @@
             email,
             agencyUrl: website,
             agencyName: name,
-            journey: 'diagnostic',
+            accessPlan,
+            journey,
             source: 'admin-console'
           })
         });
