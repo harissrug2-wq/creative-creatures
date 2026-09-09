@@ -47,6 +47,15 @@
   "functions": {
     "api/financial-evidence.js": {
       "maxDuration": 60
+    },
+    "api/leadership-calendar-sync.js": {
+      "maxDuration": 60
     }
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/leadership-calendar-sync",
+      "schedule": "15 2 * * *"
+    }
+  ]
 }
