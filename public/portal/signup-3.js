@@ -1,5 +1,14 @@
 (() => {
   const initSignup3 = () => {
+    // Package pages use one complete guarantee panel. Move it directly below
+    // the offer/price hero and remove the cramped duplicate inside the price card.
+    const hero = document.querySelector('.offer-detail-page .detail-hero');
+    const guarantee = document.querySelector('.offer-detail-page .guarantee-banner-card');
+    if (hero && guarantee) {
+      guarantee.classList.add('guarantee-banner-card--primary');
+      hero.insertAdjacentElement('afterend', guarantee);
+    }
+
     // Smooth scroll for internal links
     document.querySelectorAll('a[href^="#"]').forEach(link => {
       link.addEventListener('click', e => {

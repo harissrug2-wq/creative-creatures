@@ -491,6 +491,8 @@ body.offer-detail-page {
   width: 84px;
   height: 84px;
   flex: 0 0 auto;
+  object-fit: contain;
+  mix-blend-mode: multiply;
 }
 
 .guarantee-banner-content h2 {
@@ -1023,4 +1025,105 @@ body.offer-detail-page {
   .offer-detail-page .step-options-grid { gap: 12px; }
   .offer-detail-page .step-option-card { padding: 17px; }
   .offer-detail-page .back-bottom-link { margin-top: 24px; }
+}
+
+/* Package detail guarantee: same full banner treatment as the signup design. */
+.offer-detail-page .invest-mini-guarantee {
+  display: none;
+}
+
+.offer-detail-page .guarantee-banner-card--primary {
+  min-height: 230px;
+  margin: -20px 0 56px;
+  padding: 40px 44px;
+  gap: 36px;
+  align-items: center;
+  border: 1px solid #bfd6ff;
+  border-radius: 24px;
+  background: #edf5ff;
+  text-align: left;
+}
+
+.offer-detail-page .guarantee-banner-card--primary .guarantee-emblem {
+  width: 118px;
+  height: 118px;
+  max-width: none;
+}
+
+.offer-detail-page .guarantee-banner-card--primary .guarantee-banner-content {
+  min-width: 0;
+}
+
+.offer-detail-page .guarantee-banner-card--primary .guarantee-banner-content h2 {
+  margin: 0 0 12px;
+  color: #11133f;
+  font-family: var(--font-heading);
+  font-size: clamp(25px, 2.6vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+}
+
+.offer-detail-page .guarantee-banner-card--primary .guarantee-banner-content p {
+  margin: 0 0 20px;
+  color: #3438e8;
+  font-size: 17px;
+  line-height: 1.55;
+}
+
+.offer-detail-page .guarantee-banner-card--primary .guarantee-tags {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.offer-detail-page .guarantee-banner-card--primary .g-tag {
+  min-height: 34px;
+  padding: 6px 14px;
+  font-size: 14px;
+}
+
+@media (max-width: 900px) {
+  .offer-detail-page .guarantee-banner-card--primary {
+    margin-top: -12px;
+    align-items: flex-start;
+    flex-direction: row;
+    text-align: left;
+  }
+}
+
+@media (max-width: 640px) {
+  .offer-detail-page .guarantee-banner-card--primary {
+    min-height: 0;
+    margin: -12px 0 40px;
+    padding: 24px 20px;
+    gap: 16px;
+    align-items: flex-start;
+    flex-direction: column;
+    border-radius: 18px;
+  }
+
+  .offer-detail-page .guarantee-banner-card--primary .guarantee-emblem {
+    width: 88px;
+    height: 88px;
+  }
+
+  .offer-detail-page .guarantee-banner-card--primary .guarantee-banner-content h2 {
+    font-size: 22px;
+  }
+
+  .offer-detail-page .guarantee-banner-card--primary .guarantee-banner-content p {
+    margin-bottom: 16px;
+    color: #3f46c9;
+    font-size: 15px;
+  }
+
+  .offer-detail-page .guarantee-banner-card--primary .guarantee-tags {
+    justify-content: flex-start;
+  }
+
+  .offer-detail-page .guarantee-banner-card--primary .g-tag {
+    min-height: 32px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
 }

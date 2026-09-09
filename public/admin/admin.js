@@ -134,6 +134,14 @@
   let diagnostics = [];
   let ownerArchetypes = [];
 
+  const pagePlan = () => String(document.body.dataset.adminPlan || '').trim();
+  const pagePlanLabel = () => ({
+    diagnostic: 'Diagnostic',
+    accelerator: 'Accelerator',
+    platform: 'Platform',
+    fractional_coo: 'Fractional COO'
+  })[pagePlan()] || 'Agency';
+
   async function fetchAccounts() {
     const needsOwnerHistory = Boolean(document.querySelector('#ownerArchetypeRows'));
     const needsDiagnostics = Boolean(
@@ -168,7 +176,9 @@
       } else {
         const payload = await accountsResponse.json();
         allAccounts = (Array.isArray(payload.accounts) ? payload.accounts : []).map(normalizeAccount).filter(Boolean);
-        diagnostics = allAccounts;
+        diagnostics = pagePlan()
+          ? allAccounts.filter(account => account.accessPlan === pagePlan())
+          : allAccounts;
       }
     }
 
@@ -220,8 +230,8 @@
     if (!items.length) {
       grid.innerHTML = `
         <div class="empty-state">
-          <h3>No agency accounts yet</h3>
-          <p>Every agency account created through signup will appear here.</p>
+          <h3>No ${escapeHtml(pagePlanLabel())} accounts yet</h3>
+          <p>New ${escapeHtml(pagePlanLabel())} signups will appear here automatically.</p>
         </div>`;
       return;
     }
@@ -279,7 +289,7 @@
     grid.querySelectorAll('[data-delete-id]').forEach(button => {
       button.addEventListener('click', async () => {
         const id = button.dataset.deleteId;
-        if (!confirm('Are you sure you want to remove this diagnostic account?')) return;
+        if (!confirm(`Are you sure you want to remove this ${pagePlanLabel()} account?`)) return;
         await deleteAccount(id);
       });
     });
@@ -435,6 +445,7 @@
       const email = document.querySelector('#newAgencyEmail')?.value.trim();
       const website = document.querySelector('#newAgencyWebsite')?.value.trim();
       if (!name || !email || !website) return;
+      const accessPlan = pagePlan() || 'diagnostic';
 
       const submit = form.querySelector('button[type="submit"]');
       submit.disabled = true;
@@ -449,17 +460,18 @@
             email,
             agencyUrl: website,
             agencyName: name,
-            journey: 'diagnostic',
+            journey: accessPlan,
+            accessPlan,
             source: 'admin-console'
           })
         });
         const payload = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(payload.error || 'Unable to create diagnostic.');
+        if (!response.ok) throw new Error(payload.error || `Unable to create ${pagePlanLabel()} account.`);
         modal?.classList.remove('open');
         form.reset();
         await refresh();
       } catch (error) {
-        alert(error.message || 'Unable to create diagnostic.');
+        alert(error.message || `Unable to create ${pagePlanLabel()} account.`);
       } finally {
         submit.disabled = false;
         submit.textContent = original;

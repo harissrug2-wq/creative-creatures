@@ -388,7 +388,15 @@
     document.querySelectorAll('[data-file]').forEach(input=>input.addEventListener('change',()=>{const file=input.files?.[0];if(!file)return;const isPdf=file.type==='application/pdf'||file.name.toLowerCase().endsWith('.pdf');if(!isPdf){state.documents[section.id]={...fileMeta(file),extractionStatus:'failed',extractionError:'Only PDF reports can be uploaded.'};persist();render();return;}handleUpload(section,file);}));
     document.querySelectorAll('[data-retry]').forEach(btn=>btn.addEventListener('click',()=>retryAnalysis(section)));
     if(section.type==='sde'){
-      document.querySelectorAll('[data-addback]').forEach(input=>input.addEventListener('change',()=>{state.addbacks[input.dataset.addback]=input.checked;if(input.dataset.addback==='distributions')document.querySelector('#ownershipField')?.classList.toggle('show',input.checked);persist();}));
+      document.querySelectorAll('[data-addback]').forEach(input=>input.addEventListener('change',()=>{
+        state.addbacks[input.dataset.addback]=input.checked;
+        const option=input.closest('.sde-option');
+        option?.classList.toggle('selected',input.checked);
+        const indicator=option?.querySelector('.checkbox-ui');
+        if(indicator)indicator.innerHTML=input.checked?checkIcon:'';
+        if(input.dataset.addback==='distributions')document.querySelector('#ownershipField')?.classList.toggle('show',input.checked);
+        persist();
+      }));
       document.querySelector('#ownershipPercent')?.addEventListener('input',event=>{state.ownershipPercent=event.target.value;persist();});
     }
     bindManual(section);
