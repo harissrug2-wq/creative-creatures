@@ -76,11 +76,19 @@
     return value ? dateLabel(value) : 'No due date';
   }
 
+  function localDateValue(value = new Date()) {
+    const date = new Date(value);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2,'0');
+    const day = String(date.getDate()).padStart(2,'0');
+    return `${year}-${month}-${day}`;
+  }
+
   function mondayOf(value = new Date()) {
     const date = new Date(value);
     const day = date.getDay();
     date.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
-    return date.toISOString().slice(0,10);
+    return localDateValue(date);
   }
 
   function metricEntries(metricId) {
@@ -407,7 +415,7 @@
     const backdrop = document.querySelector('[data-lead-modal]');
     const target = document.querySelector('[data-lead-modal-content]');
     if (!backdrop || !target) return;
-    const today = new Date().toISOString().slice(0,10);
+    const today = localDateValue();
     let title = '';
     let fields = '';
 
