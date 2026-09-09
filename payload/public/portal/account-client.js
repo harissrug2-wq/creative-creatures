@@ -2,9 +2,7 @@
   const DESTINATIONS = {
     platform: '/platform/',
     diagnostic: '/diagnostic/',
-    accelerator: '/accelerator/',
-    fractional_coo: '/fractional-coo/',
-    owner_archetype: '/owner-archetype/'
+    accelerator: '/accelerator/'
   };
 
   const ACCOUNT_API_BASE = String(window.CC_ACCOUNT_API_BASE || '/api/accounts').replace(/\/+$/, '');

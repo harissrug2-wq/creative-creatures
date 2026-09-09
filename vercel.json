@@ -20,14 +20,6 @@
       "destination": "/api/email-report?mode=status"
     },
     {
-      "source": "/api/cron-quarterly-snapshot",
-      "destination": "/api/scorecard?action=cron_snapshot"
-    },
-    {
-      "source": "/api/cron-quarterly-snapshot/",
-      "destination": "/api/scorecard?action=cron_snapshot"
-    },
-    {
       "source": "/owner-archetype/assessment/",
       "destination": "/owner-archetype/"
     },

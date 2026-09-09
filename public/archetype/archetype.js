@@ -19,6 +19,39 @@
     }
   };
 
+  const PAID_PLANS = ['diagnostic', 'accelerator', 'platform', 'fractional_coo'];
+  const PLAN_OFFERS = {
+    diagnostic: {
+      kicker: '1:1 DIAGNOSTIC',
+      title: 'Start My 1:1 Analysis & Planning Diagnostic',
+      subtitle: 'A private, done-with-you analysis of the whole agency.',
+      cta: 'Continue to Diagnostic Checkout →'
+    },
+    accelerator: {
+      kicker: 'BREAKTHROUGH ACCELERATOR',
+      title: 'Start My Facilitated Breakthrough Accelerator',
+      subtitle: 'A facilitated six-session program delivered across 90 days.',
+      cta: 'Continue to Accelerator Checkout →'
+    },
+    platform: {
+      kicker: 'PARTNER PORTAL',
+      title: 'Start My Platform / Partner Portal',
+      subtitle: 'The Agency Intelligence Platform with self-guided setup.',
+      cta: 'Continue to Platform Checkout →'
+    },
+    fractional_coo: {
+      kicker: 'FRACTIONAL COO + PLATFORM',
+      title: 'Start My Fractional COO + Platform Bundle',
+      subtitle: 'Senior operational support plus the platform that runs the plan.',
+      cta: 'Continue to Fractional COO Checkout →'
+    }
+  };
+
+  function normalizePaidPlan(value) {
+    const plan = String(value || '').trim().toLowerCase().replace(/-/g, '_');
+    return PAID_PLANS.includes(plan) ? plan : 'diagnostic';
+  }
+
   const QUESTIONS = [
     { id: 'first_name', type: 'text', text: 'What is your first name?', placeholder: 'First name' },
     { id: 'last_name', type: 'text', text: 'What is your last name?', placeholder: 'Last name' },
@@ -431,7 +464,7 @@
       answers
     };
     const requestedDestination = new URLSearchParams(location.search).get('destination') || localStorage.getItem('ccProgramPath') || 'diagnostic';
-    const destination = ['platform', 'diagnostic', 'accelerator'].includes(requestedDestination) ? requestedDestination : 'diagnostic';
+    const destination = normalizePaidPlan(requestedDestination);
     ownerEmail = String(ownerEmail || localStorage.getItem('ccOwnerEmail') || '').trim().toLowerCase();
     localStorage.setItem('ccOwnerEmail', ownerEmail);
     const account = {
@@ -473,15 +506,11 @@
         <section class="processing-card">
           <div class="spinner"></div>
           <h1>Creating your account and Owner Identity Report…</h1>
-          <p>We are saving your Owner Identity result and preparing your Agency Diagnostic workspace.</p>
+          <p>We are saving your Owner Identity result and preparing your selected Creative Creatures plan.</p>
         </section>
       </main>`;
     const syncPayload = ownerLeadPayloadFromReport(report, destination);
-    const destinationPath = destination === 'diagnostic'
-      ? `/owner-archetype/report/${encodeURIComponent(reportToken)}/`
-      : (window.CCAccount?.destinationPath
-        ? window.CCAccount.destinationPath(destination)
-        : (destination === 'platform' ? '/platform/' : '/accelerator/'));
+    const destinationPath = `/owner-archetype/report/${encodeURIComponent(reportToken)}/`;
     (async () => {
       try {
         await persistOwnerLead(syncPayload);
@@ -583,6 +612,8 @@
     const agencyUrl = data.agencyWebsite || localStorage.getItem('ccAgencyWebsite') || 'your agency';
     const email = data.email || localStorage.getItem('ccOwnerEmail') || 'your email address';
     const emailStatus = localStorage.getItem('ownerArchetypeEmailStatus') || 'unknown';
+    const selectedPlan = normalizePaidPlan(localStorage.getItem('ccProgramPath'));
+    const selectedOffer = PLAN_OFFERS[selectedPlan];
     const emailMessage = emailStatus === 'sent'
       ? `<h2>We have emailed your detailed Owner Identity Report to ${escapeHtml(email)}</h2><p>Check your inbox and your spam/junk folders just in case.</p>`
       : `<h2>Your detailed Owner Identity Report is ready.</h2><p>We could not confirm email delivery to ${escapeHtml(email)}. You can view the report now or retry the email.</p><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="nav-btn" id="viewIdentityPdf" type="button">View Report</button><button class="nav-btn primary" id="retryIdentityEmail" type="button">Email Report Again</button></div><p id="identityEmailRetryStatus" style="margin-top:10px"></p>`;
@@ -628,12 +659,12 @@
             <p>Ok, there is more to it than that, so let us take a deeper look under the hood with you and we guarantee you will be 100% satisfied. There are no quick fixes.</p>
           </div>
           <article class="diagnostic-offer-card">
-            <span class="offer-kicker">DIAGNOSTIC</span><h2>Get My Agency Diagnostic</h2><p class="offer-sub">A private, two week look under the hood of your agency.</p>
+            <span class="offer-kicker">${escapeHtml(selectedOffer.kicker)}</span><h2>${escapeHtml(selectedOffer.title)}</h2><p class="offer-sub">${escapeHtml(selectedOffer.subtitle)}</p>
             <div class="offer-columns">
               <section><h3>What We Do</h3><ul><li>✓ Owner Identity Assessment</li><li>✓ Leadership &amp; Team Accountability Review</li><li>✓ Back Office Performance Analysis<div class="offer-sublist">Marketing · Sales · Onboarding · Client Success · Services Delivery · Billing &amp; Finance</div></li><li>✓ Agency Strength Assessment</li><li>✓ Owner Dependency Assessment</li><li>✓ Agency Valuation Snapshot</li></ul></section>
               <section><h3>What You Get</h3><ul><li>✓ Owner Freedom Report</li><li>✓ Custom 90 Day Priority Roadmap</li><li>✓ Custom 1 Year Goals &amp; Strategic Plan</li><li>✓ (Optional) Accountability Partner &amp; Platform</li></ul></section>
             </div>
-            <a href="/payment/" class="next-payment offer-cta">Start My Diagnostic →</a>
+            <a href="/payment/?plan=${encodeURIComponent(selectedPlan)}" class="next-payment offer-cta" data-plan="${escapeHtml(selectedPlan)}">${escapeHtml(selectedOffer.cta)}</a>
           </article>
         </section>
       </main>`;
@@ -664,6 +695,9 @@
       const offer = document.querySelector('#diagnosticOffer');
       offer.hidden = false;
       offer.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+    document.querySelector('.next-payment')?.addEventListener('click', event => {
+      localStorage.setItem('ccProgramPath', normalizePaidPlan(event.currentTarget.dataset.plan));
     });
   }
 

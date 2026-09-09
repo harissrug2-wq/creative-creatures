@@ -332,13 +332,8 @@
   function platformRows(filterText = '', sortValue = 'aofi-desc') {
     const query = String(filterText || '').trim().toLowerCase();
     return accounts
-      .filter(account => {
-        const isPlatform = account.journey === 'platform' || account.access_plan === 'platform' || account.access_plan === 'fractional_coo';
-        if (!isPlatform) return false;
-        if (!query) return true;
-        const haystack = [account.agency_name, account.name, account.email].join(' ').toLowerCase();
-        return haystack.includes(query);
-      })
+      .filter(account => !query || [account.agency_name, account.name, account.email]
+        .join(' ').toLowerCase().includes(query))
       .sort((a, b) => {
         const ap = a.portfolio || {};
         const bp = b.portfolio || {};

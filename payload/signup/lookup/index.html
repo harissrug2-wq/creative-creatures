@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Find your account · Creative Creatures</title><link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/portal/base.css"><link rel="stylesheet" href="/portal/onboarding.css">
+</head>
+<body class="onboard-page">
+  <main class="lookup-wrap lookup-doc-update">
+    <a class="lookup-logo" href="/login/"><img class="cc-logo" src="/portal/creative-creatures-logo.png" alt="Creative Creatures"></a>
+    <h1>Have you received your Agency Owner Identity Report yet?</h1>
+    <p class="lookup-intro">Our first step is to examine the identity (archetype) of the agency owner. This helps us understand you and how your identity is shaping how you scale your agency. This is free, but extremely valuable and important.</p>
+    <div class="lookup-options">
+      <button class="lookup-option" id="yesOption"><strong>Yes, I have one</strong><span>Please look it up for me</span></button>
+      <button class="lookup-option" id="noOption"><strong>No, not yet</strong><span>Please let me get started</span></button>
+    </div>
+    <section class="lookup-panel" id="yesPanel" hidden>
+      <h3>Find My Identity (archetype) Report</h3>
+      <p>We’ll match one or all three fields. Select your existing account if you have already received your Owner Identity Report.</p>
+      <form id="lookupForm" novalidate>
+        <div class="field"><label for="lookupName">Name <small>optional</small></label><input id="lookupName" name="name" autocomplete="name" placeholder="Jane Doe"></div>
+        <div class="lookup-or-grid">
+          <div class="field"><label for="lookupEmail">Email</label><input id="lookupEmail" name="email" type="email" autocomplete="email" placeholder="jane@directingdesign.com"></div>
+          <div class="lookup-or"><span>or</span></div>
+          <div class="field"><label for="lookupUrl">Agency URL</label><input id="lookupUrl" name="agencyUrl" inputmode="url" placeholder="https://directingdesign.com"></div>
+        </div>
+        <button class="cc-btn cc-btn-primary" id="lookupSubmit" type="submit">Find My Report →</button>
+        <div class="cc-error" id="lookupError" role="alert"></div><div class="cc-success" id="lookupSuccess"></div><div id="lookupResults" class="lookup-results"></div>
+      </form>
+    </section>
+    <section class="lookup-panel lookup-why" id="noPanel" hidden>
+      <h3>Why We Ask</h3>
+      <p>Before we look at the numbers, we look at the agency owner. Your identity tells us where and how delegation is most likely to reverse under pressure and that is an important variable in a premium agency valuation. It takes 3 minutes and is free.</p>
+    </section>
+    <a class="cc-btn cc-btn-primary lookup-cta" id="archetypeCta" href="/owner-archetype/assessment/" hidden>Start My Identity (Archetype) Assessment</a>
+    <a class="lookup-back" href="/login/">← Back</a>
+  </main>
+  <script src="/portal/diagnostic-state.js"></script><script src="/portal/account-client.js"></script><script src="/portal/archetype-pdf.js"></script>
+  <script>
+    const params=new URLSearchParams(location.search),requestedDestination=(params.get('destination')||'diagnostic').replace(/-/g,'_'),destination=['diagnostic','accelerator','platform','fractional_coo','owner_archetype'].includes(requestedDestination)?requestedDestination:'diagnostic';
+    localStorage.setItem('ccProgramPath',destination);
+    const yesOption=document.getElementById('yesOption'),noOption=document.getElementById('noOption'),yesPanel=document.getElementById('yesPanel'),noPanel=document.getElementById('noPanel'),cta=document.getElementById('archetypeCta');
+    cta.href='/owner-archetype/assessment/?destination='+encodeURIComponent(destination)+'&source=signup';
+    cta.addEventListener('click',()=>localStorage.setItem('ccProgramPath',destination));
+    function select(mode){const yes=mode==='yes';yesOption.classList.toggle('selected',yes);noOption.classList.toggle('selected',!yes);yesPanel.hidden=!yes;noPanel.hidden=yes;cta.hidden=yes;}
+    yesOption.onclick=()=>select('yes');noOption.onclick=()=>select('no');
+    const resultsNode=document.getElementById('lookupResults');
+    const esc=v=>String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    function selectLead(lead){
+      window.CCAccount.useOwnerArchetypeLead(lead);
+      localStorage.setItem('ccProgramPath',destination);
+      localStorage.removeItem('ccSignedIn');
+      return lead;
+    }
+    async function viewLeadReport(lead,button){
+      selectLead(lead);
+      const original=button?.textContent||'View Report';
+      if(button){button.disabled=true;button.textContent='Preparing Report…';}
+      try{
+        if(!window.CCArchetypePDF?.openPdf) throw new Error('The PDF report viewer is unavailable.');
+        const opened=await window.CCArchetypePDF.openPdf();
+        if(!opened) throw new Error('We could not open this report. Please try again.');
+      }catch(error){
+        const err=document.getElementById('lookupError');
+        err.textContent=error?.message||'We could not open this report. Please try again.';
+        err.classList.add('show');
+      }finally{
+        if(button){button.disabled=false;button.textContent=original;}
+      }
+    }
+    function proceedToPayment(lead){selectLead(lead);location.href='/payment/';}
+    function loginToDiagnostic(lead){const email=String(lead?.email||'').trim(),query=new URLSearchParams();if(email)query.set('email',email);query.set('destination',destination);location.href='/login/?'+query.toString();}
+    function renderLeadResults(leads){
+      resultsNode.innerHTML=leads.map((lead,index)=>{const paid=lead.is_paid===true&&lead.account_exists===true;return `<article class="lookup-result-card" data-lead-index="${index}"><div class="lookup-result-info"><strong>${esc(lead.name)}</strong><span>${esc(lead.email)}</span><small>${esc(lead.agency_url)}</small></div><div class="lookup-result-actions"><button type="button" class="cc-btn cc-btn-secondary" data-view-lead="${index}">View Report</button>${paid?`<button type="button" class="cc-btn cc-btn-primary" data-login-lead="${index}">Login</button>`:`<button type="button" class="cc-btn cc-btn-primary" data-pay-lead="${index}">Proceed to Payment</button>`}</div></article>`}).join('');
+      resultsNode.querySelectorAll('[data-view-lead]').forEach(node=>node.addEventListener('click',()=>viewLeadReport(leads[Number(node.dataset.viewLead)],node)));
+      resultsNode.querySelectorAll('[data-pay-lead]').forEach(node=>node.addEventListener('click',()=>proceedToPayment(leads[Number(node.dataset.payLead)])));
+      resultsNode.querySelectorAll('[data-login-lead]').forEach(node=>node.addEventListener('click',()=>loginToDiagnostic(leads[Number(node.dataset.loginLead)])));
+    }
+    document.getElementById('lookupForm').addEventListener('submit',async e=>{
+      e.preventDefault();const btn=document.getElementById('lookupSubmit'),err=document.getElementById('lookupError'),ok=document.getElementById('lookupSuccess');
+      const form=new FormData(e.currentTarget),name=String(form.get('name')||'').trim(),email=String(form.get('email')||'').trim(),agencyUrl=String(form.get('agencyUrl')||'').trim();err.classList.remove('show');ok.classList.remove('show');resultsNode.innerHTML='';
+      if(!name&&!email&&!agencyUrl){err.textContent='Enter your name, email address, or agency URL.';err.classList.add('show');return;}
+      btn.disabled=true;btn.textContent='Finding report…';
+      try{
+        const leads=await window.CCAccount.lookupOwnerArchetypeLead({name,email,agencyUrl});
+        if(!leads.length)throw new Error('No Owner Archetype report was found using those details.');
+        if(leads.length===1){const paid=leads[0].is_paid===true&&leads[0].account_exists===true;ok.textContent=paid?'Owner Archetype report found. Your Agency Diagnostic account is already active.':'Owner Archetype report found. View your report or continue to payment when you are ready.';ok.classList.add('show');renderLeadResults(leads);return;}
+        ok.textContent='We found more than one matching report. Choose the correct report below.';ok.classList.add('show');
+        renderLeadResults(leads);
+      }catch(error){err.textContent=error?.message||'We could not find an Owner Archetype report using those details.';err.classList.add('show');}
+      finally{btn.disabled=false;btn.textContent='Find My Report →';}
+    });
+  </script>
+</body></html>

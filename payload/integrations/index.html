@@ -1,0 +1,676 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Manage the integrations selected for your Creative Creatures agency workspace.">
+  <title>Integrations · Creative Creatures</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/portal/base.css">
+  <style>
+    :root{--bg:#f8f8f6;--card:#fff;--line:#e7e7e2;--text:#17191f;--muted:#758092;--blue:#272cf3;--green:#159a50;--green-soft:#edf9f1;--amber:#b77a00;--amber-soft:#fff8e5;--red:#c33b34;--red-soft:#fff1f0}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text)}
+    .page{width:calc(100% - 40px);margin:0 auto;padding:32px 0 80px}
+    .hero{display:flex;align-items:flex-start;justify-content:space-between;gap:24px;margin-bottom:20px}
+    .hero h1{font-size:38px;letter-spacing:-.04em;margin:0 0 8px}.hero p{max-width:720px;color:#667386;font-size:14px;line-height:1.55;margin:0}
+    .btn{border:1px solid var(--line);background:#fff;color:#4c5969;border-radius:10px;min-height:40px;padding:0 16px;font-weight:750;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;white-space:nowrap}
+    .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;box-shadow:0 6px 16px rgba(39,44,243,.17)}.btn.danger{color:var(--red);border-color:#f0c9c5}.btn[disabled]{opacity:.55;cursor:not-allowed}
+    .stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:20px 0 24px}
+    .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}.stat label{display:block;color:#7c8796;text-transform:uppercase;letter-spacing:.08em;font-size:10px;font-weight:800;margin-bottom:7px}.stat strong{display:block;font-size:30px;letter-spacing:-.04em;line-height:1}.stat small{display:block;color:#94a0ae;font-size:11px;margin-top:7px}.stat .green{color:var(--green)}.stat .amber{color:#b98300}
+    #emptyState{background:#fff;border:1px solid var(--line);border-radius:16px;padding:44px;text-align:center}.empty-icon{font-size:34px;margin-bottom:10px}#emptyState h2{margin:0 0 8px}#emptyState p{color:var(--muted);margin:0 auto 18px;max-width:560px}
+    .groups{display:grid;gap:16px}.group{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden}
+    .group-head{padding:15px 18px;border-bottom:1px solid #efefeb;display:flex;justify-content:space-between;gap:14px;align-items:center}.group-title{display:flex;align-items:center;gap:9px}.group-title h2{font-size:17px;margin:0}.group-tag{font-size:10px;border-radius:999px;padding:4px 8px;background:#edf8f1;color:#158347;border:1px solid #ccebd6}.group-feed{font-size:11px;color:#9aa5b2}.group-head-actions{display:flex;align-items:center;justify-content:flex-end;gap:10px;flex-wrap:wrap}.group-add{min-height:34px;padding:0 12px}.group-empty{padding:18px;color:var(--muted);font-size:12px}
+    .integration-row{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;align-items:center;padding:15px 18px;border-top:1px solid #f0f0ed}.integration-row:first-of-type{border-top:0}
+    .logo{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-weight:900;font-size:12px;color:#fff}
+    .row-main{min-width:0}.row-title{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.row-title strong{font-size:14px}.active-source{font-size:9px;text-transform:uppercase;letter-spacing:.04em;border-radius:999px;padding:3px 6px;background:#ecf9f0;color:#188549;border:1px solid #caecd5}
+    .row-copy{color:#7a8797;font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+    .status{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#f7f8f8;color:#718091;border-radius:999px;padding:6px 10px;font-size:11px;white-space:nowrap}.status:before{content:'';width:7px;height:7px;border-radius:50%;background:#aeb6c0}.status.connected{background:var(--green-soft);border-color:#d2ecda;color:#27804b}.status.connected:before{background:#22ad5a}.status.error{background:var(--red-soft);border-color:#f3d1ce;color:#a73a35}.status.error:before{background:#d45149}.status.provisioning{background:var(--amber-soft);border-color:#f3e1b0;color:#9b6e00}.status.provisioning:before{background:#e3a500}
+    .working{background:var(--amber-soft);border:1px solid #ecd59b;color:#946600;border-radius:999px;padding:7px 11px;font-size:11px}
+    .footnote{font-size:10px;color:#98a4b1;margin-top:18px}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.46);backdrop-filter:blur(3px);z-index:300;display:none;place-items:center;padding:16px;overflow-y:auto}.modal-backdrop.show{display:grid}
+    .modal{width:min(920px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.2)}
+    .modal h2{margin:0 0 7px;font-size:25px}.modal>p{margin:0 0 18px;color:var(--muted);line-height:1.5;font-size:13px}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;position:sticky;bottom:-26px;background:#fff;padding:12px 0 2px}
+    .modal-error{color:#a63333;font-size:12px;margin:10px 0}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.data-list{display:grid;gap:9px;max-height:430px;overflow:auto;border:1px solid #e6e7eb;border-radius:13px;padding:12px}.data-item{border:1px solid var(--line);border-radius:11px;padding:12px 13px;background:#fbfbfa}.data-item strong{display:block;font-size:13px}.data-item span{display:block;color:#728094;font-size:11px;margin-top:4px;overflow-wrap:anywhere}
+    .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.metric{border:1px solid #cde8d5;background:#f8fdf9;border-radius:12px;padding:14px}.metric strong{font-size:20px;display:block}.metric span{font-size:11px;color:#6f7d8d}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.field{display:grid;gap:5px;min-width:220px;flex:1}.field label{font-size:11px;font-weight:750}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:12px}.field textarea{min-height:85px;resize:vertical}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field.full{grid-column:1/-1}
+    .category-modal{width:min(840px,calc(100vw - 32px))}.catalog-section{padding:16px 0}.catalog-section+.catalog-section{border-top:1px solid var(--line)}.catalog-section h3{font-size:15px;margin:0 0 4px}.catalog-section>p{font-size:12px;color:var(--muted);margin:0 0 12px}.catalog-list{display:grid;gap:9px}.catalog-tool{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:11px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:11px}.catalog-tool .btn{min-height:34px}.catalog-copy{min-width:0}.catalog-copy strong{display:block;font-size:13px}.catalog-copy span{display:block;color:var(--muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}.request-grid{display:grid;grid-template-columns:1fr 1.4fr auto;gap:9px;align-items:end}.request-grid .field{min-width:0}.request-success{color:var(--green);font-size:12px;font-weight:700;margin-top:10px}
+    @media(max-width:900px){.page{width:calc(100% - 26px);padding-top:24px}.hero{flex-direction:column}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-row{grid-template-columns:38px minmax(0,1fr)}.row-actions{grid-column:1/-1;justify-content:flex-start;padding-left:50px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.request-grid{grid-template-columns:1fr}}
+    @media(max-width:600px){.stats{grid-template-columns:1fr 1fr}.stat{padding:15px}.stat strong{font-size:25px}.group-head{align-items:flex-start}.integration-row{padding:14px}.row-actions{padding-left:0}.row-actions>*{flex:1}.row-actions .status{flex:0 0 100%;justify-content:center}.modal{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:18px 14px;border-radius:14px}.metric-grid,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions .btn{width:100%}.row-copy{white-space:normal}}
+
+    /* CC_INTEGRATIONS_RESPONSIVE_HOTFIX_V1 */
+    html,body{width:100%;max-width:100%;overflow-x:clip}
+    .page,.hero,.stats,.groups,.group,.group-head,.integration-row,.row-main,.row-actions,.footnote{min-width:0;max-width:100%}
+    .integration-row>*{min-width:0}
+    .row-actions .btn,.row-actions .working{max-width:100%;overflow-wrap:anywhere}
+    .modal-backdrop{width:100%;max-width:100%;overflow-x:hidden}
+    .modal,#modalBody,.data-list,.toolbar,.metric-grid,.form-grid{min-width:0;max-width:100%}
+    .metric-grid>*,.form-grid>*,.toolbar>*{min-width:0}
+    .modal h2,.modal p,.data-item,.data-item *{overflow-wrap:anywhere}
+    @media(max-width:600px){
+      .page{width:calc(100% - 20px)}
+      .hero h1{font-size:32px}
+      .stats{grid-template-columns:1fr}
+      .group-head{flex-wrap:wrap}
+      .group-head-actions{width:100%;justify-content:space-between}.group-add{flex:1}.group-feed{white-space:normal}
+      .integration-row{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:13px 12px}
+      .row-actions{grid-column:1/-1;padding-left:0;display:grid;grid-template-columns:1fr 1fr;width:100%}
+      .row-actions .status{grid-column:1/-1;width:100%}
+      .row-actions>*{width:100%;white-space:normal}
+      .modal-actions{position:static;bottom:auto;margin-top:16px;padding:0;display:grid;grid-template-columns:1fr}
+      .modal-actions .btn{width:100%}
+      .tabs .btn{flex:1 1 140px;white-space:normal}
+      .field{min-width:0}
+      .catalog-tool{grid-template-columns:34px minmax(0,1fr)}.catalog-tool .btn{grid-column:1/-1;width:100%}
+    }
+  </style>
+</head>
+<body>
+  <div data-app-header="integrations"></div>
+  <main class="page">
+    <header class="hero">
+      <div>
+        <h1>Integrations</h1>
+        <p>Connect and manage the tools your agency uses. Add available systems, track upcoming options, or request a new integration directly inside each category.</p>
+      </div>
+    </header>
+
+    <section class="stats">
+      <article class="stat"><label>Connected</label><strong id="connectedStat">0 / 0</strong><small id="categoryStat">across 0 categories</small></article>
+      <article class="stat"><label>Healthy</label><strong class="green" id="healthyStat">0</strong><small>connected without errors</small></article>
+      <article class="stat"><label>Needs Attention</label><strong class="amber" id="attentionStat">0</strong><small>re-auth / errors</small></article>
+      <article class="stat"><label>Empty Categories</label><strong id="emptyStat">0</strong><small>selected categories only</small></article>
+    </section>
+
+    <section id="emptyState" hidden>
+      <div class="empty-icon">⌁</div>
+      <h2>No integration tools selected yet</h2>
+      <p>Use the Add button on a category to select an available or upcoming integration.</p>
+    </section>
+
+    <section class="groups" id="groups"></section>
+    <p class="footnote">Connect → OAuth handshake → token stored for this agency account → explicit Sync Now where applicable. Financial data is not pushed into the Agency Performance Index until you trigger a sync.</p>
+  </main>
+
+  <div class="modal-backdrop" id="categoryModal">
+    <section class="modal category-modal" role="dialog" aria-modal="true" aria-labelledby="categoryModalTitle">
+      <h2 id="categoryModalTitle">Add integration</h2><p id="categoryModalCopy"></p><div id="categoryModalBody"></div>
+      <div class="modal-actions"><button class="btn" id="categoryModalClose">Close</button></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="dataModal">
+    <section class="modal">
+      <h2 id="modalTitle">Integration</h2>
+      <p id="modalCopy"></p>
+      <div id="modalBody"></div>
+      <div class="modal-error" id="modalError"></div>
+      <div class="modal-actions"><button class="btn" id="modalClose">Close</button></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="eventModal">
+    <section class="modal" style="width:min(620px,calc(100vw - 32px))">
+      <h2 id="eventHeading">Create Event</h2>
+      <p>Create or edit an event on the selected Google calendar.</p>
+      <input type="hidden" id="eventId">
+      <div class="form-grid">
+        <div class="field full"><label>Title</label><input id="eventTitle"></div>
+        <div class="field"><label>Start</label><input id="eventStart" type="datetime-local"></div>
+        <div class="field"><label>End</label><input id="eventEnd" type="datetime-local"></div>
+        <div class="field full"><label>Location</label><input id="eventLocation"></div>
+        <div class="field full"><label>Attendees</label><input id="eventAttendees" placeholder="name@example.com, second@example.com"></div>
+        <div class="field full"><label>Description</label><textarea id="eventDescription"></textarea></div>
+      </div>
+      <div class="modal-error" id="eventError"></div>
+      <div class="modal-actions"><button class="btn" id="eventCancel">Cancel</button><button class="btn primary" id="eventSave">Save Event</button></div>
+    </section>
+  </div>
+
+  <script src="https://apis.google.com/js/api.js"></script>
+  <script src="/portal/diagnostic-state.js"></script>
+  <script src="/portal/account-client.js"></script>
+  <script src="/portal/app-shell.js"></script>
+  <script>
+    const safeJson=(v,f)=>{try{return JSON.parse(v)??f}catch{return f}};
+    const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    let selected=Array.from(new Set(safeJson(localStorage.getItem('agencySelectedTools'),[]).map(x=>x==='GoHighLevel'||x==='CRM Connector'?'GHL CRM':x))).filter(Boolean);
+
+    const meta={
+      'QuickBooks Online':{group:'Bookkeeping',code:'QB',color:'#2ca01c',copy:'OAuth2 · P&L · A/R · expenses',status:'quickbooks_status',connect:'quickbooks_connect',sync:'quickbooks_sync',disconnect:'quickbooks_disconnect'},
+      'Xero':{group:'Bookkeeping',code:'Xe',color:'#13b5ea',copy:'Accounting · invoices · expenses'},
+      'Sage':{group:'Bookkeeping',code:'Sg',color:'#00a376',copy:'Accounting · reporting'},
+      'FreshBooks':{group:'Bookkeeping',code:'Fb',color:'#0075dd',copy:'OAuth2 · clients · invoices · payments · expenses · reports',status:'freshbooks_status',connect:'freshbooks_connect',sync:'freshbooks_sync',disconnect:'freshbooks_disconnect',manage:'freshbooks'},
+      'NetSuite':{group:'Bookkeeping',code:'Ns',color:'#425563',copy:'ERP · finance · reporting'},
+      'Stripe':{group:'Billing',code:'St',color:'#635bff',copy:'OAuth2 · charges · invoices · subscriptions'},
+      'Square':{group:'Billing',code:'Sq',color:'#111',copy:'Payments · customers · orders'},
+      'PayPal':{group:'Billing',code:'PP',color:'#0070ba',copy:'Payments · transactions'},
+      'Chargebee':{group:'Billing',code:'Cb',color:'#6c48ff',copy:'Subscriptions · invoices'},
+      'Bill.com':{group:'Billing',code:'Bi',color:'#0068ff',copy:'AP · AR · payments'},
+      'GHL CRM':{group:'CRM',code:'GH',color:'#168ce5',copy:'OAuth2 · location-scoped · contacts · opportunities · pipelines',status:'ghl_status',connect:'ghl_connect',sync:'ghl_sync',disconnect:'ghl_disconnect',manage:'ghl'},
+      'HubSpot':{group:'CRM',code:'Hs',color:'#ff5c35',copy:'OAuth2 · contacts · companies · deals · pipelines',status:'hubspot_status',connect:'hubspot_connect',sync:'hubspot_dashboard',disconnect:'hubspot_disconnect',manage:'hubspot'},
+      'Salesforce':{group:'CRM',code:'Sf',color:'#00a1e0',copy:'CRM · accounts · opportunities'},
+      'Pipedrive':{group:'CRM',code:'Pd',color:'#22a06b',copy:'Deals · contacts · activities'},
+      'Keap':{group:'CRM',code:'Kp',color:'#ff6b4a',copy:'Contacts · sales · automation'},
+      'Zoho CRM':{group:'CRM',code:'Zo',color:'#e94134',copy:'OAuth2 · contacts · accounts · deals · pipelines',status:'zoho_status',connect:'zoho_connect',sync:'zoho_dashboard',disconnect:'zoho_disconnect',manage:'zoho'},
+      'ClickUp':{group:'Project Management',code:'Cu',color:'#7b68ee',copy:'OAuth2 - workspaces - spaces - lists - tasks - time',status:'clickup_status',connect:'clickup_connect',sync:'clickup_dashboard',disconnect:'clickup_disconnect',manage:'clickup'},
+      'Asana':{group:'Project Management',code:'As',color:'#f06a6a',copy:'Projects · tasks · teams'},
+      'Monday.com':{group:'Project Management',code:'Mo',color:'#ff3d57',copy:'OAuth2 - workspaces - boards - items - users',status:'monday_status',connect:'monday_connect',sync:'monday_dashboard',disconnect:'monday_disconnect',manage:'monday'},
+      'Teamwork':{group:'Project Management',code:'Tw',color:'#ef2929',copy:'OAuth2 - projects - tasks - people - time',status:'teamwork_status',connect:'teamwork_connect',sync:'teamwork_dashboard',disconnect:'teamwork_disconnect',manage:'teamwork'},
+      'Jira':{group:'Project Management',code:'Ji',color:'#0052cc',copy:'OAuth2 · projects · issues · workflow transitions',status:'jira_status',connect:'jira_connect',sync:'jira_sync',disconnect:'jira_disconnect',manage:'jira'},
+      'Basecamp':{group:'Project Management',code:'Ba',color:'#63b954',copy:'Projects · to-dos · messages'},
+      'Slack':{group:'Communications',code:'Sl',color:'#4a154b',copy:'OAuth2 · channels · users · workspace',status:'slack_status',connect:'slack_connect',sync:'slack_dashboard',disconnect:'slack_disconnect',manage:'slack'},
+      'Microsoft Teams':{group:'Communications',code:'Ms',color:'#6264a7',copy:'Teams · channels · meetings'},
+      'Google Chat':{group:'Communications',code:'Gc',color:'#00ac47',copy:'OAuth2 · spaces · members · send messages · no history access',status:'google_chat_status',connect:'google_chat_connect',sync:'google_chat_sync',disconnect:'google_chat_disconnect',manage:'google_chat'},
+      'Google Calendar':{group:'Calendar & Meetings',code:'31',color:'#4285f4',copy:'OAuth2 · calendars · events',status:'google_calendar_status',connect:'google_calendar_connect',disconnect:'google_calendar_disconnect',manage:'calendar'},
+      'Outlook Calendar':{group:'Calendar & Meetings',code:'Oc',color:'#0078d4',copy:'Microsoft 365 · calendars · events'},
+      'Zoom':{group:'Calendar & Meetings',code:'Zm',color:'#2d8cff',copy:'OAuth2 · connected host · upcoming meetings',status:'zoom_status',connect:'zoom_connect',sync:'zoom_sync',disconnect:'zoom_disconnect',manage:'zoom'},
+      'Calendly':{group:'Calendar & Meetings',code:'Ca',color:'#006bff',copy:'Scheduling · event types · invitees'},
+      'Google Drive':{group:'Central Drive',code:'Dr',color:'#1a73e8',copy:'OAuth2 · files · folders · revisions',status:'google_drive_status',connect:'google_drive_connect',sync:'google_drive_refresh',disconnect:'google_drive_disconnect',manage:'drive'},
+      'Dropbox':{group:'Central Drive',code:'Db',color:'#0061ff',copy:'Files · folders · sharing'},
+      'OneDrive':{group:'Central Drive',code:'Od',color:'#0078d4',copy:'Files · folders · Microsoft 365'},
+      'Box':{group:'Central Drive',code:'Bx',color:'#0061d5',copy:'Files · folders · collaboration'},
+      'Gusto':{group:'HR & People',code:'Gu',color:'#f45d48',copy:'Payroll · people · benefits'},
+      'BambooHR':{group:'HR & People',code:'Bh',color:'#73bd43',copy:'Employees · time off · HRIS'},
+      'Rippling':{group:'HR & People',code:'Rp',color:'#f4cf00',copy:'People · payroll · devices'},
+      'ADP':{group:'HR & People',code:'AD',color:'#d0271d',copy:'Payroll · workforce · HR'},
+      'Justworks':{group:'HR & People',code:'Jw',color:'#f97316',copy:'Payroll · benefits · HR'},
+      'Keeper':{group:'IT & Security',code:'Ke',color:'#ffc400',copy:'Vault · security posture'},
+      'Bitwarden':{group:'IT & Security',code:'Bw',color:'#175ddc',copy:'Vault · organizations · security'},
+      '1Password':{group:'IT & Security',code:'1P',color:'#0a61ff',copy:'Vault · users · security'},
+      'Cloudflare':{group:'IT & Security',code:'Cf',color:'#f48120',copy:'DNS · security · traffic'},
+      'Okta':{group:'IT & Security',code:'Ok',color:'#007dc1',copy:'Identity · SSO · users'}
+    };
+    const catalog={
+      'CRM':['GHL CRM','HubSpot','Salesforce','Pipedrive','Keap','Zoho CRM'],
+      'Bookkeeping':['QuickBooks Online','Xero','Sage','FreshBooks','NetSuite'],
+      'Project Management':['ClickUp','Asana','Monday.com','Teamwork','Jira','Basecamp'],
+      'Communications':['Slack','Microsoft Teams','Google Chat'],
+      'Calendar & Meetings':['Google Calendar','Outlook Calendar','Zoom','Calendly'],
+      'Central Drive':['Google Drive','Dropbox','OneDrive','Box'],
+      'HR & People':['Gusto','BambooHR','Rippling','ADP','Justworks'],
+      'Billing':['Stripe','Square','PayPal','Chargebee','Bill.com'],
+      'IT & Security':['Keeper','Bitwarden','1Password','Cloudflare','Okta']
+    };
+    const categoryOrder=Object.keys(catalog);
+    const groupFeeds={
+      'CRM':'feeds: Marketing · Sales',
+      'Bookkeeping':'feeds: Billing · Finance',
+      'Project Management':'feeds: Onboarding · Service Delivery · Client Success',
+      'Communications':'feeds: Communication · Client Success',
+      'Calendar & Meetings':'feeds: Scheduling · Operations',
+      'Central Drive':'feeds: SOPs',
+      'HR & People':'feeds: Talent · Operations',
+      'Billing':'feeds: Billing · Finance',
+      'IT & Security':'feeds: Systems · Security'
+    };
+
+    const stateMap=new Map();
+    const groupsEl=document.querySelector('#groups');
+    const empty=document.querySelector('#emptyState');
+    const show=id=>document.querySelector(id)?.classList.add('show');
+    const hide=id=>document.querySelector(id)?.classList.remove('show');
+
+    async function apiGet(action){
+      const r=await fetch(`/api/account-auth?action=${encodeURIComponent(action)}`);
+      const p=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(p.error||'Integration request failed.');
+      return p;
+    }
+    async function apiPost(action,data={}){
+      const r=await fetch('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});
+      const p=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(p.error||'Integration request failed.');
+      return p;
+    }
+    function connectionFrom(payload){return payload?.connection||{connected:false}}
+    function statusLabel(tool){
+      const s=stateMap.get(tool);
+      if(!meta[tool]?.status)return ['provisioning','Provisioning — our team is on it'];
+      if(s?.loading)return ['','Checking…'];
+      if(s?.error)return ['error','Needs attention'];
+      if(s?.connected)return ['connected','Connected'];
+      return ['','Not connected'];
+    }
+
+    function render(){
+      empty.hidden=true;groupsEl.innerHTML='';
+      categoryOrder.forEach(group=>{
+        const tools=selected.filter(tool=>meta[tool]?.group===group);
+        const section=document.createElement('section');section.className='group';
+        const served=catalog[group].some(tool=>Boolean(meta[tool]?.status));
+        section.innerHTML=`<header class="group-head"><div class="group-title"><h2>${esc(group)}</h2><span class="group-tag">${served?'served':'provisioning'}</span></div><div class="group-head-actions"><span class="group-feed">${esc(groupFeeds[group])}</span><button class="btn group-add" data-add-category="${esc(group)}">＋ Add ${esc(group)}</button></div></header><div>${tools.length?tools.map(rowHtml).join(''):`<div class="group-empty">No ${esc(group)} integration selected.</div>`}</div>`;
+        groupsEl.appendChild(section);
+      });
+      wireButtons();updateStats();
+    }
+    function rowHtml(tool){
+      const m=meta[tool]||{group:'Other',code:tool.slice(0,2),color:'#667085',copy:'Selected agency integration'};
+      const [cls,label]=statusLabel(tool),s=stateMap.get(tool)||{};
+      const supported=Boolean(m.status),connected=s.connected===true;
+      let actions='';
+      if(!supported)actions=`<span class="status provisioning">${label}</span><span class="working">● Working on it</span>`;
+      else if(!connected)actions=`<span class="status ${cls}">${label}</span><button class="btn primary" data-connect="${esc(tool)}">Connect</button>`;
+      else actions=`<span class="status ${cls}">${label}</span>${m.manage?`<button class="btn" data-manage="${esc(tool)}">Manage</button>`:''}${m.sync?`<button class="btn" data-sync="${esc(tool)}">Sync now</button>`:''}<button class="btn danger" data-disconnect="${esc(tool)}">Disconnect</button>`;
+      return `<article class="integration-row"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="row-main"><div class="row-title"><strong>${esc(tool)}</strong>${connected?'<span class="active-source">active source</span>':''}</div><div class="row-copy">${esc(m.copy)}</div></div><div class="row-actions">${actions}</div></article>`;
+    }
+    function updateStats(){
+      const supported=selected.filter(t=>meta[t]?.status);
+      const connected=supported.filter(t=>stateMap.get(t)?.connected);
+      const attention=supported.filter(t=>stateMap.get(t)?.error);
+      const cats=new Set(selected.map(t=>(meta[t]||{}).group).filter(Boolean));
+      document.querySelector('#connectedStat').textContent=`${connected.length} / ${selected.length}`;
+      document.querySelector('#healthyStat').textContent=String(connected.filter(t=>!stateMap.get(t)?.error).length);
+      document.querySelector('#attentionStat').textContent=String(attention.length);
+      document.querySelector('#emptyStat').textContent=String(categoryOrder.length-cats.size);
+      document.querySelector('#categoryStat').textContent=`across ${cats.size} ${cats.size===1?'category':'categories'}`;
+    }
+    function wireButtons(){
+      document.querySelectorAll('[data-connect]').forEach(b=>b.onclick=()=>connectTool(b.dataset.connect,b));
+      document.querySelectorAll('[data-sync]').forEach(b=>b.onclick=()=>syncTool(b.dataset.sync,b));
+      document.querySelectorAll('[data-disconnect]').forEach(b=>b.onclick=()=>disconnectTool(b.dataset.disconnect,b));
+      document.querySelectorAll('[data-manage]').forEach(b=>b.onclick=()=>manageTool(b.dataset.manage));
+      document.querySelectorAll('[data-add-category]').forEach(b=>b.onclick=()=>openCategoryModal(b.dataset.addCategory));
+    }
+    const categoryModal=document.querySelector('#categoryModal');
+    const categoryModalTitle=document.querySelector('#categoryModalTitle');
+    const categoryModalCopy=document.querySelector('#categoryModalCopy');
+    const categoryModalBody=document.querySelector('#categoryModalBody');
+    let activeCategory='';
+
+    function catalogToolHtml(tool,available){
+      const m=meta[tool],isSelected=selected.includes(tool);
+      return `<article class="catalog-tool"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="catalog-copy"><strong>${esc(tool)}</strong><span>${esc(m.copy)}</span></div><button class="btn ${isSelected?'danger':available?'primary':''}" data-catalog-tool="${esc(tool)}">${isSelected?'Remove':available?'Add':'Add to list'}</button></article>`;
+    }
+    function openCategoryModal(category){
+      activeCategory=category;
+      const tools=catalog[category]||[];
+      const available=tools.filter(tool=>Boolean(meta[tool]?.status));
+      const upcoming=tools.filter(tool=>!meta[tool]?.status);
+      categoryModalTitle.textContent=`Add ${category}`;
+      categoryModalCopy.textContent='Choose a live connection, track an upcoming option, or request another system for this category.';
+      categoryModalBody.innerHTML=`<section class="catalog-section"><h3>Available integrations</h3><p>These integrations can be connected now.</p><div class="catalog-list">${available.map(tool=>catalogToolHtml(tool,true)).join('')||'<p>No live integrations are available in this category yet.</p>'}</div></section><section class="catalog-section"><h3>Listed integrations coming soon</h3><p>Add these to your agency stack while the connection is being provisioned.</p><div class="catalog-list">${upcoming.map(tool=>catalogToolHtml(tool,false)).join('')||'<p>Every listed option in this category is available.</p>'}</div></section><section class="catalog-section"><h3>Request another integration</h3><p>Request a system that is not already listed for ${esc(category)}.</p><div class="request-grid"><div class="field"><label>Integration name</label><input id="categoryRequestName" maxlength="100" placeholder="Vendor or product name"></div><div class="field"><label>What should it support?</label><input id="categoryRequestNote" maxlength="240" placeholder="Optional use case"></div><button class="btn primary" id="categoryRequestSave">Send request</button></div><div id="categoryRequestResult" class="request-success"></div></section>`;
+      categoryModalBody.querySelectorAll('[data-catalog-tool]').forEach(button=>button.onclick=()=>toggleCatalogTool(button.dataset.catalogTool));
+      categoryModalBody.querySelector('#categoryRequestSave').onclick=saveCategoryRequest;
+      show('#categoryModal');
+    }
+    async function persistIntegrationState(){
+      localStorage.setItem('agencySelectedTools',JSON.stringify(selected));
+      localStorage.setItem('agencyIntegrationsComplete','true');
+      try{await window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.()||{})}catch{}
+    }
+    async function toggleCatalogTool(tool){
+      if(selected.includes(tool))selected=selected.filter(item=>item!==tool);
+      else selected=[...selected,tool];
+      await persistIntegrationState();render();openCategoryModal(activeCategory);
+      if(selected.includes(tool)&&meta[tool]?.status)loadToolStatus(tool);
+    }
+    async function saveCategoryRequest(){
+      const name=categoryModalBody.querySelector('#categoryRequestName').value.trim();
+      const note=categoryModalBody.querySelector('#categoryRequestNote').value.trim();
+      if(!name){categoryModalBody.querySelector('#categoryRequestResult').textContent='Enter the integration name first.';return}
+      const requests=safeJson(localStorage.getItem('agencyIntegrationRequests'),[]);
+      requests.push({category:activeCategory,vendor:name,note,createdAt:new Date().toISOString()});
+      localStorage.setItem('agencyIntegrationRequests',JSON.stringify(requests));
+      await persistIntegrationState();
+      categoryModalBody.querySelector('#categoryRequestName').value='';categoryModalBody.querySelector('#categoryRequestNote').value='';
+      categoryModalBody.querySelector('#categoryRequestResult').textContent='✓ Request saved for this agency.';
+    }
+    async function loadToolStatus(tool){
+      stateMap.set(tool,{loading:true});render();
+      try{const result=await apiGet(meta[tool].status);const connection=connectionFrom(result);stateMap.set(tool,{...connection,loading:false,error:connection.lastError||connection.lastSyncError||''})}
+      catch(error){stateMap.set(tool,{connected:false,loading:false,error:error.message})}
+      render();
+    }
+    document.querySelector('#categoryModalClose').onclick=()=>hide('#categoryModal');
+    categoryModal.addEventListener('click',event=>{if(event.target===categoryModal)hide('#categoryModal')});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape')hide('#categoryModal')});
+    async function loadStatuses(){
+      await Promise.all(selected.filter(t=>meta[t]?.status).map(loadToolStatus));
+      handleOauthReturn();
+    }
+    async function connectTool(tool,button){
+      const m=meta[tool];button.disabled=true;
+      try{
+        const result=await apiGet(m.connect);
+        if(!result.authorizationUrl)throw new Error('Authorization URL was not returned.');
+        location.href=result.authorizationUrl;
+      }catch(error){alert(error.message);button.disabled=false}
+    }
+    async function syncTool(tool,button){
+      const m=meta[tool];button.disabled=true;const old=button.textContent;button.textContent='Syncing…';
+      try{
+        const result=await apiPost(m.sync);
+        const c=connectionFrom(result);
+        stateMap.set(tool,{...stateMap.get(tool),...c,connected:c.connected!==false,error:c.lastError||c.lastSyncError||''});
+        render();
+      }catch(error){stateMap.set(tool,{...stateMap.get(tool),error:error.message});render();alert(error.message)}
+      finally{button.disabled=false;button.textContent=old}
+    }
+    async function disconnectTool(tool,button){
+      if(!confirm(`Disconnect ${tool} from this agency?`))return;
+      button.disabled=true;
+      try{
+        const result=await apiPost(meta[tool].disconnect);
+        stateMap.set(tool,{...connectionFrom(result),connected:false,error:''});render();
+      }catch(error){alert(error.message);button.disabled=false}
+    }
+    function handleOauthReturn(){
+      const p=new URLSearchParams(location.search);
+      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',crm:'GHL CRM',ghl:'GHL CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com',jira:'Jira',zoom:'Zoom'};
+      let changed=false;
+      Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
+      if(changed)history.replaceState({},'',location.pathname);
+    }
+
+    // ---- Manage views for the currently supported integrations ----
+    const modalTitle=document.querySelector('#modalTitle'),modalCopy=document.querySelector('#modalCopy'),modalBody=document.querySelector('#modalBody'),modalError=document.querySelector('#modalError');
+    document.querySelector('#modalClose').onclick=()=>hide('#dataModal');
+
+    async function manageTool(tool){
+      modalError.textContent='';modalTitle.textContent=tool;modalBody.innerHTML='<div class="data-item"><strong>Loading…</strong></div>';show('#dataModal');
+      try{
+        if(tool==='Google Calendar')return manageCalendar();
+        if(tool==='Google Drive')return manageDrive();
+        if(tool==='GHL CRM')return manageGhl();
+        if(tool==='HubSpot')return manageHubSpot();
+        if(tool==='Zoho CRM')return manageZoho();
+        if(tool==='FreshBooks')return manageFreshBooks();
+        if(tool==='Slack')return manageSlack();
+        if(tool==='Google Chat')return manageGoogleChat();
+        if(tool==='ClickUp')return manageClickUp();
+        if(tool==='Teamwork')return manageTeamwork();
+        if(tool==='Monday.com')return manageMonday();
+        if(tool==='Jira')return manageJira();
+        if(tool==='Zoom')return manageZoom();
+        modalBody.innerHTML='<div class="data-item"><strong>No manage view is required for this integration.</strong></div>';
+      }catch(error){modalError.textContent=error.message}
+    }
+
+    let calendarConnection=null,calendarEvents=[];
+    async function manageCalendar(){
+      modalTitle.textContent='Google Calendar';modalCopy.textContent='Choose the default calendar and manage upcoming events.';
+      const list=await apiPost('google_calendar_list');calendarConnection=list.connection;const calendars=list.calendars||[];
+      const events=await apiPost('google_calendar_events',{maxResults:20});calendarEvents=events.events||[];
+      modalBody.innerHTML=`<div class="toolbar"><div class="field"><label>Default calendar</label><select id="calendarSelect">${calendars.filter(c=>['owner','writer'].includes(c.accessRole)).map(c=>`<option value="${esc(c.id)}" ${c.id===calendarConnection?.calendarId?'selected':''}>${esc(c.summary)}${c.primary?' (Primary)':''}</option>`).join('')}</select></div><button class="btn" id="calendarUse">Use this calendar</button><button class="btn primary" id="calendarNew">＋ New Event</button></div><div class="data-list" id="calendarList"></div>`;
+      renderCalendarEvents();
+      document.querySelector('#calendarUse').onclick=async()=>{await apiPost('google_calendar_select',{calendarId:document.querySelector('#calendarSelect').value});await manageCalendar()};
+      document.querySelector('#calendarNew').onclick=()=>openEvent();
+    }
+    function eventWhen(e){const raw=e?.start?.dateTime||e?.start?.date;if(!raw)return'Time unavailable';const d=new Date(raw.length===10?raw+'T00:00:00':raw);return Number.isNaN(d.getTime())?raw:d.toLocaleString()}
+    function renderCalendarEvents(){
+      const el=document.querySelector('#calendarList');if(!el)return;
+      el.innerHTML=calendarEvents.length?calendarEvents.map(e=>`<article class="data-item"><strong>${esc(e.summary||'Untitled event')}</strong><span>${esc(eventWhen(e))}${e.location?' · '+esc(e.location):''}</span><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" data-event-edit="${esc(e.id)}">Edit</button><button class="btn danger" data-event-delete="${esc(e.id)}">Delete</button></div></article>`).join(''):'<div class="data-item"><strong>No upcoming events.</strong></div>';
+      el.querySelectorAll('[data-event-edit]').forEach(b=>b.onclick=()=>openEvent(calendarEvents.find(e=>e.id===b.dataset.eventEdit)));
+      el.querySelectorAll('[data-event-delete]').forEach(b=>b.onclick=async()=>{if(confirm('Delete this event?')){await apiPost('google_calendar_delete_event',{eventId:b.dataset.eventDelete});await manageCalendar()}});
+    }
+    const toLocal=v=>{if(!v)return'';const d=new Date(v);if(Number.isNaN(d.getTime()))return'';const p=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`};
+    function openEvent(e=null){
+      document.querySelector('#eventHeading').textContent=e?'Edit Event':'Create Event';document.querySelector('#eventId').value=e?.id||'';document.querySelector('#eventTitle').value=e?.summary||'';document.querySelector('#eventStart').value=toLocal(e?.start?.dateTime||new Date(Date.now()+3600000));document.querySelector('#eventEnd').value=toLocal(e?.end?.dateTime||new Date(Date.now()+7200000));document.querySelector('#eventLocation').value=e?.location||'';document.querySelector('#eventAttendees').value=(e?.attendees||[]).map(a=>a.email).filter(Boolean).join(', ');document.querySelector('#eventDescription').value=e?.description||'';document.querySelector('#eventError').textContent='';show('#eventModal');
+    }
+    document.querySelector('#eventCancel').onclick=()=>hide('#eventModal');
+    document.querySelector('#eventSave').onclick=async()=>{
+      const b=document.querySelector('#eventSave');b.disabled=true;document.querySelector('#eventError').textContent='';
+      try{
+        const id=document.querySelector('#eventId').value;
+        const event={summary:document.querySelector('#eventTitle').value.trim(),startDateTime:document.querySelector('#eventStart').value,endDateTime:document.querySelector('#eventEnd').value,location:document.querySelector('#eventLocation').value.trim(),attendees:document.querySelector('#eventAttendees').value,description:document.querySelector('#eventDescription').value.trim(),timeZone:Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'};
+        await apiPost(id?'google_calendar_update_event':'google_calendar_create_event',{eventId:id,event});hide('#eventModal');await manageCalendar();
+      }catch(error){document.querySelector('#eventError').textContent=error.message}finally{b.disabled=false}
+    };
+
+    let pickerReady=false,driveConnection=null;
+    function ensurePicker(){return new Promise((resolve,reject)=>{if(pickerReady&&window.google?.picker)return resolve();if(!window.gapi?.load)return reject(new Error('Google Picker library could not be loaded.'));gapi.load('picker',{callback:()=>{pickerReady=true;resolve()},onerror:()=>reject(new Error('Google Picker library could not be loaded.'))})})}
+    async function manageDrive(){
+      modalTitle.textContent='Google Drive';modalCopy.textContent='Manage the files and folders Creative Creatures may reference.';
+      const status=await apiGet('google_drive_status');driveConnection=status.connection||{selectedItems:[]};
+      modalBody.innerHTML=`<div class="toolbar"><button class="btn primary" id="driveChoose">＋ Choose Files / Folders</button><button class="btn" id="driveRefresh">Refresh Files</button></div><div class="data-list" id="driveList"></div>`;renderDrive();
+      document.querySelector('#driveRefresh').onclick=async()=>{await apiPost('google_drive_refresh');await manageDrive()};
+      document.querySelector('#driveChoose').onclick=openPicker;
+    }
+    function renderDrive(){
+      const el=document.querySelector('#driveList'),items=driveConnection?.selectedItems||[];if(!el)return;
+      el.innerHTML=items.length?items.map(x=>`<article class="data-item"><strong>${esc(x.name||'Untitled')}</strong><span>${esc(x.mimeType||'File')}</span><div style="display:flex;gap:8px;margin-top:9px">${x.webViewLink?`<a class="btn" target="_blank" rel="noopener" href="${esc(x.webViewLink)}">Open</a>`:''}<button class="btn danger" data-drive-remove="${esc(x.id)}">Remove</button></div></article>`).join(''):'<div class="data-item"><strong>No Drive files selected yet.</strong></div>';
+      el.querySelectorAll('[data-drive-remove]').forEach(b=>b.onclick=async()=>{if(confirm('Remove this item from Creative Creatures? The Google Drive file will not be deleted.')){await apiPost('google_drive_remove_item',{fileId:b.dataset.driveRemove});await manageDrive()}});
+    }
+    async function openPicker(){
+      const token=await apiPost('google_drive_picker_token');await ensurePicker();
+      const view=new google.picker.DocsView(google.picker.ViewId.DOCS).setIncludeFolders(true).setSelectFolderEnabled(true);
+      new google.picker.PickerBuilder().addView(view).enableFeature(google.picker.Feature.MULTISELECT_ENABLED).setOAuthToken(token.accessToken).setDeveloperKey(token.picker.apiKey).setAppId(token.picker.appId).setCallback(async data=>{if(data.action!==google.picker.Action.PICKED)return;const ids=(data.docs||[]).map(d=>d.id).filter(Boolean);if(ids.length){await apiPost('google_drive_save_selection',{fileIds:ids});await manageDrive()}}).build().setVisible(true);
+    }
+
+    let ghlData={contacts:[],opportunities:[],pipelines:[],connection:null},ghlTab='opportunities';
+    const ghlStageLabel=id=>{for(const pipeline of ghlData.pipelines)for(const stage of pipeline.stages||[])if(stage.id===id)return stage.name||stage.label;return id||'No stage'};
+    async function manageGhl(){
+      modalTitle.textContent='GHL CRM';modalCopy.textContent='Manage live CRM records in the location connected to this Creative Creatures agency.';
+      const r=await apiPost('ghl_dashboard');ghlData={contacts:r.contacts||[],opportunities:r.opportunities||[],pipelines:r.pipelines||[],connection:r.connection||null};stateMap.set('GHL CRM',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      const open=ghlData.opportunities.filter(x=>String(x.status||'open').toLowerCase()==='open'),value=open.reduce((sum,x)=>sum+Number(x.monetaryValue||0),0),currency=ghlData.connection?.currency||'USD';
+      modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${ghlData.contacts.length}</strong><span>Contacts loaded</span></div><div class="metric"><strong>${ghlData.opportunities.length}</strong><span>Opportunities loaded</span></div><div class="metric"><strong>${open.length}</strong><span>Open opportunities</span></div><div class="metric"><strong>${esc(currency)} ${value.toLocaleString()}</strong><span>Open pipeline value</span></div></div><div class="data-item" style="margin-bottom:12px"><strong>${esc(ghlData.connection?.locationName||'Connected CRM location')}</strong><span>${esc([ghlData.connection?.locationEmail,ghlData.connection?.timezone].filter(Boolean).join(' · '))}</span></div><div class="toolbar"><div class="tabs" style="margin:0;flex:1"><button class="btn" data-ghl-tab="opportunities">Opportunities</button><button class="btn" data-ghl-tab="contacts">Contacts</button><button class="btn" data-ghl-tab="pipelines">Pipelines</button></div><button class="btn primary" id="ghlNew"></button></div><div class="data-list" id="ghlList"></div>`;
+      document.querySelectorAll('[data-ghl-tab]').forEach(b=>b.onclick=()=>drawGhl(b.dataset.ghlTab));drawGhl(ghlTab);
+    }
+    function drawGhl(tab){ghlTab=tab;const el=document.querySelector('#ghlList'),button=document.querySelector('#ghlNew'),rows=ghlData[tab]||[];button.hidden=tab==='pipelines';button.textContent=tab==='contacts'?'＋ New Contact':'＋ New Opportunity';button.onclick=tab==='contacts'?()=>openGhlContact():()=>openGhlOpportunity();if(!rows.length){el.innerHTML='<div class="data-item"><strong>No records returned.</strong></div>';return}el.innerHTML=rows.map(x=>{if(tab==='contacts'){const title=[x.firstName,x.lastName].filter(Boolean).join(' ')||x.email||x.phone||'Unnamed contact',detail=[x.email,x.phone,x.companyName].filter(Boolean).join(' · ');return`<article class="data-item"><strong>${esc(title)}</strong><span>${esc(detail||'CRM contact')}</span><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" data-ghl-contact-edit="${esc(x.id)}">Edit</button><button class="btn danger" data-ghl-contact-delete="${esc(x.id)}">Archive</button></div></article>`}if(tab==='pipelines')return`<article class="data-item"><strong>${esc(x.name||'Pipeline')}</strong><span>${(x.stages||[]).length} stage(s) · ${(x.stages||[]).map(s=>esc(s.name||s.label)).join(' → ')}</span></article>`;const contact=x.contact||{},title=x.name||'Unnamed opportunity',detail=[contact.name||[contact.firstName,contact.lastName].filter(Boolean).join(' '),ghlStageLabel(x.pipelineStageId),x.status,`${ghlData.connection?.currency||'USD'} ${Number(x.monetaryValue||0).toLocaleString()}`].filter(Boolean).join(' · ');return`<article class="data-item"><strong>${esc(title)}</strong><span>${esc(detail)}</span><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" data-ghl-opp-edit="${esc(x.id)}">Edit</button><button class="btn danger" data-ghl-opp-delete="${esc(x.id)}">Archive</button></div></article>`}).join('');el.querySelectorAll('[data-ghl-contact-edit]').forEach(b=>b.onclick=()=>openGhlContact(rows.find(x=>x.id===b.dataset.ghlContactEdit)));el.querySelectorAll('[data-ghl-contact-delete]').forEach(b=>b.onclick=()=>archiveGhl('contact',b.dataset.ghlContactDelete));el.querySelectorAll('[data-ghl-opp-edit]').forEach(b=>b.onclick=()=>openGhlOpportunity(rows.find(x=>x.id===b.dataset.ghlOppEdit)));el.querySelectorAll('[data-ghl-opp-delete]').forEach(b=>b.onclick=()=>archiveGhl('opportunity',b.dataset.ghlOppDelete))}
+    function openGhlContact(record=null){modalTitle.textContent=`${record?'Edit':'New'} CRM Contact`;modalCopy.textContent='This record is saved directly in the connected CRM location.';modalBody.innerHTML=`<input type="hidden" id="ghlRecordId" value="${esc(record?.id||'')}"><div class="editor-grid"><div class="field"><label>First name</label><input id="ghlFirstName" value="${esc(record?.firstName||'')}"></div><div class="field"><label>Last name</label><input id="ghlLastName" value="${esc(record?.lastName||'')}"></div><div class="field"><label>Email</label><input id="ghlEmail" type="email" value="${esc(record?.email||'')}"></div><div class="field"><label>Phone</label><input id="ghlPhone" value="${esc(record?.phone||'')}"></div><div class="field full"><label>Company</label><input id="ghlCompany" value="${esc(record?.companyName||'')}"></div></div><div class="modal-error" id="ghlEditorError"></div><div class="modal-actions" style="bottom:-26px"><button class="btn" id="ghlCancel">Cancel</button><button class="btn primary" id="ghlSave">Save Contact</button></div>`;document.querySelector('#ghlCancel').onclick=manageGhl;document.querySelector('#ghlSave').onclick=async()=>{const b=document.querySelector('#ghlSave');b.disabled=true;try{await apiPost('ghl_save_contact',{contact:{id:document.querySelector('#ghlRecordId').value,firstName:document.querySelector('#ghlFirstName').value,lastName:document.querySelector('#ghlLastName').value,email:document.querySelector('#ghlEmail').value,phone:document.querySelector('#ghlPhone').value,companyName:document.querySelector('#ghlCompany').value}});ghlTab='contacts';await manageGhl()}catch(e){document.querySelector('#ghlEditorError').textContent=e.message;b.disabled=false}}}
+    function openGhlOpportunity(record=null){const pipelineId=record?.pipelineId||ghlData.pipelines[0]?.id||'',contactId=record?.contactId||record?.contact?.id||ghlData.contacts[0]?.id||'';modalTitle.textContent=`${record?'Edit':'New'} CRM Opportunity`;modalCopy.textContent='This opportunity is saved directly in the connected CRM pipeline.';modalBody.innerHTML=`<input type="hidden" id="ghlOppId" value="${esc(record?.id||'')}"><div class="editor-grid"><div class="field full"><label>Name</label><input id="ghlOppName" value="${esc(record?.name||'')}"></div><div class="field"><label>Contact</label><select id="ghlOppContact">${ghlData.contacts.map(x=>`<option value="${esc(x.id)}" ${x.id===contactId?'selected':''}>${esc([x.firstName,x.lastName].filter(Boolean).join(' ')||x.email||x.phone||'Contact')}</option>`).join('')}</select></div><div class="field"><label>Pipeline</label><select id="ghlOppPipeline">${ghlData.pipelines.map(x=>`<option value="${esc(x.id)}" ${x.id===pipelineId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div><div class="field"><label>Stage</label><select id="ghlOppStage"></select></div><div class="field"><label>Status</label><select id="ghlOppStatus">${['open','won','lost','abandoned'].map(x=>`<option value="${x}" ${x===String(record?.status||'open').toLowerCase()?'selected':''}>${x[0].toUpperCase()+x.slice(1)}</option>`).join('')}</select></div><div class="field full"><label>Monetary value</label><input id="ghlOppValue" type="number" min="0" step="0.01" value="${esc(record?.monetaryValue||0)}"></div></div><div class="modal-error" id="ghlEditorError"></div><div class="modal-actions" style="bottom:-26px"><button class="btn" id="ghlCancel">Cancel</button><button class="btn primary" id="ghlSave">Save Opportunity</button></div>`;const pipeline=document.querySelector('#ghlOppPipeline'),stage=document.querySelector('#ghlOppStage'),drawStages=()=>{const p=ghlData.pipelines.find(x=>x.id===pipeline.value),current=record?.pipelineStageId||'';stage.innerHTML=(p?.stages||[]).map(x=>`<option value="${esc(x.id)}" ${x.id===current?'selected':''}>${esc(x.name||x.label)}</option>`).join('')};pipeline.onchange=drawStages;drawStages();document.querySelector('#ghlCancel').onclick=manageGhl;document.querySelector('#ghlSave').onclick=async()=>{const b=document.querySelector('#ghlSave');b.disabled=true;try{await apiPost('ghl_save_opportunity',{opportunity:{id:document.querySelector('#ghlOppId').value,name:document.querySelector('#ghlOppName').value,contactId:document.querySelector('#ghlOppContact').value,pipelineId:pipeline.value,pipelineStageId:stage.value,status:document.querySelector('#ghlOppStatus').value,monetaryValue:document.querySelector('#ghlOppValue').value}});ghlTab='opportunities';await manageGhl()}catch(e){document.querySelector('#ghlEditorError').textContent=e.message;b.disabled=false}}}
+    async function archiveGhl(kind,id){if(!confirm(`Archive this CRM ${kind}?`))return;try{await apiPost(kind==='contact'?'ghl_archive_contact':'ghl_archive_opportunity',{recordId:id});await manageGhl()}catch(e){modalError.textContent=e.message}}
+
+    let hubSpotData={contacts:[],companies:[],deals:[],pipelines:[],connection:null},hubSpotTab='deals';
+    const hubSpotKinds={contacts:{label:'Contact',scope:'crm.objects.contacts.write',save:'hubspot_save_contact',archive:'hubspot_archive_contact'},companies:{label:'Company',scope:'crm.objects.companies.write',save:'hubspot_save_company',archive:'hubspot_archive_company'},deals:{label:'Deal',scope:'crm.objects.deals.write',save:'hubspot_save_deal',archive:'hubspot_archive_deal'}};
+    const hubSpotCanWrite=kind=>(hubSpotData.connection?.scopes||[]).includes(hubSpotKinds[kind]?.scope);
+    const hubSpotDealStageLabel=id=>{for(const pipeline of hubSpotData.pipelines)for(const stage of pipeline.stages||[])if(stage.id===id)return stage.label;return id||'No stage'};
+    async function manageHubSpot(){
+      modalTitle.textContent='HubSpot CRM';modalCopy.textContent='Create and manage live CRM records in the HubSpot portal connected to this agency.';
+      const r=await apiPost('hubspot_dashboard');stateMap.set('HubSpot',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      hubSpotData={contacts:r.contacts||[],companies:r.companies||[],deals:r.deals||[],pipelines:r.pipelines||[],connection:r.connection||null};
+      const sets=[['Contacts',hubSpotData.contacts],['Companies',hubSpotData.companies],['Deals',hubSpotData.deals],['Pipelines',hubSpotData.pipelines]];
+      const missingWrite=['contacts','companies','deals'].filter(kind=>!hubSpotCanWrite(kind));
+      modalBody.innerHTML=`${missingWrite.length?'<div class="data-item" style="border-color:#f0d69b;background:#fff9eb;margin-bottom:12px"><strong>Reconnect required for editing</strong><span>The existing HubSpot authorization is read-only. Disconnect and reconnect HubSpot after deploying the updated app scopes.</span></div>':''}<div class="metric-grid">${sets.map(([n,v])=>`<div class="metric"><strong>${v.length}</strong><span>${n} loaded</span></div>`).join('')}</div><div class="toolbar"><div class="tabs" style="margin:0;flex:1">${sets.map(([n])=>`<button class="btn" data-hs-tab="${n.toLowerCase()}">${n}</button>`).join('')}</div><button class="btn primary" id="hubNew"></button></div><div class="data-list" id="hubList"></div>`;
+      document.querySelectorAll('[data-hs-tab]').forEach(button=>button.onclick=()=>drawHubSpot(button.dataset.hsTab));drawHubSpot(hubSpotTab);
+    }
+    function drawHubSpot(key){
+      hubSpotTab=key;const el=document.querySelector('#hubList'),newButton=document.querySelector('#hubNew'),arr=hubSpotData[key]||[],kind=hubSpotKinds[key];if(!el)return;
+      document.querySelectorAll('[data-hs-tab]').forEach(button=>button.classList.toggle('primary',button.dataset.hsTab===key));
+      if(newButton){newButton.hidden=!kind;newButton.textContent=kind?`＋ New ${kind.label}`:'';newButton.disabled=kind?!hubSpotCanWrite(key):true;newButton.onclick=kind?()=>openHubSpotEditor(key):null}
+      if(key==='pipelines'){
+        el.innerHTML=arr.length?arr.map(pipeline=>`<article class="data-item"><strong>${esc(pipeline.label||pipeline.id)}</strong><span>${esc((pipeline.stages||[]).map(stage=>stage.label).join(' → ')||'No stages')}</span></article>`).join(''):'<div class="data-item"><strong>No deal pipelines returned.</strong></div>';return;
+      }
+      if(!arr.length){el.innerHTML=`<div class="data-item"><strong>No ${esc(key)} returned.</strong><span>Create the first ${esc(kind.label.toLowerCase())} from Creative Creatures.</span></div>`;return}
+      el.innerHTML=arr.map(record=>{const p=record.properties||{};let title='',detail='';if(key==='contacts'){title=[p.firstname,p.lastname].filter(Boolean).join(' ')||p.email||'Unnamed contact';detail=[p.email,p.phone,p.company,p.lifecyclestage].filter(Boolean).join(' · ')}else if(key==='companies'){title=p.name||p.domain||'Unnamed company';detail=[p.domain,p.industry,p.city,p.country].filter(Boolean).join(' · ')}else{title=p.dealname||'Unnamed deal';detail=[p.amount?`${hubSpotData.connection?.companyCurrency||''} ${p.amount}`.trim():'',hubSpotDealStageLabel(p.dealstage),p.closedate?`Close ${new Date(p.closedate).toLocaleDateString()}`:''].filter(Boolean).join(' · ')}return `<article class="data-item"><strong>${esc(title)}</strong><span>${esc(detail||`HubSpot ID ${record.id}`)}</span><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" data-hs-edit="${esc(record.id)}" ${hubSpotCanWrite(key)?'':'disabled'}>Edit</button><button class="btn danger" data-hs-archive="${esc(record.id)}" ${hubSpotCanWrite(key)?'':'disabled'}>Archive</button></div></article>`}).join('');
+      el.querySelectorAll('[data-hs-edit]').forEach(button=>button.onclick=()=>openHubSpotEditor(key,arr.find(record=>record.id===button.dataset.hsEdit)));
+      el.querySelectorAll('[data-hs-archive]').forEach(button=>button.onclick=()=>archiveHubSpotRecord(key,button.dataset.hsArchive));
+    }
+    function openHubSpotEditor(kind,record=null){
+      const p=record?.properties||{},config=hubSpotKinds[kind];modalTitle.textContent=`${record?'Edit':'New'} ${config.label}`;modalCopy.textContent=`${record?'Update':'Create'} this record directly in the connected HubSpot portal.`;
+      const input=(id,label,type='text',full=false)=>`<div class="field ${full?'full':''}"><label>${label}</label><input id="hs_${id}" type="${type}" value="${esc(type==='date'?String(p[id]||'').slice(0,10):(p[id]||''))}"></div>`;
+      let fields='';
+      if(kind==='contacts')fields=input('firstname','First name')+input('lastname','Last name')+input('email','Email','email',true)+input('phone','Phone')+input('company','Company')+input('jobtitle','Job title','text',true);
+      if(kind==='companies')fields=input('name','Company name','text',true)+input('domain','Domain')+input('phone','Phone')+input('industry','Industry')+input('numberofemployees','Employees','number')+input('annualrevenue','Annual revenue','number')+input('city','City')+input('state','State')+input('country','Country','text',true);
+      if(kind==='deals'){
+        const pipelineId=p.pipeline||hubSpotData.pipelines[0]?.id||'';fields=input('dealname','Deal name','text',true)+input('amount','Amount','number')+input('closedate','Close date','date');fields+=`<div class="field"><label>Pipeline</label><select id="hs_pipeline">${hubSpotData.pipelines.map(item=>`<option value="${esc(item.id)}" ${item.id===pipelineId?'selected':''}>${esc(item.label)}</option>`).join('')}</select></div><div class="field"><label>Stage</label><select id="hs_dealstage"></select></div>`;
+      }
+      modalBody.innerHTML=`<input type="hidden" id="hsRecordId" value="${esc(record?.id||'')}"><div class="form-grid">${fields}</div><div class="modal-error" id="hubEditorError"></div><div class="modal-actions" style="bottom:-26px"><button class="btn" id="hubEditorCancel">Cancel</button><button class="btn primary" id="hubEditorSave">Save ${config.label}</button></div>`;
+      if(kind==='deals'){const pipeline=document.querySelector('#hs_pipeline'),stage=document.querySelector('#hs_dealstage');const loadStages=()=>{const selected=hubSpotData.pipelines.find(item=>item.id===pipeline.value),current=p.dealstage||'';stage.innerHTML=(selected?.stages||[]).filter(item=>!item.archived).map(item=>`<option value="${esc(item.id)}" ${item.id===current?'selected':''}>${esc(item.label)}</option>`).join('')};pipeline.onchange=loadStages;loadStages()}
+      document.querySelector('#hubEditorCancel').onclick=()=>{modalTitle.textContent='HubSpot CRM';manageHubSpot()};
+      document.querySelector('#hubEditorSave').onclick=()=>saveHubSpotRecord(kind);
+    }
+    async function saveHubSpotRecord(kind){
+      const config=hubSpotKinds[kind],button=document.querySelector('#hubEditorSave'),properties={};button.disabled=true;document.querySelector('#hubEditorError').textContent='';
+      const names=kind==='contacts'?['firstname','lastname','email','phone','company','jobtitle']:kind==='companies'?['name','domain','phone','industry','numberofemployees','annualrevenue','city','state','country']:['dealname','amount','closedate','pipeline','dealstage'];
+      names.forEach(name=>{const el=document.querySelector(`#hs_${name}`);if(el)properties[name]=el.value.trim()});
+      try{await apiPost(config.save,{recordId:document.querySelector('#hsRecordId').value,properties});await manageHubSpot();hubSpotTab=kind;drawHubSpot(kind)}catch(error){document.querySelector('#hubEditorError').textContent=error.message;button.disabled=false}
+    }
+    async function archiveHubSpotRecord(kind,recordId){
+      if(!confirm(`Archive this ${hubSpotKinds[kind].label.toLowerCase()}? HubSpot will move it to the recycling bin.`))return;
+      try{await apiPost(hubSpotKinds[kind].archive,{recordId});await manageHubSpot();hubSpotTab=kind;drawHubSpot(kind)}catch(error){modalError.textContent=error.message}
+    }
+
+    let freshBooksData={clients:[],invoices:[],payments:[],expenses:[],connection:null},freshBooksTab='invoices';
+    const freshBooksCanWrite=()=>Boolean(freshBooksData.connection?.scopes?.includes('user:clients:write'));
+    const freshMoney=(value,currency)=>{const number=Number(value);if(!Number.isFinite(number))return'—';try{return new Intl.NumberFormat(undefined,{style:'currency',currency:currency||'USD'}).format(number)}catch{return`${currency||''} ${number.toLocaleString()}`.trim()}};
+    async function manageFreshBooks(){
+      modalTitle.textContent='FreshBooks';modalCopy.textContent='Manage clients and review live accounting records for the FreshBooks business selected by this agency.';
+      const r=await apiPost('freshbooks_dashboard');stateMap.set('FreshBooks',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      freshBooksData={clients:r.clients||[],invoices:r.invoices||[],payments:r.payments||[],expenses:r.expenses||[],connection:r.connection||null};
+      const sets=[['Clients',freshBooksData.clients],['Invoices',freshBooksData.invoices],['Payments',freshBooksData.payments],['Expenses',freshBooksData.expenses]],businesses=freshBooksData.connection?.businesses||[];
+      modalBody.innerHTML=`${!freshBooksCanWrite()?'<div class="data-item" style="border-color:#f0d69b;background:#fff9eb;margin-bottom:12px"><strong>Client editing is not authorized</strong><span>Enable user:clients:write in the FreshBooks developer app, then disconnect and reconnect FreshBooks.</span></div>':''}<div class="toolbar"><div class="field"><label>FreshBooks business</label><select id="freshBusiness">${businesses.map(item=>`<option value="${esc(item.uuid||item.accountId||item.id)}" ${item.accountId===freshBooksData.connection?.selectedAccountId?'selected':''}>${esc(item.name)} · ${esc(item.role||'member')}</option>`).join('')}</select></div><button class="btn" id="freshUseBusiness" ${businesses.length<2?'disabled':''}>Use this business</button></div><div class="metric-grid">${sets.map(([name,rows])=>`<div class="metric"><strong>${rows.length}</strong><span>${name} loaded</span></div>`).join('')}</div><div class="data-item" style="margin-bottom:12px"><strong>Safe Phase 1 boundary</strong><span>Clients can be created, edited, and archived. Invoices, payments, expenses, and financial reports are read-only.</span></div><div class="toolbar"><div class="tabs" style="margin:0;flex:1">${sets.map(([name])=>`<button class="btn" data-fresh-tab="${name.toLowerCase()}">${name}</button>`).join('')}</div><button class="btn primary" id="freshNew">＋ New Client</button></div><div class="data-list" id="freshList"></div>`;
+      const use=document.querySelector('#freshUseBusiness');if(use)use.onclick=async()=>{use.disabled=true;try{await apiPost('freshbooks_select_business',{businessUuid:document.querySelector('#freshBusiness').value});freshBooksTab='invoices';await manageFreshBooks()}catch(error){modalError.textContent=error.message;use.disabled=false}};
+      document.querySelectorAll('[data-fresh-tab]').forEach(button=>button.onclick=()=>drawFreshBooks(button.dataset.freshTab));drawFreshBooks(freshBooksTab);
+    }
+    function drawFreshBooks(key){
+      freshBooksTab=key;const el=document.querySelector('#freshList'),newButton=document.querySelector('#freshNew'),rows=freshBooksData[key]||[];if(!el)return;
+      document.querySelectorAll('[data-fresh-tab]').forEach(button=>button.classList.toggle('primary',button.dataset.freshTab===key));
+      newButton.hidden=key!=='clients';newButton.disabled=!freshBooksCanWrite();newButton.onclick=()=>openFreshBooksClient();
+      if(!rows.length){el.innerHTML=`<div class="data-item"><strong>No ${esc(key)} returned.</strong><span>${key==='clients'?'Create the first client from Creative Creatures.':'FreshBooks has no live records in this list.'}</span></div>`;return}
+      if(key==='clients')el.innerHTML=rows.map(item=>`<article class="data-item"><strong>${esc(item.organization||[item.firstName,item.lastName].filter(Boolean).join(' ')||item.email||'Unnamed client')}</strong><span>${esc([item.email,item.phone,item.outstandingBalance!==null&&item.outstandingBalance!==undefined?`Outstanding ${freshMoney(item.outstandingBalance,item.currency)}`:'',item.overdueBalance!==null&&item.overdueBalance!==undefined?`Overdue ${freshMoney(item.overdueBalance,item.currency)}`:''].filter(Boolean).join(' · '))}</span><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" data-fresh-edit="${esc(item.id)}" ${freshBooksCanWrite()?'':'disabled'}>Edit</button><button class="btn danger" data-fresh-archive="${esc(item.id)}" ${freshBooksCanWrite()?'':'disabled'}>Archive</button></div></article>`).join('');
+      if(key==='invoices')el.innerHTML=rows.map(item=>`<article class="data-item"><strong>Invoice ${esc(item.invoiceNumber||item.id)} · ${esc(item.clientName||'Client')}</strong><span>${esc([freshMoney(item.amount,item.currency),item.status,item.date?`Issued ${new Date(item.date+'T00:00:00').toLocaleDateString()}`:'',item.dueDate?`Due ${new Date(item.dueDate+'T00:00:00').toLocaleDateString()}`:'',item.outstanding!==null&&item.outstanding!==undefined?`Outstanding ${freshMoney(item.outstanding,item.currency)}`:''].filter(Boolean).join(' · '))}</span></article>`).join('');
+      if(key==='payments')el.innerHTML=rows.map(item=>`<article class="data-item"><strong>${freshMoney(item.amount,item.currency)} · ${esc(item.type||'Payment')}</strong><span>${esc([item.date?new Date(item.date+'T00:00:00').toLocaleDateString():'',item.invoiceId?`Invoice ${item.invoiceId}`:'',item.note].filter(Boolean).join(' · '))}</span></article>`).join('');
+      if(key==='expenses')el.innerHTML=rows.map(item=>`<article class="data-item"><strong>${esc(item.vendor||item.category||'Expense')} · ${freshMoney(item.amount,item.currency)}</strong><span>${esc([item.date?new Date(item.date+'T00:00:00').toLocaleDateString():'',item.category,item.notes].filter(Boolean).join(' · '))}</span></article>`).join('');
+      el.querySelectorAll('[data-fresh-edit]').forEach(button=>button.onclick=()=>openFreshBooksClient(rows.find(item=>item.id===button.dataset.freshEdit)));
+      el.querySelectorAll('[data-fresh-archive]').forEach(button=>button.onclick=()=>archiveFreshBooksClientRecord(button.dataset.freshArchive));
+    }
+    function openFreshBooksClient(record=null){
+      modalTitle.textContent=`${record?'Edit':'New'} FreshBooks Client`;modalCopy.textContent=`${record?'Update':'Create'} this client directly in the selected FreshBooks business.`;
+      const input=(id,label,type='text',full=false)=>`<div class="field ${full?'full':''}"><label>${label}</label><input id="fresh_${id}" type="${type}" value="${esc(record?.[id]||'')}"></div>`;
+      const fields=input('firstName','First name')+input('lastName','Last name')+input('email','Email','email',true)+input('organization','Organization','text',true)+input('phone','Phone')+input('currency','Currency code')+input('street','Billing street')+input('street2','Billing street 2')+input('city','City')+input('province','State / province')+input('postalCode','Postal code')+input('country','Country')+`<div class="field full"><label>Internal note</label><textarea id="fresh_note">${esc(record?.note||'')}</textarea></div>`;
+      modalBody.innerHTML=`<input type="hidden" id="freshRecordId" value="${esc(record?.id||'')}"><div class="form-grid">${fields}</div><div class="modal-error" id="freshEditorError"></div><div class="modal-actions" style="bottom:-26px"><button class="btn" id="freshEditorCancel">Cancel</button><button class="btn primary" id="freshEditorSave">Save Client</button></div>`;
+      document.querySelector('#freshEditorCancel').onclick=()=>manageFreshBooks();document.querySelector('#freshEditorSave').onclick=saveFreshBooksClientRecord;
+    }
+    async function saveFreshBooksClientRecord(){
+      const button=document.querySelector('#freshEditorSave'),client={};button.disabled=true;document.querySelector('#freshEditorError').textContent='';['firstName','lastName','email','organization','phone','currency','street','street2','city','province','postalCode','country','note'].forEach(name=>{const field=document.querySelector(`#fresh_${name}`);if(field)client[name]=field.value.trim()});
+      try{await apiPost('freshbooks_save_client',{recordId:document.querySelector('#freshRecordId').value,client});freshBooksTab='clients';await manageFreshBooks()}catch(error){document.querySelector('#freshEditorError').textContent=error.message;button.disabled=false}
+    }
+    async function archiveFreshBooksClientRecord(recordId){
+      if(!confirm('Archive this client in FreshBooks? Existing invoices and payments are not deleted.'))return;
+      try{await apiPost('freshbooks_archive_client',{recordId});freshBooksTab='clients';await manageFreshBooks()}catch(error){modalError.textContent=error.message}
+    }
+
+    let zohoData={contacts:[],accounts:[],deals:[],pipelines:[],connection:null},zohoTab='deals';
+    const zohoKinds={contacts:{label:'Contact',scope:'ZohoCRM.modules.contacts.ALL',save:'zoho_save_contact',archive:'zoho_archive_contact'},accounts:{label:'Account',scope:'ZohoCRM.modules.accounts.ALL',save:'zoho_save_account',archive:'zoho_archive_account'},deals:{label:'Deal',scope:'ZohoCRM.modules.deals.ALL',save:'zoho_save_deal',archive:'zoho_archive_deal'}};
+    const zohoCanWrite=kind=>(zohoData.connection?.scopes||[]).includes(zohoKinds[kind]?.scope);
+    const zohoDealStageLabel=id=>{for(const pipeline of zohoData.pipelines)for(const stage of pipeline.stages||[])if(stage.id===id)return stage.label;return id||'No stage'};
+    async function manageZoho(){
+      modalTitle.textContent='Zoho CRM';modalCopy.textContent='Create and manage live CRM records in the Zoho organization connected to this agency.';
+      const r=await apiPost('zoho_dashboard');stateMap.set('Zoho CRM',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      zohoData={contacts:r.contacts||[],accounts:r.accounts||[],deals:r.deals||[],pipelines:r.pipelines||[],connection:r.connection||null};
+      const sets=[['Contacts',zohoData.contacts],['Accounts',zohoData.accounts],['Deals',zohoData.deals],['Pipelines',zohoData.pipelines]],missingWrite=['contacts','accounts','deals'].filter(kind=>!zohoCanWrite(kind));
+      modalBody.innerHTML=`${missingWrite.length?'<div class="data-item" style="border-color:#f0d69b;background:#fff9eb;margin-bottom:12px"><strong>Reconnect required for editing</strong><span>The existing Zoho CRM authorization does not include all Phase 1 write scopes. Disconnect and reconnect Zoho CRM.</span></div>':''}<div class="metric-grid">${sets.map(([n,v])=>`<div class="metric"><strong>${v.length}</strong><span>${n} loaded</span></div>`).join('')}</div><div class="toolbar"><div class="tabs" style="margin:0;flex:1">${sets.map(([n])=>`<button class="btn" data-zo-tab="${n.toLowerCase()}">${n}</button>`).join('')}</div><button class="btn primary" id="zohoNew"></button></div><div class="data-list" id="zohoList"></div>`;
+      document.querySelectorAll('[data-zo-tab]').forEach(button=>button.onclick=()=>drawZoho(button.dataset.zoTab));drawZoho(zohoTab);
+    }
+    function drawZoho(key){
+      zohoTab=key;const el=document.querySelector('#zohoList'),newButton=document.querySelector('#zohoNew'),arr=zohoData[key]||[],kind=zohoKinds[key];if(!el)return;
+      document.querySelectorAll('[data-zo-tab]').forEach(button=>button.classList.toggle('primary',button.dataset.zoTab===key));
+      if(newButton){newButton.hidden=!kind;newButton.textContent=kind?`＋ New ${kind.label}`:'';newButton.disabled=kind?!zohoCanWrite(key):true;newButton.onclick=kind?()=>openZohoEditor(key):null}
+      if(key==='pipelines'){el.innerHTML=arr.length?arr.map(pipeline=>`<article class="data-item"><strong>${esc(pipeline.label||pipeline.id)}</strong><span>${esc((pipeline.stages||[]).map(stage=>stage.label).join(' → ')||'No stages')}</span></article>`).join(''):'<div class="data-item"><strong>No deal pipelines returned.</strong></div>';return}
+      if(!arr.length){el.innerHTML=`<div class="data-item"><strong>No ${esc(key)} returned.</strong><span>Create the first ${esc(kind.label.toLowerCase())} from Creative Creatures.</span></div>`;return}
+      el.innerHTML=arr.map(record=>{const p=record.properties||{};let title='',detail='';if(key==='contacts'){title=[p.firstname,p.lastname].filter(Boolean).join(' ')||p.email||'Unnamed contact';detail=[p.email,p.phone,p.company,p.jobtitle].filter(Boolean).join(' · ')}else if(key==='accounts'){title=p.name||p.domain||'Unnamed account';detail=[p.domain,p.industry,p.city,p.country].filter(Boolean).join(' · ')}else{title=p.dealname||'Unnamed deal';detail=[p.amount?`${zohoData.connection?.currencySymbol||zohoData.connection?.companyCurrency||''} ${p.amount}`.trim():'',zohoDealStageLabel(p.dealstage),p.closedate?`Close ${new Date(p.closedate).toLocaleDateString()}`:''].filter(Boolean).join(' · ')}return `<article class="data-item"><strong>${esc(title)}</strong><span>${esc(detail||`Zoho CRM ID ${record.id}`)}</span><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" data-zo-edit="${esc(record.id)}" ${zohoCanWrite(key)?'':'disabled'}>Edit</button><button class="btn danger" data-zo-archive="${esc(record.id)}" ${zohoCanWrite(key)?'':'disabled'}>Archive</button></div></article>`}).join('');
+      el.querySelectorAll('[data-zo-edit]').forEach(button=>button.onclick=()=>openZohoEditor(key,arr.find(record=>record.id===button.dataset.zoEdit)));el.querySelectorAll('[data-zo-archive]').forEach(button=>button.onclick=()=>archiveZohoRecord(key,button.dataset.zoArchive));
+    }
+    function openZohoEditor(kind,record=null){
+      const p=record?.properties||{},config=zohoKinds[kind];modalTitle.textContent=`${record?'Edit':'New'} ${config.label}`;modalCopy.textContent=`${record?'Update':'Create'} this record directly in the connected Zoho CRM organization.`;
+      const input=(id,label,type='text',full=false,required=false)=>`<div class="field ${full?'full':''}"><label>${label}${required?' *':''}</label><input id="zo_${id}" type="${type}" value="${esc(type==='date'?String(p[id]||'').slice(0,10):(p[id]||''))}" ${required?'required':''}></div>`;let fields='';
+      if(kind==='contacts')fields=input('firstname','First name')+input('lastname','Last name','text',false,!record)+input('email','Email','email',true)+input('phone','Phone')+input('jobtitle','Job title','text',true);
+      if(kind==='accounts')fields=input('name','Account name','text',true,!record)+input('domain','Website')+input('phone','Phone')+input('industry','Industry')+input('numberofemployees','Employees','number')+input('annualrevenue','Annual revenue','number')+input('city','City')+input('state','State')+input('country','Country','text',true);
+      if(kind==='deals'){const pipelineId=p.pipeline||zohoData.pipelines[0]?.id||'';fields=input('dealname','Deal name','text',true,!record)+input('amount','Amount','number')+input('closedate','Close date','date');fields+=`<div class="field"><label>Pipeline</label><select id="zo_pipeline">${zohoData.pipelines.map(item=>`<option value="${esc(item.id)}" ${item.id===pipelineId?'selected':''}>${esc(item.label)}</option>`).join('')}</select></div><div class="field"><label>Stage *</label><select id="zo_dealstage" required></select></div>`}
+      modalBody.innerHTML=`<input type="hidden" id="zoRecordId" value="${esc(record?.id||'')}"><div class="form-grid">${fields}</div><div class="modal-error" id="zohoEditorError"></div><div class="modal-actions" style="bottom:-26px"><button class="btn" id="zohoEditorCancel">Cancel</button><button class="btn primary" id="zohoEditorSave">Save ${config.label}</button></div>`;
+      if(kind==='deals'){const pipeline=document.querySelector('#zo_pipeline'),stage=document.querySelector('#zo_dealstage');const loadStages=()=>{const selected=zohoData.pipelines.find(item=>item.id===pipeline.value),current=p.dealstage||'';stage.innerHTML=(selected?.stages||[]).filter(item=>!item.archived).map(item=>`<option value="${esc(item.id)}" ${item.id===current?'selected':''}>${esc(item.label)}</option>`).join('')};pipeline.onchange=loadStages;loadStages()}
+      document.querySelector('#zohoEditorCancel').onclick=()=>manageZoho();document.querySelector('#zohoEditorSave').onclick=()=>saveZohoRecord(kind);
+    }
+    async function saveZohoRecord(kind){
+      const config=zohoKinds[kind],button=document.querySelector('#zohoEditorSave'),properties={};button.disabled=true;document.querySelector('#zohoEditorError').textContent='';const names=kind==='contacts'?['firstname','lastname','email','phone','jobtitle']:kind==='accounts'?['name','domain','phone','industry','numberofemployees','annualrevenue','city','state','country']:['dealname','amount','closedate','pipeline','dealstage'];names.forEach(name=>{const el=document.querySelector(`#zo_${name}`);if(el)properties[name]=el.value.trim()});
+      try{await apiPost(config.save,{recordId:document.querySelector('#zoRecordId').value,properties});zohoTab=kind;await manageZoho()}catch(error){document.querySelector('#zohoEditorError').textContent=error.message;button.disabled=false}
+    }
+    async function archiveZohoRecord(kind,recordId){
+      if(!confirm(`Archive this ${zohoKinds[kind].label.toLowerCase()}? Zoho CRM will move it to the recycle bin.`))return;
+      try{await apiPost(zohoKinds[kind].archive,{recordId});zohoTab=kind;await manageZoho()}catch(error){modalError.textContent=error.message}
+    }
+
+    async function manageMonday(){modalTitle.textContent='monday.com Work Management';modalCopy.textContent='Read-only work management overview from the monday.com account authorized by this agency.';const r=await apiPost('monday_dashboard');stateMap.set('Monday.com',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();const workspaces=r.workspaces||[],boards=r.boards||[],users=r.users||[],items=r.items||[];modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${workspaces.length}</strong><span>Workspaces loaded</span></div><div class="metric"><strong>${boards.length}</strong><span>Boards loaded</span></div><div class="metric"><strong>${items.length}</strong><span>Items loaded</span></div><div class="metric"><strong>${users.length}</strong><span>Users loaded</span></div></div><div class="tabs"><button class="btn" data-mo-tab="workspaces">Workspaces</button><button class="btn" data-mo-tab="boards">Boards</button><button class="btn" data-mo-tab="items">Items</button><button class="btn" data-mo-tab="users">Users</button></div><div class="data-list" id="mondayList"></div>`;const data={workspaces,boards,items,users},draw=key=>{const el=document.querySelector('#mondayList'),arr=data[key]||[];if(!arr.length){el.innerHTML='<div class="data-item"><strong>No records returned.</strong></div>';return}el.innerHTML=arr.map(x=>{if(key==='workspaces')return `<article class="data-item"><strong>${esc(x.name||'Workspace')}</strong><span>${esc([x.kind,x.state,x.description].filter(Boolean).join(' - '))}</span></article>`;if(key==='boards'){const owners=(x.owners||[]).map(o=>o.name).filter(Boolean).join(', ');return `<article class="data-item"><strong>${esc(x.name||'Board')}</strong><span>${esc([x.workspaceName,x.kind,x.state,owners?'Owners: '+owners:''].filter(Boolean).join(' - '))}</span></article>`}if(key==='users')return `<article class="data-item"><strong>${esc(x.name||'User')}</strong><span>${esc([x.email,x.title,x.isAdmin?'Admin':'',x.isGuest?'Guest':''].filter(Boolean).join(' - '))}</span></article>`;const columns=(x.columns||[]).filter(c=>c.text).slice(0,4).map(c=>`${c.title}: ${c.text}`).join(' - ');return `<article class="data-item"><strong>${esc(x.name||'Item')}</strong><span>${esc([x.boardName,x.groupName,columns].filter(Boolean).join(' - '))}</span></article>`}).join('')};document.querySelectorAll('[data-mo-tab]').forEach(button=>button.onclick=()=>draw(button.dataset.moTab));draw('items');}
+
+    let zoomData=null;
+    async function manageZoom(){modalTitle.textContent='Zoom Meetings';modalCopy.textContent='Manage upcoming meetings owned by the Zoom user connected to this agency.';const r=await apiPost('zoom_dashboard');zoomData=r;stateMap.set('Zoom',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();const meetings=r.meetings||[],now=Date.now(),upcoming=meetings.filter(x=>!x.startTime||Date.parse(x.startTime)>=now),minutes=upcoming.reduce((sum,x)=>sum+Number(x.duration||0),0);modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>1</strong><span>Connected host</span></div><div class="metric"><strong>${meetings.length}</strong><span>Meetings loaded</span></div><div class="metric"><strong>${upcoming.length}</strong><span>Upcoming</span></div><div class="metric"><strong>${minutes}</strong><span>Scheduled minutes</span></div></div><div class="data-item" style="margin-bottom:12px"><strong>${esc(r.connection?.connectedName||r.connection?.connectedEmail||'Connected Zoom user')}</strong><span>${esc([r.connection?.connectedEmail,r.connection?.timezone].filter(Boolean).join(' · '))}</span></div><div class="toolbar"><div style="flex:1"><strong>Upcoming meetings</strong></div><button class="btn primary" id="zoomNew">＋ New Meeting</button></div><div class="data-list" id="zoomList"></div>`;document.querySelector('#zoomNew').onclick=()=>openZoomMeeting();drawZoomMeetings()}
+    function drawZoomMeetings(){const el=document.querySelector('#zoomList'),rows=zoomData?.meetings||[];if(!rows.length){el.innerHTML='<div class="data-item"><strong>No upcoming meetings returned.</strong><span>Create the first meeting from Creative Creatures.</span></div>';return}el.innerHTML=rows.map(x=>`<article class="data-item"><strong>${esc(x.topic)}</strong><span>${esc([x.startTime?new Date(x.startTime).toLocaleString():'Time not set',`${x.duration||0} minutes`,x.timezone,x.status].filter(Boolean).join(' · '))}</span><div style="display:flex;gap:8px;margin-top:9px"><a class="btn" href="${esc(x.joinUrl||'#')}" target="_blank" rel="noopener">Join</a><button class="btn" data-zoom-edit="${esc(x.id)}">Edit</button><button class="btn danger" data-zoom-delete="${esc(x.id)}">Delete</button></div></article>`).join('');el.querySelectorAll('[data-zoom-edit]').forEach(b=>b.onclick=()=>openZoomMeetingForEdit(rows.find(x=>x.id===b.dataset.zoomEdit)));el.querySelectorAll('[data-zoom-delete]').forEach(b=>b.onclick=()=>deleteZoomMeetingRecord(b.dataset.zoomDelete))}
+    async function openZoomMeetingForEdit(record){modalTitle.textContent='Loading Zoom Meeting';modalCopy.textContent='Reading the current saved values from Zoom.';modalBody.innerHTML='<div class="loading">Loading meeting…</div>';try{const r=await apiPost('zoom_meeting',{meetingId:record.id}),saved={...record,...r.meeting};openZoomMeeting(saved);document.querySelector('#zoomWaiting').checked=saved.waitingRoom;document.querySelector('#zoomJoinBefore').checked=saved.joinBeforeHost}catch(e){modalBody.innerHTML=`<div class="error">${esc(e.message)}</div><div class="editor-actions"><button class="btn" id="zoomBack">Back</button></div>`;document.querySelector('#zoomBack').onclick=manageZoom}}
+    function zoomLocalDate(value){if(!value)return'';const d=new Date(value);if(Number.isNaN(d.getTime()))return'';const pad=n=>String(n).padStart(2,'0');return`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`}
+    function openZoomMeeting(record=null){modalTitle.textContent=`${record?'Edit':'New'} Zoom Meeting`;modalCopy.textContent='This meeting is saved directly in the connected Zoom account.';const timezone=record?.timezone||zoomData?.connection?.timezone||Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC';modalBody.innerHTML=`<div class="editor-grid"><div class="field full"><label>Topic</label><input id="zoomTopic" maxlength="200" value="${esc(record?.topic||'')}"></div><div class="field"><label>Start time</label><input id="zoomStart" type="datetime-local" value="${esc(zoomLocalDate(record?.startTime))}"></div><div class="field"><label>Duration (minutes)</label><input id="zoomDuration" type="number" min="1" max="1440" value="${esc(record?.duration||30)}"></div><div class="field full"><label>Timezone</label><input id="zoomTimezone" maxlength="80" value="${esc(timezone)}"></div><div class="field full"><label>Agenda</label><textarea id="zoomAgenda" rows="4">${esc(record?.agenda||'')}</textarea></div><label><input id="zoomWaiting" type="checkbox" checked> Use waiting room</label><label><input id="zoomJoinBefore" type="checkbox"> Allow join before host</label></div><div id="zoomEditorError" class="error"></div><div class="editor-actions"><button class="btn" id="zoomCancel">Cancel</button><button class="btn primary" id="zoomSave">Save Meeting</button></div>`;document.querySelector('#zoomCancel').onclick=manageZoom;document.querySelector('#zoomSave').onclick=async()=>{const button=document.querySelector('#zoomSave');button.disabled=true;try{const local=document.querySelector('#zoomStart').value;await apiPost('zoom_save_meeting',{meeting:{id:record?.id||'',topic:document.querySelector('#zoomTopic').value,startTime:local?new Date(local).toISOString():'',duration:document.querySelector('#zoomDuration').value,timezone:document.querySelector('#zoomTimezone').value,agenda:document.querySelector('#zoomAgenda').value,waitingRoom:document.querySelector('#zoomWaiting').checked,joinBeforeHost:document.querySelector('#zoomJoinBefore').checked}});await manageZoom()}catch(e){document.querySelector('#zoomEditorError').textContent=e.message;button.disabled=false}}}
+    async function deleteZoomMeetingRecord(meetingId){if(!confirm('Delete this scheduled Zoom meeting? This cannot be undone.'))return;try{await apiPost('zoom_delete_meeting',{meetingId});await manageZoom()}catch(e){modalError.textContent=e.message}}
+
+    let jiraData=null,jiraTab='issues';
+    async function manageJira(){modalTitle.textContent='Jira Cloud';modalCopy.textContent='Create and update live issues in the Jira Cloud site connected to this agency.';const r=await apiPost('jira_dashboard');jiraData=r;stateMap.set('Jira',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();const projects=r.projects||[],issues=r.issues||[],open=issues.filter(x=>x.statusCategory!=='done'),overdue=open.filter(x=>x.dueDate&&new Date(x.dueDate)<new Date());modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${projects.length}</strong><span>Projects loaded</span></div><div class="metric"><strong>${issues.length}</strong><span>Issues loaded</span></div><div class="metric"><strong>${open.length}</strong><span>Open issues</span></div><div class="metric"><strong>${overdue.length}</strong><span>Overdue issues</span></div></div><div class="toolbar"><div class="tabs" style="margin:0;flex:1"><button class="btn" data-jira-tab="issues">Issues</button><button class="btn" data-jira-tab="projects">Projects</button></div><button class="btn primary" id="jiraNew" ${projects.length?'':'disabled'}>＋ New Issue</button></div><div class="data-list" id="jiraList"></div>`;document.querySelectorAll('[data-jira-tab]').forEach(b=>b.onclick=()=>drawJira(b.dataset.jiraTab));document.querySelector('#jiraNew').onclick=()=>openJiraIssue();drawJira(jiraTab)}
+    function drawJira(tab){jiraTab=tab;const el=document.querySelector('#jiraList'),rows=tab==='projects'?(jiraData?.projects||[]):(jiraData?.issues||[]);if(!rows.length){el.innerHTML='<div class="data-item"><strong>No records returned.</strong></div>';return}el.innerHTML=rows.map(x=>tab==='projects'?`<article class="data-item"><strong>${esc(x.key)} · ${esc(x.name)}</strong><span>${esc(x.projectTypeKey||'Jira project')}</span></article>`:`<article class="data-item"><strong>${esc(x.key)} · ${esc(x.summary)}</strong><span>${esc([x.projectName,x.issueType,x.status,x.priority,x.assigneeName,x.dueDate?'Due '+new Date(x.dueDate).toLocaleDateString():''].filter(Boolean).join(' · '))}</span><div style="display:flex;gap:8px;margin-top:9px"><button class="btn" data-jira-edit="${esc(x.key)}">Edit</button><button class="btn" data-jira-flow="${esc(x.key)}">Change status</button></div></article>`).join('');el.querySelectorAll('[data-jira-edit]').forEach(b=>b.onclick=()=>openJiraIssue(rows.find(x=>x.key===b.dataset.jiraEdit)));el.querySelectorAll('[data-jira-flow]').forEach(b=>b.onclick=()=>openJiraTransition(b.dataset.jiraFlow))}
+    async function openJiraIssue(record=null){const projects=jiraData?.projects||[],projectKey=record?.projectKey||projects[0]?.key||'';modalTitle.textContent=`${record?'Edit':'New'} Jira Issue`;modalCopy.textContent='The saved values are written directly to the connected Jira Cloud site.';modalBody.innerHTML=`<div class="editor-grid"><div class="field"><label>Project</label><select id="jiraProject" ${record?'disabled':''}>${projects.map(x=>`<option value="${esc(x.key)}" ${x.key===projectKey?'selected':''}>${esc(x.key)} · ${esc(x.name)}</option>`).join('')}</select></div><div class="field"><label>Issue type</label><select id="jiraType" ${record?'disabled':''}><option>Loading…</option></select></div><div class="field full"><label>Summary</label><input id="jiraSummary" maxlength="255" value="${esc(record?.summary||'')}"></div><div class="field full"><label>Description</label><textarea id="jiraDescription" rows="5"></textarea></div><div class="field"><label>Due date</label><input id="jiraDue" type="date" value="${esc(record?.dueDate||'')}"></div></div><div id="jiraEditorError" class="error"></div><div class="editor-actions"><button class="btn" id="jiraCancel">Cancel</button><button class="btn primary" id="jiraSave">Save Issue</button></div>`;const loadTypes=async()=>{if(record){document.querySelector('#jiraType').innerHTML=`<option value="${esc(record.issueTypeId)}">${esc(record.issueType||'Current type')}</option>`;return}const r=await apiPost('jira_issue_types',{projectKey:document.querySelector('#jiraProject').value});document.querySelector('#jiraType').innerHTML=(r.issueTypes||[]).filter(x=>!x.subtask).map(x=>`<option value="${esc(x.id)}">${esc(x.name)}</option>`).join('')};document.querySelector('#jiraProject').onchange=loadTypes;document.querySelector('#jiraCancel').onclick=manageJira;document.querySelector('#jiraSave').onclick=async()=>{const button=document.querySelector('#jiraSave');button.disabled=true;try{await apiPost('jira_save_issue',{issue:{issueKey:record?.key||'',projectKey:document.querySelector('#jiraProject').value,issueTypeId:document.querySelector('#jiraType').value,summary:document.querySelector('#jiraSummary').value,description:document.querySelector('#jiraDescription').value,dueDate:document.querySelector('#jiraDue').value}});await manageJira()}catch(e){document.querySelector('#jiraEditorError').textContent=e.message;button.disabled=false}};await loadTypes()}
+    async function openJiraTransition(issueKey){modalTitle.textContent=`Change ${issueKey} status`;modalCopy.textContent='Jira controls which workflow transitions are currently available.';const r=await apiPost('jira_transitions',{issueKey}),rows=r.transitions||[];modalBody.innerHTML=`<div class="field"><label>Available transition</label><select id="jiraTransition">${rows.map(x=>`<option value="${esc(x.id)}">${esc(x.name)}${x.to?' → '+esc(x.to):''}</option>`).join('')}</select></div><div id="jiraEditorError" class="error"></div><div class="editor-actions"><button class="btn" id="jiraCancel">Cancel</button><button class="btn primary" id="jiraMove" ${rows.length?'':'disabled'}>Apply Transition</button></div>`;document.querySelector('#jiraCancel').onclick=manageJira;document.querySelector('#jiraMove').onclick=async()=>{try{await apiPost('jira_transition_issue',{issueKey,transitionId:document.querySelector('#jiraTransition').value});await manageJira()}catch(e){document.querySelector('#jiraEditorError').textContent=e.message}}}
+
+    async function manageTeamwork(){
+      modalTitle.textContent='Teamwork Projects';modalCopy.textContent='Read-only project operations overview from the Teamwork site authorized by this agency.';
+      const r=await apiPost('teamwork_dashboard');stateMap.set('Teamwork',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      const projects=r.projects||[],tasks=r.tasks||[],people=r.people||[],timeEntries=r.timeEntries||[];
+      const totalMinutes=timeEntries.reduce((sum,x)=>sum+Number(x.minutes||0),0),hours=(totalMinutes/60).toFixed(totalMinutes?1:0);
+      modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${projects.length}</strong><span>Projects loaded</span></div><div class="metric"><strong>${tasks.length}</strong><span>Tasks loaded</span></div><div class="metric"><strong>${people.length}</strong><span>People loaded</span></div><div class="metric"><strong>${hours}</strong><span>Logged hours loaded</span></div></div><div class="tabs"><button class="btn" data-tw-tab="projects">Projects</button><button class="btn" data-tw-tab="tasks">Tasks</button><button class="btn" data-tw-tab="people">People</button><button class="btn" data-tw-tab="timeEntries">Time</button></div><div class="data-list" id="teamworkList"></div>`;
+      const data={projects,tasks,people,timeEntries};
+      const draw=key=>{const el=document.querySelector('#teamworkList'),arr=data[key]||[];if(!arr.length){el.innerHTML='<div class="data-item"><strong>No records returned.</strong></div>';return}el.innerHTML=arr.map(x=>{if(key==='projects'){const dates=[x.startDate?'Start '+new Date(x.startDate).toLocaleDateString():'',x.endDate?'End '+new Date(x.endDate).toLocaleDateString():''].filter(Boolean).join(' - ');return `<article class="data-item"><strong>${esc(x.name||'Project')}</strong><span>${esc([x.status,x.companyName,dates].filter(Boolean).join(' - '))}</span></article>`}if(key==='tasks'){const who=(x.assignees||[]).map(a=>a.name).filter(Boolean).join(', '),due=x.dueDate?new Date(x.dueDate).toLocaleDateString():'';return `<article class="data-item"><strong>${esc(x.name||'Task')}</strong><span>${esc([x.status,x.projectName,who,due?'Due '+due:''].filter(Boolean).join(' - '))}</span></article>`}if(key==='people')return `<article class="data-item"><strong>${esc(x.name||'Person')}</strong><span>${esc([x.email,x.title,x.companyName,x.type].filter(Boolean).join(' - '))}</span></article>`;const entryHours=(Number(x.minutes||0)/60).toFixed(Number(x.minutes||0)?1:0),when=x.timeLogged?new Date(x.timeLogged).toLocaleDateString():'';return `<article class="data-item"><strong>${entryHours}h${x.description?' - '+esc(x.description):''}</strong><span>${esc([x.projectName,x.taskName,x.userName,when].filter(Boolean).join(' - '))}</span></article>`}).join('')};
+      document.querySelectorAll('[data-tw-tab]').forEach(button=>button.onclick=()=>draw(button.dataset.twTab));draw('tasks');
+    }
+
+    async function manageClickUp(){
+      modalTitle.textContent='ClickUp Workspace';modalCopy.textContent='Read-only project operations overview from the ClickUp workspaces authorized by this agency.';
+      const r=await apiPost('clickup_dashboard');stateMap.set('ClickUp',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      const workspaces=r.workspaces||[],spaces=r.spaces||[],lists=r.lists||[],tasks=r.tasks||[];
+      const totalTime=tasks.reduce((sum,x)=>sum+Number(x.timeSpent||0),0),hours=(totalTime/3600000).toFixed(totalTime?1:0);
+      modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${workspaces.length}</strong><span>Workspaces</span></div><div class="metric"><strong>${spaces.length}</strong><span>Spaces</span></div><div class="metric"><strong>${lists.length}</strong><span>Lists loaded</span></div><div class="metric"><strong>${tasks.length}</strong><span>Tasks loaded</span></div></div><div class="tabs"><button class="btn" data-cu-tab="workspaces">Workspaces</button><button class="btn" data-cu-tab="spaces">Spaces</button><button class="btn" data-cu-tab="lists">Lists</button><button class="btn" data-cu-tab="tasks">Tasks</button><span class="status connected">${hours} tracked hours in loaded tasks</span></div><div class="data-list" id="clickupList"></div>`;
+      const data={workspaces,spaces,lists,tasks};
+      const draw=key=>{
+        const el=document.querySelector('#clickupList'),arr=data[key]||[];
+        if(!arr.length){el.innerHTML='<div class="data-item"><strong>No records returned.</strong></div>';return}
+        el.innerHTML=arr.map(x=>{
+          if(key==='tasks'){const who=(x.assignees||[]).map(a=>a.name).join(', ');const time=Number(x.timeSpent||0)/3600000;return `<article class="data-item"><strong>${esc(x.name||'Task')}</strong><span>${esc(x.status||'No status')}${who?' - '+esc(who):''}${x.dueDate?' - Due '+new Date(Number(x.dueDate)).toLocaleDateString():''}${time?' - '+time.toFixed(1)+'h tracked':''}</span></article>`}
+          if(key==='lists')return `<article class="data-item"><strong>${esc(x.name||'List')}</strong><span>${esc([x.workspaceName,x.spaceName,x.folderName].filter(Boolean).join(' / '))}</span></article>`;
+          if(key==='spaces')return `<article class="data-item"><strong>${esc(x.name||'Space')}</strong><span>${esc(x.workspaceName||'')}</span></article>`;
+          return `<article class="data-item"><strong>${esc(x.name||'Workspace')}</strong><span>${Number(x.members||0)} member(s)</span></article>`;
+        }).join('');
+      };
+      document.querySelectorAll('[data-cu-tab]').forEach(b=>b.onclick=()=>draw(b.dataset.cuTab));draw('tasks');
+    }
+
+    async function manageSlack(){
+      modalTitle.textContent='Slack Workspace';modalCopy.textContent='Workspace overview only. Message content is not requested or read.';
+      const r=await apiPost('slack_dashboard');stateMap.set('Slack',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      const users=r.users||[],channels=r.channels||[];
+      modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${users.length}</strong><span>Users loaded</span></div><div class="metric"><strong>${channels.length}</strong><span>Channels visible</span></div><div class="metric"><strong>${channels.filter(x=>x.isPrivate).length}</strong><span>Private channels accessible</span></div></div><div class="tabs"><button class="btn" id="slackChannels">Channels</button><button class="btn" id="slackUsers">Users</button></div><div class="data-list" id="slackList"></div>`;
+      const drawChannels=()=>document.querySelector('#slackList').innerHTML=channels.length?channels.map(x=>`<article class="data-item"><strong># ${esc(x.name||'channel')}</strong><span>${x.isPrivate?'Private':'Public'}${x.numMembers?` · ${Number(x.numMembers)} members`:''}${x.purpose?' · '+esc(x.purpose):''}</span></article>`).join(''):'<div class="data-item"><strong>No channels returned.</strong></div>';
+      const drawUsers=()=>document.querySelector('#slackList').innerHTML=users.filter(x=>!x.deleted).map(x=>`<article class="data-item"><strong>${esc(x.displayName||x.realName||x.name||'User')}</strong><span>${esc(x.email||x.name||'')}${x.isOwner?' · Owner':x.isAdmin?' · Admin':''}</span></article>`).join('')||'<div class="data-item"><strong>No users returned.</strong></div>';
+      document.querySelector('#slackChannels').onclick=drawChannels;document.querySelector('#slackUsers').onclick=drawUsers;drawChannels();
+    }
+
+    let googleChatData={spaces:[],connection:null},googleChatSpace='';
+    async function manageGoogleChat(){
+      modalTitle.textContent='Google Chat';modalCopy.textContent='View spaces and members or send a new text message. Creative Creatures does not request message history.';
+      const r=await apiPost('google_chat_dashboard');stateMap.set('Google Chat',{...r.connection,connected:true,error:r.connection?.lastSyncError||''});render();
+      googleChatData={spaces:r.spaces||[],connection:r.connection||null};if(!googleChatData.spaces.some(item=>item.name===googleChatSpace))googleChatSpace=googleChatData.spaces[0]?.name||'';
+      const spaces=googleChatData.spaces,named=spaces.filter(item=>item.spaceType==='SPACE'),groupChats=spaces.filter(item=>item.spaceType==='GROUP_CHAT'),dms=spaces.filter(item=>item.spaceType==='DIRECT_MESSAGE');
+      const options=spaces.map(item=>`<option value="${esc(item.name)}" ${item.name===googleChatSpace?'selected':''}>${esc(item.displayName)} · ${esc((item.spaceType||'space').replaceAll('_',' ').toLowerCase())}</option>`).join('');
+      modalBody.innerHTML=`<div class="metric-grid"><div class="metric"><strong>${spaces.length}</strong><span>Spaces visible</span></div><div class="metric"><strong>${named.length}</strong><span>Named spaces</span></div><div class="metric"><strong>${groupChats.length}</strong><span>Group chats</span></div><div class="metric"><strong>${dms.length}</strong><span>Direct messages</span></div></div><div class="data-item" style="margin-bottom:12px"><strong>Privacy boundary</strong><span>Space and membership metadata are loaded. Existing message content is not requested or read.</span></div><div class="toolbar"><div class="field" style="flex:1"><label>Google Chat space</label><select id="googleChatSpace">${options}</select></div><button class="btn" id="googleChatMembers" ${spaces.length?'':'disabled'}>View members</button><button class="btn primary" id="googleChatMessage" ${spaces.length?'':'disabled'}>＋ Send message</button></div><div class="tabs"><button class="btn primary" id="googleChatSpacesTab">Spaces</button></div><div class="data-list" id="googleChatList"></div>`;
+      const select=document.querySelector('#googleChatSpace');if(select)select.onchange=()=>{googleChatSpace=select.value};
+      document.querySelector('#googleChatMembers').onclick=loadGoogleChatMembers;document.querySelector('#googleChatMessage').onclick=openGoogleChatMessage;document.querySelector('#googleChatSpacesTab').onclick=drawGoogleChatSpaces;drawGoogleChatSpaces();
+    }
+    function drawGoogleChatSpaces(){
+      const el=document.querySelector('#googleChatList'),spaces=googleChatData.spaces||[];if(!el)return;
+      el.innerHTML=spaces.length?spaces.map(item=>`<article class="data-item"><strong>${esc(item.displayName||'Unnamed space')}</strong><span>${esc((item.spaceType||'Space').replaceAll('_',' '))}${item.externalUserAllowed?' · External users allowed':''}${item.lastActiveTime?' · Active '+new Date(item.lastActiveTime).toLocaleString():''}</span></article>`).join(''):'<div class="data-item"><strong>No Google Chat spaces returned.</strong><span>The connected user must be a member of a space before it appears here.</span></div>';
+    }
+    async function loadGoogleChatMembers(){
+      const button=document.querySelector('#googleChatMembers'),el=document.querySelector('#googleChatList');googleChatSpace=document.querySelector('#googleChatSpace')?.value||googleChatSpace;if(!googleChatSpace)return;
+      button.disabled=true;button.textContent='Loading…';el.innerHTML='<div class="data-item"><strong>Loading members…</strong></div>';
+      try{const r=await apiPost('google_chat_members',{spaceName:googleChatSpace}),members=r.members||[];el.innerHTML=members.length?members.map(item=>`<article class="data-item"><strong>${esc(item.member?.displayName||item.member?.name||'Member')}</strong><span>${esc([item.member?.type,item.role,item.state].filter(Boolean).join(' · '))}</span></article>`).join(''):'<div class="data-item"><strong>No members returned.</strong></div>';if(r.truncated)modalError.textContent='Google Chat returned more than 500 memberships; Phase 1 shows the first 500.'}catch(error){modalError.textContent=error.message;drawGoogleChatSpaces()}finally{button.disabled=false;button.textContent='View members'}
+    }
+    function openGoogleChatMessage(){
+      googleChatSpace=document.querySelector('#googleChatSpace')?.value||googleChatSpace;const selected=googleChatData.spaces.find(item=>item.name===googleChatSpace);
+      modalTitle.textContent='Send Google Chat Message';modalCopy.textContent='The message is posted as the connected Google user and attributed to Creative Creatures.';
+      modalBody.innerHTML=`<div class="field full"><label>Space</label><input value="${esc(selected?.displayName||googleChatSpace)}" disabled></div><div class="field full" style="margin-top:14px"><label>Message</label><textarea id="googleChatText" maxlength="4000" rows="7" placeholder="Write a message…"></textarea></div><div class="modal-error" id="googleChatError"></div><div class="modal-actions" style="bottom:-26px"><button class="btn" id="googleChatCancel">Cancel</button><button class="btn primary" id="googleChatSend">Send Message</button></div>`;
+      document.querySelector('#googleChatCancel').onclick=()=>manageGoogleChat();document.querySelector('#googleChatSend').onclick=sendGoogleChatText;
+    }
+    async function sendGoogleChatText(){
+      const button=document.querySelector('#googleChatSend'),errorEl=document.querySelector('#googleChatError'),text=document.querySelector('#googleChatText').value.trim();button.disabled=true;errorEl.textContent='';
+      try{await apiPost('google_chat_send_message',{spaceName:googleChatSpace,text});await manageGoogleChat()}catch(error){errorEl.textContent=error.message;button.disabled=false}
+    }
+
+    render();loadStatuses();
+  </script>
+</body>
+</html>

@@ -90,13 +90,6 @@
     const summary = indexSummary(item);
     const visitDate = report.completedAt || report.completed_at || item.created_at || item.updated_at || null;
 
-    const plan = String(item.access_plan || item.accessPlan || item.journey || 'diagnostic').toLowerCase();
-    const planLabel = item.planLabel || (plan.includes('fractional') || plan.includes('coo') ? 'Fractional COO + Platform Bundle'
-      : plan.includes('platform') || plan.includes('partner') ? 'Platform / Partner Portal'
-      : plan.includes('accelerator') || plan.includes('breakthrough') ? 'Breakthrough Accelerator'
-      : plan.includes('archetype') ? 'Owner Archetype'
-      : 'Planning Diagnostic');
-
     return {
       ...item,
       id: String(item.id || ''),
@@ -106,8 +99,6 @@
       agencyUrl: String(item.agency_url || report.agencyWebsite || '').trim(),
       source: String(item.source || '').trim(),
       journey: String(item.journey || 'diagnostic').trim(),
-      accessPlan: item.access_plan || item.accessPlan || 'diagnostic',
-      planLabel,
       archetypeTitle: String(archetype.title || report.archetypeTitle || '').trim(),
       reportData: report,
       visitDate,
@@ -154,7 +145,7 @@
       ? fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' })
       : Promise.resolve(null);
     const leadPromise = needsOwnerHistory
-      ? fetch(`${OWNER_LEAD_API}?all=true`, { cache: 'no-store' })
+      ? fetch(OWNER_LEAD_API, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin_history' }) })
       : Promise.resolve(null);
 
     const [accountResult, leadResult] = await Promise.allSettled([accountPromise, leadPromise]);
@@ -219,80 +210,58 @@
     if (!items.length) {
       grid.innerHTML = `
         <div class="empty-state">
-          <h3>No Analysis & Planning Diagnostics yet</h3>
-          <p>Agencies that sign up for Analysis & Planning Diagnostic will appear here automatically.</p>
+          <h3>No paid diagnostics yet</h3>
+          <p>Owner Archetype leads will move here automatically after their Agency Diagnostic payment is recorded.</p>
         </div>`;
       return;
     }
 
     grid.innerHTML = items.map(account => {
-      const h = account.health || { total: 8, healthy: 5, atRisk: 3, percent: 62.5 };
+      const status = diagnosticStatus(account);
       return `
-        <article class="agency-card-v2" data-agency-id="${escapeHtml(account.id)}">
-          <div class="card-v2-top">
-            <div class="card-v2-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#4f46e5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="4" y="2" width="16" height="20" rx="2"/>
-                <path d="M9 22v-4h6v4M8 6h.01M12 6h.01M16 6h.01M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01"/>
+        <article class="agency-card" data-agency-id="${escapeHtml(account.id)}">
+          <div class="agency-title">
+            <div class="agency-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                <rect x="5" y="8" width="14" height="12" rx="2"/>
+                <path d="M9 8V4h6v4M9 12v5M13 10v7M17 13v4"/>
               </svg>
             </div>
-            <div class="card-v2-head">
-              <div class="card-v2-title-row">
-                <h2 class="card-v2-name">${escapeHtml(account.agencyName)}</h2>
-                <span class="card-v2-badge">${escapeHtml(account.planLabel)}</span>
-              </div>
-              <div class="card-v2-email">${escapeHtml(account.email || '—')}</div>
+            <div class="agency-name">
+              <h2>${escapeHtml(account.agencyName)} <span class="plan">Diagnostic</span></h2>
+              <p>${escapeHtml(account.email || 'No email')}</p>
+              ${account.archetypeTitle ? `<div class="archetype-pill">⚡ ${escapeHtml(account.archetypeTitle)}</div>` : ''}
             </div>
           </div>
 
-          <div class="card-v2-stats">
-            <div class="stat-cell">
-              <div class="stat-label">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-                <span>Accounts</span>
-              </div>
-              <strong class="stat-value">${account.accountsCount}</strong>
+          <div class="diagnostic-stats">
+            <div class="agency-stat">
+              <label>Assessments</label>
+              <strong>${account.completeCount}/3</strong>
             </div>
-            <div class="stat-cell">
-              <div class="stat-label">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                <span>MRR</span>
-              </div>
-              <strong class="stat-value">${account.mrrFormatted}</strong>
+            <div class="agency-stat">
+              <label>Analysis</label>
+              <strong>${account.averageProgress}%</strong>
             </div>
-            <div class="stat-cell">
-              <div class="stat-label">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v10l4.5 4.5"/><path d="M18.36 5.64a9 9 0 11-12.73 0"/></svg>
-                <span>Integrations</span>
-              </div>
-              <strong class="stat-value">${account.integrationsCount}</strong>
+            <div class="agency-stat">
+              <label>Integrations</label>
+              <strong>${account.integrationsComplete ? 'Done' : 'Pending'}</strong>
             </div>
           </div>
 
-          <div class="card-v2-health">
-            <div class="health-title-row">
-              <span class="health-title">Account health</span>
-              <span class="health-ratio">${h.healthy}/${h.total} healthy</span>
+          <div class="diagnostic-progress">
+            <div class="health-head">
+              <span>Diagnostic progress</span>
+              <span class="status-pill ${status.className}">${escapeHtml(status.label)}</span>
             </div>
-            <div class="health-track">
-              <div class="health-fill" style="width: ${h.percent}%"></div>
-            </div>
-            <div class="health-bullets">
-              <span class="bullet-green">● ${h.healthy} healthy</span>
-              ${h.atRisk > 0 ? `<span class="bullet-amber">● ${h.atRisk} at risk</span>` : ''}
-            </div>
+            <div class="health-track"><span style="width:${Math.max(account.averageProgress, account.reportReady ? 100 : 0)}%"></span></div>
           </div>
 
-          <div class="card-v2-footer">
-            <div class="since-col">
-              <span class="since-lbl">since</span>
-              <strong class="since-val">${escapeHtml(account.sinceDate)}</strong>
-            </div>
-            <div class="footer-buttons">
-              <button class="btn-card-gray" type="button" data-delete-id="${escapeHtml(account.id)}">Delete</button>
-              <a class="btn-card-gray" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}">👁 Dashboard</a>
-              <a class="btn-card-blue" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}">Manage →</a>
-            </div>
+          <div class="card-foot">
+            <span class="since">since ${escapeHtml(formatDate(account.createdAt))}</span>
+            <button class="mini-btn" data-delete-id="${escapeHtml(account.id)}">Delete</button>
+            <a class="mini-btn" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>◉ Dashboard</a>
+            <a class="mini-btn primary" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>Manage →</a>
           </div>
         </article>`;
     }).join('');
@@ -455,8 +424,6 @@
       const name = document.querySelector('#newAgencyName')?.value.trim();
       const email = document.querySelector('#newAgencyEmail')?.value.trim();
       const website = document.querySelector('#newAgencyWebsite')?.value.trim();
-      const accessPlan = document.querySelector('#newAgencyPlan')?.value || 'diagnostic';
-      const journey = (accessPlan === 'platform' || accessPlan === 'fractional_coo') ? 'platform' : 'diagnostic';
       if (!name || !email || !website) return;
 
       const submit = form.querySelector('button[type="submit"]');
@@ -472,8 +439,7 @@
             email,
             agencyUrl: website,
             agencyName: name,
-            accessPlan,
-            journey,
+            journey: 'diagnostic',
             source: 'admin-console'
           })
         });

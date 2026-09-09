@@ -126,7 +126,34 @@ async function getSavedScorecard(config, runId) {
   return Array.isArray(rows) ? rows[0] || null : null;
 }
 
-async function getScorecardHistory(config, accountId) {
+function historyRow(row, generatedAt = null) {
+  const report = row.report_data && typeof row.report_data === 'object' ? row.report_data : {};
+  const valuation = report.valuation && typeof report.valuation === 'object' ? report.valuation : {};
+  return {
+    id: row.id,
+    scorecardId: row.scorecard_id || row.id,
+    diagnosticRunId: row.diagnostic_run_id || null,
+    generatedAt: row.captured_at || row.source_generated_at || row.generated_at || row.updated_at || generatedAt,
+    sourceGeneratedAt: row.source_generated_at || row.generated_at || null,
+    score: finiteOrNull(row.aofi_score),
+    confidence: finiteOrNull(row.confidence),
+    validation: UI_VALIDATION[normalizeValidation(row.validation_status)] || 'Needs Validation',
+    performance: finiteOrNull(row.performance_score),
+    strength: finiteOrNull(row.strength_score),
+    independence: finiteOrNull(row.independence_score),
+    enterpriseValue: valuation.available === true ? finiteOrNull(valuation.enterpriseValue) : null,
+    _reportData: report
+  };
+}
+
+function isMissingSnapshotTable(error) {
+  const code = clean(error?.payload?.code || error?.code);
+  const message = lower(error?.message || error?.payload?.message);
+  return error?.status === 404 || code === '42P01' || code === 'PGRST205'
+    || message.includes('scorecard_quarterly_snapshots');
+}
+
+async function getLegacyScorecardHistory(config, accountId) {
   const runParams = new URLSearchParams({
     select: 'id,account_id,status,started_at,generated_at,completed_at',
     account_id: `eq.${accountId}`,
@@ -147,32 +174,36 @@ async function getScorecardHistory(config, accountId) {
   if (!Array.isArray(scorecards)) return [];
 
   const runMap = new Map(runs.map(run => [run.id, run]));
-  return scorecards.map(row => {
-    const report = row.report_data && typeof row.report_data === 'object' ? row.report_data : {};
-    const valuation = report.valuation && typeof report.valuation === 'object' ? report.valuation : {};
-    const enterpriseValue = valuation.available === true
-      ? finiteOrNull(valuation.enterpriseValue)
-      : null;
+  return scorecards
+    .map(row => historyRow(row, runMap.get(row.diagnostic_run_id)?.generated_at || null))
+    .filter(row => Number.isFinite(row.score));
+}
 
-    return {
-      id: row.id,
-      diagnosticRunId: row.diagnostic_run_id,
-      generatedAt: row.generated_at || row.updated_at || runMap.get(row.diagnostic_run_id)?.generated_at || null,
-      runStartedAt: runMap.get(row.diagnostic_run_id)?.started_at || null,
-      score: finiteOrNull(row.aofi_score),
-      confidence: finiteOrNull(row.confidence),
-      validation: UI_VALIDATION[normalizeValidation(row.validation_status)] || 'Needs Validation',
-      performance: finiteOrNull(row.performance_score),
-      strength: finiteOrNull(row.strength_score),
-      independence: finiteOrNull(row.independence_score),
-      enterpriseValue
-    };
-  }).filter(row => Number.isFinite(row.score));
+async function getScorecardHistory(config, accountId) {
+  const params = new URLSearchParams({
+    select: 'id,account_id,scorecard_id,calendar_year,calendar_quarter,period_start,period_end,aofi_score,performance_score,strength_score,independence_score,confidence,validation_status,report_data,source_generated_at,captured_at,updated_at',
+    account_id: `eq.${accountId}`,
+    order: 'calendar_year.asc,calendar_quarter.asc'
+  });
+  try {
+    const snapshots = await supabaseRequest(config, `scorecard_quarterly_snapshots?${params.toString()}`);
+    return Array.isArray(snapshots)
+      ? snapshots.map(row => ({
+          ...historyRow(row),
+          quarter: `Q${row.calendar_quarter} ${row.calendar_year}`,
+          periodStart: row.period_start,
+          periodEnd: row.period_end
+        })).filter(row => Number.isFinite(row.score))
+      : [];
+  } catch (error) {
+    if (!isMissingSnapshotTable(error)) throw error;
+    return getLegacyScorecardHistory(config, accountId);
+  }
 }
 
 function getCalendarQuarterLabel(dateInput) {
   const d = dateInput ? new Date(dateInput) : new Date();
-  if (Number.isNaN(d.getTime())) return 'Q3 2026';
+  if (Number.isNaN(d.getTime())) return 'Quarter';
   const year = d.getFullYear();
   const q = Math.floor(d.getMonth() / 3) + 1;
   return `Q${q} ${year}`;
@@ -180,188 +211,133 @@ function getCalendarQuarterLabel(dateInput) {
 
 function calculateQuarterlyDrivers(current, previous) {
   if (!previous) {
-    return {
-      transitionTitle: `AOFI baseline established at ${Math.round(current?.score || 0)}`,
-      positiveElements: [
-        { category: 'Baseline Established', title: 'Initial Score Snapshot', points: Math.round(current?.score || 0), impact: 'positive', description: 'Baseline diagnostic scores recorded for Performance, Strength, and Owner Independence.' }
-      ],
-      negativeElements: []
-    };
+    return { positiveElements: [], negativeElements: [] };
   }
-
-  const prevScore = Math.round(Number(previous.score || 0));
-  const currScore = Math.round(Number(current.score || 0));
-  const aofiDiff = currScore - prevScore;
-
-  const perfDiff = Math.round((Number(current.performance || 0) - Number(previous.performance || 0)) * 10) / 10;
-  const strDiff = Math.round((Number(current.strength || 0) - Number(previous.strength || 0)) * 10) / 10;
-  const indDiff = Math.round((Number(current.independence || 0) - Number(previous.independence || 0)) * 10) / 10;
-
-  const transitionTitle = aofiDiff > 0
-    ? `AOFI increased from ${prevScore} to ${currScore}`
-    : aofiDiff < 0
-      ? `AOFI decreased from ${prevScore} to ${currScore}`
-      : `AOFI remained stable at ${currScore}`;
-
   const positive = [];
   const negative = [];
+  const definitions = [
+    { key: 'performance', label: 'Agency Performance', weight: 0.4 },
+    { key: 'strength', label: 'Agency Strength', weight: 0.4 },
+    { key: 'independence', label: 'Owner Independence', weight: 0.2 }
+  ];
 
-  if (perfDiff > 0) {
-    positive.push({
-      category: 'Agency Performance',
-      title: 'Net profit margin improved',
-      points: Math.abs(perfDiff),
-      impact: 'positive',
-      description: `Performance gained +${perfDiff} pts driven by improved gross margin and recurring retainer stability.`
-    });
-  } else if (perfDiff < 0) {
-    negative.push({
-      category: 'Agency Performance',
-      title: 'Margin pressure & cost inflation',
-      points: Math.abs(perfDiff),
-      impact: 'negative',
-      description: `Performance contracted by -${Math.abs(perfDiff)} pts due to project scope expansion and delivery costs.`
-    });
-  }
+  const round1 = value => Math.round(value * 10) / 10;
+  const addDriver = ({ label, title, before, after, contribution }) => {
+    if (![before, after, contribution].every(Number.isFinite) || Math.abs(contribution) < 0.05) return;
+    const change = round1(after - before);
+    const points = Math.abs(round1(contribution));
+    const item = {
+      category: label,
+      title,
+      points,
+      scoreChange: change,
+      impact: contribution > 0 ? 'positive' : 'negative',
+      description: `Measured score changed from ${round1(before)} to ${round1(after)}. Its weighted contribution to AOFI changed by ${contribution > 0 ? '+' : ''}${round1(contribution)} points.`
+    };
+    (contribution > 0 ? positive : negative).push(item);
+  };
 
-  if (indDiff > 0) {
-    positive.push({
-      category: 'Owner Independence',
-      title: 'Owner dependency decreased',
-      points: Math.abs(indDiff),
-      impact: 'positive',
-      description: `Owner Independence improved +${indDiff} pts as leadership team took over key client approvals and delivery.`
-    });
-  } else if (indDiff < 0) {
-    negative.push({
-      category: 'Owner Independence',
-      title: 'Founder client escalation time',
-      points: Math.abs(indDiff),
-      impact: 'negative',
-      description: `Owner Independence dropped -${Math.abs(indDiff)} pts due to increased founder hours in daily fulfillment.`
-    });
-  }
+  definitions.forEach(definition => {
+    const currentCategories = current?._reportData?.reports?.[definition.key]?.categories;
+    const previousCategories = previous?._reportData?.reports?.[definition.key]?.categories;
+    if (Array.isArray(currentCategories) && Array.isArray(previousCategories)) {
+      const previousMap = new Map(previousCategories.map(row => [row.key || row.name, row]));
+      currentCategories.forEach(row => {
+        const old = previousMap.get(row.key || row.name);
+        const before = Number(old?.score);
+        const after = Number(row?.score);
+        const categoryWeight = Number(row?.weight);
+        if (!old || !Number.isFinite(categoryWeight)) return;
+        addDriver({
+          label: definition.label,
+          title: row.name || row.key || definition.label,
+          before,
+          after,
+          contribution: (after - before) * definition.weight * (categoryWeight / 100)
+        });
+      });
+      return;
+    }
 
-  if (strDiff > 0) {
-    positive.push({
-      category: 'Agency Strength',
-      title: 'SOP coverage & infrastructure enhanced',
-      points: Math.abs(strDiff),
-      impact: 'positive',
-      description: `Strength index gained +${strDiff} pts following completion of department playbooks and documented Cadence.`
+    const before = Number(previous?.[definition.key]);
+    const after = Number(current?.[definition.key]);
+    addDriver({
+      label: definition.label,
+      title: `${definition.label} index`,
+      before,
+      after,
+      contribution: (after - before) * definition.weight
     });
-  } else if (strDiff < 0) {
-    negative.push({
-      category: 'Agency Strength',
-      title: 'Operating system verification gaps',
-      points: Math.abs(strDiff),
-      impact: 'negative',
-      description: `Strength score dipped by -${Math.abs(strDiff)} pts as core operational playbooks await quarterly audit.`
-    });
-  }
+  });
 
-  if (!negative.length) {
-    negative.push({
-      category: 'Risk Management',
-      title: 'Client concentration increased',
-      points: Math.max(1, Math.round(Math.abs(aofiDiff * 0.4)) || 2),
-      impact: 'negative',
-      description: 'Top 3 client revenue accounts represent over 35% of monthly recurring revenue.'
-    });
-  }
-
-  if (!positive.length) {
-    positive.push({
-      category: 'Financial Evidence',
-      title: 'Recurring retainer stability',
-      points: Math.max(1, Math.abs(Math.round(aofiDiff * 0.5)) || 2),
-      impact: 'positive',
-      description: 'Monthly client retention rate remained high with predictable cash flow.'
-    });
-  }
-
-  return { transitionTitle, positiveElements: positive, negativeElements: negative };
+  const byPoints = (a, b) => b.points - a.points;
+  return { positiveElements: positive.sort(byPoints), negativeElements: negative.sort(byPoints) };
 }
 
 function enrichQuarterlyHistory(history, currentModel) {
-  let points = Array.isArray(history) && history.length ? [...history] : [];
-
-  const latestScore = currentModel?.score ?? 78;
-  const latestPerf = currentModel?.reports?.performance?.score ?? 82;
-  const latestStr = currentModel?.reports?.strength?.score ?? 76;
-  const latestInd = currentModel?.reports?.independence?.score ?? 72;
-  const latestConf = currentModel?.confidence ?? 88;
+  const points = Array.isArray(history) ? [...history] : [];
+  const latestScore = finiteOrNull(currentModel?.score);
+  const latestPerf = finiteOrNull(currentModel?.reports?.performance?.score);
+  const latestStr = finiteOrNull(currentModel?.reports?.strength?.score);
+  const latestInd = finiteOrNull(currentModel?.reports?.independence?.score);
+  const latestConf = finiteOrNull(currentModel?.confidence);
   const latestVal = currentModel?.valuation?.available ? currentModel.valuation.enterpriseValue : null;
   const latestDate = currentModel?.generatedAt || new Date().toISOString();
 
-  if (!points.length) {
-    points = [{
+  const latestQuarter = getCalendarQuarterLabel(latestDate);
+  if (Number.isFinite(latestScore) && !points.some(point => (point.quarter || getCalendarQuarterLabel(point.generatedAt)) === latestQuarter)) {
+    points.push({
       generatedAt: latestDate,
       score: latestScore,
       confidence: latestConf,
       performance: latestPerf,
       strength: latestStr,
       independence: latestInd,
-      enterpriseValue: latestVal
-    }];
-  }
-
-  if (points.length < 4) {
-    const quarters = [
-      { offsetMonths: 12, aofi: -10, perf: -12, str: -10, ind: -7, conf: -8 },
-      { offsetMonths: 9,  aofi: -6,  perf: -7,  str: -6,  ind: -4, conf: -5 },
-      { offsetMonths: 6,  aofi: -8,  perf: -8,  str: -8,  ind: -6, conf: -3 },
-      { offsetMonths: 3,  aofi: -3,  perf: -3,  str: -3,  ind: -2, conf: -1 },
-      { offsetMonths: 0,  aofi: 0,   perf: 0,   str: 0,   ind: 0,  conf: 0  }
-    ];
-    const now = new Date(latestDate);
-    points = quarters.map(q => {
-      const qDate = new Date(now);
-      qDate.setMonth(qDate.getMonth() - q.offsetMonths);
-      return {
-        generatedAt: qDate.toISOString(),
-        score: Math.max(0, Math.min(100, Math.round(latestScore + q.aofi))),
-        confidence: Math.max(0, Math.min(100, Math.round(latestConf + q.conf))),
-        performance: Math.max(0, Math.min(100, Math.round(latestPerf + q.perf))),
-        strength: Math.max(0, Math.min(100, Math.round(latestStr + q.str))),
-        independence: Math.max(0, Math.min(100, Math.round(latestInd + q.ind))),
-        enterpriseValue: latestVal ? Math.round(latestVal * (1 + q.aofi * 0.015)) : null
-      };
+      enterpriseValue: latestVal,
+      _reportData: currentModel
     });
   }
 
-  return points.map((point, index) => {
+  const quarterMap = new Map();
+  points.forEach(point => {
+    const quarter = point.quarter || getCalendarQuarterLabel(point.generatedAt);
+    const existing = quarterMap.get(quarter);
+    if (!existing || new Date(point.generatedAt || 0) >= new Date(existing.generatedAt || 0)) {
+      quarterMap.set(quarter, { ...point, quarter });
+    }
+  });
+  const ordered = [...quarterMap.values()].sort((a, b) => new Date(a.generatedAt || 0) - new Date(b.generatedAt || 0));
+
+  return ordered.map((point, index) => {
     const quarter = getCalendarQuarterLabel(point.generatedAt);
-    const previous = index > 0 ? points[index - 1] : null;
+    const previous = index > 0 ? ordered[index - 1] : null;
     const previousQuarter = previous ? getCalendarQuarterLabel(previous.generatedAt) : null;
     const drivers = calculateQuarterlyDrivers(point, previous);
-
+    const { _reportData, ...publicPoint } = point;
     return {
-      ...point,
+      ...publicPoint,
       quarter,
       previousQuarter,
-      transitionTitle: drivers.transitionTitle,
       positiveElements: drivers.positiveElements,
       negativeElements: drivers.negativeElements
     };
   });
 }
 
-function historyMomentum(history, currentModel) {
-  const enriched = enrichQuarterlyHistory(history, currentModel);
-  if (enriched.length < 2) {
+function historyMomentum(history) {
+  if (!Array.isArray(history) || history.length < 2) {
     return {
       state: 'baseline',
       delta: 0,
       label: 'Baseline',
       primaryDriver: null,
-      positiveElements: enriched[0]?.positiveElements || [],
-      negativeElements: enriched[0]?.negativeElements || []
+      positiveElements: history?.[0]?.positiveElements || [],
+      negativeElements: history?.[0]?.negativeElements || []
     };
   }
 
-  const previous = enriched[enriched.length - 2];
-  const current = enriched[enriched.length - 1];
+  const previous = history[history.length - 2];
+  const current = history[history.length - 1];
   const delta = Math.round((Number(current.score) - Number(previous.score)) * 10) / 10;
 
   const driverDefinitions = [
@@ -688,71 +664,6 @@ async function markAccountGenerated(config, account, model) {
   });
 }
 
-async function handleQuarterlySnapshotCron(config, res) {
-  try {
-    const d = new Date();
-    const year = d.getFullYear();
-    const quarter = Math.floor(d.getMonth() / 3) + 1;
-    const label = `Q${quarter} ${year}`;
-
-    const accounts = await supabaseRequest(config, 'accounts?select=id,name,agency_name,report_data,diagnostic_state');
-    if (!Array.isArray(accounts) || !accounts.length) {
-      return json(res, 200, { ok: true, snapshotsCreated: 0, message: 'No accounts found.' });
-    }
-
-    let createdCount = 0;
-    for (const account of accounts) {
-      try {
-        const runs = await supabaseRequest(config, `diagnostic_runs?select=id&account_id=eq.${account.id}&is_current=eq.true&limit=1`);
-        const run = Array.isArray(runs) ? runs[0] : null;
-        if (!run) continue;
-
-        const cards = await supabaseRequest(config, `scorecards?select=*&diagnostic_run_id=eq.${run.id}&limit=1`);
-        const card = Array.isArray(cards) ? cards[0] : null;
-        if (!card || !card.aofi_score) continue;
-
-        const report = card.report_data && typeof card.report_data === 'object' ? card.report_data : {};
-        const snapshotRecord = {
-          account_id: account.id,
-          diagnostic_run_id: run.id,
-          scorecard_id: card.id,
-          quarter_label: label,
-          calendar_year: year,
-          calendar_quarter: quarter,
-          aofi_score: Number(card.aofi_score),
-          performance_score: Number(card.performance_score || 0),
-          strength_score: Number(card.strength_score || 0),
-          independence_score: Number(card.independence_score || 0),
-          confidence: Number(card.confidence || 0),
-          validation_status: card.validation_status || 'needs_validation',
-          enterprise_value: report.valuation?.available ? Number(report.valuation.enterpriseValue) : null,
-          snapshot_data: report,
-          updated_at: new Date().toISOString()
-        };
-
-        await supabaseRequest(config, 'scorecard_snapshots?on_conflict=account_id,calendar_year,calendar_quarter', {
-          method: 'POST',
-          headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-          body: JSON.stringify(snapshotRecord)
-        });
-        createdCount++;
-      } catch (err) {
-        console.warn(`Snapshot failed for account ${account.id}:`, err.message);
-      }
-    }
-
-    return json(res, 200, {
-      ok: true,
-      quarter: label,
-      snapshotsProcessed: createdCount,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('Cron snapshot error:', error);
-    return json(res, 500, { error: error.message || 'Quarterly snapshot task failed.' });
-  }
-}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
@@ -768,11 +679,6 @@ export default async function handler(req, res) {
       ? (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}))
       : {};
     const query = req.query || {};
-
-    if (query.action === 'cron_snapshot' || query.action === 'snapshot' || body.action === 'cron_snapshot') {
-      return handleQuarterlySnapshotCron(config, res);
-    }
-
     const account = await findAccount(config, {
       accountId: body.accountId || body.account_id || query.accountId || query.account_id,
       email: body.email || query.email,
