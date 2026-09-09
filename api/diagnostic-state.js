@@ -354,9 +354,19 @@ export default async function handler(req, res) {
 
     if (!account) return json(res, 404, { error: 'Account not found.', code: 'ACCOUNT_NOT_FOUND' });
 
+    // Keep account-level entitlements and lifecycle metadata when the
+    // diagnostic UI saves its intentionally smaller compatibility payload.
+    // Replacing this JSON wholesale would otherwise remove purchasedPlans and
+    // make upgraded navigation disappear after the next assessment save.
+    const compatibilityState = {
+      ...(account.diagnostic_state && typeof account.diagnostic_state === 'object' ? account.diagnostic_state : {}),
+      ...diagnosticState,
+      indexes: diagnosticState.indexes || account.diagnostic_state?.indexes || {}
+    };
+
     // Keep the existing account JSON in sync during the migration period so
     // returning users and the current frontend continue to work unchanged.
-    await updateAccountCompatibilityState(config, account.id, diagnosticState, reportData);
+    await updateAccountCompatibilityState(config, account.id, compatibilityState, reportData);
 
     const run = await getOrCreateCurrentRun(config, account.id);
     const indexes = diagnosticState.indexes || {};

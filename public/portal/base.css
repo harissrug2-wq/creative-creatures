@@ -233,7 +233,7 @@ html,body{max-width:100%;overflow-x:clip}
 .app-topbar .top-logo{flex:0 0 auto;margin-right:auto}
 .app-nav{min-width:0}
 .ask-creature,.top-account{flex:0 0 auto}
-@media(max-width:1600px){
+@media(max-width:1180px){
   .app-nav,.ask-creature,.top-account{display:none!important}
   .mobile-nav-toggle{display:grid!important;place-items:center;flex:0 0 40px;font-size:20px;line-height:1}
   .mobile-nav-panel.open{display:flex;position:fixed;z-index:140;top:58px;left:0;right:0;max-height:calc(100dvh - 58px);overflow-y:auto;background:#fff;border-bottom:1px solid var(--cc-line);padding:10px 16px 18px;flex-direction:column;gap:4px;box-shadow:0 14px 32px rgba(17,18,24,.12)}
@@ -242,4 +242,7 @@ html,body{max-width:100%;overflow-x:clip}
   .mobile-nav-panel a.active{color:var(--cc-blue);background:#f0f2ff}
   .mobile-nav-panel a.nav-disabled{color:#a0a6af;background:#f7f7f5}
 }
-@media(min-width:1601px){.mobile-nav-panel{display:none!important}.mobile-nav-toggle{display:none!important}}
+@media(min-width:1181px){.mobile-nav-panel{display:none!important}.mobile-nav-toggle{display:none!important}}
+.shell-upgrade{min-height:36px;padding:0 12px;border-radius:9px;background:var(--cc-blue);color:#fff;display:flex;align-items:center;text-decoration:none;font-size:12px;font-weight:700;white-space:nowrap}
+[data-workspace-feature][hidden],.ask-creature[hidden],.mobile-ask-creature[hidden],[data-account-upgrade][hidden]{display:none!important}
+.top-account-menu a{display:block;padding:10px 12px;color:#3438d7;text-decoration:none;font-size:12px;font-weight:700;border-top:1px solid var(--cc-line)}

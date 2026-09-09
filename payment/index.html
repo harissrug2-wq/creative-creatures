@@ -90,7 +90,9 @@
         const plan = String(value || '').trim().toLowerCase().replace(/-/g, '_');
         return Object.prototype.hasOwnProperty.call(PLANS, plan) ? plan : 'diagnostic';
       };
-      const queryPlan = new URLSearchParams(location.search).get('plan');
+      const query = new URLSearchParams(location.search);
+      const queryPlan = query.get('plan');
+      const upgradeMode = query.get('upgrade') === '1';
       const selectedPlan = normalizePlan(queryPlan || localStorage.getItem('ccProgramPath'));
       const plan = PLANS[selectedPlan];
       localStorage.setItem('ccProgramPath', selectedPlan);
@@ -101,6 +103,12 @@
       document.getElementById('orderPlanPrice').textContent = plan.price;
       document.getElementById('orderPlanDescription').textContent = plan.description;
       document.getElementById('orderPlanFeatures').innerHTML = plan.features.map(feature => `<li>♙ ${feature}</li>`).join('');
+      if (upgradeMode) {
+        document.querySelector('.payment-main header h1').textContent = 'Upgrade Account';
+        document.querySelector('.payment-main header p').textContent = 'Your current workspace and purchased access will be retained.';
+        document.querySelector('.payment-note').textContent = '▢ Simulated upgrade checkout — no real charge on this environment.';
+        document.querySelector('.payment-progress').hidden = true;
+      }
 
       const account = window.CCAccount?.getAccount?.();
       const cardName = document.getElementById('cardName');
@@ -143,7 +151,7 @@
           const response = await fetch('/api/payment-confirmation', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({leadId: account?.lead_id || '', to: email, completedAt: paymentCompletedAt, accessPlan: selectedPlan})
+            body: JSON.stringify({leadId: account?.lead_id || '', to: email, completedAt: paymentCompletedAt, accessPlan: selectedPlan, upgrade: upgradeMode})
           });
           const payload = await response.json().catch(() => ({}));
           if (!response.ok) throw new Error(payload.error || 'Account activation could not be completed.');
@@ -153,7 +161,7 @@
           localStorage.setItem('ccPaymentPlan', selectedPlan);
           localStorage.setItem('ccPaymentCompletedAt', paymentCompletedAt);
           if (payload.account && window.CCAccount?.saveAccount) {
-            window.CCAccount.saveAccount({...payload.account, backend_saved: true, lead_only: false}, {replaceDiagnostic: true});
+            window.CCAccount.saveAccount({...payload.account, backend_saved: true, lead_only: false}, {replaceDiagnostic: !upgradeMode});
           }
           Promise.resolve(window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.())).catch(() => null);
 
@@ -166,6 +174,13 @@
             : (payload.temporaryPassword
               ? `${escapeHtml(plan.title)} access is active. Email delivery failed. Temporary password: <strong>${escapeHtml(payload.temporaryPassword)}</strong> — save it now and use it with ${escapeHtml(email)}.`
               : `${escapeHtml(plan.title)} access is active. Your existing Creative Creatures login remains valid.`);
+          if (upgradeMode) {
+            status.innerHTML = `${escapeHtml(plan.title)} has been added to your account. Your existing work and login remain unchanged.`;
+            const destinations = {diagnostic:'/diagnostic/',accelerator:'/accelerator/',platform:'/platform/',fractional_coo:'/platform/'};
+            const continueLink = document.querySelector('.payment-continue');
+            continueLink.href = destinations[selectedPlan] || '/platform/';
+            continueLink.textContent = 'Open Updated Workspace';
+          }
           scrollTo({top: 0, behavior: 'smooth'});
         } catch (activationError) {
           console.warn('Account activation failed.', activationError);

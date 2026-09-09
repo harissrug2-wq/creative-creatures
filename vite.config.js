@@ -57,6 +57,7 @@ export default defineConfig({
         signup: page('signup'),
         signupLookup: resolve(__dirname, 'signup', 'lookup', 'index.html'),
         payment: page('payment'),
+        accountUpgrade: resolve(__dirname, 'account', 'upgrade', 'index.html'),
         ownerArchetype: page('owner-archetype'),
         agencyScorecard: page('agency-scorecard'),
         performanceReport: resolve(__dirname, 'agency-scorecard', 'performance', 'index.html'),

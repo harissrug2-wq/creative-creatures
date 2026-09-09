@@ -54,7 +54,7 @@
     const item = (href,label,name,key,enabled=true) => {
       const activeClass = active === key ? 'active' : '';
       const disabled = !enabled;
-      return `<a href="${disabled ? '#' : href}" class="${activeClass}${disabled ? ' nav-disabled' : ''}" ${disabled ? 'aria-disabled="true" onclick="return false"' : ''}>${icon(name)}${label}</a>`;
+      return `<a href="${disabled ? '#' : href}" class="${activeClass}${disabled ? ' nav-disabled' : ''}" data-workspace-feature="${key}" hidden ${disabled ? 'aria-disabled="true" onclick="return false"' : ''}>${icon(name)}${label}</a>`;
     };
 
     let status = '';
@@ -76,18 +76,24 @@
       <header class="app-topbar">
         <a class="top-logo" href="/login/"><img class="cc-platform-logo" src="/portal/creative-creatures-logo.png" alt="Creative Creatures"></a>
         <nav class="app-nav">${desktopNav}</nav>
-        <button class="ask-creature">${icon('spark')}Ask Creature</button>${profile}
+        <a class="shell-upgrade" href="/account/upgrade/" data-account-upgrade hidden>Upgrade</a><button class="ask-creature" hidden>${icon('spark')}Ask Creature</button>${profile}
         <button class="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false">☰</button>
       </header>
-      <nav class="mobile-nav-panel">${mobileNav.map(([label,href,enabled,key]) => `<a href="${enabled ? href : '#'}" class="${active===key?'active ':''}${enabled?'':'nav-disabled'}" ${enabled?'':'onclick="return false" aria-disabled="true"'}>${label}</a>`).join('')}${identity ? `<button class="mobile-signout" type="button">${icon('logout')}Sign out ${esc(displayName || agencyName)}</button>` : ''}<button class="mobile-ask-creature" type="button">${icon("spark")}Ask Creature</button></nav>
+      <nav class="mobile-nav-panel">${mobileNav.map(([label,href,enabled,key]) => `<a href="${enabled ? href : '#'}" data-workspace-feature="${key}" hidden class="${active===key?'active ':''}${enabled?'':'nav-disabled'}" ${enabled?'':'onclick="return false" aria-disabled="true"'}>${label}</a>`).join('')}<a href="/account/upgrade/" data-account-upgrade hidden>Upgrade account</a>${identity ? `<button class="mobile-signout" type="button">${icon('logout')}Sign out ${esc(displayName || agencyName)}</button>` : ''}<button class="mobile-ask-creature" type="button" hidden>${icon("spark")}Ask Creature</button></nav>
       ${status}
-      ${identity ? `<div class="top-account-menu" hidden><strong>${esc(displayName || agencyName)}</strong><span>${esc(account?.email || '')}</span><button type="button">${icon('logout')}Sign out</button></div>` : ''}`;
+      ${identity ? `<div class="top-account-menu" hidden><strong>${esc(displayName || agencyName)}</strong><span>${esc(account?.email || '')}</span><a href="/account/upgrade/" data-account-upgrade hidden>Change account type</a><button type="button">${icon('logout')}Sign out</button></div>` : ''}`;
 
     const toggle=el.querySelector('.mobile-nav-toggle'),panel=el.querySelector('.mobile-nav-panel');
     const closeMobileNav=()=>{panel?.classList.remove('open');toggle?.setAttribute('aria-expanded','false');};
     toggle?.addEventListener('click',()=>{const open=!panel?.classList.contains('open');panel?.classList.toggle('open',open);toggle.setAttribute('aria-expanded',String(open));});
     panel?.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMobileNav));
-    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});loadWorkspace().catch(()=>{});
+    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
+    loadWorkspace().then(workspace=>workspace.getAccess()).then(access=>{
+      el.querySelectorAll('[data-workspace-feature]').forEach(link=>{link.hidden=!access.features.includes(link.dataset.workspaceFeature)});
+      el.querySelectorAll('.ask-creature,.mobile-ask-creature').forEach(button=>{button.hidden=!access.features.includes('ask')});
+      const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo';
+      el.querySelectorAll('[data-account-upgrade]').forEach(link=>{link.hidden=!canUpgrade});
+    }).catch(()=>{});
     el.querySelector('.ask-creature')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{}});
     el.querySelector('.mobile-ask-creature')?.addEventListener('click',()=>{el.querySelector('.ask-creature')?.click();closeMobileNav();});
     document.addEventListener('keydown',event=>{if(event.key==='Escape')closeMobileNav();});

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Change Account Type · Creative Creatures</title>
+  <link rel="icon" href="/favicon.svg">
+  <link rel="stylesheet" href="/portal/upgrade.css">
+</head>
+<body>
+  <header class="upgrade-top"><a href="/platform/"><img src="/portal/creative-creatures-logo.png" alt="Creative Creatures"></a><a class="back-link" href="javascript:history.back()">← Back to workspace</a></header>
+  <main class="upgrade-shell">
+    <header class="upgrade-head"><span>ACCOUNT ACCESS</span><h1>Change your account type</h1><p>Your existing work and purchased access stay available. A new package only adds features.</p></header>
+    <section class="current-plan" id="currentPlan"><span>Current account</span><strong>Loading…</strong></section>
+    <p class="upgrade-error" id="upgradeError" hidden></p>
+    <section class="upgrade-grid" id="upgradeGrid" aria-live="polite"></section>
+  </main>
+  <script src="/shared/workspace-access.js"></script>
+  <script>
+    (()=>{
+      const plans={
+        diagnostic:{title:'1:1 Analysis & Planning Diagnostic',price:'$6,400',meta:'one-time',features:['Private agency analysis','Agency indexes and scorecard','90-day priorities and goals']},
+        accelerator:{title:'Facilitated Breakthrough Accelerator',price:'$4,600',meta:'six facilitated sessions',features:['Accelerator workspace','Six facilitated sessions','Final one-year plan']},
+        platform:{title:'Platform / Partner Portal',price:'$497 / month',meta:'self-guided setup',features:['Department dashboards','Integrations and Monitor','Users and Partner Portal']},
+        fractional_coo:{title:'Fractional COO + Platform Bundle',price:'$2,500 setup + $3,997/mo',meta:'guided, month to month',features:['Fractional COO support','Full Platform access','Accelerator workspace']}
+      };
+      const featureSets={diagnostic:['diagnostic','scorecard','goals'],accelerator:['accelerator','diagnostic','scorecard','goals'],platform:['integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users'],fractional_coo:['accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users']};
+      const esc=value=>String(value||'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+      const grid=document.querySelector('#upgradeGrid'),error=document.querySelector('#upgradeError'),current=document.querySelector('#currentPlan');
+      window.CCWorkspace.getAccess().then(access=>{
+        if(access.actor?.role!=='owner')throw new Error('Only the agency owner can change the account type.');
+        const purchased=new Set(access.purchasedPlans||[access.plan]);
+        const activeFeatures=new Set(access.features||[]);
+        current.innerHTML=`<span>Current account</span><strong>${esc(plans[access.plan]?.title||access.plan)}</strong><small>${[...purchased].map(id=>plans[id]?.title).filter(Boolean).join(' + ')}</small>`;
+        const available=Object.entries(plans).filter(([id])=>!purchased.has(id)&&(featureSets[id]||[]).some(feature=>!activeFeatures.has(feature)));
+        if(!available.length){grid.innerHTML='<div class="upgrade-complete"><strong>Your account already has every available product area.</strong><p>No additional account upgrade is required.</p></div>';return;}
+        grid.innerHTML=available.map(([id,plan])=>`<article class="upgrade-card"><div><span class="plan-meta">${esc(plan.meta)}</span><h2>${esc(plan.title)}</h2><strong class="plan-price">${esc(plan.price)}</strong></div><ul>${plan.features.map(feature=>`<li>✓ ${esc(feature)}</li>`).join('')}</ul><a href="/payment/?plan=${encodeURIComponent(id)}&upgrade=1">Choose this upgrade →</a></article>`).join('');
+      }).catch(err=>{error.hidden=false;error.textContent=err.message||'Account access could not be loaded.';grid.innerHTML='<a class="signin-link" href="/login/">Sign in as the agency owner</a>'});
+    })();
+  </script>
+</body>
+</html>

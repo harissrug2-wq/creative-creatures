@@ -62,21 +62,21 @@
           <nav class="side-scroll">${sidebar}</nav>
           <div class="profile">
             <button class="profile-button" id="profileButton"><span class="avatar">${initials}</span><span class="profile-copy"><span class="profile-name">${ownerName}</span><span class="profile-email">${ownerEmail}</span></span>${ico('chevron','profile-chevron')}</button>
-            <div class="profile-menu" id="profileMenu"><div class="profile-menu-head"><div class="profile-name">${ownerName}</div><div class="profile-email">${ownerEmail}</div></div><a href="#" data-toast="Invite teammate is ready for backend wiring.">${ico('person','nav-icon')}<span>Invite teammate</span></a><a href="/users/">${ico('users','nav-icon')}<span>Manage users</span></a><button class="signout" data-toast="Sign out requires authentication wiring."><span class="signout-icon" aria-hidden="true">↪</span><span>Sign out</span></button></div>
+            <div class="profile-menu" id="profileMenu"><div class="profile-menu-head"><div class="profile-name">${ownerName}</div><div class="profile-email">${ownerEmail}</div></div><a href="#" data-toast="Invite teammate is ready for backend wiring.">${ico('person','nav-icon')}<span>Invite teammate</span></a><a href="/users/" data-workspace-feature="users">${ico('users','nav-icon')}<span>Manage users</span></a><a href="/account/upgrade/" data-account-upgrade hidden>${ico('plus','nav-icon')}<span>Change account type</span></a><button class="signout" data-toast="Sign out requires authentication wiring."><span class="signout-icon" aria-hidden="true">↪</span><span>Sign out</span></button></div>
           </div>
         </aside>
         <div class="main-shell">
           <header class="topbar"><button class="mobile-toggle" id="mobileToggle" aria-label="Open departments">${ico('menu')}</button><nav class="topnav">
-             <a href="/platform/" class="top-link active">${ico('monitor')} Monitor</a>
-             <a href="/accelerator/" class="top-link">${ico('diagnostic')} Accelerator</a>
-             <a href="/diagnostic/" class="top-link">${ico('diagnostic')} Diagnostic</a>
-             <a href="${scorecardHref}" class="top-link ${scorecardUnlocked?'':'locked-link'}" aria-disabled="${scorecardUnlocked?'false':'true'}">${ico('score')} Agency Scorecard</a>
-             <a href="${goalsUnlocked?'/agency-goals/':'#'}" class="top-link ${goalsUnlocked?'':'locked-link'}" aria-disabled="${goalsUnlocked?'false':'true'}">${ico('goals')} Agency Goals</a>
-             <a href="/integrations/" class="top-link">${ico('plug')} Integrations</a>
-             <a href="/portal/" class="top-link">${ico('dashboard')} Portal</a>
-           </nav><button class="ask-button" id="askButton">${ico('spark')} Ask Creature</button><button class="top-menu-toggle" id="topMenuToggle" type="button" aria-label="Open main navigation" aria-expanded="false">${ico('menu')}</button></header>
+             <a href="/platform/" class="top-link active" data-workspace-feature="monitor" hidden>${ico('monitor')} Monitor</a>
+             <a href="/accelerator/" class="top-link" data-workspace-feature="accelerator" hidden>${ico('diagnostic')} Accelerator</a>
+             <a href="/diagnostic/" class="top-link" data-workspace-feature="diagnostic" hidden>${ico('diagnostic')} Diagnostic</a>
+             <a href="${scorecardHref}" class="top-link ${scorecardUnlocked?'':'locked-link'}" data-workspace-feature="scorecard" hidden aria-disabled="${scorecardUnlocked?'false':'true'}">${ico('score')} Agency Scorecard</a>
+             <a href="${goalsUnlocked?'/agency-goals/':'#'}" class="top-link ${goalsUnlocked?'':'locked-link'}" data-workspace-feature="goals" hidden aria-disabled="${goalsUnlocked?'false':'true'}">${ico('goals')} Agency Goals</a>
+             <a href="/integrations/" class="top-link" data-workspace-feature="integrations" hidden>${ico('plug')} Integrations</a>
+             <a href="/portal/" class="top-link" data-workspace-feature="portal" hidden>${ico('dashboard')} Portal</a>
+           </nav><a class="upgrade-button" href="/account/upgrade/" data-account-upgrade hidden>Upgrade</a><button class="ask-button" id="askButton" hidden>${ico('spark')} Ask Creature</button><button class="top-menu-toggle" id="topMenuToggle" type="button" aria-label="Open main navigation" aria-expanded="false">${ico('menu')}</button></header>
            <nav class="top-menu-panel" id="topMenuPanel" aria-label="Main navigation">
-             <a href="/platform/" class="active">Monitor</a><a href="/accelerator/">Accelerator</a><a href="/diagnostic/">Diagnostic</a><a href="${scorecardHref}" class="${scorecardUnlocked?'':'locked-link'}">Agency Scorecard</a><a href="${goalsUnlocked?'/agency-goals/':'#'}" class="${goalsUnlocked?'':'locked-link'}">Agency Goals</a><a href="/integrations/">Integrations</a><a href="/portal/">Portal</a><button id="mobileAskButton" type="button">${ico('spark')} Ask Creature</button>
+             <a href="/platform/" class="active" data-workspace-feature="monitor" hidden>Monitor</a><a href="/accelerator/" data-workspace-feature="accelerator" hidden>Accelerator</a><a href="/diagnostic/" data-workspace-feature="diagnostic" hidden>Diagnostic</a><a href="${scorecardHref}" data-workspace-feature="scorecard" hidden class="${scorecardUnlocked?'':'locked-link'}">Agency Scorecard</a><a href="${goalsUnlocked?'/agency-goals/':'#'}" data-workspace-feature="goals" hidden class="${goalsUnlocked?'':'locked-link'}">Agency Goals</a><a href="/integrations/" data-workspace-feature="integrations" hidden>Integrations</a><a href="/portal/" data-workspace-feature="portal" hidden>Portal</a><a href="/account/upgrade/" data-account-upgrade hidden>Upgrade account</a><button id="mobileAskButton" type="button" hidden>${ico('spark')} Ask Creature</button>
            </nav>
           <main class="page-wrap">${content}</main>
         </div>
@@ -91,7 +91,13 @@
     const profileButton=document.querySelector('#profileButton'),profileMenu=document.querySelector('#profileMenu');
     profileButton?.addEventListener('click',e=>{e.stopPropagation();profileMenu.classList.toggle('open')});
     document.addEventListener('click',()=>profileMenu?.classList.remove('open'));
-    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});loadWorkspace().catch(()=>{});
+    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
+    loadWorkspace().then(workspace=>workspace.getAccess()).then(access=>{
+      document.querySelectorAll('[data-workspace-feature]').forEach(link=>{link.hidden=!access.features.includes(link.dataset.workspaceFeature)});
+      document.querySelectorAll('#askButton,#mobileAskButton').forEach(button=>{button.hidden=!access.features.includes('ask')});
+      const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo';
+      document.querySelectorAll('[data-account-upgrade]').forEach(link=>{link.hidden=!canUpgrade});
+    }).catch(()=>{});
     document.querySelector('#askButton')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{showToast('Ask Creature is unavailable right now.')}});
     document.querySelector('#drawerClose')?.addEventListener('click',()=>document.querySelector('#askDrawer').classList.remove('open'));
     document.querySelector('#mobileToggle')?.addEventListener('click',()=>document.querySelector('#sidebar').classList.toggle('open'));

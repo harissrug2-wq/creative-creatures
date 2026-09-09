@@ -38,6 +38,8 @@
 .top-link{font-size:12px}
 .coming{font-size:8px}
 .ask-button{font-size:11px}
+.upgrade-button{margin-left:10px;height:32px;padding:0 11px;border-radius:8px;background:#2f35f4;color:#fff;display:flex;align-items:center;text-decoration:none;font-size:11px;font-weight:700}
+[data-workspace-feature][hidden],#askButton[hidden],#mobileAskButton[hidden],[data-account-upgrade][hidden]{display:none!important}
 .page-title{font-size:30px}
 .page-subtitle{font-size:13px}
 .owner-pill,.period button,.date-control,.source-pill{font-size:10px}
@@ -147,7 +149,7 @@
 /* CC_MONITOR_UNIFIED_MENU_V1 */
 html,body,.monitor-app{max-width:100%;overflow-x:clip}
 .top-menu-toggle,.top-menu-panel{display:none}
-@media(max-width:1600px){
+@media(max-width:1050px){
   .topbar{gap:10px}
   .topnav,.ask-button{display:none!important}
   .top-menu-toggle{display:grid;place-items:center;margin-left:auto;width:40px;height:38px;border:1px solid var(--line);border-radius:9px;background:#fff;color:#303744;cursor:pointer}

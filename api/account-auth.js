@@ -210,7 +210,9 @@ const PLAN_FEATURES={
 function planFromJourney(journey){return journey==='platform'?'platform':journey==='accelerator'?'accelerator':'diagnostic'}
 function accessPlan(account){return PLAN_FEATURES[account?.access_plan]?account.access_plan:planFromJourney(account?.journey)}
 function featuresForAccount(account){
-  const plan=accessPlan(account),features=new Set(PLAN_FEATURES[plan]||PLAN_FEATURES.diagnostic);
+  const plan=accessPlan(account),purchased=Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[],features=new Set();
+  for(const purchasedPlan of [...purchased,plan])for(const feature of PLAN_FEATURES[purchasedPlan]||[])features.add(feature);
+  if(!features.size)for(const feature of PLAN_FEATURES.diagnostic)features.add(feature);
   // The Package guide grants full Platform access after the six-session
   // Breakthrough Accelerator has been completed.
   if(plan==='accelerator'&&account?.diagnostic_state?.acceleratorCompleted===true){
@@ -229,7 +231,7 @@ function sanitizeDepartments(value){return [...new Set((Array.isArray(value)?val
 function requireOwner(actor){if(actor?.role!=='owner')throw Object.assign(new Error('Only the agency owner can manage users or integrations.'),{status:403})}
 function requireDepartment(actor,department){if(actor?.role==='member'&&!actor.departments.includes(department))throw Object.assign(new Error('Your account does not have access to this department.'),{status:403})}
 function requireFeature(account,feature){if(!featuresForAccount(account).includes(feature))throw Object.assign(new Error(`${feature.replace(/-/g,' ')} is not included in this agency plan.`),{status:403})}
-function publicAccess(account,actor){const plan=accessPlan(account);return{plan,features:featuresForAccount(account),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS}}
+function publicAccess(account,actor){const plan=accessPlan(account),purchasedPlans=[...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);return{plan,purchasedPlans,features:featuresForAccount(account),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS}}
 async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
 function responseText(payload){if(clean(payload?.output_text))return clean(payload.output_text);for(const item of payload?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&clean(part.text))return clean(part.text);return''}
 async function askCreature(c,account,actor,input){
