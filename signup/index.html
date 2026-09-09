@@ -1,147 +1,140 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Start your journey · Creative Creatures</title>
-  <meta name="description" content="Choose how you want to work on your agency: Fractional COO, Platform, Accelerator, or Diagnostic.">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Choose your path · Creative Creatures</title>
+  <meta name="description" content="Start free with the Owner Archetype report, or choose the Creative Creatures engagement that fits your agency.">
   <link rel="icon" href="/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/portal/base.css">
-  <link rel="stylesheet" href="/portal/signup.css">
+  <link rel="stylesheet" href="/portal/signup-choice.css">
 </head>
-<body class="journey-choice-page signup-light-page">
-  <div class="page-top-glow"></div>
+<body class="signup-choice-page">
+  <div class="signup-choice-shell">
+    <div class="signup-choice-ambient" aria-hidden="true">
+      <span class="signup-choice-glow signup-choice-glow--primary"></span>
+      <span class="signup-choice-glow signup-choice-glow--accent"></span>
+    </div>
 
-  <div class="page-wrapper">
-    <!-- Top Navigation Header -->
-    <header class="top-header">
-      <a href="/login/" class="header-brand">
-        <svg class="header-brand-icon" width="28" height="28" viewBox="0 0 32 32" fill="none">
-          <circle cx="16" cy="16" r="16" fill="url(#logo-grad)"/>
-          <path d="M10 16L14 20L22 12" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-          <defs>
-            <linearGradient id="logo-grad" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-              <stop stop-color="#2563EB"/>
-              <stop offset="1" stop-color="#7C3AED"/>
-            </linearGradient>
-          </defs>
-        </svg>
-        <span>creative<br><small style="font-weight:400;font-size:12px;color:#6b7280;">CREATURES</small></span>
+    <header class="signup-choice-header">
+      <a href="/login/" class="signup-choice-wordmark" aria-label="Creative Creatures sign in">
+        <img src="/portal/creative-creatures-logo.png" alt="Creative Creatures">
       </a>
-      <a href="/login/" class="header-signin">Sign in</a>
+      <a href="/login/" class="signup-choice-signin">Sign in</a>
     </header>
 
-    <!-- Hero Section -->
-    <section class="hero-header">
-      <h1>Choose how you want to work<br>on your agency</h1>
-      <p>
-        Every path starts from the same place — owner identity — then goes as<br class="desktop-break">
-        deep as you want: self-guided platform, facilitated program, or senior eyes<br class="desktop-break">
-        on the business 1:1.
-      </p>
-      <div class="guarantee-pill">
-        <svg class="shield-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    <main>
+      <section class="signup-choice-hero">
+        <h1>Choose how you want to work on your agency</h1>
+        <p>Every path starts from the same place — owner identity — then goes as deep as you want: self-guided platform, facilitated program, or senior eyes on the business 1:1.</p>
+        <div class="signup-choice-guarantee-pill">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path><path d="m9 12 2 2 4-4"></path></svg>
+          <span>Every paid engagement is backed by our 100% money-back performance guarantee</span>
+        </div>
+      </section>
+
+      <section class="signup-choice-archetype-wrap" aria-label="Free owner archetype">
+        <a href="/owner-archetype/" class="signup-choice-archetype-card">
+          <span class="signup-choice-archetype-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></svg>
+          </span>
+          <span class="signup-choice-archetype-copy">
+            <span class="signup-choice-archetype-title">
+              <strong>Get your Owner Archetype (Identity Report)</strong>
+              <span class="signup-choice-free-badge">Free</span>
+            </span>
+            <span class="signup-choice-archetype-description">A short questionnaire that names the owner style setting your agency's ceiling — and the freedom implications of it. No card required, and it is the starting point for every paid engagement below.</span>
+          </span>
+          <span class="signup-choice-start-button">Start free <span aria-hidden="true">→</span></span>
+        </a>
+      </section>
+
+      <section class="signup-choice-grid" aria-label="Choose your engagement">
+        <a href="/signup/fractional-coo/" class="signup-choice-card" style="--offer-accent:#f59e0b;">
+          <span class="signup-choice-card-badge" style="--badge-color:#f59e0b;">Most support</span>
+          <span class="signup-choice-card-accent" aria-hidden="true"></span>
+          <h2>Fractional COO + Platform Bundle</h2>
+          <strong class="signup-choice-price">$2,500 guided setup + $3,997/mo</strong>
+          <span class="signup-choice-price-meta">guided setup · month to month</span>
+          <p>An operator in your business, plus the platform that runs the plan.</p>
+          <ul>
+            <li>Fractional COO / accountability partner</li>
+            <li>Guided setup of the full platform and back office</li>
+            <li>Weekly leadership cadence and KPI scorecards</li>
+            <li>90-day priorities and 1-year growth plan owned with you</li>
+            <li>Department dashboards across the whole agency</li>
+          </ul>
+          <span class="signup-choice-learn">Learn more &amp; start <span aria-hidden="true">→</span></span>
+        </a>
+
+        <a href="/signup/platform/" class="signup-choice-card" style="--offer-accent:#8b5cf6;">
+          <span class="signup-choice-card-accent" aria-hidden="true"></span>
+          <h2>Platform / Partner Portal</h2>
+          <strong class="signup-choice-price">$497 / month</strong>
+          <span class="signup-choice-price-meta">self-guided setup</span>
+          <p>The Agency Intelligence Platform, self-guided.</p>
+          <ul>
+            <li>Strength, Performance and Owner Dependency indexes</li>
+            <li>Agency valuation and top issues &amp; opportunities</li>
+            <li>Agency dashboard and scorecard</li>
+            <li>Executive leadership and department management</li>
+            <li>AI monitors and intelligence layer</li>
+          </ul>
+          <span class="signup-choice-learn">Learn more &amp; start <span aria-hidden="true">→</span></span>
+        </a>
+
+        <a href="/signup/accelerator/" class="signup-choice-card" style="--offer-accent:#0ea5e9;">
+          <span class="signup-choice-card-accent" aria-hidden="true"></span>
+          <h2>Facilitated Breakthrough Accelerator</h2>
+          <strong class="signup-choice-price">$4,600 facilitated · or from $599 pay as you go</strong>
+          <span class="signup-choice-price-meta">6 sessions</span>
+          <p>A 90-day, 6-session breakthrough program.</p>
+          <ul>
+            <li>6 sessions across 90 days</li>
+            <li>Strength, Performance and Owner Dependency work</li>
+            <li>Financial performance deep dive</li>
+            <li>Clarity, goals and 90-day priorities</li>
+            <li>Facilitated cohort saves 20% vs. module pricing</li>
+          </ul>
+          <span class="signup-choice-learn">Learn more &amp; start <span aria-hidden="true">→</span></span>
+        </a>
+
+        <a href="/signup/diagnostic/" class="signup-choice-card" style="--offer-accent:#22c55e;">
+          <span class="signup-choice-card-badge" style="--badge-color:#22c55e;">Deepest analysis</span>
+          <span class="signup-choice-card-accent" aria-hidden="true"></span>
+          <h2>1:1 Analysis &amp; Planning Diagnostic</h2>
+          <strong class="signup-choice-price">$6,400</strong>
+          <span class="signup-choice-price-meta">per agency · one-time</span>
+          <p>A private, done-with-you analysis of the whole agency.</p>
+          <ul>
+            <li>1:1 sessions with Tony Lael</li>
+            <li>Strength, Performance and Owner Dependency analysis</li>
+            <li>Agency valuation and risk review</li>
+            <li>Top issues and opportunities, ranked</li>
+            <li>90 day priorities plus a 1 year growth plan</li>
+          </ul>
+          <span class="signup-choice-learn">Learn more &amp; start <span aria-hidden="true">→</span></span>
+        </a>
+      </section>
+
+      <section class="signup-choice-guarantee" aria-label="Money-back guarantee">
+        <svg class="signup-choice-seal" viewBox="0 0 100 100" role="img" aria-label="100% money-back performance guarantee">
+          <polygon points="50.00,0.00 56.41,9.50 65.45,2.45 68.61,13.47 79.39,9.55 78.99,21.01 90.45,20.61 86.53,31.39 97.55,34.55 90.50,43.59 100.00,50.00 90.50,56.41 97.55,65.45 86.53,68.61 90.45,79.39 78.99,78.99 79.39,90.45 68.61,86.53 65.45,97.55 56.41,90.50 50.00,100.00 43.59,90.50 34.55,97.55 31.39,86.53 20.61,90.45 21.01,78.99 9.55,79.39 13.47,68.61 2.45,65.45 9.50,56.41 0.00,50.00 9.50,43.59 2.45,34.55 13.47,31.39 9.55,20.61 21.01,21.01 20.61,9.55 31.39,13.47 34.55,2.45 43.59,9.50" fill="#272cf3"></polygon>
+          <circle cx="50" cy="50" r="35" fill="none" stroke="rgba(255,255,255,.72)" stroke-width="1.2"></circle>
+          <text x="50" y="43" text-anchor="middle" fill="#fff" font-size="19" font-weight="800">100%</text>
+          <text x="50" y="55" text-anchor="middle" fill="#fff" font-size="7.6" font-weight="700">MONEY-BACK</text>
+          <text x="50" y="63.5" text-anchor="middle" fill="#fff" font-size="7.6" font-weight="700">PERFORMANCE</text>
+          <text x="50" y="72" text-anchor="middle" fill="#fff" font-size="7.6" font-weight="700">GUARANTEE</text>
         </svg>
-        Every paid engagement is backed by our 100% money-back performance guarantee
-      </div>
-    </section>
-
-    <!-- FREE FOUNDATION BANNER -->
-    <div class="archetype-banner-card archetype-banner-card--featured">
-      <div class="archetype-banner-left">
-        <div class="archetype-icon-box"><svg class="spark-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"/></svg></div>
-        <div><div class="archetype-title-row"><h3>Get your Owner Archetype (Identity Report)</h3><span class="free-pill">Free</span></div><p class="archetype-desc">A short questionnaire that names the owner style setting your agency's ceiling — and the freedom implications of it. No card required, and it is the starting point for every paid engagement below.</p></div>
-      </div>
-      <a href="/signup/lookup/?destination=diagnostic" class="btn-start-free">Start free &rarr;</a>
-    </div>
-
-    <!-- 4 OFFER CARDS GRID (All 4 cards are fully clickable links) -->
-    <div class="offer-cards-grid">
-      
-      <!-- Card 1: Fractional COO + Platform Bundle -->
-      <a href="/signup/fractional-coo/" class="offer-card">
-        <div class="card-top-line line-amber"></div>
-        <div class="card-top-badge badge-most-support">Most support</div>
-        <h2 class="card-heading">Fractional COO + Platform Bundle</h2>
-        <div class="card-pricing-row">$2,500 guided setup + $3,997/mo</div>
-        <div class="card-sublabel">GUIDED SETUP · MONTH TO MONTH</div>
-        <p class="card-description">An operator in your business, plus the platform that runs the plan.</p>
-        <ul class="card-checklist">
-          <li><i class="check-amber">✓</i> Fractional COO / accountability partner</li>
-          <li><i class="check-amber">✓</i> Guided setup of the full platform and back office</li>
-          <li><i class="check-amber">✓</i> Weekly leadership cadence and KPI scorecards</li>
-          <li><i class="check-amber">✓</i> 90-day priorities and 1-year growth plan owned with you</li>
-          <li><i class="check-amber">✓</i> Department dashboards across the whole agency</li>
-        </ul>
-        <span class="card-learn-more">Learn more & start &rarr;</span>
-      </a>
-
-      <!-- Card 2: Platform / Partner Portal -->
-      <a href="/signup/platform/" class="offer-card">
-        <div class="card-top-line line-purple"></div>
-        <h2 class="card-heading">Platform / Partner Portal</h2>
-        <div class="card-pricing-row">$497 / month</div>
-        <div class="card-sublabel">SELF-GUIDED SETUP</div>
-        <p class="card-description">The Agency Intelligence Platform, self-guided.</p>
-        <ul class="card-checklist">
-          <li><i class="check-purple">✓</i> Strength, Performance and Owner Dependency indexes</li>
-          <li><i class="check-purple">✓</i> Agency valuation and top issues & opportunities</li>
-          <li><i class="check-purple">✓</i> Agency dashboard and scorecard</li>
-          <li><i class="check-purple">✓</i> Executive leadership and department management</li>
-          <li><i class="check-purple">✓</i> AI monitors and intelligence layer</li>
-        </ul>
-        <span class="card-learn-more">Learn more & start &rarr;</span>
-      </a>
-
-      <!-- Card 3: Facilitated Breakthrough Accelerator -->
-      <a href="/signup/accelerator/" class="offer-card">
-        <div class="card-top-line line-blue"></div>
-        <h2 class="card-heading">Facilitated Breakthrough Accelerator</h2>
-        <div class="card-pricing-row">$4,600 facilitated · or from $599 pay as you go</div>
-        <div class="card-sublabel">6 SESSIONS</div>
-        <p class="card-description">A 90-day, 6-session breakthrough program.</p>
-        <ul class="card-checklist">
-          <li><i class="check-blue">✓</i> 6 sessions across 90 days</li>
-          <li><i class="check-blue">✓</i> Strength, Performance and Owner Dependency work</li>
-          <li><i class="check-blue">✓</i> Financial performance deep dive</li>
-          <li><i class="check-blue">✓</i> Clarity, goals and 90-day priorities</li>
-          <li><i class="check-blue">✓</i> Facilitated cohort saves 20% vs. module pricing</li>
-        </ul>
-        <span class="card-learn-more">Learn more & start &rarr;</span>
-      </a>
-
-      <!-- Card 4: 1:1 Analysis & Planning Diagnostic -->
-      <a href="/signup/diagnostic/" class="offer-card">
-        <div class="card-top-line line-emerald"></div>
-        <div class="card-top-badge badge-deepest-analysis">Deepest analysis</div>
-        <h2 class="card-heading">1:1 Analysis & Planning Diagnostic</h2>
-        <div class="card-pricing-row">$6,400</div>
-        <div class="card-sublabel">PER AGENCY · ONE-TIME</div>
-        <p class="card-description">A private, done-with-you analysis of the whole agency.</p>
-        <ul class="card-checklist">
-          <li><i class="check-emerald">✓</i> 1:1 sessions with Tony Lael</li>
-          <li><i class="check-emerald">✓</i> Strength, Performance and Owner Dependency analysis</li>
-          <li><i class="check-emerald">✓</i> Agency valuation and risk review</li>
-          <li><i class="check-emerald">✓</i> Top issues and opportunities, ranked</li>
-          <li><i class="check-emerald">✓</i> 90 day priorities plus a 1 year growth plan</li>
-        </ul>
-        <span class="card-learn-more">Learn more & start &rarr;</span>
-      </a>
-
-    </div>
-
-    <!-- GUARANTEE AFTER ALL PAID ENGAGEMENTS -->
-    <div class="guarantee-banner-card guarantee-banner-card--bottom">
-      <svg class="guarantee-emblem" viewBox="0 0 100 100" fill="none"><path d="M50 5L55.9 12.3L65.3 10.9L68.8 19.7L78 21.6L78.6 31.1L86.6 36.2L84.1 45.4L90.1 52.8L84.8 60.7L88 70L80.4 75.8L80.9 85.3L71.4 88.2L68.8 97L59.7 96L54.4 103.8L45.6 100.9L38.4 106.8L33.7 98.4L24.3 98L22.2 88.8L13.1 85.7L14.7 76.3L6.8 71.1L10.8 62.4L4.8 55L10.1 47.1L6.9 37.8L14.5 32L14 22.5L23.5 19.6L26.1 10.8L35.2 11.8L40.5 4L50 5Z" fill="#272CF3"/><circle cx="50" cy="50" r="38" stroke="white" stroke-width="2"/><text x="50" y="44" fill="white" font-size="14" font-weight="900" text-anchor="middle">100%</text><text x="50" y="54" fill="white" font-size="7" font-weight="800" text-anchor="middle">MONEY-BACK</text><text x="50" y="62" fill="white" font-size="6.5" font-weight="800" text-anchor="middle">PERFORMANCE</text><text x="50" y="70" fill="white" font-size="6" font-weight="800" text-anchor="middle">GUARANTEE</text></svg>
-      <div class="guarantee-banner-content"><h2>100% money-back performance guarantee</h2><p>Do the work with us and if you don't walk away with a clear scorecard, ranked priorities, and a plan you can act on, we refund your investment in full — on every paid engagement above.</p></div>
-    </div>
-
+        <div>
+          <h2>100% money-back performance guarantee</h2>
+          <p>Do the work with us and if you don't walk away with a clear scorecard, ranked priorities, and a plan you can act on, we refund your investment in full — on every paid engagement above.</p>
+        </div>
+      </section>
+    </main>
   </div>
-
-  <script type="module" src="/portal/signup-3.js"></script>
 </body>
 </html>
