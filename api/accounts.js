@@ -359,12 +359,15 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      if (String(body.source || '').toLowerCase() === 'admin-console' && !requireAdmin(req)) return json(res, 401, { error: 'Admin authentication required.' });
+      const isAdminRequest = Boolean(requireAdmin(req));
+      if (String(body.source || '').toLowerCase() === 'admin-console' && !isAdminRequest) return json(res, 401, { error: 'Admin authentication required.' });
       const name = clean(body.name || `${body.firstName || ''} ${body.lastName || ''}`);
       const email = lower(body.email);
       const agencyUrl = clean(body.agencyUrl || body.agency_url);
       const normalizedUrl = normalizeAgencyUrl(agencyUrl);
-      const accessPlan = normalizePlan(body.accessPlan || body.access_plan || body.journey);
+      // Public account requests cannot self-assign a paid package. Signup plan
+      // activation is performed by payment-confirmation after payment succeeds.
+      const accessPlan = isAdminRequest ? normalizePlan(body.accessPlan || body.access_plan || body.journey) : 'diagnostic';
       const journey = planJourney(accessPlan);
 
       if (!name || !email || !normalizedUrl) return json(res, 422, { error: 'Name, email, and agency URL are required.' });
@@ -425,8 +428,12 @@ export default async function handler(req, res) {
       if (body.diagnosticState || body.diagnostic_state) patch.diagnostic_state = body.diagnosticState || body.diagnostic_state;
       if (body.reportData || body.report_data) patch.report_data = body.reportData || body.report_data;
       if (body.archetypeResult || body.archetype_result) patch.archetype_result = body.archetypeResult || body.archetype_result;
-      if (body.journey && ['platform', 'diagnostic', 'accelerator'].includes(body.journey)) patch.journey = body.journey;
+      if (body.journey && ['platform', 'diagnostic', 'accelerator'].includes(body.journey)) {
+        if (!requireAdmin(req)) return json(res, 403, { error: 'Plan access can only be changed by an administrator or a verified payment.' });
+        patch.journey = body.journey;
+      }
       if (body.accessPlan || body.access_plan) {
+        if (!requireAdmin(req)) return json(res, 403, { error: 'Plan access can only be changed by an administrator or a verified payment.' });
         patch.access_plan = normalizePlan(body.accessPlan || body.access_plan);
         patch.journey = planJourney(patch.access_plan);
       }

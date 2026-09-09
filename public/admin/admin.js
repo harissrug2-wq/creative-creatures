@@ -99,6 +99,7 @@
       agencyUrl: String(item.agency_url || report.agencyWebsite || '').trim(),
       source: String(item.source || '').trim(),
       journey: String(item.journey || 'diagnostic').trim(),
+      accessPlan: String(item.accessPlan || item.access_plan || item.journey || 'diagnostic').trim(),
       archetypeTitle: String(archetype.title || report.archetypeTitle || '').trim(),
       reportData: report,
       visitDate,
@@ -145,7 +146,7 @@
       ? fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' })
       : Promise.resolve(null);
     const leadPromise = needsOwnerHistory
-      ? fetch(OWNER_LEAD_API, { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin_history' }) })
+      ? fetch(`${OWNER_LEAD_API}?all=true`, { cache: 'no-store' })
       : Promise.resolve(null);
 
     const [accountResult, leadResult] = await Promise.allSettled([accountPromise, leadPromise]);
@@ -167,7 +168,7 @@
       } else {
         const payload = await accountsResponse.json();
         allAccounts = (Array.isArray(payload.accounts) ? payload.accounts : []).map(normalizeAccount).filter(Boolean);
-        diagnostics = allAccounts.filter(account => account.journey === 'diagnostic' && isActivatedDiagnostic(account));
+        diagnostics = allAccounts;
       }
     }
 
@@ -203,6 +204,15 @@
     return { label: 'Activated', className: 'neutral' };
   }
 
+  function planLabel(account) {
+    return ({
+      diagnostic: '1:1 Diagnostic',
+      accelerator: 'Accelerator',
+      platform: 'Platform',
+      fractional_coo: 'Fractional COO'
+    })[account?.accessPlan] || 'Agency';
+  }
+
   function renderDiagnosticsGrid(items) {
     const grid = document.querySelector('#agencyGrid');
     if (!grid) return;
@@ -210,8 +220,8 @@
     if (!items.length) {
       grid.innerHTML = `
         <div class="empty-state">
-          <h3>No paid diagnostics yet</h3>
-          <p>Owner Archetype leads will move here automatically after their Agency Diagnostic payment is recorded.</p>
+          <h3>No agency accounts yet</h3>
+          <p>Every agency account created through signup will appear here.</p>
         </div>`;
       return;
     }
@@ -228,7 +238,7 @@
               </svg>
             </div>
             <div class="agency-name">
-              <h2>${escapeHtml(account.agencyName)} <span class="plan">Diagnostic</span></h2>
+              <h2>${escapeHtml(account.agencyName)} <span class="plan">${escapeHtml(planLabel(account))}</span></h2>
               <p>${escapeHtml(account.email || 'No email')}</p>
               ${account.archetypeTitle ? `<div class="archetype-pill">⚡ ${escapeHtml(account.archetypeTitle)}</div>` : ''}
             </div>
@@ -366,20 +376,20 @@
 
     if (!filtered.length) {
       container.innerHTML = `
-        <div class="roll-row diagnostic header"><span>Diagnostic</span><span>Assessments</span><span>Analysis</span><span>Status</span><span>Action</span></div>
+        <div class="roll-row diagnostic header"><span>Agency</span><span>Assessments</span><span>Analysis</span><span>Status</span><span>Action</span></div>
         <div class="admin-table-empty">No matching diagnostic accounts found.</div>`;
       return;
     }
 
     container.innerHTML = `
-      <div class="roll-row diagnostic header"><span>Diagnostic</span><span>Assessments</span><span>Analysis</span><span>Status</span><span>Action</span></div>
+      <div class="roll-row diagnostic header"><span>Agency</span><span>Assessments</span><span>Analysis</span><span>Status</span><span>Action</span></div>
       ${filtered.map(account => {
         const status = diagnosticStatus(account);
         return `
           <div class="roll-row diagnostic">
             <div class="roll-agency">
               <span class="agency-icon"><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg></span>
-              <div><h3>${escapeHtml(account.agencyName)} <span class="plan">Diagnostic</span></h3><p>${escapeHtml(account.email)}</p>${account.archetypeTitle ? `<div class="archetype-pill">⚡ ${escapeHtml(account.archetypeTitle)}</div>` : ''}</div>
+              <div><h3>${escapeHtml(account.agencyName)} <span class="plan">${escapeHtml(planLabel(account))}</span></h3><p>${escapeHtml(account.email)}</p>${account.archetypeTitle ? `<div class="archetype-pill">⚡ ${escapeHtml(account.archetypeTitle)}</div>` : ''}</div>
             </div>
             <strong>${account.completeCount}/3</strong>
             <div class="progress-cell"><div class="bar"><span style="width:${account.averageProgress}%"></span></div><span>${account.averageProgress}%</span></div>

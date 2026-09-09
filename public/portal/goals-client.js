@@ -68,6 +68,7 @@
 
   const saveTarget = (metricId, targetType, targetValue, targetNotes = '', targetDirection = 'increase') =>
     action('set_target', { metricId, targetType, targetValue, targetNotes, targetDirection });
+  const saveTargets = targets => action('bulk_set_targets', { targets });
 
   const saveProgress = (metricId, actualValue, note = '') => action('save_progress', { metricId, actualValue, note });
   const saveDepartment = department => action('save_department', department);
@@ -76,5 +77,5 @@
   const complete = () => action('complete');
   const clear = () => { cached = null; };
 
-  window.CCGoals = { load, saveTarget, saveProgress, saveDepartment, createRocks, updateRock, complete, clear };
+  window.CCGoals = { load, saveTarget, saveTargets, saveProgress, saveDepartment, createRocks, updateRock, complete, clear };
 })();

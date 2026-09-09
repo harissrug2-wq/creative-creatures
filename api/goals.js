@@ -764,7 +764,7 @@ function resolveTarget(definition, actualValue, targetType, rawValue, direction)
   };
 }
 
-async function upsertTarget(config, accountId, body, currentMetric) {
+function targetRecord(accountId, body, currentMetric) {
   const definition = METRICS.find(item => item.id === clean(body.metricId));
   if (!definition) {
     const error = new Error('Unknown agency goal metric.');
@@ -776,28 +776,61 @@ async function upsertTarget(config, accountId, body, currentMetric) {
   const actualValue = currentMetric?.available ? finite(currentMetric.actualValue) : null;
   const target = resolveTarget(definition, actualValue, targetType, body.targetValue, clean(body.targetDirection));
 
-  const path = 'agency_goals?on_conflict=account_id%2Cmetric_id';
-  const rows = await supabaseRequest(config, path, {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify({
-      account_id: accountId,
-      metric_id: definition.id,
-      target_type: targetType,
-      target_value: target.storedValue,
-      baseline_actual_value: target.baselineValue,
-      resolved_target_value: target.resolvedValue,
-      target_notes: clean(body.targetNotes),
-      updated_at: new Date().toISOString()
-    })
-  });
+  return {
+    account_id: accountId,
+    metric_id: definition.id,
+    target_type: targetType,
+    target_value: target.storedValue,
+    baseline_actual_value: target.baselineValue,
+    resolved_target_value: target.resolvedValue,
+    target_notes: clean(body.targetNotes),
+    updated_at: new Date().toISOString()
+  };
+}
 
-  const row = Array.isArray(rows) ? rows[0] || null : rows;
+function normalizeSavedTarget(row) {
   return row ? {
     ...row,
     baseline_actual_value: row.baseline_actual_value === null ? null : Number(row.baseline_actual_value),
     resolved_target_value: row.resolved_target_value === null ? null : Number(row.resolved_target_value)
   } : row;
+}
+
+async function upsertTarget(config, accountId, body, currentMetric) {
+  const record = targetRecord(accountId, body, currentMetric);
+
+  const path = 'agency_goals?on_conflict=account_id%2Cmetric_id';
+  const rows = await supabaseRequest(config, path, {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify(record)
+  });
+
+  const row = Array.isArray(rows) ? rows[0] || null : rows;
+  return normalizeSavedTarget(row);
+}
+
+async function upsertTargets(config, accountId, targetInputs, metrics) {
+  if (!Array.isArray(targetInputs) || !targetInputs.length) {
+    const error = new Error('Add at least one target before saving.');
+    error.status = 422;
+    throw error;
+  }
+  if (targetInputs.length > METRICS.length) {
+    const error = new Error('Too many Agency Goal targets were submitted.');
+    error.status = 422;
+    throw error;
+  }
+  const unique = new Map();
+  for (const input of targetInputs) unique.set(clean(input?.metricId), input);
+  const metricMap = new Map(metrics.map(metric => [metric.id, metric]));
+  const records = [...unique.values()].map(input => targetRecord(accountId, input, metricMap.get(clean(input.metricId)) || null));
+  const rows = await supabaseRequest(config, 'agency_goals?on_conflict=account_id%2Cmetric_id', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    body: JSON.stringify(records)
+  });
+  return (Array.isArray(rows) ? rows : []).map(normalizeSavedTarget);
 }
 
 async function upsertDepartment(config, accountId, body) {
@@ -955,6 +988,11 @@ export default async function handler(req, res) {
       const currentMetric = model.metrics.find(item => item.id === clean(body.metricId)) || null;
       const row = await upsertTarget(config, account.id, body, currentMetric);
       return json(res, 200, { ok: true, target: row });
+    }
+    if (action === 'bulk_set_targets') {
+      const model = await loadModel(config, account);
+      const rows = await upsertTargets(config, account.id, body.targets, model.metrics);
+      return json(res, 200, { ok: true, targets: rows });
     }
     if (action === 'save_progress') {
       const run = await getCurrentRun(config, account.id);

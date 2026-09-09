@@ -21,6 +21,9 @@
     @media(max-width:900px){.wrap{width:min(100% - 32px,1180px);padding-top:28px}.head{align-items:flex-start;flex-direction:column}.goals-grid{grid-template-columns:repeat(2,1fr)}.rock-row{grid-template-columns:1fr 1fr}.rock-title{grid-column:1/-1}}
     @media(max-width:580px){.wrap{width:calc(100% - 24px);padding-top:24px;padding-bottom:60px}.head h1{font-size:31px}.goals-grid{grid-template-columns:1fr}.section-head{align-items:flex-start;flex-direction:column;gap:6px}.finish-complete-btn{width:100%;justify-content:center}.rock-row{grid-template-columns:1fr}.rock-title{grid-column:auto}.modal{padding:24px 20px}.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions{flex-direction:column-reverse}.modal-actions .button{width:100%}}
 .goals-update-actions{align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:16px}.goals-update-actions>span{font-size:12px;color:var(--muted)}
+.goal-card.pending{border-color:#9296ff;box-shadow:0 0 0 2px rgba(39,44,243,.08)}
+.target-batch-bar{position:sticky;bottom:14px;z-index:20;margin:18px 0 0;padding:14px 16px;border:1px solid #d8dafd;border-radius:14px;background:rgba(255,255,255,.96);box-shadow:0 10px 30px rgba(31,35,160,.12);display:flex;align-items:center;justify-content:space-between;gap:16px}.target-batch-bar span{font-size:13px;color:var(--muted)}.target-batch-bar strong{color:#2529df}.target-batch-bar button:disabled{opacity:.5;cursor:not-allowed}
+@media(max-width:580px){.target-batch-bar{align-items:stretch;flex-direction:column;bottom:8px}.target-batch-bar .button{width:100%}}
   </style>
 </head>
 <body>
@@ -62,7 +65,7 @@
       </div>
       <div class="modal-actions">
         <button class="button" data-close-target>Cancel</button>
-        <button class="button primary" id="saveTarget">Save Target</button>
+        <button class="button primary" id="saveTarget">Add Target</button>
       </div>
     </section>
   </div>
@@ -186,6 +189,7 @@
     const readiness = model.readiness || {};
     let activeGoal = null;
     let activeProgressGoal = null;
+    const pendingTargets = new Map();
 
     if (model.goalsComplete) {
       localStorage.setItem('agencyGoalsComplete', 'true');
@@ -312,6 +316,11 @@
 
         <div class="goals-grid">
           ${goals.map(goalCard).join('')}
+        </div>
+
+        <div class="target-batch-bar" id="targetBatchBar">
+          <span id="pendingTargetStatus">No unsaved target changes.</span>
+          <button class="button primary" id="saveAllTargets" type="button" disabled>Save All Targets</button>
         </div>
 
         <div class="section-head">
@@ -475,25 +484,59 @@
     targetValueInput.addEventListener('input', syncTargetEditor);
     targetDirectionInput.addEventListener('change', syncTargetEditor);
 
-    document.querySelector('#saveTarget').addEventListener('click', async () => {
+    const updatePendingTargetStatus = () => {
+      const count = pendingTargets.size;
+      document.querySelector('#pendingTargetStatus').innerHTML = count
+        ? `<strong>${count}</strong> unsaved target ${count === 1 ? 'change' : 'changes'} ready to save.`
+        : 'No unsaved target changes.';
+      document.querySelector('#saveAllTargets').disabled = count === 0;
+      const readinessCount = document.querySelector('.readiness-item strong');
+      if (readinessCount) readinessCount.textContent = `${Object.values(targets).filter(Boolean).length} / ${Number(readiness.targetTotal || goals.length)}`;
+    };
+
+    document.querySelector('#saveTarget').addEventListener('click', () => {
       if (!activeGoal) return;
-      const button = document.querySelector('#saveTarget');
-      button.disabled = true;
       try {
-        await window.CCGoals.saveTarget(
-          activeGoal.id,
-          document.querySelector('#targetType').value,
-          document.querySelector('#targetValue').value,
-          document.querySelector('#targetNotes').value,
-          document.querySelector('#targetDirection').value
-        );
+        const targetType = document.querySelector('#targetType').value;
+        const rawInput = document.querySelector('#targetValue').value;
+        if (rawInput === '') throw new Error('Enter a target value.');
+        const raw = Number(rawInput);
+        if (!Number.isFinite(raw) || raw < 0) throw new Error('Enter a valid target value.');
+        const direction = document.querySelector('#targetDirection').value;
+        const signedValue = targetType === 'percent' && direction === 'decrease' ? -Math.abs(raw) : raw;
+        const resolvedValue = targetType === 'percent' ? Number(activeGoal.actualValue) * (1 + signedValue / 100) : raw;
+        if (!Number.isFinite(resolvedValue) || resolvedValue < 0) throw new Error('Enter a valid target value.');
+        const staged = { type: targetType, value: signedValue, baselineValue: activeGoal.actualValue, resolvedValue, direction, notes: document.querySelector('#targetNotes').value };
+        targets[activeGoal.id] = staged;
+        pendingTargets.set(activeGoal.id, { metricId: activeGoal.id, targetType, targetValue: raw, targetNotes: staged.notes, targetDirection: direction });
+        const card = document.querySelector(`[data-goal="${activeGoal.id}"]`);
+        card?.classList.add('pending');
+        const targetElement = card?.querySelector('.target');
+        if (targetElement) {
+          targetElement.classList.remove('empty');
+          targetElement.innerHTML = `<span>Target</span><strong>${esc(formatTarget(activeGoal, staged))}${targetType === 'percent' ? `<small class="target-method">${esc(formatTargetMethod(staged))}</small>` : ''}</strong>`;
+        }
         hide('#targetModal');
-        showToast('Target saved.');
-        setTimeout(() => location.reload(), 300);
+        updatePendingTargetStatus();
+        showToast('Target added. Save all targets when ready.');
       } catch (error) {
-        showToast(error.message || 'Target could not be saved.');
-      } finally {
+        showToast(error.message || 'Target could not be added.');
+      }
+    });
+
+    document.querySelector('#saveAllTargets').addEventListener('click', async () => {
+      const button = document.querySelector('#saveAllTargets');
+      button.disabled = true;
+      button.textContent = 'Saving…';
+      try {
+        await window.CCGoals.saveTargets([...pendingTargets.values()]);
+        pendingTargets.clear();
+        showToast('All target changes saved.');
+        setTimeout(() => location.reload(), 250);
+      } catch (error) {
         button.disabled = false;
+        button.textContent = 'Save All Targets';
+        showToast(error.message || 'Targets could not be saved.');
       }
     });
 
@@ -574,6 +617,10 @@
     });
 
     document.querySelector('#finishGoals').addEventListener('click', async () => {
+      if (pendingTargets.size) {
+        showToast('Save all target changes before finishing Agency Goals.');
+        return;
+      }
       const button = document.querySelector('#finishGoals');
       button.disabled = true;
       try {
