@@ -360,14 +360,31 @@ async function loadLeadership(config, account) {
     issueCounts.set(row.meeting_id, item);
   });
 
+  const today = new Date().toISOString().slice(0, 10);
+  const meetingGroup = row => {
+    if (row.status === 'in_progress') return 0;
+    if (row.status === 'planned' && row.meeting_date >= today) return 1;
+    return 2;
+  };
   const enrichedMeetings = meetings.map(row => ({
     ...row,
     todo_count: todoCounts.get(row.id)?.total || 0,
     open_todo_count: todoCounts.get(row.id)?.open || 0,
     issue_count: issueCounts.get(row.id)?.total || 0,
     open_issue_count: issueCounts.get(row.id)?.open || 0
-  }));
-  const completedRatings = meetings.map(row => Number(row.rating)).filter(Number.isFinite);
+  })).sort((left, right) => {
+    const groupDifference = meetingGroup(left) - meetingGroup(right);
+    if (groupDifference) return groupDifference;
+    const dateDifference = left.meeting_date.localeCompare(right.meeting_date);
+    if (meetingGroup(left) < 2) return dateDifference;
+    return -dateDifference || right.created_at.localeCompare(left.created_at);
+  });
+  const completedMeetings = meetings.filter(row => row.status === 'completed');
+  const completedRatings = completedMeetings
+    .filter(row => row.rating !== null && row.rating !== undefined && row.rating !== '')
+    .map(row => Number(row.rating))
+    .filter(Number.isFinite);
+  const lastCompletedMeeting = completedMeetings[0] || null;
 
   return {
     account: {
@@ -405,7 +422,7 @@ async function loadLeadership(config, account) {
       proven_process: '', guarantee: '', updated_at: null
     },
     summary: {
-      lastMeetingAt: meetings[0]?.meeting_date || null,
+      lastMeetingAt: lastCompletedMeeting?.meeting_date || null,
       openTodos: todos.filter(row => row.status !== 'complete').length,
       openIssues: issues.filter(row => row.status !== 'solved').length,
       averageRating: completedRatings.length
@@ -510,7 +527,7 @@ async function syncCalendarMeeting(config, accountId, body) {
   }
   const record = {
     team_id: team.id,
-    title: clipped(body.title, 220) || `Weekly Leadership L10 â€” ${meetingDate}`,
+    title: clipped(body.title, 220) || `Weekly Leadership L10 — ${meetingDate}`,
     meeting_date: meetingDate,
     source: 'google_calendar',
     calendar_event_id: eventId,
