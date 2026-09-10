@@ -309,13 +309,15 @@
       goodNews: Array.isArray(agenda.goodNews) ? agenda.goodNews : [],
       headlines: Array.isArray(agenda.headlines) ? agenda.headlines : [],
       cascadeMessages: Array.isArray(agenda.cascadeMessages) ? agenda.cascadeMessages : [],
+      keyDecisions: Array.isArray(agenda.keyDecisions) ? agenda.keyDecisions : [],
+      transcriptSummary: clean(agenda.transcriptSummary),
       ratings: Array.isArray(agenda.ratings) ? agenda.ratings : [],
       rockNotes: agenda.rockNotes && typeof agenda.rockNotes === 'object' ? agenda.rockNotes : {}
     };
   }
 
   function agendaInputs(kind, items, placeholder) {
-    return `<div class="lead-l10-items" data-agenda-list="${kind}">${items.map(item => `<div class="lead-l10-inline" data-agenda-item><input value="${esc(item.text || '')}" placeholder="${esc(placeholder)}"><button type="button" data-remove-row aria-label="Remove">×</button></div>`).join('')}</div><div class="lead-l10-add"><input data-agenda-input="${kind}" placeholder="${esc(placeholder)}"><button type="button" data-add-agenda="${kind}">Add</button></div>`;
+    return `<div class="lead-l10-items" data-agenda-list="${kind}">${items.map(item => `<div class="lead-l10-inline" data-agenda-item data-agenda-id="${esc(item.id || '')}"><input value="${esc(item.text || '')}" placeholder="${esc(placeholder)}"><button type="button" data-remove-row aria-label="Remove">×</button></div>`).join('')}</div><div class="lead-l10-add"><input data-agenda-input="${kind}" placeholder="${esc(placeholder)}"><button type="button" data-add-agenda="${kind}">Add</button></div>`;
   }
 
   function meetingSource(item) {
@@ -331,25 +333,26 @@
     })[value] || 'Manual upload';
   }
 
-  function transcriptDraftItems(title, items, renderItem) {
+  function transcriptDraftItems(title, items, renderItem, kind) {
     if (!Array.isArray(items) || !items.length) return '';
     return `<section class="lead-transcript-draft-group"><h6>${esc(title)} <span>${items.length}</span></h6>${items.map((item, index) => {
       const value = typeof item === 'string' ? item : renderItem(item);
       const evidence = typeof item === 'object' ? clean(item.evidence) : '';
-      return `<article><b>${index + 1}</b><div><p>${esc(value)}</p>${evidence ? `<details><summary>Transcript evidence</summary><blockquote>${esc(evidence)}</blockquote></details>` : ''}</div></article>`;
+      return `<article><input type="checkbox" data-draft-select="${esc(kind)}" data-draft-index="${index}" checked aria-label="Apply ${esc(title)} item ${index + 1}"><div><p>${esc(value)}</p>${evidence ? `<details><summary>Transcript evidence</summary><blockquote>${esc(evidence)}</blockquote></details>` : ''}</div></article>`;
     }).join('')}</section>`;
   }
 
   function transcriptDraft(draft) {
     if (!draft || typeof draft !== 'object' || !Object.keys(draft).length) return '';
-    return `<div class="lead-transcript-draft"><div class="lead-transcript-draft-head"><div><small>AI draft for review</small><h5>Meeting outcomes</h5></div><span>Nothing has been added to the agenda yet.</span></div>
-      ${draft.summary ? `<section class="lead-transcript-summary"><h6>Summary</h6><p>${esc(draft.summary)}</p></section>` : ''}
-      ${transcriptDraftItems('Key decisions', draft.keyDecisions, item => item)}
-      ${transcriptDraftItems('Good news', draft.goodNews, item => item.text)}
-      ${transcriptDraftItems('Customer / employee headlines', draft.headlines, item => `${statusLabel(item.kind)}: ${item.text}`)}
-      ${transcriptDraftItems('To-dos', draft.todos, item => `${item.title}${item.ownerName ? ` · ${item.ownerName}` : ''}${item.dueDate ? ` · ${item.dueDate}` : ''}`)}
-      ${transcriptDraftItems('Issues', draft.issues, item => `${item.title}${item.ownerName ? ` · ${item.ownerName}` : ''} · ${statusLabel(item.priority || 'normal')} priority`)}
-      ${transcriptDraftItems('Cascading messages', draft.cascadeMessages, item => item.text)}
+    return `<div class="lead-transcript-draft"><div class="lead-transcript-draft-head"><div><small>AI draft for review</small><h5>Meeting outcomes</h5></div><span>Select only verified outcomes.</span></div>
+      ${draft.summary ? `<section class="lead-transcript-summary"><label><input type="checkbox" data-draft-summary checked><span><b>Summary</b>${esc(draft.summary)}</span></label></section>` : ''}
+      ${transcriptDraftItems('Key decisions', draft.keyDecisions, item => item, 'keyDecisions')}
+      ${transcriptDraftItems('Good news', draft.goodNews, item => item.text, 'goodNews')}
+      ${transcriptDraftItems('Customer / employee headlines', draft.headlines, item => `${statusLabel(item.kind)}: ${item.text}`, 'headlines')}
+      ${transcriptDraftItems('To-dos', draft.todos, item => `${item.title}${item.ownerName ? ` · ${item.ownerName}` : ''}${item.dueDate ? ` · ${item.dueDate}` : ''}`, 'todos')}
+      ${transcriptDraftItems('Issues', draft.issues, item => `${item.title}${item.ownerName ? ` · ${item.ownerName}` : ''} · ${statusLabel(item.priority || 'normal')} priority`, 'issues')}
+      ${transcriptDraftItems('Cascading messages', draft.cascadeMessages, item => item.text, 'cascadeMessages')}
+      <div class="lead-transcript-apply"><button type="button" class="lead-primary" data-apply-transcript>Apply selected to meeting</button><small>Repeated clicks update the same items and do not create duplicates.</small></div>
     </div>`;
   }
 
@@ -444,6 +447,12 @@
     return `<div class="lead-l10-items" data-rating-list>${ratings.map(rating => `<div class="lead-l10-rating" data-rating-item><input class="rating-name" value="${esc(rating.name || '')}" placeholder="Name"><input class="rating-score" type="number" min="1" max="10" value="${esc(rating.score ?? '')}"><input class="rating-note" value="${esc(rating.note || '')}" placeholder="Note (optional)"><button type="button" data-remove-row>×</button></div>`).join('')}</div><div class="lead-l10-rating lead-l10-new-rating"><input data-new-rating-name placeholder="Name"><input data-new-rating-score type="number" min="1" max="10" value="8"><input data-new-rating-note placeholder="Note (optional)"><button type="button" data-add-rating>Add</button></div>`;
   }
 
+  function appliedTranscriptOutcomes(item) {
+    const agenda = agendaFor(item);
+    if (!agenda.transcriptSummary && !agenda.keyDecisions.length) return '';
+    return `<div class="lead-applied-outcomes"><small>Applied from transcript</small>${agenda.transcriptSummary ? `<p>${esc(agenda.transcriptSummary)}</p>` : ''}${agenda.keyDecisions.length ? `<ul>${agenda.keyDecisions.map(row => `<li>${esc(row.text || row)}</li>`).join('')}</ul>` : ''}</div>`;
+  }
+
   function meetingFields(item, today) {
     const agenda = agendaFor(item);
     const meetingDate = item?.meeting_date || today;
@@ -457,7 +466,7 @@
       <section class="lead-l10-section" data-section-card="rocks"><h4><small>5m</small> Rock Review</h4>${rockReview(item)}</section>
       <section class="lead-l10-section" data-section-card="todos"><h4><small>10m</small> To-Do List &amp; Review</h4>${todoReview(item)}</section>
       <section class="lead-l10-section" data-section-card="ids"><h4><small>60m</small> IDS — Identify, Discuss, Solve</h4>${issueReview(item)}</section>
-      <section class="lead-l10-section" data-section-card="conclude"><h4><small>5m</small> Conclude — Cascading Messages &amp; Rating</h4><label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>
+      <section class="lead-l10-section" data-section-card="conclude"><h4><small>5m</small> Conclude — Cascading Messages &amp; Rating</h4>${appliedTranscriptOutcomes(item)}<label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>
       ${meetingTranscriptPanel(item)}`;
   }
 
@@ -616,6 +625,17 @@
           await leadershipAction('process_transcript', { meetingId });
           await loadMeetingTranscript(meetingId);
           showToast('AI draft ready for review.');
+        } else if (button.matches('[data-apply-transcript]')) {
+          const selections = { summary:Boolean(panel.querySelector('[data-draft-summary]:checked')) };
+          panel.querySelectorAll('[data-draft-select]:checked').forEach(input => {
+            (selections[input.dataset.draftSelect] ||= []).push(Number(input.dataset.draftIndex));
+          });
+          state.saving = true; button.disabled = true; button.textContent = 'Applying…';
+          const payload = await leadershipAction('apply_transcript_draft', { meetingId, selections });
+          await refreshData();
+          const meeting = state.leadership.meetings.find(row => row.id === meetingId);
+          openModal('meeting', meeting);
+          showToast(`${payload.appliedCount} transcript outcome${payload.appliedCount === 1 ? '' : 's'} applied.`);
         } else if (button.matches('[data-delete-transcript]')) {
           if (!window.confirm('Delete this meeting transcript and its AI draft?')) return;
           state.saving = true; button.disabled = true; button.textContent = 'Deleting…';
@@ -664,10 +684,16 @@
       } else if (type === 'metric') {
         await leadershipAction('save_metric', fields);
       } else if (type === 'meeting') {
-        const agenda = { version:1, rockNotes:{} };
+        const currentMeeting = state.leadership?.meetings?.find(row => row.id === fields.id);
+        const currentAgenda = agendaFor(currentMeeting);
+        const agenda = {
+          version:1, rockNotes:{},
+          keyDecisions:currentAgenda.keyDecisions,
+          transcriptSummary:currentAgenda.transcriptSummary
+        };
         ['goodNews','headlines','cascadeMessages'].forEach(kind => {
-          agenda[kind] = [...form.querySelectorAll(`[data-agenda-list="${kind}"] [data-agenda-item] input`)]
-            .map(input => ({ id: crypto.randomUUID(), text: clean(input.value) })).filter(item => item.text);
+          agenda[kind] = [...form.querySelectorAll(`[data-agenda-list="${kind}"] [data-agenda-item]`)]
+            .map(row => ({ id:row.dataset.agendaId || crypto.randomUUID(), text:clean(row.querySelector('input')?.value) })).filter(item => item.text);
         });
         agenda.ratings = [...form.querySelectorAll('[data-rating-item]')].map(row => ({
           id: crypto.randomUUID(), name: clean(row.querySelector('.rating-name')?.value),

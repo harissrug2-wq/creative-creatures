@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import { accountSessionSecret, parseCookies, requireAdmin, verifySession } from '../lib/session-utils.js';
 import { runLeadershipCalendarSync } from '../lib/leadership-calendar-sync.js';
 import {
+  applyMeetingTranscriptDraft,
   attachMeetingTranscript,
   deleteMeetingTranscript,
   getMeetingTranscript,
@@ -1181,7 +1182,7 @@ export default async function handler(req, res) {
       const meeting = await saveMeeting(config, account.id, body);
       return json(res, 200, { ok: true, meeting });
     }
-    if (['get_transcript', 'attach_transcript', 'process_transcript', 'delete_transcript'].includes(action)) {
+    if (['get_transcript', 'attach_transcript', 'process_transcript', 'apply_transcript_draft', 'delete_transcript'].includes(action)) {
       const meetingId = optionalUuid(body.meetingId ?? body.meeting_id);
       if (!meetingId) return json(res, 422, { error: 'A valid meeting is required.' });
       const ownedMeeting = await assertOwnedMeeting(config, account.id, meetingId);
@@ -1203,6 +1204,10 @@ export default async function handler(req, res) {
       if (action === 'process_transcript') {
         const transcript = await processMeetingTranscript(context);
         return json(res, 200, { ok: true, transcript });
+      }
+      if (action === 'apply_transcript_draft') {
+        const result = await applyMeetingTranscriptDraft(context, body);
+        return json(res, 200, { ok: true, ...result });
       }
       await deleteMeetingTranscript(context);
       return json(res, 200, { ok: true });
