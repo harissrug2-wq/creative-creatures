@@ -1,5 +1,6 @@
 import crypto from 'node:crypto';
 import { accountSessionSecret, parseCookies, requireAdmin, verifySession } from '../lib/session-utils.js';
+import { runLeadershipCalendarSync } from '../lib/leadership-calendar-sync.js';
 
 const json = (res, status, payload) => {
   res.statusCode = status;
@@ -30,13 +31,22 @@ function getSupabaseConfig() {
   return url && secret ? { url, secret } : null;
 }
 
+function cronAuthorized(req) {
+  const secret = clean(process.env.CRON_SECRET);
+  const supplied = clean(req.headers.authorization).replace(/^Bearer\s+/i, '');
+  if (!secret || !supplied) return false;
+  const expected = Buffer.from(secret);
+  const received = Buffer.from(supplied);
+  return expected.length === received.length && crypto.timingSafeEqual(expected, received);
+}
+
 async function supabaseRequest(config, path, options = {}) {
   const response = await fetch(`${config.url}/rest/v1/${path}`, {
     ...options,
     headers: {
       apikey: config.secret,
       'Content-Type': 'application/json',
-      ...(options.headers || {})
+      ...options.headers
     }
   });
   const text = await response.text();
@@ -500,7 +510,7 @@ async function syncCalendarMeeting(config, accountId, body) {
   }
   const record = {
     team_id: team.id,
-    title: clipped(body.title, 220) || `Weekly Leadership L10 \u2014 ${meetingDate}`,
+    title: clipped(body.title, 220) || `Weekly Leadership L10 â€” ${meetingDate}`,
     meeting_date: meetingDate,
     source: 'google_calendar',
     calendar_event_id: eventId,
@@ -1114,6 +1124,11 @@ export default async function handler(req, res) {
   if (!config) return json(res, 503, { error: 'Leadership database is not configured.', code: 'BACKEND_NOT_CONFIGURED' });
 
   try {
+    if (req.method === 'GET' && clean(req.query?.cron) === 'calendar') {
+      if (!cronAuthorized(req)) return json(res, 401, { error: 'Unauthorized.' });
+      const result = await runLeadershipCalendarSync(config);
+      return json(res, 200, result);
+    }
     const body = req.method === 'POST'
       ? (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}))
       : {};

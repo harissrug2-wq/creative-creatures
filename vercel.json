@@ -4,6 +4,10 @@
   "trailingSlash": true,
   "rewrites": [
     {
+      "source": "/api/leadership-calendar-sync",
+      "destination": "/api/leadership?cron=calendar"
+    },
+    {
       "source": "/api/crm-oauth",
       "destination": "/api/account-auth"
     },
@@ -48,7 +52,7 @@
     "api/financial-evidence.js": {
       "maxDuration": 60
     },
-    "api/leadership-calendar-sync.js": {
+    "api/leadership.js": {
       "maxDuration": 60
     }
   },
