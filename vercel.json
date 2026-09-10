@@ -4,7 +4,7 @@
   "trailingSlash": true,
   "rewrites": [
     {
-      "source": "/api/leadership-calendar-sync",
+      "source": "/api/leadership-calendar-sync/",
       "destination": "/api/leadership?cron=calendar"
     },
     {
@@ -58,7 +58,7 @@
   },
   "crons": [
     {
-      "path": "/api/leadership-calendar-sync",
+      "path": "/api/leadership-calendar-sync/",
       "schedule": "15 2 * * *"
     }
   ]
