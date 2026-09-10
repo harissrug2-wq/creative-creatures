@@ -1,6 +1,11 @@
 import crypto from 'node:crypto';
 import { accountSessionSecret, parseCookies, requireAdmin, verifySession } from '../lib/session-utils.js';
 import { runLeadershipCalendarSync } from '../lib/leadership-calendar-sync.js';
+import {
+  attachMeetingTranscript,
+  deleteMeetingTranscript,
+  getMeetingTranscript
+} from '../lib/leadership-transcripts.js';
 
 const json = (res, status, payload) => {
   res.statusCode = status;
@@ -328,7 +333,7 @@ async function assertOwnedMetric(config, accountId, metricId) {
 
 async function loadLeadership(config, account) {
   const [meetings, todos, issues, plans, rocks, teams, teamMembers, metrics, metricEntries, headlines, attendees, sections, meetingItems] = await Promise.all([
-    getRows(config, 'leadership_meetings', account.id, 'id,team_id,title,meeting_date,status,facilitator_name,notes,transcript_url,rating,rocks_total,rocks_on_track,source,calendar_event_id,calendar_html_url,source_updated_at,agenda,starts_at,ends_at,started_at,completed_at,current_section,meeting_url,calendar_status,transcript_status,transcript_processed_at,created_at,updated_at', 'meeting_date.desc,created_at.desc'),
+    getRows(config, 'leadership_meetings', account.id, 'id,team_id,title,meeting_date,status,facilitator_name,notes,transcript_url,rating,rocks_total,rocks_on_track,source,calendar_event_id,calendar_html_url,source_updated_at,agenda,starts_at,ends_at,started_at,completed_at,current_section,meeting_url,calendar_status,transcript_status,transcript_provider,transcript_external_id,transcript_error,transcript_received_at,transcript_processed_at,created_at,updated_at', 'meeting_date.desc,created_at.desc'),
     getRows(config, 'leadership_todos', account.id, 'id,meeting_id,title,owner_name,due_date,status,created_at,updated_at', 'status.asc,due_date.asc.nullslast,created_at.desc'),
     getRows(config, 'leadership_issues', account.id, 'id,meeting_id,title,description,owner_name,priority,status,solved_at,created_at,updated_at', 'status.asc,created_at.desc'),
     getRows(config, 'leadership_plans', account.id, 'account_id,core_values,core_focus,ten_year_target,three_year_picture,one_year_plan,quarterly_focus,target_market,three_uniques,proven_process,guarantee,updated_at', null),
@@ -1174,6 +1179,22 @@ export default async function handler(req, res) {
     if (action === 'save_meeting') {
       const meeting = await saveMeeting(config, account.id, body);
       return json(res, 200, { ok: true, meeting });
+    }
+    if (['get_transcript', 'attach_transcript', 'delete_transcript'].includes(action)) {
+      const meetingId = optionalUuid(body.meetingId ?? body.meeting_id);
+      if (!meetingId) return json(res, 422, { error: 'A valid meeting is required.' });
+      await assertOwnedMeeting(config, account.id, meetingId);
+      const context = { config, request: supabaseRequest, accountId: account.id, meetingId };
+      if (action === 'get_transcript') {
+        const transcript = await getMeetingTranscript(context);
+        return json(res, 200, { ok: true, transcript });
+      }
+      if (action === 'attach_transcript') {
+        const transcript = await attachMeetingTranscript({ ...context, body });
+        return json(res, 200, { ok: true, transcript });
+      }
+      await deleteMeetingTranscript(context);
+      return json(res, 200, { ok: true });
     }
     if (action === 'sync_calendar_meeting') {
       const result = await syncCalendarMeeting(config, account.id, body);
