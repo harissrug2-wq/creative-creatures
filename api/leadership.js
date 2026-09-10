@@ -4,7 +4,8 @@ import { runLeadershipCalendarSync } from '../lib/leadership-calendar-sync.js';
 import {
   attachMeetingTranscript,
   deleteMeetingTranscript,
-  getMeetingTranscript
+  getMeetingTranscript,
+  processMeetingTranscript
 } from '../lib/leadership-transcripts.js';
 
 const json = (res, status, payload) => {
@@ -260,7 +261,7 @@ function requireLeadershipPlan(account) {
 async function assertOwnedMeeting(config, accountId, meetingId) {
   if (!meetingId) return null;
   const params = new URLSearchParams({
-    select: 'id', id: `eq.${meetingId}`, account_id: `eq.${accountId}`, limit: '1'
+    select: 'id,title,meeting_date', id: `eq.${meetingId}`, account_id: `eq.${accountId}`, limit: '1'
   });
   const rows = await supabaseRequest(config, `leadership_meetings?${params.toString()}`);
   if (!Array.isArray(rows) || !rows[0]) {
@@ -268,7 +269,7 @@ async function assertOwnedMeeting(config, accountId, meetingId) {
     error.status = 422;
     throw error;
   }
-  return meetingId;
+  return rows[0];
 }
 
 async function assertOwnedTeam(config, accountId, teamId) {
@@ -1180,17 +1181,27 @@ export default async function handler(req, res) {
       const meeting = await saveMeeting(config, account.id, body);
       return json(res, 200, { ok: true, meeting });
     }
-    if (['get_transcript', 'attach_transcript', 'delete_transcript'].includes(action)) {
+    if (['get_transcript', 'attach_transcript', 'process_transcript', 'delete_transcript'].includes(action)) {
       const meetingId = optionalUuid(body.meetingId ?? body.meeting_id);
       if (!meetingId) return json(res, 422, { error: 'A valid meeting is required.' });
-      await assertOwnedMeeting(config, account.id, meetingId);
-      const context = { config, request: supabaseRequest, accountId: account.id, meetingId };
+      const ownedMeeting = await assertOwnedMeeting(config, account.id, meetingId);
+      const context = {
+        config,
+        request: supabaseRequest,
+        accountId: account.id,
+        meetingId,
+        meetingDate: ownedMeeting.meeting_date
+      };
       if (action === 'get_transcript') {
         const transcript = await getMeetingTranscript(context);
         return json(res, 200, { ok: true, transcript });
       }
       if (action === 'attach_transcript') {
         const transcript = await attachMeetingTranscript({ ...context, body });
+        return json(res, 200, { ok: true, transcript });
+      }
+      if (action === 'process_transcript') {
+        const transcript = await processMeetingTranscript(context);
         return json(res, 200, { ok: true, transcript });
       }
       await deleteMeetingTranscript(context);
@@ -1260,7 +1271,7 @@ export default async function handler(req, res) {
     return json(res, 422, { error: 'Unknown Leadership action.', code: 'INVALID_ACTION' });
   } catch (error) {
     console.error('leadership API error', error);
-    const status = [400, 401, 403, 404, 409, 422].includes(error.status) ? error.status : 500;
+    const status = [400, 401, 403, 404, 409, 422, 503].includes(error.status) ? error.status : 500;
     return json(res, status, {
       error: error.message || 'Leadership data could not be loaded or saved.',
       code: error.code || 'LEADERSHIP_API_ERROR'
