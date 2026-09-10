@@ -324,6 +324,55 @@
     return 'Created manually. Anyone signed in to this agency account can view or edit.';
   }
 
+  function transcriptProviderLabel(value) {
+    return ({
+      google_meet:'Google Meet', zoom:'Zoom', microsoft_teams:'Microsoft Teams',
+      fathom:'Fathom', fireflies:'Fireflies.ai', manual:'Manual upload', other:'Other platform'
+    })[value] || 'Manual upload';
+  }
+
+  function transcriptDraftItems(title, items, renderItem) {
+    if (!Array.isArray(items) || !items.length) return '';
+    return `<section class="lead-transcript-draft-group"><h6>${esc(title)} <span>${items.length}</span></h6>${items.map((item, index) => {
+      const value = typeof item === 'string' ? item : renderItem(item);
+      const evidence = typeof item === 'object' ? clean(item.evidence) : '';
+      return `<article><b>${index + 1}</b><div><p>${esc(value)}</p>${evidence ? `<details><summary>Transcript evidence</summary><blockquote>${esc(evidence)}</blockquote></details>` : ''}</div></article>`;
+    }).join('')}</section>`;
+  }
+
+  function transcriptDraft(draft) {
+    if (!draft || typeof draft !== 'object' || !Object.keys(draft).length) return '';
+    return `<div class="lead-transcript-draft"><div class="lead-transcript-draft-head"><div><small>AI draft for review</small><h5>Meeting outcomes</h5></div><span>Nothing has been added to the agenda yet.</span></div>
+      ${draft.summary ? `<section class="lead-transcript-summary"><h6>Summary</h6><p>${esc(draft.summary)}</p></section>` : ''}
+      ${transcriptDraftItems('Key decisions', draft.keyDecisions, item => item)}
+      ${transcriptDraftItems('Good news', draft.goodNews, item => item.text)}
+      ${transcriptDraftItems('Customer / employee headlines', draft.headlines, item => `${statusLabel(item.kind)}: ${item.text}`)}
+      ${transcriptDraftItems('To-dos', draft.todos, item => `${item.title}${item.ownerName ? ` · ${item.ownerName}` : ''}${item.dueDate ? ` · ${item.dueDate}` : ''}`)}
+      ${transcriptDraftItems('Issues', draft.issues, item => `${item.title}${item.ownerName ? ` · ${item.ownerName}` : ''} · ${statusLabel(item.priority || 'normal')} priority`)}
+      ${transcriptDraftItems('Cascading messages', draft.cascadeMessages, item => item.text)}
+    </div>`;
+  }
+
+  function transcriptPanelContent(transcript) {
+    const hasTranscript = Boolean(transcript?.id);
+    const status = transcript?.status || 'none';
+    const processing = status === 'processing';
+    return `<div class="lead-transcript-head"><div><small>Meeting intelligence</small><h4>Transcript</h4><p>Paste text or upload a TXT, VTT, or SRT file. AI creates a review draft and never changes the agenda automatically.</p></div>${hasTranscript ? pill(status) : ''}</div>
+      <div class="lead-transcript-grid">
+        <label><span>Source</span><select data-transcript-provider>${['manual','google_meet','zoom','microsoft_teams','fathom','fireflies','other'].map(value => `<option value="${value}" ${transcript?.provider === value ? 'selected':''}>${esc(transcriptProviderLabel(value))}</option>`).join('')}</select></label>
+        <label><span>Transcript file</span><input type="file" data-transcript-file accept=".txt,.vtt,.srt,text/plain,text/vtt,application/x-subrip"></label>
+      </div>
+      <label class="lead-transcript-text"><span>Transcript text</span><textarea data-transcript-text rows="8" maxlength="500000" placeholder="Paste the complete meeting transcript here…">${esc(transcript?.rawText || '')}</textarea><small data-transcript-count>${Number(transcript?.rawText?.length || 0).toLocaleString()} / 500,000 characters</small></label>
+      ${transcript?.errorMessage ? `<p class="lead-transcript-error">${esc(transcript.errorMessage)}</p>` : ''}
+      <div class="lead-transcript-actions"><button type="button" class="lead-secondary" data-attach-transcript>${hasTranscript ? 'Replace transcript' : 'Attach transcript'}</button>${hasTranscript ? `<button type="button" class="lead-primary" data-process-transcript ${processing ? 'disabled':''}>${processing ? 'Processing…' : transcript?.aiDraft && Object.keys(transcript.aiDraft).length ? 'Process again' : 'Generate AI draft'}</button><button type="button" class="lead-danger" data-delete-transcript>Delete</button>` : ''}</div>
+      <p class="lead-form-error" data-transcript-error></p>${transcriptDraft(transcript?.aiDraft)}`;
+  }
+
+  function meetingTranscriptPanel(item) {
+    if (!item?.id) return `<section class="lead-transcript-panel"><div class="lead-transcript-head"><div><small>Meeting intelligence</small><h4>Transcript</h4><p>Save the meeting first, then attach its transcript.</p></div></div></section>`;
+    return `<section class="lead-transcript-panel" data-transcript-panel data-meeting-id="${esc(item.id)}"><div class="lead-transcript-loading">Loading transcript…</div></section>`;
+  }
+
   function meetingRowsFor(collection, meetingId) {
     return (state.leadership?.[collection] || []).filter(row => row.meeting_id === meetingId);
   }
@@ -408,7 +457,8 @@
       <section class="lead-l10-section" data-section-card="rocks"><h4><small>5m</small> Rock Review</h4>${rockReview(item)}</section>
       <section class="lead-l10-section" data-section-card="todos"><h4><small>10m</small> To-Do List &amp; Review</h4>${todoReview(item)}</section>
       <section class="lead-l10-section" data-section-card="ids"><h4><small>60m</small> IDS — Identify, Discuss, Solve</h4>${issueReview(item)}</section>
-      <section class="lead-l10-section" data-section-card="conclude"><h4><small>5m</small> Conclude — Cascading Messages &amp; Rating</h4><label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>`;
+      <section class="lead-l10-section" data-section-card="conclude"><h4><small>5m</small> Conclude — Cascading Messages &amp; Rating</h4><label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>
+      ${meetingTranscriptPanel(item)}`;
   }
 
   function openModal(type, item = null) {
@@ -459,8 +509,10 @@
     state.openMeetingId = type === 'meeting' ? item?.id || '' : '';
     bindModal();
     startSectionTimer(item);
+    if (type === 'meeting' && item?.id) loadMeetingTranscript(item.id);
     if (type === 'meeting' && item?.status === 'completed') {
       target.querySelectorAll('input,textarea,select,button:not([data-close-lead-modal]):not([data-open-scorecard])').forEach(control => {
+        if (control.closest('[data-transcript-panel]')) return;
         control.disabled = true;
       });
     }
@@ -506,6 +558,80 @@
       method:'POST',
       body: JSON.stringify({ ...identity(), action, ...fields })
     });
+  }
+
+  async function loadMeetingTranscript(meetingId) {
+    const panel = document.querySelector(`[data-transcript-panel][data-meeting-id="${CSS.escape(meetingId)}"]`);
+    if (!panel) return;
+    try {
+      const payload = await leadershipAction('get_transcript', { meetingId });
+      if (!panel.isConnected) return;
+      panel.innerHTML = transcriptPanelContent(payload.transcript);
+      bindTranscriptPanel(panel);
+    } catch (error) {
+      panel.innerHTML = `<div class="lead-transcript-load-error"><strong>Transcript could not load</strong><span>${esc(error.message)}</span><button type="button" class="lead-secondary" data-retry-transcript>Retry</button></div>`;
+      panel.querySelector('[data-retry-transcript]')?.addEventListener('click', () => loadMeetingTranscript(meetingId));
+    }
+  }
+
+  function bindTranscriptPanel(panel) {
+    const meetingId = panel.dataset.meetingId;
+    const textArea = panel.querySelector('[data-transcript-text]');
+    const count = panel.querySelector('[data-transcript-count]');
+    const updateCount = () => { if (count) count.textContent = `${Number(textArea?.value.length || 0).toLocaleString()} / 500,000 characters`; };
+    textArea?.addEventListener('input', updateCount);
+    panel.querySelector('[data-transcript-file]')?.addEventListener('change', async event => {
+      const file = event.target.files?.[0];
+      if (!file || !textArea) return;
+      try {
+        textArea.value = await file.text();
+        textArea.dataset.fileName = file.name;
+        textArea.dataset.mimeType = file.type || (/\.vtt$/i.test(file.name) ? 'text/vtt' : /\.srt$/i.test(file.name) ? 'application/x-subrip' : 'text/plain');
+        updateCount();
+      } catch {
+        const errorNode = panel.querySelector('[data-transcript-error]');
+        if (errorNode) errorNode.textContent = 'The selected file could not be read.';
+      }
+    });
+    panel.onclick = async event => {
+      const button = event.target.closest('button');
+      if (!button || state.saving) return;
+      const errorNode = panel.querySelector('[data-transcript-error]');
+      if (errorNode) errorNode.textContent = '';
+      try {
+        if (button.matches('[data-attach-transcript]')) {
+          const rawText = clean(textArea?.value);
+          if (!rawText) throw new Error('Paste transcript text or choose a transcript file.');
+          state.saving = true; button.disabled = true; button.textContent = 'Attaching…';
+          await leadershipAction('attach_transcript', {
+            meetingId, rawText,
+            provider:panel.querySelector('[data-transcript-provider]')?.value || 'manual',
+            originalFileName:textArea?.dataset.fileName || '',
+            mimeType:textArea?.dataset.mimeType || 'text/plain'
+          });
+          await loadMeetingTranscript(meetingId);
+          showToast('Transcript attached.');
+        } else if (button.matches('[data-process-transcript]')) {
+          state.saving = true; button.disabled = true; button.textContent = 'Processing…';
+          await leadershipAction('process_transcript', { meetingId });
+          await loadMeetingTranscript(meetingId);
+          showToast('AI draft ready for review.');
+        } else if (button.matches('[data-delete-transcript]')) {
+          if (!window.confirm('Delete this meeting transcript and its AI draft?')) return;
+          state.saving = true; button.disabled = true; button.textContent = 'Deleting…';
+          await leadershipAction('delete_transcript', { meetingId });
+          await loadMeetingTranscript(meetingId);
+          showToast('Transcript deleted.');
+        }
+      } catch (error) {
+        const currentError = panel.querySelector('[data-transcript-error]');
+        if (currentError) currentError.textContent = error.message;
+        else showToast(error.message);
+      } finally {
+        state.saving = false;
+        if (button.isConnected) button.disabled = false;
+      }
+    };
   }
 
   async function refreshData() {
