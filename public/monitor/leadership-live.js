@@ -309,19 +309,71 @@
       goodNews: Array.isArray(agenda.goodNews) ? agenda.goodNews : [],
       headlines: Array.isArray(agenda.headlines) ? agenda.headlines : [],
       cascadeMessages: Array.isArray(agenda.cascadeMessages) ? agenda.cascadeMessages : [],
+      keyDecisions: Array.isArray(agenda.keyDecisions) ? agenda.keyDecisions : [],
+      transcriptSummary: clean(agenda.transcriptSummary),
       ratings: Array.isArray(agenda.ratings) ? agenda.ratings : [],
       rockNotes: agenda.rockNotes && typeof agenda.rockNotes === 'object' ? agenda.rockNotes : {}
     };
   }
 
   function agendaInputs(kind, items, placeholder) {
-    return `<div class="lead-l10-items" data-agenda-list="${kind}">${items.map(item => `<div class="lead-l10-inline" data-agenda-item><input value="${esc(item.text || '')}" placeholder="${esc(placeholder)}"><button type="button" data-remove-row aria-label="Remove">×</button></div>`).join('')}</div><div class="lead-l10-add"><input data-agenda-input="${kind}" placeholder="${esc(placeholder)}"><button type="button" data-add-agenda="${kind}">Add</button></div>`;
+    return `<div class="lead-l10-items" data-agenda-list="${kind}">${items.map(item => `<div class="lead-l10-inline" data-agenda-item data-agenda-id="${esc(item.id || '')}"><input value="${esc(item.text || '')}" placeholder="${esc(placeholder)}"><button type="button" data-remove-row aria-label="Remove">×</button></div>`).join('')}</div><div class="lead-l10-add"><input data-agenda-input="${kind}" placeholder="${esc(placeholder)}"><button type="button" data-add-agenda="${kind}">Add</button></div>`;
   }
 
   function meetingSource(item) {
     if (item?.source === 'google_calendar') return 'Scheduled from Google Calendar. The agenda is editable; no transcript content was inferred.';
     if (item?.transcript_url) return 'A transcript link is attached. Agenda content remains editable and is saved only for this agency.';
     return 'Created manually. Anyone signed in to this agency account can view or edit.';
+  }
+
+  function transcriptProviderLabel(value) {
+    return ({
+      google_meet:'Google Meet', zoom:'Zoom', microsoft_teams:'Microsoft Teams',
+      fathom:'Fathom', fireflies:'Fireflies.ai', manual:'Manual upload', other:'Other platform'
+    })[value] || 'Manual upload';
+  }
+
+  function transcriptDraftItems(title, items, renderItem, kind) {
+    if (!Array.isArray(items) || !items.length) return '';
+    return `<section class="lead-transcript-draft-group"><h6>${esc(title)} <span>${items.length}</span></h6>${items.map((item, index) => {
+      const value = typeof item === 'string' ? item : renderItem(item);
+      const evidence = typeof item === 'object' ? clean(item.evidence) : '';
+      return `<article><input type="checkbox" data-draft-select="${esc(kind)}" data-draft-index="${index}" checked aria-label="Apply ${esc(title)} item ${index + 1}"><div><p>${esc(value)}</p>${evidence ? `<details><summary>Transcript evidence</summary><blockquote>${esc(evidence)}</blockquote></details>` : ''}</div></article>`;
+    }).join('')}</section>`;
+  }
+
+  function transcriptDraft(draft) {
+    if (!draft || typeof draft !== 'object' || !Object.keys(draft).length) return '';
+    return `<div class="lead-transcript-draft"><div class="lead-transcript-draft-head"><div><small>AI draft for review</small><h5>Meeting outcomes</h5></div><span>Select only verified outcomes.</span></div>
+      ${draft.summary ? `<section class="lead-transcript-summary"><label><input type="checkbox" data-draft-summary checked><span><b>Summary</b>${esc(draft.summary)}</span></label></section>` : ''}
+      ${transcriptDraftItems('Key decisions', draft.keyDecisions, item => item, 'keyDecisions')}
+      ${transcriptDraftItems('Good news', draft.goodNews, item => item.text, 'goodNews')}
+      ${transcriptDraftItems('Customer / employee headlines', draft.headlines, item => `${statusLabel(item.kind)}: ${item.text}`, 'headlines')}
+      ${transcriptDraftItems('To-dos', draft.todos, item => `${item.title}${item.ownerName ? ` · ${item.ownerName}` : ''}${item.dueDate ? ` · ${item.dueDate}` : ''}`, 'todos')}
+      ${transcriptDraftItems('Issues', draft.issues, item => `${item.title}${item.ownerName ? ` · ${item.ownerName}` : ''} · ${statusLabel(item.priority || 'normal')} priority`, 'issues')}
+      ${transcriptDraftItems('Cascading messages', draft.cascadeMessages, item => item.text, 'cascadeMessages')}
+      <div class="lead-transcript-apply"><button type="button" class="lead-primary" data-apply-transcript>Apply selected to meeting</button><small>Repeated clicks update the same items and do not create duplicates.</small></div>
+    </div>`;
+  }
+
+  function transcriptPanelContent(transcript) {
+    const hasTranscript = Boolean(transcript?.id);
+    const status = transcript?.status || 'none';
+    const processing = status === 'processing';
+    return `<div class="lead-transcript-head"><div><small>Meeting intelligence</small><h4>Transcript</h4><p>Paste text or upload a TXT, VTT, or SRT file. AI creates a review draft and never changes the agenda automatically.</p></div>${hasTranscript ? pill(status) : ''}</div>
+      <div class="lead-transcript-grid">
+        <label><span>Source</span><select data-transcript-provider>${['manual','google_meet','zoom','microsoft_teams','fathom','fireflies','other'].map(value => `<option value="${value}" ${transcript?.provider === value ? 'selected':''}>${esc(transcriptProviderLabel(value))}</option>`).join('')}</select></label>
+        <label><span>Transcript file</span><input type="file" data-transcript-file accept=".txt,.vtt,.srt,text/plain,text/vtt,application/x-subrip"></label>
+      </div>
+      <label class="lead-transcript-text"><span>Transcript text</span><textarea data-transcript-text rows="8" maxlength="500000" placeholder="Paste the complete meeting transcript here…">${esc(transcript?.rawText || '')}</textarea><small data-transcript-count>${Number(transcript?.rawText?.length || 0).toLocaleString()} / 500,000 characters</small></label>
+      ${transcript?.errorMessage ? `<p class="lead-transcript-error">${esc(transcript.errorMessage)}</p>` : ''}
+      <div class="lead-transcript-actions"><button type="button" class="lead-secondary" data-attach-transcript>${hasTranscript ? 'Replace transcript' : 'Attach transcript'}</button>${hasTranscript ? `<button type="button" class="lead-primary" data-process-transcript ${processing ? 'disabled':''}>${processing ? 'Processing…' : transcript?.aiDraft && Object.keys(transcript.aiDraft).length ? 'Process again' : 'Generate AI draft'}</button><button type="button" class="lead-danger" data-delete-transcript>Delete</button>` : ''}</div>
+      <p class="lead-form-error" data-transcript-error></p>${transcriptDraft(transcript?.aiDraft)}`;
+  }
+
+  function meetingTranscriptPanel(item) {
+    if (!item?.id) return `<section class="lead-transcript-panel"><div class="lead-transcript-head"><div><small>Meeting intelligence</small><h4>Transcript</h4><p>Save the meeting first, then attach its transcript.</p></div></div></section>`;
+    return `<section class="lead-transcript-panel" data-transcript-panel data-meeting-id="${esc(item.id)}"><div class="lead-transcript-loading">Loading transcript…</div></section>`;
   }
 
   function meetingRowsFor(collection, meetingId) {
@@ -395,6 +447,12 @@
     return `<div class="lead-l10-items" data-rating-list>${ratings.map(rating => `<div class="lead-l10-rating" data-rating-item><input class="rating-name" value="${esc(rating.name || '')}" placeholder="Name"><input class="rating-score" type="number" min="1" max="10" value="${esc(rating.score ?? '')}"><input class="rating-note" value="${esc(rating.note || '')}" placeholder="Note (optional)"><button type="button" data-remove-row>×</button></div>`).join('')}</div><div class="lead-l10-rating lead-l10-new-rating"><input data-new-rating-name placeholder="Name"><input data-new-rating-score type="number" min="1" max="10" value="8"><input data-new-rating-note placeholder="Note (optional)"><button type="button" data-add-rating>Add</button></div>`;
   }
 
+  function appliedTranscriptOutcomes(item) {
+    const agenda = agendaFor(item);
+    if (!agenda.transcriptSummary && !agenda.keyDecisions.length) return '';
+    return `<div class="lead-applied-outcomes"><small>Applied from transcript</small>${agenda.transcriptSummary ? `<p>${esc(agenda.transcriptSummary)}</p>` : ''}${agenda.keyDecisions.length ? `<ul>${agenda.keyDecisions.map(row => `<li>${esc(row.text || row)}</li>`).join('')}</ul>` : ''}</div>`;
+  }
+
   function meetingFields(item, today) {
     const agenda = agendaFor(item);
     const meetingDate = item?.meeting_date || today;
@@ -408,7 +466,8 @@
       <section class="lead-l10-section" data-section-card="rocks"><h4><small>5m</small> Rock Review</h4>${rockReview(item)}</section>
       <section class="lead-l10-section" data-section-card="todos"><h4><small>10m</small> To-Do List &amp; Review</h4>${todoReview(item)}</section>
       <section class="lead-l10-section" data-section-card="ids"><h4><small>60m</small> IDS — Identify, Discuss, Solve</h4>${issueReview(item)}</section>
-      <section class="lead-l10-section" data-section-card="conclude"><h4><small>5m</small> Conclude — Cascading Messages &amp; Rating</h4><label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>`;
+      <section class="lead-l10-section" data-section-card="conclude"><h4><small>5m</small> Conclude — Cascading Messages &amp; Rating</h4>${appliedTranscriptOutcomes(item)}<label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>
+      ${meetingTranscriptPanel(item)}`;
   }
 
   function openModal(type, item = null) {
@@ -459,8 +518,10 @@
     state.openMeetingId = type === 'meeting' ? item?.id || '' : '';
     bindModal();
     startSectionTimer(item);
+    if (type === 'meeting' && item?.id) loadMeetingTranscript(item.id);
     if (type === 'meeting' && item?.status === 'completed') {
       target.querySelectorAll('input,textarea,select,button:not([data-close-lead-modal]):not([data-open-scorecard])').forEach(control => {
+        if (control.closest('[data-transcript-panel]')) return;
         control.disabled = true;
       });
     }
@@ -508,6 +569,91 @@
     });
   }
 
+  async function loadMeetingTranscript(meetingId) {
+    const panel = document.querySelector(`[data-transcript-panel][data-meeting-id="${CSS.escape(meetingId)}"]`);
+    if (!panel) return;
+    try {
+      const payload = await leadershipAction('get_transcript', { meetingId });
+      if (!panel.isConnected) return;
+      panel.innerHTML = transcriptPanelContent(payload.transcript);
+      bindTranscriptPanel(panel);
+    } catch (error) {
+      panel.innerHTML = `<div class="lead-transcript-load-error"><strong>Transcript could not load</strong><span>${esc(error.message)}</span><button type="button" class="lead-secondary" data-retry-transcript>Retry</button></div>`;
+      panel.querySelector('[data-retry-transcript]')?.addEventListener('click', () => loadMeetingTranscript(meetingId));
+    }
+  }
+
+  function bindTranscriptPanel(panel) {
+    const meetingId = panel.dataset.meetingId;
+    const textArea = panel.querySelector('[data-transcript-text]');
+    const count = panel.querySelector('[data-transcript-count]');
+    const updateCount = () => { if (count) count.textContent = `${Number(textArea?.value.length || 0).toLocaleString()} / 500,000 characters`; };
+    textArea?.addEventListener('input', updateCount);
+    panel.querySelector('[data-transcript-file]')?.addEventListener('change', async event => {
+      const file = event.target.files?.[0];
+      if (!file || !textArea) return;
+      try {
+        textArea.value = await file.text();
+        textArea.dataset.fileName = file.name;
+        textArea.dataset.mimeType = file.type || (/\.vtt$/i.test(file.name) ? 'text/vtt' : /\.srt$/i.test(file.name) ? 'application/x-subrip' : 'text/plain');
+        updateCount();
+      } catch {
+        const errorNode = panel.querySelector('[data-transcript-error]');
+        if (errorNode) errorNode.textContent = 'The selected file could not be read.';
+      }
+    });
+    panel.onclick = async event => {
+      const button = event.target.closest('button');
+      if (!button || state.saving) return;
+      const errorNode = panel.querySelector('[data-transcript-error]');
+      if (errorNode) errorNode.textContent = '';
+      try {
+        if (button.matches('[data-attach-transcript]')) {
+          const rawText = clean(textArea?.value);
+          if (!rawText) throw new Error('Paste transcript text or choose a transcript file.');
+          state.saving = true; button.disabled = true; button.textContent = 'Attaching…';
+          await leadershipAction('attach_transcript', {
+            meetingId, rawText,
+            provider:panel.querySelector('[data-transcript-provider]')?.value || 'manual',
+            originalFileName:textArea?.dataset.fileName || '',
+            mimeType:textArea?.dataset.mimeType || 'text/plain'
+          });
+          await loadMeetingTranscript(meetingId);
+          showToast('Transcript attached.');
+        } else if (button.matches('[data-process-transcript]')) {
+          state.saving = true; button.disabled = true; button.textContent = 'Processing…';
+          await leadershipAction('process_transcript', { meetingId });
+          await loadMeetingTranscript(meetingId);
+          showToast('AI draft ready for review.');
+        } else if (button.matches('[data-apply-transcript]')) {
+          const selections = { summary:Boolean(panel.querySelector('[data-draft-summary]:checked')) };
+          panel.querySelectorAll('[data-draft-select]:checked').forEach(input => {
+            (selections[input.dataset.draftSelect] ||= []).push(Number(input.dataset.draftIndex));
+          });
+          state.saving = true; button.disabled = true; button.textContent = 'Applying…';
+          const payload = await leadershipAction('apply_transcript_draft', { meetingId, selections });
+          await refreshData();
+          const meeting = state.leadership.meetings.find(row => row.id === meetingId);
+          openModal('meeting', meeting);
+          showToast(`${payload.appliedCount} transcript outcome${payload.appliedCount === 1 ? '' : 's'} applied.`);
+        } else if (button.matches('[data-delete-transcript]')) {
+          if (!window.confirm('Delete this meeting transcript and its AI draft?')) return;
+          state.saving = true; button.disabled = true; button.textContent = 'Deleting…';
+          await leadershipAction('delete_transcript', { meetingId });
+          await loadMeetingTranscript(meetingId);
+          showToast('Transcript deleted.');
+        }
+      } catch (error) {
+        const currentError = panel.querySelector('[data-transcript-error]');
+        if (currentError) currentError.textContent = error.message;
+        else showToast(error.message);
+      } finally {
+        state.saving = false;
+        if (button.isConnected) button.disabled = false;
+      }
+    };
+  }
+
   async function refreshData() {
     const query = identityQuery();
     const payload = await request(`/api/leadership?${query}`);
@@ -538,10 +684,16 @@
       } else if (type === 'metric') {
         await leadershipAction('save_metric', fields);
       } else if (type === 'meeting') {
-        const agenda = { version:1, rockNotes:{} };
+        const currentMeeting = state.leadership?.meetings?.find(row => row.id === fields.id);
+        const currentAgenda = agendaFor(currentMeeting);
+        const agenda = {
+          version:1, rockNotes:{},
+          keyDecisions:currentAgenda.keyDecisions,
+          transcriptSummary:currentAgenda.transcriptSummary
+        };
         ['goodNews','headlines','cascadeMessages'].forEach(kind => {
-          agenda[kind] = [...form.querySelectorAll(`[data-agenda-list="${kind}"] [data-agenda-item] input`)]
-            .map(input => ({ id: crypto.randomUUID(), text: clean(input.value) })).filter(item => item.text);
+          agenda[kind] = [...form.querySelectorAll(`[data-agenda-list="${kind}"] [data-agenda-item]`)]
+            .map(row => ({ id:row.dataset.agendaId || crypto.randomUUID(), text:clean(row.querySelector('input')?.value) })).filter(item => item.text);
         });
         agenda.ratings = [...form.querySelectorAll('[data-rating-item]')].map(row => ({
           id: crypto.randomUUID(), name: clean(row.querySelector('.rating-name')?.value),
