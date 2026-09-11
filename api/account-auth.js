@@ -260,36 +260,63 @@ async function askCreature(c,account,actor,input,timing){
   const message=clean(input.message).slice(0,4000);
   if(!message)throw Object.assign(new Error('Enter a question for Ask Creature.'),{status:422});
   const greeting=isCreatureGreeting(message);
+  const key=clean(process.env.OPENAI_API_KEY);
+
+  if(greeting){
+    let answer='Hello! What would you like help with in your agency today?';
+    if(key){
+      try{
+        const payload=await timing.run('openai_greeting',async()=>{
+          const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(10000),body:JSON.stringify({model:clean(process.env.OPENAI_MODEL)||'gpt-5-mini',instructions:'You are Ask Creature, the Creative Creatures agency operations assistant. Give a very brief, friendly welcome (1-2 sentences) asking how you can assist their agency today.',input:[{role:'user',content:message}],max_output_tokens:100})});
+          const result=await response.json();
+          return response.ok?result:null;
+        });
+        const dynamicAnswer=responseText(payload);
+        if(dynamicAnswer)answer=dynamicAnswer;
+      }catch{}
+    }
+    const createdAt=Date.now();
+    const savePromise=db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([
+      {account_id:account.id,member_id:actor.memberId||null,role:'user',content:message,created_at:new Date(createdAt).toISOString()},
+      {account_id:account.id,member_id:actor.memberId||null,role:'assistant',content:answer,created_at:new Date(createdAt+1).toISOString()}
+    ])}).catch(err=>console.error('Background save failed:',err));
+    if(c?.executionCtx?.waitUntil)c.executionCtx.waitUntil(savePromise);
+    return answer;
+  }
+
+  if(!key)throw Object.assign(new Error('Ask Creature is not configured.'),{status:503});
   const memberFilter=actor.role==='member'?`&member_id=eq.${encodeURIComponent(actor.memberId)}`:'';
   const since=new Date(Date.now()-10*60*1000).toISOString();
+  const requiresDiagnostic=actor.role==='owner'&&/\b(diagnostic|report|scorecard|archetype|score|results|focus|priority|benchmark|weakness|strength)\b/i.test(message);
+
   const [recent,history,contextRows]=await Promise.all([
     timing.run('rate_limit',()=>db(c,`ask_creature_messages?select=id&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&role=eq.user&created_at=gte.${encodeURIComponent(since)}&limit=20`)),
-    greeting?[]:timing.run('history',()=>db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.desc,id.desc&limit=12`)),
-    greeting||actor.role!=='owner'?[]:timing.run('context',()=>db(c,`accounts?select=diagnostic_state,report_data&id=eq.${encodeURIComponent(account.id)}&limit=1`))
+    timing.run('history',()=>db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.desc,id.desc&limit=6`)),
+    requiresDiagnostic?timing.run('context',()=>db(c,`accounts?select=diagnostic_state,report_data&id=eq.${encodeURIComponent(account.id)}&limit=1`)):[]
   ]);
+
   if((recent||[]).length>=20)throw Object.assign(new Error('Ask Creature has reached the short-term message limit. Try again in a few minutes.'),{status:429});
-  let answer='Hello! What would you like help with in your agency today?';
-  if(!greeting){
-    const key=clean(process.env.OPENAI_API_KEY);
-    if(!key)throw Object.assign(new Error('Ask Creature is not configured.'),{status:503});
-    const details=Array.isArray(contextRows)?contextRows[0]:null;
-    const context={agency:account.agency_name||account.name,plan:accessPlan(account),actorRole:actor.role,departments:actor.departments,currentPage:clean(input.currentPath).slice(0,200),diagnostic:actor.role==='owner'?compactCreatureData(details?.diagnostic_state||{},6000):undefined,report:actor.role==='owner'?compactCreatureData(details?.report_data||{},6000):undefined};
-    const payload=await timing.run('openai',async()=>{
-      const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(45000),body:JSON.stringify({model:clean(process.env.OPENAI_MODEL)||'gpt-5-mini',instructions:'You are Ask Creature, the Creative Creatures agency operations assistant. Use only the supplied agency context and conversation. Context may be shortened or omitted to fit a size budget; ask for missing details rather than guessing. Never claim access to missing data, never invent metrics, never reveal another agency, and respect the member department list. Give concise, practical guidance.',input:[...boundedCreatureHistory(history),{role:'user',content:`Agency context: ${JSON.stringify(context)}\n\nQuestion: ${message}`}],max_output_tokens:900})});
-      const result=await response.json();
-      if(!response.ok)throw Object.assign(new Error(result?.error?.message||'Ask Creature could not respond.'),{status:502});
-      return result;
-    });
-    answer=responseText(payload);
-    if(!answer)throw Object.assign(new Error('Ask Creature returned an empty response.'),{status:502});
-  }
-  // Persist before acknowledging success: failures must not silently lose chat history.
-  // Distinct timestamps retain user/assistant order even though both rows share one INSERT.
+
+  const details=Array.isArray(contextRows)?contextRows[0]:null;
+  const context={agency:account.agency_name||account.name,plan:accessPlan(account),actorRole:actor.role,departments:actor.departments,currentPage:clean(input.currentPath).slice(0,200),diagnostic:requiresDiagnostic?compactCreatureData(details?.diagnostic_state||{},6000):undefined,report:requiresDiagnostic?compactCreatureData(details?.report_data||{},6000):undefined};
+
+  const payload=await timing.run('openai',async()=>{
+    const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(45000),body:JSON.stringify({model:clean(process.env.OPENAI_MODEL)||'gpt-5-mini',instructions:'You are Ask Creature, the Creative Creatures agency operations assistant. Use only the supplied agency context and conversation. Context may be shortened or omitted to fit a size budget; ask for missing details rather than guessing. Never claim access to missing data, never invent metrics, never reveal another agency, and respect the member department list. Give concise, practical guidance.',input:[...boundedCreatureHistory(history),{role:'user',content:`Agency context: ${JSON.stringify(context)}\n\nQuestion: ${message}`}],max_output_tokens:300})});
+    const result=await response.json();
+    if(!response.ok)throw Object.assign(new Error(result?.error?.message||'Ask Creature could not respond.'),{status:502});
+    return result;
+  });
+
+  const answer=responseText(payload);
+  if(!answer)throw Object.assign(new Error('Ask Creature returned an empty response.'),{status:502});
+
   const createdAt=Date.now();
-  await timing.run('save',()=>db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([
+  const savePromise=db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([
     {account_id:account.id,member_id:actor.memberId||null,role:'user',content:message,created_at:new Date(createdAt).toISOString()},
     {account_id:account.id,member_id:actor.memberId||null,role:'assistant',content:answer,created_at:new Date(createdAt+1).toISOString()}
-  ])}));
+  ])}).catch(err=>console.error('Background save failed:',err));
+  if(c?.executionCtx?.waitUntil)c.executionCtx.waitUntil(savePromise);
+
   return answer;
 }
 

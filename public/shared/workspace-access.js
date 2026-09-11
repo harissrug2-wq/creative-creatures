@@ -9,19 +9,26 @@
     if(document.querySelector('.cc-ai-backdrop'))return;
     install();document.body.classList.add('cc-modal-open');
     const wrap=document.createElement('div');wrap.className='cc-ai-backdrop';
-    wrap.innerHTML=`<section class="cc-ai-panel" role="dialog" aria-modal="true" aria-label="Ask Creature"><header class="cc-ai-head"><h2>Ask Creature</h2><button class="cc-ai-close" aria-label="Close">×</button></header><div class="cc-ai-messages" aria-live="polite"><div class="cc-ai-empty">Loading your agency conversation…</div></div><div class="cc-ai-error" role="alert" hidden></div><form class="cc-ai-form"><textarea maxlength="4000" required placeholder="Ask about this page or your agency…"></textarea><button disabled>Loading…</button></form></section>`;
+    wrap.innerHTML=`<section class="cc-ai-panel" role="dialog" aria-modal="true" aria-label="Ask Creature"><header class="cc-ai-head"><h2>Ask Creature</h2><button class="cc-ai-close" aria-label="Close">×</button></header><div class="cc-ai-messages" aria-live="polite"><div class="cc-ai-empty">Ask for a summary, next steps, or help interpreting your agency data.</div></div><div class="cc-ai-error" role="alert" hidden></div><form class="cc-ai-form"><textarea maxlength="4000" required placeholder="Ask about this page or your agency…"></textarea><button>Send</button></form></section>`;
     document.body.appendChild(wrap);
     const list=wrap.querySelector('.cc-ai-messages'),error=wrap.querySelector('.cc-ai-error'),form=wrap.querySelector('form'),input=wrap.querySelector('textarea'),button=form.querySelector('button');
-    let loading=true,sending=false,closed=false;
+    let sending=false,closed=false,historyLoaded=false;
     const close=()=>{closed=true;wrap.remove();document.body.classList.remove('cc-modal-open');document.removeEventListener('keydown',escape)};
     const escape=e=>{if(e.key==='Escape')close()};
     document.addEventListener('keydown',escape);
     wrap.querySelector('.cc-ai-close').onclick=close;wrap.onclick=e=>{if(e.target===wrap)close()};
-    const render=messages=>{list.innerHTML=messages.length?messages.map(m=>`<div class="cc-ai-msg ${m.role==='user'?'user':'assistant'}">${esc(m.content)}</div>`).join(''):'<div class="cc-ai-empty">Ask for a summary, next steps, or help interpreting your agency data.</div>';list.scrollTop=list.scrollHeight};
+    const render=messages=>{
+      if(historyLoaded)return;
+      historyLoaded=true;
+      if(messages.length){
+        list.innerHTML=messages.map(m=>`<div class="cc-ai-msg ${m.role==='user'?'user':'assistant'}">${esc(m.content)}</div>`).join('');
+        list.scrollTop=list.scrollHeight;
+      }
+    };
     // Install before the first await so Send can never navigate the page.
     form.onsubmit=async e=>{
       e.preventDefault();
-      if(loading||sending||closed)return;
+      if(sending||closed)return;
       const message=input.value.trim();if(!message)return;
       sending=true;button.disabled=true;button.textContent='Sending…';error.hidden=true;
       list.querySelector('.cc-ai-empty')?.remove();
@@ -39,9 +46,7 @@
       }
     };
     input.focus();
-    try{const h=await request('ask_creature_history');if(!closed)render(h.messages||[])}
-    catch(e){if(!closed){render([]);error.hidden=false;error.textContent=e.message}}
-    finally{loading=false;if(!closed){button.disabled=false;button.textContent='Send'}}
+    request('ask_creature_history').then(h=>{if(!closed)render(h.messages||[])}).catch(e=>{if(!closed&&!historyLoaded)console.warn('History load error:',e.message)});
   }
 
   function routeFeature(path){if(path.startsWith('/accelerator'))return'accelerator';if(path.startsWith('/integrations'))return'integrations';if(path.startsWith('/agency-scorecard'))return'scorecard';if(path.startsWith('/agency-goals'))return'goals';if(path.startsWith('/diagnostic'))return'diagnostic';if(path.startsWith('/portal'))return'portal';if(path.startsWith('/users'))return'users';if(path.startsWith('/leadership'))return'leadership';if(['/platform','/marketing','/sales','/billing','/onboarding','/service-delivery','/client-success','/talent-acquisition','/finance','/communication','/systems','/sops'].some(p=>path.startsWith(p)))return'monitor';return''}

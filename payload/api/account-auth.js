@@ -189,6 +189,69 @@ import {
 const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(payload))};
 const clean=v=>String(v??'').trim();const lower=v=>clean(v).toLowerCase();
 function cfg(){const url=clean(process.env.SUPABASE_URL).replace(/\/+$/,'');const key=clean(process.env.SUPABASE_SERVICE_ROLE_KEY);return url&&key?{url,key}:null}
+async function askCreature(c,account,actor,input,timing){
+  const message=clean(input.message).slice(0,4000);
+  if(!message)throw Object.assign(new Error('Enter a question for Ask Creature.'),{status:422});
+  const greeting=isCreatureGreeting(message);
+  const key=clean(process.env.OPENAI_API_KEY);
+
+  if(greeting){
+    let answer='Hello! What would you like help with in your agency today?';
+    if(key){
+      try{
+        const payload=await timing.run('openai_greeting',async()=>{
+          const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(10000),body:JSON.stringify({model:clean(process.env.OPENAI_MODEL)||'gpt-5-mini',instructions:'You are Ask Creature, the Creative Creatures agency operations assistant. Give a very brief, friendly welcome (1-2 sentences) asking how you can assist their agency today.',input:[{role:'user',content:message}],max_output_tokens:100})});
+          const result=await response.json();
+          return response.ok?result:null;
+        });
+        const dynamicAnswer=responseText(payload);
+        if(dynamicAnswer)answer=dynamicAnswer;
+      }catch{}
+    }
+    const createdAt=Date.now();
+    const savePromise=db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([
+      {account_id:account.id,member_id:actor.memberId||null,role:'user',content:message,created_at:new Date(createdAt).toISOString()},
+      {account_id:account.id,member_id:actor.memberId||null,role:'assistant',content:answer,created_at:new Date(createdAt+1).toISOString()}
+    ])}).catch(err=>console.error('Background save failed:',err));
+    if(c?.executionCtx?.waitUntil)c.executionCtx.waitUntil(savePromise);
+    return answer;
+  }
+
+  if(!key)throw Object.assign(new Error('Ask Creature is not configured.'),{status:503});
+  const memberFilter=actor.role==='member'?`&member_id=eq.${encodeURIComponent(actor.memberId)}`:'';
+  const since=new Date(Date.now()-10*60*1000).toISOString();
+  const requiresDiagnostic=actor.role==='owner'&&/\b(diagnostic|report|scorecard|archetype|score|results|focus|priority|benchmark|weakness|strength)\b/i.test(message);
+
+  const [recent,history,contextRows]=await Promise.all([
+    timing.run('rate_limit',()=>db(c,`ask_creature_messages?select=id&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&role=eq.user&created_at=gte.${encodeURIComponent(since)}&limit=20`)),
+    timing.run('history',()=>db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.desc,id.desc&limit=6`)),
+    requiresDiagnostic?timing.run('context',()=>db(c,`accounts?select=diagnostic_state,report_data&id=eq.${encodeURIComponent(account.id)}&limit=1`)):[]
+  ]);
+
+  if((recent||[]).length>=20)throw Object.assign(new Error('Ask Creature has reached the short-term message limit. Try again in a few minutes.'),{status:429});
+
+  const details=Array.isArray(contextRows)?contextRows[0]:null;
+  const context={agency:account.agency_name||account.name,plan:accessPlan(account),actorRole:actor.role,departments:actor.departments,currentPage:clean(input.currentPath).slice(0,200),diagnostic:requiresDiagnostic?compactCreatureData(details?.diagnostic_state||{},6000):undefined,report:requiresDiagnostic?compactCreatureData(details?.report_data||{},6000):undefined};
+
+  const payload=await timing.run('openai',async()=>{
+    const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(45000),body:JSON.stringify({model:clean(process.env.OPENAI_MODEL)||'gpt-5-mini',instructions:'You are Ask Creature, the Creative Creatures agency operations assistant. Use only the supplied agency context and conversation. Context may be shortened or omitted to fit a size budget; ask for missing details rather than guessing. Never claim access to missing data, never invent metrics, never reveal another agency, and respect the member department list. Give concise, practical guidance.',input:[...boundedCreatureHistory(history),{role:'user',content:`Agency context: ${JSON.stringify(context)}\n\nQuestion: ${message}`}],max_output_tokens:300})});
+    const result=await response.json();
+    if(!response.ok)throw Object.assign(new Error(result?.error?.message||'Ask Creature could not respond.'),{status:502});
+    return result;
+  });
+
+  const answer=responseText(payload);
+  if(!answer)throw Object.assign(new Error('Ask Creature returned an empty response.'),{status:502});
+
+  const createdAt=Date.now();
+  const savePromise=db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([
+    {account_id:account.id,member_id:actor.memberId||null,role:'user',content:message,created_at:new Date(createdAt).toISOString()},
+    {account_id:account.id,member_id:actor.memberId||null,role:'assistant',content:answer,created_at:new Date(createdAt+1).toISOString()}
+  ])}).catch(err=>console.error('Background save failed:',err));
+  if(c?.executionCtx?.waitUntil)c.executionCtx.waitUntil(savePromise);
+
+  return answer;
+}
 async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${path}`,{...options,headers:{apikey:c.key,'Content-Type':'application/json',...(options.headers||{})}});const t=await r.text();let p=null;try{p=t?JSON.parse(t):null}catch{p=t}if(!r.ok){const e=new Error(p?.message||p?.hint||'Database request failed.');e.status=r.status;e.payload=p;throw e}return p}
 const SELECT='id,name,email,agency_url,agency_name,journey,source,archetype_result,report_data,diagnostic_state,password_hash,password_reset_token_hash,password_reset_expires_at,created_at,updated_at';
 function pub(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_url,agency_name:a.agency_name,journey:a.journey,source:a.source,archetype_result:a.archetype_result||{},report_data:a.report_data||{},diagnostic_state:a.diagnostic_state||{},created_at:a.created_at,updated_at:a.updated_at}:null}
