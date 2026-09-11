@@ -125,6 +125,7 @@ import {
   encryptGoogleCalendarToken,
   exchangeGoogleCalendarCode,
   googleCalendarConfig,
+  googleMeetConnectionStatus,
   listGoogleCalendarEvents,
   listGoogleCalendars,
   refreshGoogleCalendarTokens,
@@ -330,7 +331,7 @@ async function ensureGoogleCalendarAccess(c,connection){
   if(!connection.refresh_token_encrypted)throw Object.assign(new Error('Google Calendar access expired. Reconnect Google Calendar.'),{status:401});
   const refreshToken=decryptGoogleCalendarToken(connection.refresh_token_encrypted,gcc.encryptionSecret);
   const tokens=await refreshGoogleCalendarTokens(refreshToken);
-  const updated=await saveGoogleCalendarConnection(c,connection.account_id,{access_token_encrypted:encryptGoogleCalendarToken(tokens.access_token,gcc.encryptionSecret),refresh_token_encrypted:connection.refresh_token_encrypted,...googleTokenDates(tokens),scope:tokens.scope||connection.scope||gcc.scopes.join(' '),status:'connected',last_error:null});
+  const updated=await saveGoogleCalendarConnection(c,connection.account_id,{access_token_encrypted:encryptGoogleCalendarToken(tokens.access_token,gcc.encryptionSecret),refresh_token_encrypted:connection.refresh_token_encrypted,...googleTokenDates(tokens),scope:tokens.scope||connection.scope||'',status:'connected',last_error:null});
   return{connection:updated,accessToken:tokens.access_token};
 }
 async function googleConnectionAccess(c,accountId){const connection=await getGoogleCalendarConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect Google Calendar first.'),{status:409});return ensureGoogleCalendarAccess(c,connection)}
@@ -1115,6 +1116,11 @@ export default async function handler(req,res){
         if(!googleCalendarConfig())return json(res,503,{error:'Google Calendar environment variables are not configured.'});
         return json(res,200,{authorizationUrl:createGoogleCalendarAuthorizationUrl(session.accountId)});
       }
+      if(action==='google_meet_status'){
+        if(!session)return json(res,401,{error:'Sign in before viewing Google Meet status.'});
+        const connection=await getGoogleCalendarConnection(c,session.accountId);
+        return json(res,200,{connection:googleMeetConnectionStatus(connection)});
+      }
       if(action==='google_calendar_status'){
         if(!session)return json(res,401,{error:'Sign in before viewing Google Calendar status.'});
         const connection=await getGoogleCalendarConnection(c,session.accountId);
@@ -1457,7 +1463,7 @@ export default async function handler(req,res){
       if(!tokens.refresh_token){const existing=await getGoogleCalendarConnection(c,session.accountId);if(!existing?.refresh_token_encrypted)return json(res,409,{error:'Google did not return a refresh token. Revoke Creative Creatures access in your Google Account and connect again.'});}
       const accessToken=tokens.access_token;const calendars=await listGoogleCalendars({accessToken});const primary=calendars.find(item=>item.primary)||calendars.find(item=>['owner','writer'].includes(item.accessRole))||calendars[0]||null;
       const existing=await getGoogleCalendarConnection(c,session.accountId);
-      const saved=await saveGoogleCalendarConnection(c,session.accountId,{calendar_id:primary?.id||existing?.calendar_id||'primary',calendar_summary:primary?.summary||existing?.calendar_summary||'Primary calendar',connected_email:primary?.primary?primary.id:(existing?.connected_email||''),access_token_encrypted:encryptGoogleCalendarToken(accessToken,gcc.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptGoogleCalendarToken(tokens.refresh_token,gcc.encryptionSecret):existing?.refresh_token_encrypted,...googleTokenDates(tokens),scope:tokens.scope||gcc.scopes.join(' '),status:'connected',last_error:null});
+      const saved=await saveGoogleCalendarConnection(c,session.accountId,{calendar_id:primary?.id||existing?.calendar_id||'primary',calendar_summary:primary?.summary||existing?.calendar_summary||'Primary calendar',connected_email:primary?.primary?primary.id:(existing?.connected_email||''),access_token_encrypted:encryptGoogleCalendarToken(accessToken,gcc.encryptionSecret),refresh_token_encrypted:tokens.refresh_token?encryptGoogleCalendarToken(tokens.refresh_token,gcc.encryptionSecret):existing?.refresh_token_encrypted,...googleTokenDates(tokens),scope:tokens.scope||'',status:'connected',last_error:null});
       return json(res,200,{connected:true,connection:publicGoogleCalendarConnection(saved),calendars});
     }
     if(bodyAction==='google_calendar_list'){
