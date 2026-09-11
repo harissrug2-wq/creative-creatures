@@ -62,7 +62,7 @@
 
   document.addEventListener('submit',event=>{
     const form=event.target;
-    if(form?.target==='_blank')return;
+    if(form?.target==='_blank'||form?.classList?.contains('cc-ai-form')||form?.closest?.('.cc-ai-panel')||form?.hasAttribute('data-no-loader'))return;
     show('Saving and loading…');
   },true);
 

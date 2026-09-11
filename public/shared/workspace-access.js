@@ -9,7 +9,7 @@
     if(document.querySelector('.cc-ai-backdrop'))return;
     install();document.body.classList.add('cc-modal-open');
     const wrap=document.createElement('div');wrap.className='cc-ai-backdrop';
-    wrap.innerHTML=`<section class="cc-ai-panel" role="dialog" aria-modal="true" aria-label="Ask Creature"><header class="cc-ai-head"><h2>Ask Creature</h2><button class="cc-ai-close" aria-label="Close">×</button></header><div class="cc-ai-messages" aria-live="polite"><div class="cc-ai-empty">Ask for a summary, next steps, or help interpreting your agency data.</div></div><div class="cc-ai-error" role="alert" hidden></div><form class="cc-ai-form"><textarea maxlength="4000" required placeholder="Ask about this page or your agency…"></textarea><button>Send</button></form></section>`;
+    wrap.innerHTML=`<section class="cc-ai-panel" role="dialog" aria-modal="true" aria-label="Ask Creature"><header class="cc-ai-head"><h2>Ask Creature</h2><button class="cc-ai-close" aria-label="Close">×</button></header><div class="cc-ai-messages" aria-live="polite"><div class="cc-ai-empty">Ask for a summary, next steps, or help interpreting your agency data.</div></div><div class="cc-ai-error" role="alert" hidden></div><form class="cc-ai-form" data-no-loader="true"><textarea maxlength="4000" required placeholder="Ask about this page or your agency…"></textarea><button>Send</button></form></section>`;
     document.body.appendChild(wrap);
     const list=wrap.querySelector('.cc-ai-messages'),error=wrap.querySelector('.cc-ai-error'),form=wrap.querySelector('form'),input=wrap.querySelector('textarea'),button=form.querySelector('button');
     let sending=false,closed=false,historyLoaded=false;
