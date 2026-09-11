@@ -1,3 +1,4 @@
+import { WORKSPACE_ACCOUNT_SELECT, workspaceAccount, isCreatureGreeting, boundedCreatureHistory, compactCreatureData, creatureTimings } from '../lib/ask-creature-performance.js';
 import crypto from 'node:crypto';
 import { sendEmail, escapeHtml } from '../lib/email-service.js';
 import { accountSessionSecret, clearSessionCookie, hashPassword, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
@@ -195,6 +196,26 @@ const SELECT='id,name,email,agency_url,agency_name,journey,access_plan,source,ar
 function pub(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_url,agency_name:a.agency_name,journey:a.journey,accessPlan:a.access_plan||planFromJourney(a.journey),source:a.source,archetype_result:a.archetype_result||{},report_data:a.report_data||{},diagnostic_state:a.diagnostic_state||{},created_at:a.created_at,updated_at:a.updated_at}:null}
 async function findById(c,id){const rows=await db(c,`accounts?select=${SELECT}&id=eq.${encodeURIComponent(id)}&limit=1`);return Array.isArray(rows)?rows[0]:null}
 
+
+async function findWorkspaceAccount(c,id){
+  const rows=await db(c,`accounts?select=${encodeURIComponent(WORKSPACE_ACCOUNT_SELECT)}&id=eq.${encodeURIComponent(id)}&limit=1`);
+  return workspaceAccount(Array.isArray(rows)?rows[0]:null);
+}
+async function workspaceResult(res,action,work){
+  const timing=creatureTimings(res,action);
+  try{const payload=await work(timing);timing.finish(true);return json(res,200,payload)}
+  catch(error){timing.finish(false);throw error}
+}
+async function workspaceIdentity(c,session,timing){
+  if(!session)throw Object.assign(new Error('Sign in to continue.'),{status:401});
+  const [account,actor]=await Promise.all([
+    timing.run('account',()=>findWorkspaceAccount(c,session.accountId)),
+    timing.run('actor',()=>sessionActor(c,session))
+  ]);
+  if(!account||!actor)throw Object.assign(new Error('Your account access is no longer active.'),{status:401});
+  return{account,actor};
+}
+
 function currentSession(req, secret){
   const session=verifySession(parseCookies(req).cc_account_session,secret);
   return session?.role==='account'&&session?.accountId?session:null;
@@ -235,16 +256,41 @@ function requireFeature(account,feature){if(!featuresForAccount(account).include
 function publicAccess(account,actor){const plan=accessPlan(account),purchasedPlans=[...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);return{plan,purchasedPlans,features:featuresForAccount(account),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS}}
 async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
 function responseText(payload){if(clean(payload?.output_text))return clean(payload.output_text);for(const item of payload?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&clean(part.text))return clean(part.text);return''}
-async function askCreature(c,account,actor,input){
-  const message=clean(input.message).slice(0,4000);if(!message)throw Object.assign(new Error('Enter a question for Ask Creature.'),{status:422});
+async function askCreature(c,account,actor,input,timing){
+  const message=clean(input.message).slice(0,4000);
+  if(!message)throw Object.assign(new Error('Enter a question for Ask Creature.'),{status:422});
+  const greeting=isCreatureGreeting(message);
   const memberFilter=actor.role==='member'?`&member_id=eq.${encodeURIComponent(actor.memberId)}`:'';
-  const since=new Date(Date.now()-10*60*1000).toISOString(),recent=await db(c,`ask_creature_messages?select=id&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&role=eq.user&created_at=gte.${encodeURIComponent(since)}`);if((recent||[]).length>=20)throw Object.assign(new Error('Ask Creature has reached the short-term message limit. Try again in a few minutes.'),{status:429});
-  const history=await db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.desc&limit=12`),ordered=(Array.isArray(history)?history:[]).reverse();
-  const key=clean(process.env.OPENAI_API_KEY);if(!key)throw Object.assign(new Error('Ask Creature is not configured.'),{status:503});
-  const context={agency:account.agency_name||account.name,plan:accessPlan(account),actorRole:actor.role,departments:actor.departments,currentPage:clean(input.currentPath).slice(0,200),diagnostic:actor.role==='owner'?(account.diagnostic_state||{}):undefined,report:actor.role==='owner'?(account.report_data||{}):undefined};
-  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},body:JSON.stringify({model:clean(process.env.OPENAI_MODEL)||'gpt-5-mini',instructions:'You are Ask Creature, the Creative Creatures agency operations assistant. Use only the supplied agency context and conversation. Never claim access to missing data, never invent metrics, never reveal another agency, and respect the member department list. Give concise, practical guidance.',input:[...ordered.map(row=>({role:row.role,content:row.content})),{role:'user',content:`Agency context: ${JSON.stringify(context)}\n\nQuestion: ${message}`}],max_output_tokens:900})});
-  const payload=await response.json();if(!response.ok)throw Object.assign(new Error(payload?.error?.message||'Ask Creature could not respond.'),{status:502});const answer=responseText(payload);if(!answer)throw Object.assign(new Error('Ask Creature returned an empty response.'),{status:502});
-  await db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([{account_id:account.id,member_id:actor.memberId||null,role:'user',content:message},{account_id:account.id,member_id:actor.memberId||null,role:'assistant',content:answer}])});return answer;
+  const since=new Date(Date.now()-10*60*1000).toISOString();
+  const [recent,history,contextRows]=await Promise.all([
+    timing.run('rate_limit',()=>db(c,`ask_creature_messages?select=id&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&role=eq.user&created_at=gte.${encodeURIComponent(since)}&limit=20`)),
+    greeting?[]:timing.run('history',()=>db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.desc,id.desc&limit=12`)),
+    greeting||actor.role!=='owner'?[]:timing.run('context',()=>db(c,`accounts?select=diagnostic_state,report_data&id=eq.${encodeURIComponent(account.id)}&limit=1`))
+  ]);
+  if((recent||[]).length>=20)throw Object.assign(new Error('Ask Creature has reached the short-term message limit. Try again in a few minutes.'),{status:429});
+  let answer='Hello! What would you like help with in your agency today?';
+  if(!greeting){
+    const key=clean(process.env.OPENAI_API_KEY);
+    if(!key)throw Object.assign(new Error('Ask Creature is not configured.'),{status:503});
+    const details=Array.isArray(contextRows)?contextRows[0]:null;
+    const context={agency:account.agency_name||account.name,plan:accessPlan(account),actorRole:actor.role,departments:actor.departments,currentPage:clean(input.currentPath).slice(0,200),diagnostic:actor.role==='owner'?compactCreatureData(details?.diagnostic_state||{},6000):undefined,report:actor.role==='owner'?compactCreatureData(details?.report_data||{},6000):undefined};
+    const payload=await timing.run('openai',async()=>{
+      const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(45000),body:JSON.stringify({model:clean(process.env.OPENAI_MODEL)||'gpt-5-mini',instructions:'You are Ask Creature, the Creative Creatures agency operations assistant. Use only the supplied agency context and conversation. Context may be shortened or omitted to fit a size budget; ask for missing details rather than guessing. Never claim access to missing data, never invent metrics, never reveal another agency, and respect the member department list. Give concise, practical guidance.',input:[...boundedCreatureHistory(history),{role:'user',content:`Agency context: ${JSON.stringify(context)}\n\nQuestion: ${message}`}],max_output_tokens:900})});
+      const result=await response.json();
+      if(!response.ok)throw Object.assign(new Error(result?.error?.message||'Ask Creature could not respond.'),{status:502});
+      return result;
+    });
+    answer=responseText(payload);
+    if(!answer)throw Object.assign(new Error('Ask Creature returned an empty response.'),{status:502});
+  }
+  // Persist before acknowledging success: failures must not silently lose chat history.
+  // Distinct timestamps retain user/assistant order even though both rows share one INSERT.
+  const createdAt=Date.now();
+  await timing.run('save',()=>db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([
+    {account_id:account.id,member_id:actor.memberId||null,role:'user',content:message,created_at:new Date(createdAt).toISOString()},
+    {account_id:account.id,member_id:actor.memberId||null,role:'assistant',content:answer,created_at:new Date(createdAt+1).toISOString()}
+  ])}));
+  return answer;
 }
 
 const QB_SELECT='id,account_id,realm_id,company_name,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,refresh_token_expires_at,scope,status,last_synced_at,last_sync_error,created_at,updated_at';
@@ -981,11 +1027,19 @@ export default async function handler(req,res){
     if(req.method==='GET'){
 
       if(action==='workspace_access'||action==='workspace_users'||action==='ask_creature_history'){
-        if(!session)return json(res,401,{authenticated:false,error:'Sign in to continue.'});const account=await findById(c,session.accountId),actor=await sessionActor(c,session);if(!account||!actor)return json(res,401,{authenticated:false,error:'Your account access is no longer active.'});
-        if(action==='workspace_access')return json(res,200,{authenticated:true,account:pub(account),access:publicAccess(account,actor)});
-        if(action==='workspace_users'){requireOwner(actor);requireFeature(account,'users');return json(res,200,{owner:{name:account.name,email:account.email},users:await listWorkspaceUsers(c,account.id),departments:DEPARTMENTS})}
-        requireFeature(account,'ask');
-        const memberFilter=actor.role==='member'?`&member_id=eq.${encodeURIComponent(actor.memberId)}`:'';const rows=await db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.asc&limit=50`);return json(res,200,{messages:Array.isArray(rows)?rows:[]});
+        return await workspaceResult(res,action,async timing=>{
+          const {account,actor}=await workspaceIdentity(c,session,timing);
+          if(action==='workspace_access')return{authenticated:true,account:{id:account.id,name:account.name,email:account.email,agency_name:account.agency_name,journey:account.journey,accessPlan:accessPlan(account)},access:publicAccess(account,actor)};
+          if(action==='workspace_users'){
+            requireOwner(actor);requireFeature(account,'users');
+            const users=await timing.run('users',()=>listWorkspaceUsers(c,account.id));
+            return{owner:{name:account.name,email:account.email},users,departments:DEPARTMENTS};
+          }
+          requireFeature(account,'ask');
+          const memberFilter=actor.role==='member'?`&member_id=eq.${encodeURIComponent(actor.memberId)}`:'';
+          const rows=await timing.run('history',()=>db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.desc,id.desc&limit=50`));
+          return{messages:Array.isArray(rows)?rows.reverse():[]};
+        });
       }
 
       if(session?.memberId&&action){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});return json(res,403,{error:'Only the agency owner can manage integrations and agency-wide programs.'})}
@@ -1132,9 +1186,15 @@ export default async function handler(req,res){
     }
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
     const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const bodyAction=clean(b.action);
-    if(['workspace_invite_user','workspace_update_user','workspace_remove_user','ask_creature'].includes(bodyAction)){
+    if(bodyAction==='ask_creature'){
+      return await workspaceResult(res,bodyAction,async timing=>{
+        const {account,actor}=await workspaceIdentity(c,session,timing);
+        requireFeature(account,'ask');
+        return{success:true,answer:await askCreature(c,account,actor,b,timing)};
+      });
+    }
+    if(['workspace_invite_user','workspace_update_user','workspace_remove_user'].includes(bodyAction)){
       if(!session)return json(res,401,{error:'Sign in to continue.'});const account=await findById(c,session.accountId),actor=await sessionActor(c,session);if(!account||!actor)return json(res,401,{error:'Your account access is no longer active.'});
-      if(bodyAction==='ask_creature'){if(!featuresForAccount(account).includes('ask'))return json(res,403,{error:'Ask Creature is not included in this plan.'});return json(res,200,{success:true,answer:await askCreature(c,account,actor,b)})}
       requireOwner(actor);if(!featuresForAccount(account).includes('users'))return json(res,403,{error:'User management is not included in this plan.'});
       if(bodyAction==='workspace_invite_user'){
         const name=clean(b.name).slice(0,120),email=lower(b.email),password=clean(b.password),departments=sanitizeDepartments(b.departments);if(!name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<10||!departments.length)return json(res,422,{error:'Name, valid email, temporary password (10+ characters), and at least one department are required.'});
