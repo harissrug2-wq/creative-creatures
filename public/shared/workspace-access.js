@@ -25,12 +25,21 @@
         list.scrollTop=list.scrollHeight;
       }
     };
+    input.addEventListener('keydown',e=>{
+      if(e.key==='Enter'&&!e.shiftKey){
+        e.preventDefault();
+        if(input.value.trim()){
+          if(typeof form.requestSubmit==='function')form.requestSubmit();
+          else form.dispatchEvent(new Event('submit',{cancelable:true,bubbles:true}));
+        }
+      }
+    });
     // Install before the first await so Send can never navigate the page.
     form.onsubmit=async e=>{
       e.preventDefault();
       if(sending||closed)return;
       const message=input.value.trim();if(!message)return;
-      sending=true;button.disabled=true;button.textContent='Sending…';error.hidden=true;
+      sending=true;error.hidden=true;
       list.querySelector('.cc-ai-empty')?.remove();
       const bubble=document.createElement('div');bubble.className='cc-ai-msg user';bubble.textContent=message;list.appendChild(bubble);
       const pending=document.createElement('div');pending.className='cc-ai-msg assistant';pending.textContent='Thinking…';list.appendChild(pending);
@@ -42,7 +51,7 @@
         if(!closed){pending.remove();bubble.remove();if(!input.value)input.value=message;error.hidden=false;error.textContent=err.message}
       }finally{
         sending=false;
-        if(!closed){button.disabled=false;button.textContent='Send';list.scrollTop=list.scrollHeight;input.focus()}
+        if(!closed){list.scrollTop=list.scrollHeight;input.focus()}
       }
     };
     input.focus();

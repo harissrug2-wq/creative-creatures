@@ -255,7 +255,23 @@ function requireDepartment(actor,department){if(actor?.role==='member'&&!actor.d
 function requireFeature(account,feature){if(!featuresForAccount(account).includes(feature))throw Object.assign(new Error(`${feature.replace(/-/g,' ')} is not included in this agency plan.`),{status:403})}
 function publicAccess(account,actor){const plan=accessPlan(account),purchasedPlans=[...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);return{plan,purchasedPlans,features:featuresForAccount(account),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS}}
 async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
-function responseText(payload){if(clean(payload?.output_text))return clean(payload.output_text);for(const item of payload?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&clean(part.text))return clean(part.text);return''}
+function responseText(payload){if(clean(payload?.output_text))return clean(payload.output_text);if(clean(payload?.choices?.[0]?.message?.content))return clean(payload.choices[0].message.content);for(const item of payload?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&clean(part.text))return clean(part.text);return''}
+
+async function requestOpenAI(key,instructions,inputMessages,maxTokens=300){
+  const model=clean(process.env.OPENAI_MODEL)||'gpt-4o-mini';
+  try{
+    const response=await fetch('https://api.openai.com/v1/chat/completions',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000),body:JSON.stringify({model,messages:[{role:'system',content:instructions},...inputMessages],max_tokens:maxTokens})});
+    const result=await response.json();
+    if(response.ok&&result?.choices?.[0]?.message?.content)return clean(result.choices[0].message.content);
+  }catch{}
+  const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(20000),body:JSON.stringify({model,instructions,input:inputMessages,max_output_tokens:maxTokens})});
+  const result=await response.json();
+  if(!response.ok)throw Object.assign(new Error(result?.error?.message||'Ask Creature could not respond.'),{status:502});
+  const text=responseText(result);
+  if(!text)throw Object.assign(new Error('Ask Creature returned an empty response.'),{status:502});
+  return text;
+}
+
 async function askCreature(c,account,actor,input,timing){
   const message=clean(input.message).slice(0,4000);
   if(!message)throw Object.assign(new Error('Enter a question for Ask Creature.'),{status:422});
@@ -266,13 +282,7 @@ async function askCreature(c,account,actor,input,timing){
     let answer='Hello! What would you like help with in your agency today?';
     if(key){
       try{
-        const payload=await timing.run('openai_greeting',async()=>{
-          const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(10000),body:JSON.stringify({model:clean(process.env.OPENAI_MODEL)||'gpt-5-mini',instructions:'You are Ask Creature, the Creative Creatures agency operations assistant. Give a very brief, friendly welcome (1-2 sentences) asking how you can assist their agency today.',input:[{role:'user',content:message}],max_output_tokens:100})});
-          const result=await response.json();
-          return response.ok?result:null;
-        });
-        const dynamicAnswer=responseText(payload);
-        if(dynamicAnswer)answer=dynamicAnswer;
+        answer=await timing.run('openai_greeting',()=>requestOpenAI(key,'You are Ask Creature, the Creative Creatures agency operations assistant. Give a very brief, friendly welcome (1-2 sentences) asking how you can assist their agency today.',[{role:'user',content:message}],100));
       }catch{}
     }
     const createdAt=Date.now();
@@ -300,15 +310,7 @@ async function askCreature(c,account,actor,input,timing){
   const details=Array.isArray(contextRows)?contextRows[0]:null;
   const context={agency:account.agency_name||account.name,plan:accessPlan(account),actorRole:actor.role,departments:actor.departments,currentPage:clean(input.currentPath).slice(0,200),diagnostic:requiresDiagnostic?compactCreatureData(details?.diagnostic_state||{},6000):undefined,report:requiresDiagnostic?compactCreatureData(details?.report_data||{},6000):undefined};
 
-  const payload=await timing.run('openai',async()=>{
-    const response=await fetch('https://api.openai.com/v1/responses',{method:'POST',headers:{Authorization:`Bearer ${key}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(45000),body:JSON.stringify({model:clean(process.env.OPENAI_MODEL)||'gpt-5-mini',instructions:'You are Ask Creature, the Creative Creatures agency operations assistant. Use only the supplied agency context and conversation. Context may be shortened or omitted to fit a size budget; ask for missing details rather than guessing. Never claim access to missing data, never invent metrics, never reveal another agency, and respect the member department list. Give concise, practical guidance.',input:[...boundedCreatureHistory(history),{role:'user',content:`Agency context: ${JSON.stringify(context)}\n\nQuestion: ${message}`}],max_output_tokens:300})});
-    const result=await response.json();
-    if(!response.ok)throw Object.assign(new Error(result?.error?.message||'Ask Creature could not respond.'),{status:502});
-    return result;
-  });
-
-  const answer=responseText(payload);
-  if(!answer)throw Object.assign(new Error('Ask Creature returned an empty response.'),{status:502});
+  const answer=await timing.run('openai',()=>requestOpenAI(key,'You are Ask Creature, the Creative Creatures agency operations assistant. Use only the supplied agency context and conversation. Context may be shortened or omitted to fit a size budget; ask for missing details rather than guessing. Never claim access to missing data, never invent metrics, never reveal another agency, and respect the member department list. Give concise, practical guidance.',[...boundedCreatureHistory(history),{role:'user',content:`Agency context: ${JSON.stringify(context)}\n\nQuestion: ${message}`}],300));
 
   const createdAt=Date.now();
   const savePromise=db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([
