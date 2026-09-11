@@ -162,6 +162,7 @@
       'Slack':{group:'Communications',code:'Sl',color:'#4a154b',copy:'OAuth2 · channels · users · workspace',status:'slack_status',connect:'slack_connect',sync:'slack_dashboard',disconnect:'slack_disconnect',manage:'slack'},
       'Microsoft Teams':{group:'Communications',code:'Ms',color:'#6264a7',copy:'Teams · channels · meetings'},
       'Google Chat':{group:'Communications',code:'Gc',color:'#00ac47',copy:'OAuth2 · spaces · members · send messages · no history access',status:'google_chat_status',connect:'google_chat_connect',sync:'google_chat_sync',disconnect:'google_chat_disconnect',manage:'google_chat'},
+      'Google Meet':{group:'Calendar & Meetings',code:'GM',color:'#00897b',copy:'L10 transcripts · shares your Google Calendar connection',status:'google_meet_status',connect:'google_calendar_connect',manage:'meet'},
       'Google Calendar':{group:'Calendar & Meetings',code:'31',color:'#4285f4',copy:'OAuth2 · calendars · events',status:'google_calendar_status',connect:'google_calendar_connect',disconnect:'google_calendar_disconnect',manage:'calendar'},
       'Outlook Calendar':{group:'Calendar & Meetings',code:'Oc',color:'#0078d4',copy:'Microsoft 365 · calendars · events'},
       'Zoom':{group:'Calendar & Meetings',code:'Zm',color:'#2d8cff',copy:'OAuth2 · connected host · upcoming meetings',status:'zoom_status',connect:'zoom_connect',sync:'zoom_sync',disconnect:'zoom_disconnect',manage:'zoom'},
@@ -186,7 +187,7 @@
       'Bookkeeping':['QuickBooks Online','Xero','Sage','FreshBooks','NetSuite'],
       'Project Management':['ClickUp','Asana','Monday.com','Teamwork','Jira','Basecamp'],
       'Communications':['Slack','Microsoft Teams','Google Chat'],
-      'Calendar & Meetings':['Google Calendar','Outlook Calendar','Zoom','Calendly'],
+      'Calendar & Meetings':['Google Calendar','Google Meet','Outlook Calendar','Zoom','Calendly'],
       'Central Drive':['Google Drive','Dropbox','OneDrive','Box'],
       'HR & People':['Gusto','BambooHR','Rippling','ADP','Justworks'],
       'Billing':['Stripe','Square','PayPal','Chargebee','Bill.com'],
@@ -228,6 +229,7 @@
       const s=stateMap.get(tool);
       if(!meta[tool]?.status)return ['provisioning','Provisioning — our team is on it'];
       if(s?.loading)return ['','Checking…'];
+      if(s?.reconnectRequired)return ['error','Reconnect required'];
       if(s?.error)return ['error','Needs attention'];
       if(s?.connected)return ['connected','Connected'];
       return ['','Not connected'];
@@ -250,14 +252,14 @@
       const supported=Boolean(m.status),connected=s.connected===true;
       let actions='';
       if(!supported)actions=`<span class="status provisioning">${label}</span><span class="working">● Working on it</span>`;
-      else if(!connected)actions=`<span class="status ${cls}">${label}</span><button class="btn primary" data-connect="${esc(tool)}">Connect</button>`;
-      else actions=`<span class="status ${cls}">${label}</span>${m.manage?`<button class="btn" data-manage="${esc(tool)}">Manage</button>`:''}${m.sync?`<button class="btn" data-sync="${esc(tool)}">Sync now</button>`:''}<button class="btn danger" data-disconnect="${esc(tool)}">Disconnect</button>`;
+      else if(!connected)actions=`<span class="status ${cls}">${label}</span><button class="btn primary" data-connect="${esc(tool)}">${s.reconnectRequired?'Reconnect':'Connect'}</button>`;
+      else actions=`<span class="status ${cls}">${label}</span>${m.manage?`<button class="btn" data-manage="${esc(tool)}">Manage</button>`:''}${m.sync?`<button class="btn" data-sync="${esc(tool)}">Sync now</button>`:''}${m.disconnect?`<button class="btn danger" data-disconnect="${esc(tool)}">Disconnect</button>`:''}`;
       return `<article class="integration-row"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="row-main"><div class="row-title"><strong>${esc(tool)}</strong>${connected?'<span class="active-source">active source</span>':''}</div><div class="row-copy">${esc(m.copy)}</div></div><div class="row-actions">${actions}</div></article>`;
     }
     function updateStats(){
       const supported=selected.filter(t=>meta[t]?.status);
       const connected=supported.filter(t=>stateMap.get(t)?.connected);
-      const attention=supported.filter(t=>stateMap.get(t)?.error);
+      const attention=supported.filter(t=>stateMap.get(t)?.error||stateMap.get(t)?.reconnectRequired);
       const cats=new Set(selected.map(t=>(meta[t]||{}).group).filter(Boolean));
       document.querySelector('#connectedStat').textContent=`${connected.length} / ${selected.length}`;
       document.querySelector('#healthyStat').textContent=String(connected.filter(t=>!stateMap.get(t)?.error).length);
@@ -348,11 +350,13 @@
       finally{button.disabled=false;button.textContent=old}
     }
     async function disconnectTool(tool,button){
-      if(!confirm(`Disconnect ${tool} from this agency?`))return;
+      if(!confirm(tool==='Google Calendar'?'Disconnect Google Calendar and Google Meet from this agency?':`Disconnect ${tool} from this agency?`))return;
       button.disabled=true;
       try{
         const result=await apiPost(meta[tool].disconnect);
-        stateMap.set(tool,{...connectionFrom(result),connected:false,error:''});render();
+        stateMap.set(tool,{...connectionFrom(result),connected:false,error:''});
+        if(tool==='Google Calendar'&&selected.includes('Google Meet'))await loadToolStatus('Google Meet');
+        render();
       }catch(error){alert(error.message);button.disabled=false}
     }
     function handleOauthReturn(){
@@ -370,6 +374,7 @@
     async function manageTool(tool){
       modalError.textContent='';modalTitle.textContent=tool;modalBody.innerHTML='<div class="data-item"><strong>Loading…</strong></div>';show('#dataModal');
       try{
+        if(tool==='Google Meet')return await manageMeet();
         if(tool==='Google Calendar')return manageCalendar();
         if(tool==='Google Drive')return manageDrive();
         if(tool==='GHL CRM')return manageGhl();
@@ -385,6 +390,16 @@
         if(tool==='Zoom')return manageZoom();
         modalBody.innerHTML='<div class="data-item"><strong>No manage view is required for this integration.</strong></div>';
       }catch(error){modalError.textContent=error.message}
+    }
+
+    async function manageMeet(){
+      modalTitle.textContent='Google Meet';
+      modalCopy.textContent='Meeting transcripts for the L10 workflow.';
+      const connection=connectionFrom(await apiGet('google_meet_status'));
+      const ready=connection.connected;
+      modalBody.innerHTML=`<div class="data-item"><strong>${ready?'Transcript permission granted':connection.reconnectRequired?'Reconnect required for transcripts':'Connect Google Meet'}</strong><span>${ready?'Google Meet uses your existing Google Calendar authorization.':'Connect or reconnect Google and grant the requested Meet transcript permission.'}</span></div><div class="data-item"><strong>Shared Google connection</strong><span>${esc(connection.connectedEmail||'Uses the account connected to Google Calendar')}. Disconnecting Google Calendar also disconnects Meet.</span></div><div class="data-item"><strong>Transcript availability</strong><span>The existing L10 sync imports available transcripts after a linked meeting ends. Granting permission does not create a transcript or guarantee access to every meeting.</span></div>${connection.lastError?`<div class="data-item"><strong>Connection error</strong><span>${esc(connection.lastError)}</span></div>`:''}<div class="toolbar">${!ready?'<button class="btn primary" id="meetReconnect">Reconnect Google</button>':''}<a class="btn" href="/integrations/">Back to integrations</a></div>`;
+      const button=document.querySelector('#meetReconnect');
+      if(button)button.onclick=()=>connectTool('Google Meet',button);
     }
 
     let calendarConnection=null,calendarEvents=[];
