@@ -173,20 +173,28 @@
             <button type="button" class="bk-action-btn primary" id="connectQB">Connect</button>
           </div>
           <div class="bk-option">
-            <div class="bk-logo xero">Xero</div>
-            <div class="bk-info">
-              <strong>Xero Accounting</strong>
-              <span>Import financial statements directly from Xero</span>
-            </div>
-            <a href="/integrations/" class="bk-action-btn secondary">Connect</a>
-          </div>
-          <div class="bk-option">
             <div class="bk-logo fb">FB</div>
             <div class="bk-info">
               <strong>FreshBooks</strong>
               <span>Sync client revenue, payments & invoices</span>
             </div>
             <button type="button" class="bk-action-btn secondary" id="connectFB">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo xero">Xero</div>
+            <div class="bk-info">
+              <strong>Xero Accounting</strong>
+              <span>Import financial statements directly from Xero</span>
+            </div>
+            <span class="bk-badge coming-soon">Coming Soon</span>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo erp">ERP</div>
+            <div class="bk-info">
+              <strong>NetSuite / Sage / Wave</strong>
+              <span>Enterprise financial software connectors</span>
+            </div>
+            <span class="bk-badge coming-soon">Coming Soon</span>
           </div>
         </div>
         <div class="bk-modal-footer">

@@ -206,9 +206,10 @@ function textArray(value, maxItems, maxLength) {
   return input.map(item => clipped(item, maxLength)).filter(Boolean).slice(0, maxItems);
 }
 
-async function getRows(config, table, accountId, select, order) {
+async function getRows(config, table, accountId, select, order, limit = 250) {
   const params = new URLSearchParams({ select, account_id: `eq.${accountId}` });
   if (order) params.set('order', order);
+  if (limit) params.set('limit', String(limit));
   const rows = await supabaseRequest(config, `${table}?${params.toString()}`);
   return Array.isArray(rows) ? rows : [];
 }
@@ -995,26 +996,30 @@ async function completeMeeting(config, accountId, body) {
   });
   const completedMeeting = rows?.[0] || null;
   if (completedMeeting) {
-    try {
-      const context = { config, request: supabaseRequest, accountId, meetingId, meetingDate: completedMeeting.meeting_date };
-      let transcript = await getMeetingTranscript(context);
-      if (!transcript || !transcript.rawText) {
-        const defaultRaw = `[00:00:00] Facilitator: Starting weekly L10 meeting for ${completedMeeting.title || 'Leadership'}.\n[00:05:00] Team: Good news and Segue shared.\n[00:15:00] Team: Scorecard KPIs and 90-Day Rocks reviewed.\n[00:25:00] Team: To-do list check completed.\n[00:85:00] Team: IDS session completed and cascading messages agreed.`;
-        transcript = await attachMeetingTranscript({ ...context, body: { rawText: defaultRaw, provider: 'manual' } });
-      }
-      await processMeetingTranscript(context);
-      await applyMeetingTranscriptDraft(context, {
-        selections: {
-          summary: true,
-          keyDecisions: [0, 1, 2, 3, 4, 5],
-          goodNews: [0, 1, 2, 3, 4, 5],
-          headlines: [0, 1, 2, 3, 4, 5],
-          todos: [0, 1, 2, 3, 4, 5],
-          issues: [0, 1, 2, 3, 4, 5],
-          cascadeMessages: [0, 1, 2, 3, 4, 5]
+    (async () => {
+      try {
+        const context = { config, request: supabaseRequest, accountId, meetingId, meetingDate: completedMeeting.meeting_date };
+        let transcript = await getMeetingTranscript(context);
+        if (!transcript || !transcript.rawText) {
+          const defaultRaw = `[00:00:00] Facilitator: Starting weekly L10 meeting for ${completedMeeting.title || 'Leadership'}.\n[00:05:00] Team: Good news and Segue shared.\n[00:15:00] Team: Scorecard KPIs and 90-Day Rocks reviewed.\n[00:25:00] Team: To-do list check completed.\n[00:85:00] Team: IDS session completed and cascading messages agreed.`;
+          transcript = await attachMeetingTranscript({ ...context, body: { rawText: defaultRaw, provider: 'manual' } });
         }
-      });
-    } catch {}
+        await processMeetingTranscript(context);
+        await applyMeetingTranscriptDraft(context, {
+          selections: {
+            summary: true,
+            keyDecisions: [0, 1, 2, 3, 4, 5],
+            goodNews: [0, 1, 2, 3, 4, 5],
+            headlines: [0, 1, 2, 3, 4, 5],
+            todos: [0, 1, 2, 3, 4, 5],
+            issues: [0, 1, 2, 3, 4, 5],
+            cascadeMessages: [0, 1, 2, 3, 4, 5]
+          }
+        });
+      } catch (err) {
+        console.error('Background meeting transcript processing error:', err);
+      }
+    })();
   }
   return completedMeeting;
 }
