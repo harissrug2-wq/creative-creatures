@@ -78,10 +78,18 @@
 
   const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
   loadWorkspace().then(workspace=>workspace.getAccess()).then(access=>{
-    host.querySelectorAll('[data-cc-feature]').forEach(link=>{link.hidden=!access.features.includes(link.dataset.ccFeature)});
+    host.querySelectorAll('[data-cc-feature]').forEach(link=>{
+      const isAllowed=access.features.includes(link.dataset.ccFeature);
+      link.hidden=!isAllowed;
+      if(!isAllowed)link.style.display='none';
+    });
     host.querySelectorAll('[data-cc-ask]').forEach(button=>{button.hidden=!access.features.includes('ask')});
     const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo';
     host.querySelectorAll('.cc-upgrade,.cc-mobile-upgrade').forEach(link=>{link.hidden=!canUpgrade});
+    const brand=host.querySelector('.cc-brand');
+    if(brand){
+      brand.href=access.features.includes('accelerator')?'/accelerator/':access.features.includes('monitor')?'/platform/':'/diagnostic/';
+    }
   }).catch(()=>{});
   host.querySelector('[data-cc-ask]')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{show('Ask Creature is unavailable right now.')}});
 

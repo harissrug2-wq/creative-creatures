@@ -235,12 +235,16 @@ function featuresForAccount(account){
   const plan=accessPlan(account),purchased=Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[],features=new Set();
   for(const purchasedPlan of [...purchased,plan])for(const feature of PLAN_FEATURES[purchasedPlan]||[])features.add(feature);
   if(!features.size)for(const feature of PLAN_FEATURES.diagnostic)features.add(feature);
-  // The Package guide grants full Platform access after the six-session
-  // Breakthrough Accelerator has been completed (excluding diagnostic for accelerator plan accounts).
-  if(plan==='accelerator'&&account?.diagnostic_state?.acceleratorCompleted===true){
-    for(const feature of PLAN_FEATURES.platform)if(feature!=='diagnostic')features.add(feature);
+  const isAcceleratorUser=plan==='accelerator'||purchased.includes('accelerator');
+  if(isAcceleratorUser){
+    features.add('accelerator');
+    features.delete('diagnostic');
+    if(account?.diagnostic_state?.acceleratorCompleted===true){
+      for(const feature of PLAN_FEATURES.platform)if(feature!=='diagnostic')features.add(feature);
+    }
+  }else{
+    features.delete('accelerator');
   }
-  if(plan==='accelerator')features.delete('diagnostic');
   return[...features];
 }
 function publicMember(row){return row?{id:row.id,name:row.name,email:row.email,role:'member',departments:Array.isArray(row.departments)?row.departments:[],status:row.status,invitedAt:row.invited_at,lastLoginAt:row.last_login_at}:null}

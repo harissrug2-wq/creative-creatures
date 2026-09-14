@@ -52,12 +52,12 @@
   const linkHtml = links.map(([key, href, label, svg]) => {
     const locked = isLocked(key);
     const cls = `cc-nav-link ${active === key ? 'active' : ''} ${locked ? 'locked' : ''}`;
-    return `<a class="${cls}" href="${href}" ${locked ? `data-cc-locked="${key}" aria-disabled="true"` : ''}>${svg}<span>${label}</span></a>`;
+    return `<a class="${cls}" href="${href}" data-cc-feature="${key}" hidden ${locked ? `data-cc-locked="${key}" aria-disabled="true"` : ''}>${svg}<span>${label}</span></a>`;
   }).join('');
 
   const host = document.querySelector('[data-cc-topbar]');
   if (!host) return;
-  host.innerHTML = `<header class="cc-topbar"><button class="cc-menu-toggle" aria-label="Open navigation">${icons.menu}</button><a class="cc-brand" href="/platform/"><img src="/monitor/creative-creatures-logo.png" alt="Creative Creatures"></a><div class="cc-mobile-title">Creative Creatures</div><nav class="cc-topnav">${linkHtml}</nav><div class="cc-actions"><button class="cc-ask" type="button" data-cc-ask>${icons.spark}<span>Ask Creature</span></button></div></header><nav class="cc-mobile-panel">${linkHtml}</nav><div class="cc-lock-tip" role="status"></div>`;
+  host.innerHTML = `<header class="cc-topbar"><button class="cc-menu-toggle" aria-label="Open navigation">${icons.menu}</button><a class="cc-brand" href="/platform/"><img src="/monitor/creative-creatures-logo.png" alt="Creative Creatures"></a><div class="cc-mobile-title">Creative Creatures</div><nav class="cc-topnav">${linkHtml}</nav><div class="cc-actions"><button class="cc-ask" type="button" data-cc-ask hidden>${icons.spark}<span>Ask Creature</span></button></div></header><nav class="cc-mobile-panel">${linkHtml}</nav><div class="cc-lock-tip" role="status"></div>`;
 
   const panel = host.querySelector('.cc-mobile-panel');
   host.querySelector('.cc-menu-toggle')?.addEventListener('click', () => panel.classList.toggle('open'));
@@ -77,7 +77,18 @@
   }));
 
   const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
-  loadWorkspace().catch(()=>{});
+  loadWorkspace().then(workspace=>workspace.getAccess()).then(access=>{
+    host.querySelectorAll('[data-cc-feature]').forEach(link=>{
+      const isAllowed=access.features.includes(link.dataset.ccFeature);
+      link.hidden=!isAllowed;
+      if(!isAllowed)link.style.display='none';
+    });
+    host.querySelectorAll('[data-cc-ask]').forEach(button=>{button.hidden=!access.features.includes('ask')});
+    const brand=host.querySelector('.cc-brand');
+    if(brand){
+      brand.href=access.features.includes('accelerator')?'/accelerator/':access.features.includes('monitor')?'/platform/':'/diagnostic/';
+    }
+  }).catch(()=>{});
   host.querySelector('[data-cc-ask]')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{show('Ask Creature is unavailable right now.')}});
 
   // Phase 3 Horizontal Status Bar
