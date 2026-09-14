@@ -516,6 +516,7 @@
         </a>` : ''}
       </div>
       <div class="lead-l10-title"><input name="title" required maxlength="220" value="${esc(item?.title || `Weekly Leadership L10 — ${meetingDate}`)}"><input type="date" name="meetingDate" required value="${esc(meetingDate)}"></div>
+      <div class="lead-l10-url-field"><label><span>Meeting Call Link (Google Meet / Zoom / Teams)</span><input name="meetingUrl" type="url" value="${esc(meetingUrl)}" placeholder="https://meet.google.com/... or https://zoom.us/j/..."></label></div>
       ${meetingNavigator(item)}
       <div class="lead-l10-source">✣ <span>${esc(meetingSource(item))}</span>${item?.calendar_html_url ? `<a href="${esc(item.calendar_html_url)}" target="_blank" rel="noopener">Open calendar ↗</a>` : ''}</div>
       <section class="lead-l10-section" data-section-card="segue"><h4><small>5m</small> Segue — Good News</h4>${agendaInputs('goodNews', agenda.goodNews, 'Add a positive headline…')}</section>
@@ -1051,6 +1052,10 @@
       const meetingId = button.dataset.joinMeeting;
       const meeting = state.leadership?.meetings?.find(item => item.id === meetingId);
       if (!meeting) return;
+
+      const getUrl = item => item?.meeting_url || item?.calendar_html_url || item?.transcript_url || '';
+      let meetingUrl = getUrl(meeting);
+
       if (meeting.status === 'planned') {
         button.disabled = true;
         button.textContent = 'Starting…';
@@ -1058,17 +1063,18 @@
           await leadershipAction('start_meeting', { meetingId });
           await refreshData();
           const updated = state.leadership?.meetings?.find(item => item.id === meetingId) || meeting;
+          meetingUrl = getUrl(updated) || meetingUrl;
+          if (meetingUrl) window.open(meetingUrl, '_blank');
           openModal('meeting', updated);
-          showToast('Meeting started! Joined as Host.');
+          showToast('Meeting started! Joining Google Meet / Zoom…');
         } catch (err) {
           showToast(err.message);
         } finally {
           button.disabled = false;
         }
       } else {
+        if (meetingUrl) window.open(meetingUrl, '_blank');
         openModal('meeting', meeting);
-        const url = meeting.meeting_url || meeting.calendar_html_url || '';
-        if (url) window.open(url, '_blank');
       }
     }));
     document.querySelectorAll('[data-edit-meeting]').forEach(button => button.addEventListener('click', () => openModal('meeting', state.leadership.meetings.find(item => item.id === button.dataset.editMeeting))));

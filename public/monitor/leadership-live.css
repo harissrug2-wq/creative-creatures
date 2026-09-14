@@ -73,4 +73,9 @@
 .lead-join-status.live{color:#15803d;font-weight:700}
 .lead-join-now-header-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:8px;background:#2563eb;color:#fff;font-size:12px;font-weight:700;text-decoration:none;box-shadow:0 2px 6px rgba(37,99,235,.25)}
 .lead-join-now-header-btn:hover{background:#1d4ed8;color:#fff}
+.lead-l10-url-field{margin-top:12px;margin-bottom:16px}
+.lead-l10-url-field label{display:grid;gap:6px}
+.lead-l10-url-field label>span{color:#596271;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.lead-l10-url-field input{width:100%;border:1px solid #dde1e6;border-radius:10px;background:#fff;color:#252b35;padding:10px 11px;font:inherit;font-size:11px}
+
 
