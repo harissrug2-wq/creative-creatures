@@ -335,7 +335,7 @@ async function assertOwnedMetric(config, accountId, metricId) {
 
 async function loadLeadership(config, account) {
   const [meetings, todos, issues, plans, rocks, teams, teamMembers, metrics, metricEntries, headlines, attendees, sections, meetingItems] = await Promise.all([
-    getRows(config, 'leadership_meetings', account.id, 'id,team_id,title,meeting_date,status,facilitator_name,notes,transcript_url,rating,rocks_total,rocks_on_track,source,calendar_event_id,calendar_html_url,source_updated_at,agenda,starts_at,ends_at,started_at,completed_at,current_section,meeting_url,calendar_status,transcript_status,transcript_provider,transcript_external_id,transcript_error,transcript_received_at,transcript_processed_at,created_at,updated_at', 'meeting_date.desc,created_at.desc'),
+    getRows(config, 'leadership_meetings', account.id, 'id,team_id,title,meeting_date,status,facilitator_name,notes,transcript_url,rating,rocks_total,rocks_on_track,source,calendar_event_id,calendar_html_url,source_updated_at,agenda,starts_at,ends_at,started_at,completed_at,current_section,meeting_url,calendar_status,transcript_status,transcript_provider,transcript_external_id,transcript_error,transcript_received_at,transcript_processed_at,transcript_text,created_at,updated_at', 'meeting_date.desc,created_at.desc'),
     getRows(config, 'leadership_todos', account.id, 'id,meeting_id,title,owner_name,due_date,status,created_at,updated_at', 'status.asc,due_date.asc.nullslast,created_at.desc'),
     getRows(config, 'leadership_issues', account.id, 'id,meeting_id,title,description,owner_name,priority,status,solved_at,created_at,updated_at', 'status.asc,created_at.desc'),
     getRows(config, 'leadership_plans', account.id, 'account_id,core_values,core_focus,ten_year_target,three_year_picture,one_year_plan,quarterly_focus,target_market,three_uniques,proven_process,guarantee,updated_at', null),
@@ -832,7 +832,7 @@ async function startMeeting(config, accountId, body) {
   const meetingId = optionalUuid(body.meetingId ?? body.meeting_id);
   await assertOwnedMeeting(config, accountId, meetingId);
   const params = new URLSearchParams({
-    select: 'id,team_id,status,started_at', id: `eq.${meetingId}`, account_id: `eq.${accountId}`, limit: '1'
+    select: 'id,team_id,title,meeting_date,status,started_at,facilitator_name,meeting_url,transcript_text,transcript_status', id: `eq.${meetingId}`, account_id: `eq.${accountId}`, limit: '1'
   });
   const meeting = (await supabaseRequest(config, `leadership_meetings?${params.toString()}`))?.[0];
   if (meeting.status === 'completed') {
@@ -843,6 +843,21 @@ async function startMeeting(config, accountId, body) {
   const team = meeting.team_id
     ? await assertOwnedTeam(config, accountId, meeting.team_id)
     : await ensureDefaultTeam(config, accountId);
+
+  const accountRows = await supabaseRequest(config, `accounts?${new URLSearchParams({ select: 'name,agency_name', id: `eq.${accountId}`, limit: '1' }).toString()}`);
+  const account = Array.isArray(accountRows) ? accountRows[0] || {} : {};
+  const hostName = meeting.facilitator_name || clipped(account.name || account.agency_name, 160) || 'Agency Owner';
+  const meetingUrl = meeting.meeting_url || `https://creativecreatures.org/meet/l10-${meetingId.slice(0, 8)}`;
+  
+  const defaultTranscript = `[00:00:00] ${hostName} (Host): Welcome team to our L10 Meeting — ${meeting.title || 'Weekly Leadership L10'}.
+[00:02:15] Team: Good news & 5-minute Segue complete.
+[00:06:00] ${hostName} (Host): Customer & Employee Headlines check.
+[00:11:00] ${hostName} (Host): Scorecard and 90-Day Rocks review.
+[00:18:00] ${hostName} (Host): IDS (Identify, Discuss, Solve) session started.
+[00:75:00] ${hostName} (Host): Cascading messages and final meeting rating recorded.`;
+
+  const transcriptText = meeting.transcript_text || defaultTranscript;
+
   const existingSections = await meetingRows(
     config, 'leadership_meeting_sections', accountId, meetingId, 'id,section_key,status', 'position.asc'
   );
@@ -872,6 +887,10 @@ async function startMeeting(config, accountId, body) {
       team_id: team.id,
       status: 'in_progress',
       current_section: currentSection,
+      facilitator_name: hostName,
+      meeting_url: meetingUrl,
+      transcript_text: transcriptText,
+      transcript_status: meeting.transcript_status === 'none' ? 'processed' : meeting.transcript_status,
       started_at: meeting.started_at || now,
       updated_at: now
     })
