@@ -24,7 +24,7 @@
         platform:{title:'Platform / Partner Portal',price:'$497 / month',meta:'self-guided setup',features:['Department dashboards','Integrations and Monitor','Users and Partner Portal']},
         fractional_coo:{title:'Fractional COO + Platform Bundle',price:'$2,500 setup + $3,997/mo',meta:'guided, month to month',features:['Fractional COO support','Full Platform access','Accelerator workspace']}
       };
-      const featureSets={diagnostic:['diagnostic','scorecard','goals'],accelerator:['accelerator','diagnostic','scorecard','goals'],platform:['integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users'],fractional_coo:['accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users']};
+      const featureSets={diagnostic:['diagnostic','scorecard','goals'],accelerator:['accelerator','scorecard','goals'],platform:['integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users'],fractional_coo:['accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users']};
       const esc=value=>String(value||'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
       const grid=document.querySelector('#upgradeGrid'),error=document.querySelector('#upgradeError'),current=document.querySelector('#currentPlan');
       window.CCWorkspace.getAccess().then(access=>{

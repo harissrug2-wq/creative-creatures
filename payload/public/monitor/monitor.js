@@ -62,7 +62,7 @@
           <nav class="side-scroll">${sidebar}</nav>
           <div class="profile">
             <button class="profile-button" id="profileButton"><span class="avatar">${initials}</span><span class="profile-copy"><span class="profile-name">${ownerName}</span><span class="profile-email">${ownerEmail}</span></span>${ico('chevron','profile-chevron')}</button>
-            <div class="profile-menu" id="profileMenu"><div class="profile-menu-head"><div class="profile-name">${ownerName}</div><div class="profile-email">${ownerEmail}</div></div><a href="#" data-toast="Invite teammate is ready for backend wiring.">${ico('person','nav-icon')}<span>Invite teammate</span></a><a href="/users/">${ico('users','nav-icon')}<span>Manage users</span></a><button class="signout" data-toast="Sign out requires authentication wiring."><span class="signout-icon" aria-hidden="true">↪</span><span>Sign out</span></button></div>
+            <div class="profile-menu" id="profileMenu"><div class="profile-menu-head"><div class="profile-name">${ownerName}</div><div class="profile-email">${ownerEmail}</div></div><a href="#" data-toast="Invite teammate is ready for backend wiring.">${ico('person','nav-icon')}<span>Invite teammate</span></a><a href="/users/">${ico('users','nav-icon')}<span>Manage users</span></a><button class="signout"><span class="signout-icon" aria-hidden="true">↪</span><span>Sign out</span></button></div>
           </div>
         </aside>
         <div class="main-shell">
@@ -101,6 +101,8 @@
     topMenuPanel?.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeTopMenu));
     document.querySelector('#mobileAskButton')?.addEventListener('click',()=>{document.querySelector('#askButton')?.click();closeTopMenu();});
     document.addEventListener('keydown',event=>{if(event.key==='Escape')closeTopMenu();});
+    const signOut=()=>{['ccSignedIn','cc_account','ccUserAccount','ccOwnerEmail','ownerIdentityComplete'].forEach(k=>localStorage.removeItem(k));fetch('/api/account-auth',{method:'DELETE'}).finally(()=>{location.href='/login/'});};
+    document.querySelectorAll('.signout').forEach(btn=>btn.addEventListener('click',signOut));
     document.querySelectorAll('[data-toast]').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();showToast(el.dataset.toast)}));
     document.querySelectorAll('.period button').forEach(btn=>btn.addEventListener('click',()=>{btn.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('active'));btn.classList.add('active')}));
     document.querySelectorAll('.leadership-tabs button').forEach(btn=>btn.addEventListener('click',()=>{btn.parentElement.querySelectorAll('button').forEach(x=>x.classList.remove('active'));btn.classList.add('active');showToast(`${btn.textContent.trim()} selected.`)}));

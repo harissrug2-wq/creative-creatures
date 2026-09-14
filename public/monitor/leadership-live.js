@@ -155,56 +155,12 @@
       'Create the first weekly meeting. Nothing is prefilled with prototype activity.',
       '<button type="button" class="lead-primary" data-new-meeting>Create first meeting</button>'
     );
-    const ownerHost = state.leadership?.account?.name || state.leadership?.account?.agencyName || 'Agency Owner';
-    return `<div class="lead-meeting-list">${meetings.map(meeting => {
-      const facilitator = meeting.facilitator_name || ownerHost;
-      const isInProgress = meeting.status === 'in_progress';
-      const isCompleted = meeting.status === 'completed';
-      const transcriptSnippet = meeting.transcript_text
-        || meeting.agenda?.transcriptSummary
-        || (isInProgress ? 'Live L10 meeting in progress — recording & transcript active.' : 'Transcript automatically generates when meeting starts.');
-
-      return `<div class="lead-meeting-card ${isInProgress ? 'is-live' : ''}">
-        <div class="lead-meeting-card-top">
-          <span class="lead-meeting-date"><b>${esc(new Date(`${meeting.meeting_date}T12:00:00`).toLocaleDateString('en-US',{month:'short'}))}</b><strong>${esc(new Date(`${meeting.meeting_date}T12:00:00`).getDate())}</strong></span>
-          <div class="lead-meeting-main">
-            <div class="lead-meeting-title-row">
-              <strong>${esc(meeting.title)}</strong>
-              ${pill(meeting.status)}
-            </div>
-            <div class="lead-meeting-meta">
-              <span>📅 ${esc(dateLabel(meeting.meeting_date))}</span>
-              <span class="lead-host-badge">👑 Host: <strong>${esc(facilitator)}</strong></span>
-              ${meeting.source === 'google_calendar' ? '<span class="lead-source-tag">Google Calendar</span>' : ''}
-            </div>
-          </div>
-          <div class="lead-meeting-actions-col">
-            ${!isCompleted ? `
-              <button type="button" class="lead-join-now-btn ${isInProgress ? 'pulse' : ''}" data-join-meeting="${esc(meeting.id)}">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                <span>${isInProgress ? 'Join Now (Live)' : 'Join Now'}</span>
-              </button>
-            ` : ''}
-            <button type="button" class="lead-edit-btn" data-edit-meeting="${esc(meeting.id)}">
-              ${isCompleted ? 'View Agenda' : 'Agenda & Details'}
-            </button>
-          </div>
-        </div>
-        <div class="lead-meeting-card-stats">
-          <span><b>${esc(`${meeting.rocks_on_track || 0}/${meeting.rocks_total || 0}`)}</b> rocks on track</span>
-          <span><b>${esc(`${meeting.open_todo_count || 0}`)}</b> open to-dos</span>
-          <span><b>${esc(`${meeting.open_issue_count || 0}`)}</b> open issues</span>
-          <span>Rating <b>${meeting.rating == null ? '—' : `${esc(meeting.rating)}/10`}</b></span>
-        </div>
-        <div class="lead-card-transcript">
-          <div class="lead-card-transcript-head">
-            <span class="lead-transcript-tag">⚡ Live Transcript</span>
-            <small>${isInProgress ? 'Recording active' : isCompleted ? 'Completed' : 'Auto Generated'}</small>
-          </div>
-          <p class="lead-card-transcript-text">${esc(transcriptSnippet)}</p>
-        </div>
-      </div>`;
-    }).join('')}</div>`;
+    return `<div class="lead-meeting-list">${meetings.map(meeting => `<button type="button" class="lead-meeting-row" data-edit-meeting="${esc(meeting.id)}">
+      <span class="lead-meeting-date"><b>${esc(new Date(`${meeting.meeting_date}T12:00:00`).toLocaleDateString('en-US',{month:'short'}))}</b><strong>${esc(new Date(`${meeting.meeting_date}T12:00:00`).getDate())}</strong></span>
+      <span class="lead-meeting-main"><strong>${esc(meeting.title)}</strong><small>${esc(dateLabel(meeting.meeting_date))}${meeting.facilitator_name ? ` · Facilitator ${esc(meeting.facilitator_name)}` : ''}</small></span>
+      <span class="lead-meeting-stats"><span>${esc(`${meeting.rocks_on_track || 0}/${meeting.rocks_total || 0}`)} rocks</span><span>${esc(`${meeting.open_todo_count || 0}`)} open to-dos</span><span>${esc(`${meeting.open_issue_count || 0}`)} open issues</span><span>${meeting.rating == null ? 'No rating' : `${esc(meeting.rating)}/10`}</span></span>
+      <span class="lead-meeting-action">${pill(meeting.status)}<b>${meeting.status === 'completed' ? 'View' : meeting.status === 'in_progress' ? 'Resume' : 'Open'}</b></span>
+    </button>`).join('')}</div>`;
   }
 
   function todoRows() {
@@ -500,23 +456,8 @@
   function meetingFields(item, today) {
     const agenda = agendaFor(item);
     const meetingDate = item?.meeting_date || today;
-    const hostName = item?.facilitator_name || state.leadership?.account?.name || state.leadership?.account?.agencyName || 'Agency Owner';
-    const isLive = item?.status === 'in_progress';
-    const meetingUrl = item?.meeting_url || item?.calendar_html_url || '';
-
     return `<input type="hidden" name="id" value="${esc(item?.id || '')}"><input type="hidden" name="transcriptUrl" value="${esc(item?.transcript_url || '')}">
-      <div class="lead-join-header-banner">
-        <div class="lead-join-header-info">
-          <span class="lead-host-badge">👑 Host: <strong>${esc(hostName)}</strong></span>
-          <span class="lead-join-status ${isLive ? 'live' : ''}">${isLive ? '🟢 Live L10 Session Active' : '📅 Scheduled Leadership Cadence'}</span>
-        </div>
-        ${meetingUrl ? `<a href="${esc(meetingUrl)}" target="_blank" rel="noopener" class="lead-join-now-header-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-          <span>Open Meeting Video Room ↗</span>
-        </a>` : ''}
-      </div>
       <div class="lead-l10-title"><input name="title" required maxlength="220" value="${esc(item?.title || `Weekly Leadership L10 — ${meetingDate}`)}"><input type="date" name="meetingDate" required value="${esc(meetingDate)}"></div>
-      <div class="lead-l10-url-field"><label><span>Meeting Call Link (Google Meet / Zoom / Teams)</span><input name="meetingUrl" type="url" value="${esc(meetingUrl)}" placeholder="https://meet.google.com/... or https://zoom.us/j/..."></label></div>
       ${meetingNavigator(item)}
       <div class="lead-l10-source">✣ <span>${esc(meetingSource(item))}</span>${item?.calendar_html_url ? `<a href="${esc(item.calendar_html_url)}" target="_blank" rel="noopener">Open calendar ↗</a>` : ''}</div>
       <section class="lead-l10-section" data-section-card="segue"><h4><small>5m</small> Segue — Good News</h4>${agendaInputs('goodNews', agenda.goodNews, 'Add a positive headline…')}</section>
@@ -1047,36 +988,6 @@
     document.querySelectorAll('[data-new-issue]').forEach(button => button.addEventListener('click', () => openModal('issue')));
     document.querySelectorAll('[data-new-todo]').forEach(button => button.addEventListener('click', () => openModal('todo')));
     document.querySelectorAll('[data-new-rock]').forEach(button => button.addEventListener('click', () => openModal('rock')));
-    document.querySelectorAll('[data-join-meeting]').forEach(button => button.addEventListener('click', async event => {
-      event.stopPropagation();
-      const meetingId = button.dataset.joinMeeting;
-      const meeting = state.leadership?.meetings?.find(item => item.id === meetingId);
-      if (!meeting) return;
-
-      const getUrl = item => item?.meeting_url || item?.calendar_html_url || item?.transcript_url || '';
-      let meetingUrl = getUrl(meeting);
-
-      if (meeting.status === 'planned') {
-        button.disabled = true;
-        button.textContent = 'Starting…';
-        try {
-          await leadershipAction('start_meeting', { meetingId });
-          await refreshData();
-          const updated = state.leadership?.meetings?.find(item => item.id === meetingId) || meeting;
-          meetingUrl = getUrl(updated) || meetingUrl;
-          if (meetingUrl) window.open(meetingUrl, '_blank');
-          openModal('meeting', updated);
-          showToast('Meeting started! Joining Google Meet / Zoom…');
-        } catch (err) {
-          showToast(err.message);
-        } finally {
-          button.disabled = false;
-        }
-      } else {
-        if (meetingUrl) window.open(meetingUrl, '_blank');
-        openModal('meeting', meeting);
-      }
-    }));
     document.querySelectorAll('[data-edit-meeting]').forEach(button => button.addEventListener('click', () => openModal('meeting', state.leadership.meetings.find(item => item.id === button.dataset.editMeeting))));
     document.querySelectorAll('[data-edit-metric]').forEach(button => button.addEventListener('click', () => openModal('metric', state.leadership.metrics.find(item => item.id === button.dataset.editMetric))));
     document.querySelectorAll('[data-edit-issue]').forEach(button => button.addEventListener('click', () => openModal('issue', state.leadership.issues.find(item => item.id === button.dataset.editIssue))));

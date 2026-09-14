@@ -151,6 +151,89 @@
       </div>
     </div>`;
 
+  function renderBookkeepingModal(){
+    if(document.querySelector('#bookkeepingConnectModal'))return;
+    const wrap=document.createElement('div');
+    wrap.className='bk-modal-backdrop';
+    wrap.id='bookkeepingConnectModal';
+    wrap.innerHTML=`
+      <div class="bk-modal" role="dialog" aria-modal="true" aria-label="Connect Bookkeeping Software">
+        <div class="bk-modal-head">
+          <h3>Connect Bookkeeping Software</h3>
+          <button class="bk-modal-close" type="button" id="closeBkModal" aria-label="Close">×</button>
+        </div>
+        <p class="bk-modal-sub">Connect your bookkeeping or accounting platform to automatically import your financial statements and evidence.</p>
+        <div class="bk-options">
+          <div class="bk-option">
+            <div class="bk-logo qb">QB</div>
+            <div class="bk-info">
+              <strong>QuickBooks Online</strong>
+              <span>Sync P&L, Balance Sheet, A/R Aging & Client Revenue</span>
+            </div>
+            <button type="button" class="bk-action-btn primary" id="connectQB">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo xero">Xero</div>
+            <div class="bk-info">
+              <strong>Xero Accounting</strong>
+              <span>Import financial statements directly from Xero</span>
+            </div>
+            <a href="/integrations/" class="bk-action-btn secondary">Connect</a>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo fb">FB</div>
+            <div class="bk-info">
+              <strong>FreshBooks</strong>
+              <span>Sync client revenue, payments & invoices</span>
+            </div>
+            <button type="button" class="bk-action-btn secondary" id="connectFB">Connect</button>
+          </div>
+        </div>
+        <div class="bk-modal-footer">
+          <a href="/integrations/">View all available integrations →</a>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    const close=()=>wrap.classList.remove('show');
+    wrap.querySelector('#closeBkModal').onclick=close;
+    wrap.onclick=e=>{if(e.target===wrap)close();};
+
+    wrap.querySelector('#connectQB').onclick=async()=>{
+      try{
+        const res=await fetch('/api/account-auth?action=quickbooks_connect').then(r=>r.json());
+        if(res.authorizationUrl)location.href=res.authorizationUrl;
+        else alert(res.error||'QuickBooks connection is currently unavailable.');
+      }catch(e){alert('QuickBooks connection failed: '+e.message);}
+    };
+
+    wrap.querySelector('#connectFB').onclick=async()=>{
+      try{
+        const res=await fetch('/api/account-auth?action=freshbooks_connect').then(r=>r.json());
+        if(res.authorizationUrl)location.href=res.authorizationUrl;
+        else alert(res.error||'FreshBooks connection is currently unavailable.');
+      }catch(e){alert('FreshBooks connection failed: '+e.message);}
+    };
+  }
+
+  function showBookkeepingModal(){
+    renderBookkeepingModal();
+    document.querySelector('#bookkeepingConnectModal')?.classList.add('show');
+  }
+
+  async function checkBookkeepingConnection(){
+    try{
+      const qb=await fetch('/api/account-auth?action=quickbooks_status').then(r=>r.json()).catch(()=>({}));
+      if(qb?.connection?.connected){state.bookkeepingConnected=true;return;}
+      const fb=await fetch('/api/account-auth?action=freshbooks_status').then(r=>r.json()).catch(()=>({}));
+      if(fb?.connection?.connected){state.bookkeepingConnected=true;return;}
+      state.bookkeepingConnected=false;
+    }catch{
+      state.bookkeepingConnected=false;
+    }
+  }
+
   const host=document.querySelector('#sectionHost');
   document.querySelector('#backDiagnostic').addEventListener('click',()=>{persist();location.href='/diagnostic/';});
 
@@ -158,10 +241,14 @@
     const button=event.target.closest('[data-qb-sync]');
     if(!button)return;
     event.preventDefault();
+    if(!state.bookkeepingConnected){
+      showBookkeepingModal();
+      return;
+    }
     if(button.disabled)return;
     button.disabled=true;
     const original=button.textContent;
-    button.textContent='Syncingâ€¦';
+    button.textContent='Syncing…';
     try{
       const response=await fetch('/api/account-auth',{
         method:'POST',
@@ -169,12 +256,10 @@
         body:JSON.stringify({action:'quickbooks_sync'})
       });
       const payload=await response.json().catch(()=>({}));
-      if(!response.ok)throw new Error(payload.error||'QuickBooks sync failed.');
-      // The user explicitly requested this import. Reload so the existing
-      // financial-evidence loader can apply the newly synced evidence.
+      if(!response.ok)throw new Error(payload.error||'Bookkeeping sync failed.');
       location.reload();
     }catch(error){
-      alert(error?.message||'QuickBooks sync failed.');
+      alert(error?.message||'Bookkeeping sync failed.');
       button.disabled=false;
       button.textContent=original;
     }
@@ -214,6 +299,7 @@
     const meta=state.documents[section.id];
     const status=meta?extractionLabel({...meta,sectionId:section.id}):null;
     const canRetry=meta?.evidenceId && ['failed','uploaded'].includes(meta.extractionStatus||meta.extraction_status||'');
+    const syncText=state.bookkeepingConnected?'Sync Now':'Connect';
     return `<div class="evidence-upload ${meta?'received':''}">
       <div class="upload-mark">${meta?checkIcon:'<span>↑</span>'}</div>
       <div class="upload-copy">
@@ -223,7 +309,7 @@
         ${status?`<div class="extraction-status ${status.className}">${esc(status.text)}</div>`:''}
         <div class="upload-actions">
           <label class="upload-button">${meta?'Replace PDF':'Upload PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
-          <button type="button" class="upload-button" data-qb-sync="${section.id}">Sync Now</button>
+          <button type="button" class="upload-button" data-qb-sync="${section.id}">${syncText}</button>
           ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry automated extraction</button>`:''}
         </div>
       </div>
@@ -471,6 +557,7 @@
   }
 
   async function hydrateRemoteEvidence(){
+    checkBookkeepingConnection().then(()=>render());
     if(!window.CCFinancialEvidence?.list){state.remoteLoaded=true;return;}
     try{const result=await window.CCFinancialEvidence.list();(result.evidence||[]).forEach(hydrateEvidenceRow);state.remoteError='';}
     catch(error){state.remoteError=error.message||'Saved financial evidence could not be loaded.';}

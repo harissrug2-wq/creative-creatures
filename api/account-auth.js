@@ -225,7 +225,7 @@ const DEPARTMENTS=['leadership','marketing','sales','billing','onboarding','serv
 const PLAN_FEATURES={
   owner_archetype:['owner-archetype'],
   diagnostic:['owner-archetype','diagnostic','scorecard','goals','ask'],
-  accelerator:['owner-archetype','accelerator','diagnostic','scorecard','goals','ask'],
+  accelerator:['owner-archetype','accelerator','scorecard','goals','ask'],
   platform:['owner-archetype','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask'],
   fractional_coo:['owner-archetype','accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask']
 };
@@ -236,10 +236,11 @@ function featuresForAccount(account){
   for(const purchasedPlan of [...purchased,plan])for(const feature of PLAN_FEATURES[purchasedPlan]||[])features.add(feature);
   if(!features.size)for(const feature of PLAN_FEATURES.diagnostic)features.add(feature);
   // The Package guide grants full Platform access after the six-session
-  // Breakthrough Accelerator has been completed.
+  // Breakthrough Accelerator has been completed (excluding diagnostic for accelerator plan accounts).
   if(plan==='accelerator'&&account?.diagnostic_state?.acceleratorCompleted===true){
-    for(const feature of PLAN_FEATURES.platform)features.add(feature);
+    for(const feature of PLAN_FEATURES.platform)if(feature!=='diagnostic')features.add(feature);
   }
+  if(plan==='accelerator')features.delete('diagnostic');
   return[...features];
 }
 function publicMember(row){return row?{id:row.id,name:row.name,email:row.email,role:'member',departments:Array.isArray(row.departments)?row.departments:[],status:row.status,invitedAt:row.invited_at,lastLoginAt:row.last_login_at}:null}
