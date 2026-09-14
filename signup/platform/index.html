@@ -10,6 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/portal/base.css">
+  <link rel="stylesheet" href="/portal/onboarding.css">
   <link rel="stylesheet" href="/portal/signup.css">
 </head>
 <body class="offer-detail-page">
@@ -143,23 +144,58 @@
       </div>
     </div>
 
-    <!-- STEP 1 OF 3 ARCHETYPE CARD -->
-    <div id="start" class="archetype-step-card card-theme-purple">
+    <!-- STEP 1 OF 3 EMBEDDED ARCHETYPE & LOOKUP CARD -->
+    <div id="start" class="archetype-step-card card-theme-purple lookup-embedded-card" data-destination="platform">
       <span class="step-num-pill eyebrow-purple">STEP 1 OF 3</span>
-      <h2 class="step-title">Have you completed an Agency Owner Archetype Report before?</h2>
+      <h2 class="step-title">Have you received your Agency Owner Identity Report yet?</h2>
       <p class="step-desc">
-        Every paid engagement starts from owner identity. If you've already done the free Archetype Questionnaire we'll upgrade that account — otherwise we'll walk you through it now. It takes about 2 minutes.
+        Our first step is to examine the identity (archetype) of the agency owner. This helps us understand you and how your identity is shaping how you scale your agency. This is free, but extremely valuable and important.
       </p>
 
-      <div class="step-options-grid">
-        <a href="/signup/lookup/?destination=platform" class="step-option-card">
+      <div class="lookup-options">
+        <button type="button" class="lookup-option" id="yesOption">
           <strong>Yes, I have one</strong>
-          <span>Look it up and upgrade my existing account.</span>
-        </a>
-        <a href="/owner-archetype/assessment/?destination=platform" class="step-option-card">
+          <span>Please look it up for me</span>
+        </button>
+        <button type="button" class="lookup-option" id="noOption">
           <strong>No, not yet</strong>
-          <span>Take me through the free Archetype first.</span>
-        </a>
+          <span>Please let me get started</span>
+        </button>
+      </div>
+
+      <section class="lookup-panel" id="yesPanel" hidden>
+        <h3>Find My Identity (archetype) Report</h3>
+        <p>We’ll match one or all three fields. Select your existing account if you have already received your Owner Identity Report.</p>
+        <form id="lookupForm" novalidate>
+          <div class="field">
+            <label for="lookupName">Name <small>optional</small></label>
+            <input id="lookupName" name="name" autocomplete="name" placeholder="Jane Doe">
+          </div>
+          <div class="lookup-or-grid">
+            <div class="field">
+              <label for="lookupEmail">Email</label>
+              <input id="lookupEmail" name="email" type="email" autocomplete="email" placeholder="jane@directingdesign.com">
+            </div>
+            <div class="lookup-or"><span>or</span></div>
+            <div class="field">
+              <label for="lookupUrl">Agency URL</label>
+              <input id="lookupUrl" name="agencyUrl" inputmode="url" placeholder="https://directingdesign.com">
+            </div>
+          </div>
+          <button class="cc-btn cc-btn-primary" id="lookupSubmit" type="submit">Find My Report →</button>
+          <div class="cc-error" id="lookupError" role="alert"></div>
+          <div class="cc-success" id="lookupSuccess"></div>
+          <div id="lookupResults" class="lookup-results"></div>
+        </form>
+      </section>
+
+      <section class="lookup-panel lookup-why" id="noPanel" hidden>
+        <h3>Why We Ask</h3>
+        <p>Before we look at the numbers, we look at the agency owner. Your identity tells us where and how delegation is most likely to reverse under pressure and that is an important variable in a premium agency valuation. It takes 3 minutes and is free.</p>
+      </section>
+
+      <div class="lookup-cta-wrap">
+        <a class="cc-btn cc-btn-primary lookup-cta" id="archetypeCta" href="/owner-archetype/assessment/?destination=platform&source=signup" hidden>Start My Identity (Archetype) Assessment</a>
       </div>
     </div>
 
@@ -178,6 +214,9 @@
     <a href="/signup/" class="back-bottom-link">&larr; Back to all offers</a>
   </div>
 
+  <script src="/portal/diagnostic-state.js"></script>
+  <script src="/portal/account-client.js"></script>
+  <script src="/portal/archetype-pdf.js"></script>
   <script type="module" src="/portal/signup-3.js"></script>
 </body>
 </html>

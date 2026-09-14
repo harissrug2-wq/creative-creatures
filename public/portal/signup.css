@@ -1127,3 +1127,79 @@ body.offer-detail-page {
     font-size: 12px;
   }
 }
+
+/* Embedded Lookup Card inside Detail Pages */
+.archetype-step-card.lookup-embedded-card {
+  text-align: left;
+}
+
+.archetype-step-card.lookup-embedded-card .step-title {
+  text-align: left;
+  margin-bottom: 12px;
+}
+
+.archetype-step-card.lookup-embedded-card .step-desc {
+  text-align: left;
+  max-width: 100%;
+  margin-left: 0;
+  margin-right: 0;
+  margin-bottom: 24px;
+}
+
+.archetype-step-card.lookup-embedded-card .lookup-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.archetype-step-card.lookup-embedded-card .lookup-option {
+  min-height: 78px;
+  padding: 17px 18px;
+  text-align: left;
+  background: #ffffff;
+  border: 1px solid #e0e1df;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.archetype-step-card.lookup-embedded-card .lookup-option strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 4px;
+  color: var(--cc-text-dark);
+}
+
+.archetype-step-card.lookup-embedded-card .lookup-option span {
+  color: #646c79;
+  font-size: 13px;
+}
+
+.card-theme-blue .lookup-option.selected { border: 2px solid #2563eb; background: #eff6ff; }
+.card-theme-emerald .lookup-option.selected { border: 2px solid #059669; background: #f0fdf4; }
+.card-theme-purple .lookup-option.selected { border: 2px solid #4338ca; background: #f5f3ff; }
+.card-theme-amber .lookup-option.selected { border: 2px solid #d97706; background: #fffbeb; }
+
+.archetype-step-card.lookup-embedded-card .lookup-panel {
+  margin-top: 24px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 24px;
+}
+
+.archetype-step-card.lookup-embedded-card .lookup-cta-wrap {
+  margin-top: 20px;
+}
+
+.archetype-step-card.lookup-embedded-card .lookup-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 24px;
+  font-size: 15px;
+  font-weight: 700;
+  border-radius: 10px;
+  text-decoration: none;
+}
+
