@@ -1,8 +1,35 @@
 (() => {
   const API_BASE = String(
     window.CC_ARCHETYPE_API_BASE ||
-    'https://mkgohvukpckcfwimxrra.supabase.co/functions/v1/api-v1'
+    ''
   ).replace(/\/$/, '');
+
+  // Original generic reports. Saved results select the PDF; answers are never rescored here.
+  const REPORT_FILES = Object.freeze({
+    A: 'firefighter-founder', B: 'creative-wizard', C: 'people-pleaser',
+    D: 'control-builder', E: 'vision-chaser'
+  });
+
+  function savedReportUrl(report) {
+    const key = String(report?.archetypeKey || '').trim().toUpperCase();
+    const slug = Object.prototype.hasOwnProperty.call(REPORT_FILES, key) ? REPORT_FILES[key] : null;
+    return slug ? `/reports/owner-archetypes/${slug}.pdf` : null;
+  }
+
+  async function reportPdf() {
+    const url = savedReportUrl(localReport());
+    if (!url) {
+      if (!window.CC_ARCHETYPE_API_BASE) throw new Error('A saved archetype result is required to open this report.');
+      const token = await ensureReportToken();
+      return { token, blob: await fetchPdfBlob(token) };
+    }
+    const response = await fetch(url, { cache: 'no-cache' });
+    if (!response.ok) throw new Error(`Report PDF returned ${response.status}`);
+    const bytes = await response.arrayBuffer();
+    const header = new TextDecoder().decode(new Uint8Array(bytes).slice(0, 5));
+    if (header !== '%PDF-') throw new Error('The report file is not a PDF. Check that the report assets were deployed.');
+    return { token: null, blob: new Blob([bytes], { type: 'application/pdf' }) };
+  }
 
   const TOKEN_KEY = 'ownerArchetypeRemoteReportToken';
   const ASSESSMENT_KEY = 'ownerArchetypeRemoteAssessment';
@@ -263,6 +290,9 @@
 
   function ensureReportToken() {
     const report = localReport();
+    // Existing callers prewarm remote tokens. Bundled PDFs need no token.
+    if (savedReportUrl(report)) return Promise.resolve(null);
+    if (!window.CC_ARCHETYPE_API_BASE) return Promise.reject(new Error('A saved archetype result is required.'));
 
     if (!report?.answers) {
       return Promise.reject(
@@ -317,8 +347,7 @@
       throw new Error('A valid email address is required to email the report.');
     }
 
-    const token = await ensureReportToken();
-    const pdfBlob = await fetchPdfBlob(token);
+    const { token, blob: pdfBlob } = await reportPdf();
     const pdfBase64 = await new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onerror = () => reject(new Error('The Owner Identity PDF could not be prepared for email.'));
@@ -366,8 +395,7 @@
     }
 
     try {
-      const token = await ensureReportToken();
-      const pdfBlob = await fetchPdfBlob(token);
+      const { blob: pdfBlob } = await reportPdf();
       const objectUrl = URL.createObjectURL(pdfBlob);
 
       /*
