@@ -1,5 +1,5 @@
 (() => {
-  const plans={diagnostic:{title:'1:1 Analysis & Planning Diagnostic',price:'$6,400',meta:'One-time payment · USD',features:['Agency analysis and planning','Private review sessions']},accelerator:{title:'Facilitated Breakthrough Accelerator',price:'$4,600',meta:'Six sessions · One-time payment · USD',features:['Facilitated 90-day program','Accelerator workspace']},platform:{title:'Platform / Partner Portal',price:'$497/month',meta:'Monthly subscription · USD',features:['Agency Intelligence Platform','Partner Portal']},fractional_coo:{title:'Fractional COO + Platform Bundle',price:'$6,497 today',meta:'$2,500 setup + $3,997 first month; then $3,997/month · USD',features:['Fractional COO support','Platform and guided setup']}};
+  const plans={diagnostic:{title:'1:1 Analysis & Planning Diagnostic',price:'$6,800',meta:'One-time payment · USD',features:['Agency analysis and planning','Private review sessions']},accelerator:{title:'Facilitated Breakthrough Accelerator',price:'$4,600',meta:'Six sessions · One-time payment · USD',features:['Facilitated 90-day program','Accelerator workspace']},platform:{title:'Platform / Partner Portal',price:'$3,097 today',meta:'$2,500 setup + $597 first month; then $597/month · USD',features:['Agency Intelligence Platform','Partner Portal']},fractional_coo:{title:'Fractional COO + Platform Bundle',price:'$6,497 today',meta:'$2,500 setup + $3,997 first month; then $3,997/month · USD',features:['Fractional COO support','Platform and guided setup']}};
   const query=new URLSearchParams(location.search);
   const chosen=query.get('plan')||localStorage.getItem('ccProgramPath')||'diagnostic';
   const plan=Object.hasOwn(plans,chosen)?chosen:'diagnostic',spec=plans[plan];
@@ -7,7 +7,7 @@
   document.getElementById('orderPlanTitle').textContent=spec.title;
   document.getElementById('orderPlanPrice').textContent=spec.price;
   document.getElementById('orderPlanMeta').textContent=spec.meta;
-  document.getElementById('orderPlanDescription').textContent=plan==='fractional_coo'?'The setup fee is charged once when this subscription starts.':'Access is activated after Stripe confirms payment.';
+  document.getElementById('orderPlanDescription').textContent=['platform','fractional_coo'].includes(plan)?'The setup fee is charged once when this subscription starts.':'Access is activated after Stripe confirms payment.';
   const features=document.getElementById('orderPlanFeatures');
   for(const feature of spec.features){const li=document.createElement('li');li.textContent=feature;features.appendChild(li);}
   const account=window.CCAccount?.getAccount?.(),email=document.getElementById('checkoutEmail');

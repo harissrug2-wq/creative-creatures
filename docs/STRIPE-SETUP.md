@@ -6,11 +6,13 @@ This replaces simulated checkout. Do not merge to production until the database 
 
 | Package | Stripe price type | Amount | Vercel variable |
 |---|---|---:|---|
-| Diagnostic | One-time | $6,400 | STRIPE_PRICE_DIAGNOSTIC |
+| Diagnostic | One-time | $6,800 | STRIPE_PRICE_DIAGNOSTIC |
 | Accelerator | One-time | $4,600 | STRIPE_PRICE_ACCELERATOR |
-| Platform | Recurring monthly | $497 | STRIPE_PRICE_PLATFORM |
+| Platform | Recurring monthly | $597 | STRIPE_PRICE_PLATFORM |
 | Fractional COO | Recurring monthly | $3,997 | STRIPE_PRICE_FRACTIONAL_COO |
-| Fractional COO setup | One-time | $2,500 | STRIPE_PRICE_FRACTIONAL_COO_SETUP |
+| Platform / COO bundle setup | One-time | $2,500 | STRIPE_PRICE_FRACTIONAL_COO_SETUP |
+
+Platform checkout charges $3,097 today ($2,500 setup + $597 first month), then $597 per month. Both subscription checkouts use the same one-time setup price via STRIPE_PRICE_FRACTIONAL_COO_SETUP; its legacy variable name is retained.
 
 Fractional COO checkout combines the monthly price and setup price: $6,497 today, then $3,997 per month. No trial, coupon, tax or alternative billing interval is enabled by this patch. The previously discussed 90-day client trial is not included.
 
@@ -63,7 +65,7 @@ Using new test leads and Stripe test payment details, verify each package:
 4. A new customer receives a password-setup email; an existing owner keeps their password. No password or session login is returned to someone merely holding an email address or payment URL.
 5. Close the browser before returning from Stripe: webhook fulfillment still activates the account.
 6. Resend a successful webhook: the same order/account remains; there is no duplicate activation.
-7. Fractional COO: initial invoice is $6,497; later monthly invoices are $3,997.
+7. Platform: initial invoice is $3,097; later monthly invoices are $597. Fractional COO: initial invoice is $6,497; later monthly invoices are $3,997.
 8. Cancel a subscription at period end: access remains while Stripe says active, then ends when canceled. Stripe past_due retains access during its retry period; unpaid, paused and canceled do not grant monthly access. Configure Stripe retry/cancellation settings to match your business policy.
 9. Existing one-time purchases and pre-integration access remain. Billing does not erase customer work.
 10. An owner with an existing Stripe subscription cannot start a second monthly subscription. Mid-cycle plan switching/proration is not implemented; manage that in Stripe with an agreed change process. No customer billing portal is added by this patch.
@@ -85,3 +87,11 @@ Create the same prices in live mode. Set the production Vercel variables to the 
 - Password setup links expire after 24 hours. If delivery fails or a link expires, the existing Forgot password flow can send a fresh link. Failed webhook processing returns an error so Stripe retries. Payment activation is not rolled back if only email delivery fails.
 - Refund/dispute-based revocation, invoice UI, subscription proration and customer self-service cancellation are not implemented. Handle refunds/disputes in Stripe and define the access policy before automating those changes.
 - This patch is not a security audit of every pre-existing API. Test the full paid customer journey in Preview before accepting live payments.
+
+## Supplied Stripe catalog update
+
+Use `stripe-prices.env.example` for the supplied price IDs. These IDs have not been checked against the Stripe API: confirm USD currency and whether they belong to test or live mode before configuring a deployment. Platform is now $597/month and Diagnostic is $6,800 one-time, including server validation and signup/checkout displays.
+
+The existing `fractional_coo` plan means the **bundle**, not standalone COO. The $2,500 Creature Platform Set Up price is mapped to its existing setup variable; the user confirmed that it applies to both Platform and the COO bundle. Board Review ($3,300, price_1U6aEF60UtIKLKhZiWSInfFz) and standalone COO ($3,500/month, price_1U6ZuM60UtIKLKhZfMcD23ac) remain catalog entries only until their access rules and purchase paths are specified.
+
+Build from source before deployment. Included dist/payload folders are existing snapshots, not updated build outputs.

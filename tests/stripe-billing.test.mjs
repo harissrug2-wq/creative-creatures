@@ -7,10 +7,10 @@ import handler from '../api/payment-confirmation.js';
 process.env.STRIPE_SECRET_KEY='sk_test_fixture';process.env.STRIPE_WEBHOOK_SECRET='whsec_fixture';process.env.STRIPE_APP_URL='https://preview.example.com';process.env.ACCOUNT_SESSION_SECRET='fixture-secret';
 for(const plan of Object.values(PLANS))for(const [key]of plan.prices)process.env[key]='price_'+key.replaceAll('_','');
 const order={id:'12345678-1234-1234-1234-123456789abc',email:'buyer@example.com',plan:'platform',expires_at:new Date(Date.now()+35*60000).toISOString()};
-const session={metadata:{cc_order_id:order.id},client_reference_id:order.id,livemode:false,currency:'usd',mode:'subscription',amount_total:49700,amount_subtotal:49700,status:'complete',payment_status:'paid'};
+const session={metadata:{cc_order_id:order.id},client_reference_id:order.id,livemode:false,currency:'usd',mode:'subscription',amount_total:309700,amount_subtotal:309700,status:'complete',payment_status:'paid'};
 async function call(action,body,headers={}){const req=Readable.from([JSON.stringify(body)]);req.method='POST';req.query={action};req.headers=headers;const res={headers:{},setHeader(k,v){this.headers[k]=v},end(v){this.data=JSON.parse(v)}};await handler(req,res);return res;}
 test('approved package totals and billing modes',()=>{
- assert.deepEqual(Object.values(PLANS).map(p=>[p.amount,p.mode]),[[640000,'payment'],[460000,'payment'],[49700,'subscription'],[649700,'subscription']]);
+ assert.deepEqual(Object.values(PLANS).map(p=>[p.amount,p.mode]),[[680000,'payment'],[460000,'payment'],[309700,'subscription'],[649700,'subscription']]);
  const params=checkoutParams({...order,plan:'fractional_coo'},['price_monthly','price_setup']);
  assert.equal(params['line_items[0][price]'],'price_monthly');assert.equal(params['line_items[1][price]'],'price_setup');assert.equal(params.mode,'subscription');
  assert.equal(params.success_url,'https://preview.example.com/payment/?plan=fractional_coo&session_id={CHECKOUT_SESSION_ID}');
@@ -45,7 +45,7 @@ test('checkout uses server prices and ignores client amount or lead ID',async()=
  const calls=[];global.fetch=async(url,options={})=>{
   calls.push({url,options});
   let data;
-  if(url.includes('/prices/'))data={active:true,currency:'usd',unit_amount:49700,livemode:false,billing_scheme:'per_unit',recurring:{interval:'month',interval_count:1,usage_type:'licensed'}};
+  if(url.includes('/prices/')){const setup=url.endsWith(process.env.STRIPE_PRICE_FRACTIONAL_COO_SETUP);data={active:true,currency:'usd',unit_amount:setup?250000:59700,livemode:false,billing_scheme:'per_unit',recurring:setup?null:{interval:'month',interval_count:1,usage_type:'licensed'}};}
   else if(url.includes('/rpc/cc_stripe_begin'))data=order;
   else if(url.endsWith('/checkout/sessions'))data={id:'cs_test_checkout',url:'https://checkout.stripe.com/c/test'};
   else data=[];
@@ -55,6 +55,9 @@ test('checkout uses server prices and ignores client amount or lead ID',async()=
  assert.equal(result.statusCode,200);assert.match(result.headers['Set-Cookie'],/HttpOnly; Secure; SameSite=Lax/);
  const request=new URLSearchParams(calls.find(c=>c.url.endsWith('/checkout/sessions')).options.body);
  assert.equal(request.get('line_items[0][price]'),process.env.STRIPE_PRICE_PLATFORM);
+ assert.equal(request.get('line_items[1][price]'),process.env.STRIPE_PRICE_FRACTIONAL_COO_SETUP);
+ assert.equal(request.get('line_items[1][quantity]'),'1');
+ assert.equal(request.has('line_items[2][price]'),false);
  assert.equal(request.has('amount'),false);
  const input=JSON.parse(calls.find(c=>c.url.includes('/rpc/cc_stripe_begin')).options.body);
  assert.deepEqual(input,{p_email:order.email,p_plan:'platform',p_account_id:null});
@@ -67,3 +70,5 @@ test('signed unpaid checkout event never fulfills',async()=>{
  const result=await call('webhook',event,{'stripe-signature':`t=${stamp},v1=${sig}`});
  assert.equal(result.statusCode,200);assert.equal(count,1);
 });
+
+test('Platform payment without setup fee cannot activate',()=>{assert.throws(()=>validatePaidSession({...session,amount_total:59700,amount_subtotal:59700},order));});
