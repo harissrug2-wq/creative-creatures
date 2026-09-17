@@ -22,14 +22,9 @@
       <section class="payment-main">
         <header><h1>Get Started</h1><p>We are looking forward to diving in with you.</p></header>
         <form class="payment-form cc-card" id="paymentForm" novalidate>
-          <label>Name on card<input id="cardName" autocomplete="cc-name" placeholder="Jane Doe" required></label>
-          <label>Card number<input id="cardNumber" inputmode="numeric" autocomplete="cc-number" maxlength="19" placeholder="4242 4242 4242 4242" required></label>
-          <div class="payment-fields-row">
-            <label>Expiry<input id="expiry" inputmode="numeric" autocomplete="cc-exp" maxlength="5" placeholder="MM/YY" required></label>
-            <label>CVC<input id="cvc" inputmode="numeric" autocomplete="cc-csc" maxlength="4" placeholder="123" required></label>
-          </div>
-          <button type="submit" class="payment-submit">Process Payment</button>
-          <div class="payment-note">▢ Simulated checkout — no real charge on this environment.</div>
+          <label>Assessment email<input id="checkoutEmail" type="email" autocomplete="email" placeholder="owner@agency.com" required></label>
+          <button type="submit" class="payment-submit">Continue to secure payment</button>
+          <div class="payment-note">Card details are entered securely on Stripe. All prices are in USD.</div>
           <p class="payment-terms-notice" style="margin-top:14px;font-size:12px;color:#717885;text-align:center;">By completing payment, you agree to Creative Creatures' <a href="/terms/" target="_blank" style="color:#2929ed;text-decoration:none;">Terms of Service</a> and <a href="/privacy-policy/" target="_blank" style="color:#2929ed;text-decoration:none;">Privacy Policy</a>.</p>
           <p class="payment-error" id="paymentError" role="alert"></p>
         </form>
@@ -61,136 +56,6 @@
 
   <script src="/portal/diagnostic-state.js"></script>
   <script src="/portal/account-client.js"></script>
-  <script>
-    (() => {
-      const PLANS = {
-        diagnostic: {
-          title: '1:1 Analysis & Planning Diagnostic', price: '$6,400', meta: 'per agency · one-time',
-          description: 'A private, done-with-you analysis of the whole agency.',
-          features: ['Owner archetype and leadership review', 'Agency indexes, valuation, and risk review', 'Ranked issues and opportunities', '90-day priorities and 1-year growth plan', 'Private 1:1 review sessions']
-        },
-        accelerator: {
-          title: 'Facilitated Breakthrough Accelerator', price: '$4,600', meta: '6 sessions · one-time',
-          description: 'A facilitated 90-day breakthrough program for your agency.',
-          features: ['Six facilitated sessions across 90 days', 'Strength, performance, and owner dependency work', 'Financial performance deep dive', 'Clear goals and 90-day priorities', 'Accelerator workspace access']
-        },
-        platform: {
-          title: 'Platform / Partner Portal', price: '$497 / month', meta: 'self-guided setup',
-          description: 'The Agency Intelligence Platform with self-guided setup.',
-          features: ['Agency indexes and valuation', 'Agency dashboard and scorecard', 'Leadership and department management', 'AI monitors and intelligence layer', 'Partner Portal workspace access']
-        },
-        fractional_coo: {
-          title: 'Fractional COO + Platform Bundle', price: '$2,500 setup + $3,997/mo', meta: 'guided setup · month to month',
-          description: 'An operator in your business, plus the platform that runs the plan.',
-          features: ['Fractional COO and accountability partner', 'Guided platform and back-office setup', 'Weekly leadership cadence and KPI scorecards', '90-day priorities and 1-year growth plan', 'Department dashboards across the agency']
-        }
-      };
-
-      const normalizePlan = value => {
-        const plan = String(value || '').trim().toLowerCase().replace(/-/g, '_');
-        return Object.prototype.hasOwnProperty.call(PLANS, plan) ? plan : 'diagnostic';
-      };
-      const query = new URLSearchParams(location.search);
-      const queryPlan = query.get('plan');
-      const upgradeMode = query.get('upgrade') === '1';
-      const selectedPlan = normalizePlan(queryPlan || localStorage.getItem('ccProgramPath'));
-      const plan = PLANS[selectedPlan];
-      localStorage.setItem('ccProgramPath', selectedPlan);
-
-      document.title = `${plan.title} Payment · Creative Creatures`;
-      document.getElementById('orderPlanTitle').textContent = plan.title;
-      document.getElementById('orderPlanMeta').textContent = plan.meta;
-      document.getElementById('orderPlanPrice').textContent = plan.price;
-      document.getElementById('orderPlanDescription').textContent = plan.description;
-      document.getElementById('orderPlanFeatures').innerHTML = plan.features.map(feature => `<li>♙ ${feature}</li>`).join('');
-      if (upgradeMode) {
-        document.querySelector('.payment-main header h1').textContent = 'Upgrade Account';
-        document.querySelector('.payment-main header p').textContent = 'Your current workspace and purchased access will be retained.';
-        document.querySelector('.payment-note').textContent = '▢ Simulated upgrade checkout — no real charge on this environment.';
-        document.querySelector('.payment-progress').hidden = true;
-      }
-
-      const account = window.CCAccount?.getAccount?.();
-      const cardName = document.getElementById('cardName');
-      const displayName = account?.displayName || account?.name || [account?.first_name || account?.firstName, account?.last_name || account?.lastName].filter(Boolean).join(' ') || '';
-      const firstName = account?.first_name || account?.firstName || displayName.trim().split(/\s+/)[0] || localStorage.getItem('ccOwnerFirstName') || 'there';
-      const email = account?.email || localStorage.getItem('ccOwnerEmail') || '';
-      if (displayName) cardName.value = displayName;
-
-      const digits = value => value.replace(/\D/g, '');
-      const escapeHtml = value => String(value).replace(/[&<>"']/g, character => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[character]));
-      document.getElementById('cardNumber').addEventListener('input', event => event.target.value = digits(event.target.value).slice(0, 16).replace(/(.{4})/g, '$1 ').trim());
-      document.getElementById('expiry').addEventListener('input', event => { const value = digits(event.target.value).slice(0, 4); event.target.value = value.length > 2 ? `${value.slice(0, 2)}/${value.slice(2)}` : value; });
-      document.getElementById('cvc').addEventListener('input', event => event.target.value = digits(event.target.value).slice(0, 4));
-
-      document.getElementById('paymentForm').addEventListener('submit', async event => {
-        event.preventDefault();
-        const number = digits(document.getElementById('cardNumber').value);
-        const expiry = document.getElementById('expiry').value;
-        const cvc = digits(document.getElementById('cvc').value);
-        const error = document.getElementById('paymentError');
-        const button = event.currentTarget.querySelector('button[type="submit"]');
-        error.textContent = '';
-        error.classList.remove('show');
-
-        if (!cardName.value.trim() || number.length !== 16 || !/^\d{2}\/\d{2}$/.test(expiry) || cvc.length < 3) {
-          error.textContent = 'Enter the name, 16-digit card number, expiry, and CVC.';
-          error.classList.add('show');
-          return;
-        }
-        if (!/^\S+@\S+\.\S+$/.test(email)) {
-          error.textContent = 'Your signup email is missing. Return to the previous step and complete your Owner Archetype details.';
-          error.classList.add('show');
-          return;
-        }
-
-        button.disabled = true;
-        button.textContent = 'Activating account…';
-        const paymentCompletedAt = new Date().toISOString();
-        try {
-          const response = await fetch('/api/payment-confirmation', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({leadId: account?.lead_id || '', to: email, completedAt: paymentCompletedAt, accessPlan: selectedPlan, upgrade: upgradeMode})
-          });
-          const payload = await response.json().catch(() => ({}));
-          if (!response.ok) throw new Error(payload.error || 'Account activation could not be completed.');
-
-          localStorage.setItem('ccPaymentComplete', 'true');
-          localStorage.setItem('agencyPaymentComplete', 'true');
-          localStorage.setItem('ccPaymentPlan', selectedPlan);
-          localStorage.setItem('ccPaymentCompletedAt', paymentCompletedAt);
-          if (payload.account && window.CCAccount?.saveAccount) {
-            window.CCAccount.saveAccount({...payload.account, backend_saved: true, lead_only: false}, {replaceDiagnostic: !upgradeMode});
-          }
-          Promise.resolve(window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.())).catch(() => null);
-
-          document.getElementById('paymentGrid').hidden = true;
-          document.getElementById('paymentThanks').hidden = false;
-          document.getElementById('thanksName').textContent = firstName;
-          const status = document.getElementById('paymentEmailStatus');
-          status.innerHTML = payload.sent
-            ? `${escapeHtml(plan.title)} access is active. Login credentials were emailed to <strong>${escapeHtml(email)}</strong>.`
-            : (payload.temporaryPassword
-              ? `${escapeHtml(plan.title)} access is active. Email delivery failed. Temporary password: <strong>${escapeHtml(payload.temporaryPassword)}</strong> — save it now and use it with ${escapeHtml(email)}.`
-              : `${escapeHtml(plan.title)} access is active. Your existing Creative Creatures login remains valid.`);
-          if (upgradeMode) {
-            status.innerHTML = `${escapeHtml(plan.title)} has been added to your account. Your existing work and login remain unchanged.`;
-            const destinations = {diagnostic:'/diagnostic/',accelerator:'/accelerator/',platform:'/platform/',fractional_coo:'/platform/'};
-            const continueLink = document.querySelector('.payment-continue');
-            continueLink.href = destinations[selectedPlan] || '/platform/';
-            continueLink.textContent = 'Open Updated Workspace';
-          }
-          scrollTo({top: 0, behavior: 'smooth'});
-        } catch (activationError) {
-          console.warn('Account activation failed.', activationError);
-          error.textContent = activationError.message || 'Account activation could not be completed. Please try again.';
-          error.classList.add('show');
-          button.disabled = false;
-          button.textContent = 'Process Payment';
-        }
-      });
-    })();
-  </script>
+  <script src="/payment/stripe-checkout.js"></script>
 </body>
 </html>

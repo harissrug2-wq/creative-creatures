@@ -1,40 +1,100 @@
-import { escapeHtml, sendEmail, validEmail } from '../lib/email-service.js';
-import { accountSessionSecret, generateTemporaryPassword, hashPassword, parseCookies, setSessionCookie, signSession, verifySession } from '../lib/session-utils.js';
-const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(payload))};
-const clean=v=>String(v??'').trim();const lower=v=>clean(v).toLowerCase();
-function cfg(){const url=clean(process.env.SUPABASE_URL).replace(/\/+$/,'');const key=clean(process.env.SUPABASE_SERVICE_ROLE_KEY);return url&&key?{url,key}:null}
-async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${path}`,{...options,headers:{apikey:c.key,'Content-Type':'application/json',...(options.headers||{})}});const t=await r.text();let p=null;try{p=t?JSON.parse(t):null}catch{p=t}if(!r.ok){const e=new Error(p?.message||p?.hint||'Database request failed.');e.status=r.status;throw e}return p}
-async function one(c,path){const rows=await db(c,path);return Array.isArray(rows)?rows[0]:null}
-async function findLead(c,email,leadId){if(leadId)return one(c,`owner_archetype_leads?select=*&id=eq.${encodeURIComponent(leadId)}&limit=1`);return one(c,`owner_archetype_leads?select=*&email_normalized=eq.${encodeURIComponent(email)}&converted_at=is.null&order=created_at.desc&limit=1`)}
-async function findAccounts(c,email,url){const [a,b]=await Promise.all([one(c,`accounts?select=*&email_normalized=eq.${encodeURIComponent(email)}&limit=1`),url?one(c,`accounts?select=*&agency_url_normalized=eq.${encodeURIComponent(url)}&limit=1`):null]);const map=new Map();[a,b].filter(Boolean).forEach(x=>map.set(x.id,x));return [...map.values()]}
-const PLANS=['owner_archetype','diagnostic','accelerator','platform','fractional_coo'];
-const PLAN_FEATURES={owner_archetype:['owner-archetype'],diagnostic:['owner-archetype','diagnostic','scorecard','goals','ask'],accelerator:['owner-archetype','accelerator','scorecard','goals','ask'],platform:['owner-archetype','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask'],fractional_coo:['owner-archetype','accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask']};
-function normalizePlan(v){const p=lower(v).replace(/-/g,'_');return PLANS.includes(p)?p:'diagnostic'}
-function planJourney(p){return p==='accelerator'?'accelerator':(p==='platform'||p==='fractional_coo')?'platform':'diagnostic'}
-function currentSession(req){const secret=accountSessionSecret();if(!secret)return null;const session=verifySession(parseCookies(req).cc_account_session,secret);return session?.role==='account'&&session?.accountId?session:null}
-async function findAccountById(c,id){return one(c,`accounts?select=*&id=eq.${encodeURIComponent(id)}&limit=1`)}
-function purchasedPlans(account){return [...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),normalizePlan(account?.access_plan||account?.journey)])].filter(plan=>PLAN_FEATURES[plan])}
-function upgradeAddsAccess(account,target){const currentFeatures=new Set(purchasedPlans(account).flatMap(plan=>PLAN_FEATURES[plan]||[]));return(PLAN_FEATURES[target]||[]).some(feature=>!currentFeatures.has(feature))}
-async function upgradeAccount(c,account,target,completedAt){
- if(!upgradeAddsAccess(account,target))throw Object.assign(new Error('Choose a plan that adds access to this account.'),{status:409});
- const current=account.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
- const plans=[...new Set([...purchasedPlans(account),target])];
- const patch={access_plan:target,journey:planJourney(target),diagnostic_state:{...current,purchasedPlans:plans,lastPlanUpgradeAt:completedAt,paymentComplete:true,paymentCompletedAt:current.paymentCompletedAt||completedAt,updatedAt:new Date().toISOString()},updated_at:new Date().toISOString()};
- const rows=await db(c,`accounts?id=eq.${encodeURIComponent(account.id)}&select=*`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});
- return Array.isArray(rows)?rows[0]:rows;
+import crypto from 'node:crypto';
+import { PLANS, clean, fail, json, settings, db, rpc, stripe, owner, rawBody, verifyWebhook, priceIds, checkoutParams, validatePaidSession } from '../lib/stripe-billing.js';
+import { hashPassword, signSession, verifySession, parseCookies, setSessionCookie, accountSessionSecret } from '../lib/session-utils.js';
+import { sendEmail, escapeHtml } from '../lib/email-service.js';
+export const config={api:{bodyParser:false}};
+const uuid=v=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v||'');
+const tokenFor=id=>crypto.createHmac('sha256',accountSessionSecret()).update(`stripe-onboarding:${id}`).digest('hex');
+const hash=v=>crypto.createHash('sha256').update(v).digest('hex');
+async function orderById(id){if(!uuid(id))throw fail(400,'Invalid order.');const rows=await db(`cc_stripe_orders?id=eq.${id}&limit=1`);if(!rows?.[0])throw fail(404,'Order not found.');return rows[0];}
+async function notify(order){
+  if(order.notification_sent_at)return;
+  const {url}=settings();const setup=order.new_account&&new Date(order.reset_expires_at).getTime()>Date.now();
+  const link=setup?`${url}/login/?reset=${tokenFor(order.id)}&email=${encodeURIComponent(order.email)}`:`${url}/login/`;
+  const label=setup?'Choose your password':'Sign in to your workspace';
+  const text=`Your ${PLANS[order.plan].label} payment is confirmed. ${label}: ${link}${setup?'\nThis link expires 24 hours after payment.':''}\nIf you need a new password link, use Forgot password on the sign-in page.`;
+  await sendEmail({to:order.email,subject:'Creative Creatures: payment confirmed',text,html:`<p>Your ${escapeHtml(PLANS[order.plan].label)} payment is confirmed.</p><p><a href="${escapeHtml(link)}">${label}</a></p><p>If needed, request a new link using Forgot password on the sign-in page.</p>`});
+  order.notification_sent_at=new Date().toISOString();
+  await db(`cc_stripe_orders?id=eq.${order.id}`,'PATCH',{notification_sent_at:order.notification_sent_at});
 }
-async function convertLead(c,lead,completedAt,requestedPlan){
- const existing=await findAccounts(c,lead.email_normalized,lead.agency_url_normalized);if(existing.length>1){const e=new Error('The email and agency URL belong to different diagnostic accounts.');e.status=409;throw e}
- const existingAccount=existing[0]||null;const temporaryPassword=existingAccount?.password_hash?null:generateTemporaryPassword();const passwordHash=temporaryPassword?hashPassword(temporaryPassword):existingAccount?.password_hash;
- const paymentState={indexes:{},count:0,allComplete:false,reportReady:false,purchasedPlans:[requestedPlan],paymentComplete:true,paymentCompletedAt:completedAt,updatedAt:new Date().toISOString()};let account;
- if(existingAccount){const current=existingAccount.diagnostic_state&&typeof existingAccount.diagnostic_state==='object'?existingAccount.diagnostic_state:{};const patch={archetype_answers:lead.archetype_answers||existingAccount.archetype_answers||{},archetype_result:lead.archetype_result||existingAccount.archetype_result||{},report_data:lead.report_data||existingAccount.report_data||{},diagnostic_state:{...current,purchasedPlans:[...new Set([...purchasedPlans(existingAccount),requestedPlan])],paymentComplete:true,paymentCompletedAt:completedAt,updatedAt:new Date().toISOString()},journey:planJourney(requestedPlan),access_plan:requestedPlan,password_hash:passwordHash,credentials_sent_at:temporaryPassword?null:existingAccount.credentials_sent_at||null,password_set_at:temporaryPassword?completedAt:existingAccount.password_set_at||null,updated_at:new Date().toISOString()};const rows=await db(c,`accounts?id=eq.${existingAccount.id}&select=*`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});account=Array.isArray(rows)?rows[0]:rows;
- }else{const record={name:lead.name,name_normalized:lead.name_normalized,email:lead.email,email_normalized:lead.email_normalized,agency_url:lead.agency_url,agency_url_normalized:lead.agency_url_normalized,agency_name:lead.agency_name,journey:planJourney(requestedPlan),access_plan:requestedPlan,source:'owner-archetype',archetype_answers:lead.archetype_answers||{},archetype_result:lead.archetype_result||{},report_data:lead.report_data||{},diagnostic_state:paymentState,password_hash:passwordHash,password_set_at:completedAt,credentials_sent_at:null,updated_at:new Date().toISOString()};const rows=await db(c,'accounts?select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify(record)});account=Array.isArray(rows)?rows[0]:rows}
- await db(c,`owner_archetype_leads?id=eq.${lead.id}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({converted_account_id:account.id,converted_at:completedAt,payment_completed_at:completedAt,updated_at:new Date().toISOString()})});return {account,temporaryPassword}}
-function publicAccount(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_url,agency_name:a.agency_name,journey:a.journey,accessPlan:a.access_plan||normalizePlan(a.journey),source:a.source,archetype_result:a.archetype_result||{},report_data:a.report_data||{},diagnostic_state:a.diagnostic_state||{},created_at:a.created_at,updated_at:a.updated_at}:null}
-export default async function handler(req,res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');if(req.method==='OPTIONS')return json(res,204,{});if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});try{const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const to=lower(b.to);if(!validEmail(to))return json(res,422,{error:'A valid account email is required.'});const c=cfg();if(!c)return json(res,503,{error:'Account database is not configured.'});const completedAt=clean(b.completedAt)||new Date().toISOString();let account,temporaryPassword=null;const requestedPlan=b.accessPlan||b.plan?normalizePlan(b.accessPlan||b.plan):null;
- if(b.upgrade===true){if(!requestedPlan)return json(res,422,{error:'Choose an account plan.'});const session=currentSession(req);if(!session||session.memberId)return json(res,401,{error:'Sign in as the agency owner to change the account plan.'});const existing=await findAccountById(c,session.accountId);if(!existing)return json(res,404,{error:'The signed-in account was not found.'});if(lower(existing.email)!==to)return json(res,403,{error:'The payment email does not match the signed-in account.'});account=await upgradeAccount(c,existing,requestedPlan,completedAt)}else{const lead=await findLead(c,to,clean(b.leadId));if(!lead)return json(res,404,{error:'No unpaid Owner Archetype lead was found for this email.',code:'OWNER_LEAD_NOT_FOUND'});if(lower(lead.email)!==to)return json(res,403,{error:'The payment email does not match the Owner Archetype lead.'});const conversion=await convertLead(c,lead,completedAt,requestedPlan||normalizePlan(lead.journey));account=conversion.account;temporaryPassword=conversion.temporaryPassword}
- let sent=false,emailId=null,emailError=null;const loginUrl=`${clean(process.env.FRONTEND_URL)||'https://creative-creatures.vercel.app'}/login/`;
- try{const isUpgrade=b.upgrade===true,activationLabel=isUpgrade?'account upgrade':'Agency Diagnostic activation',emailTitle=isUpgrade?'Your account upgrade is ready':'Your Agency Diagnostic is ready';const credentialsBlock=temporaryPassword?`\n\nYour login credentials:\nEmail: ${account.email}\nTemporary password: ${temporaryPassword}\nLogin: ${loginUrl}\n\nKeep this email private.`:`\n\nYour existing Creative Creatures login remains active.\nLogin: ${loginUrl}`;const result=await sendEmail({to,subject:isUpgrade?'Creative Creatures - Account upgrade active':'Creative Creatures - Your Agency Diagnostic login',text:`Hi ${clean(account.name)||'Agency Owner'},\n\nYour ${activationLabel} for ${clean(account.agency_name)||'your agency'} has been recorded.${credentialsBlock}\n\nContinue into your Creative Creatures workspace to use your updated access.`,html:`<div style="font-family:Inter,Arial,sans-serif;color:#111218;line-height:1.6;max-width:620px;margin:auto"><p style="font-size:13px;color:#6f7480;text-transform:uppercase;letter-spacing:.08em">Creative Creatures</p><h1 style="font-size:28px;line-height:1.2">${emailTitle}</h1><p>Hi ${escapeHtml(clean(account.name)||'Agency Owner')},</p><p>Your ${activationLabel} for <strong>${escapeHtml(clean(account.agency_name)||'your agency')}</strong> has been recorded.</p>${temporaryPassword?`<div style="background:#f6f6fb;border:1px solid #e0e0ee;border-radius:12px;padding:18px;margin:20px 0"><strong>Login credentials</strong><p style="margin:10px 0 0">Email: ${escapeHtml(account.email)}<br>Temporary password: <strong>${escapeHtml(temporaryPassword)}</strong></p></div>`:'<p>Your existing Creative Creatures login remains active.</p>'}<p><a href="${escapeHtml(loginUrl)}" style="display:inline-block;background:#2929ed;color:#fff;text-decoration:none;padding:11px 18px;border-radius:9px;font-weight:700">Sign in to Creative Creatures →</a></p><p>Continue into your workspace to use your updated access.</p></div>`});sent=true;emailId=result.id;if(temporaryPassword)await db(c,`accounts?id=eq.${account.id}`,{method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({credentials_sent_at:new Date().toISOString(),updated_at:new Date().toISOString()})})}catch(e){emailError=e?.code||'PAYMENT_EMAIL_ERROR';console.warn('Payment activation succeeded but credentials email failed.',{code:emailError,message:e?.message})}
- const sessionSecret=accountSessionSecret();if(sessionSecret){const token=signSession({role:'account',accountId:account.id,email:account.email},sessionSecret,30*24*60*60);setSessionCookie(res,'cc_account_session',token,30*24*60*60)}
- return json(res,200,{activated:true,upgraded:b.upgrade===true,sent,id:emailId,emailError,credentialsCreated:Boolean(temporaryPassword),temporaryPassword:temporaryPassword&&!sent?temporaryPassword:null,account:publicAccount(account)});
-}catch(e){console.error('payment confirmation error',e);return json(res,[401,403,404,409,422].includes(e.status)?e.status:500,{error:e.message||'Payment activation could not be completed.',code:'PAYMENT_ACTIVATION_ERROR'})}}
+async function fulfill(session){
+  const order=await orderById(session.metadata?.cc_order_id);
+  validatePaidSession(session,order);
+  const subId=typeof session.subscription==='string'?session.subscription:session.subscription?.id;
+  const sub=subId?await stripe(`subscriptions/${encodeURIComponent(subId)}`):null;
+  const result=await rpc('cc_stripe_fulfill',{p_order_id:order.id,p_session_id:session.id,p_customer_id:typeof session.customer==='string'?session.customer:session.customer?.id||null,p_subscription_id:subId||'',p_subscription_status:sub?.status||null,p_password_hash:hashPassword(crypto.randomBytes(32).toString('hex')),p_reset_hash:hash(tokenFor(order.id))});
+  await notify(result);
+  return result;
+}
+async function webhook(req,res,raw){
+  const event=verifyWebhook(raw,req.headers['stripe-signature'],settings().webhook);
+  if(event.livemode!==settings().live)throw fail(400,'Incorrect Stripe environment.');
+  const object=event.data?.object;
+  if(['checkout.session.completed','checkout.session.async_payment_succeeded'].includes(event.type)){
+    if(object?.metadata?.cc_order_id){
+      const session=await stripe(`checkout/sessions/${encodeURIComponent(object.id)}`);
+      if(session.payment_status==='paid')await fulfill(session);
+    }
+  }else if(['customer.subscription.updated','customer.subscription.deleted'].includes(event.type)){
+    // Retrieve current state so out-of-order webhook payloads cannot restore canceled access.
+    const sub=await stripe(`subscriptions/${encodeURIComponent(object.id)}`);
+    if(sub.metadata?.cc_order_id){
+      const order=await orderById(sub.metadata.cc_order_id);
+      // A subscription event can arrive before checkout.session.completed.
+      if(order.state!=='paid'&&order.session_id){
+        const session=await stripe(`checkout/sessions/${encodeURIComponent(order.session_id)}`);
+        if(session.payment_status==='paid')await fulfill(session);
+      }
+      await rpc('cc_stripe_subscription',{p_subscription_id:sub.id,p_status:sub.status,p_event_at:event.created});
+    }
+  }
+  return json(res,200,{received:true});
+}
+export default async function handler(req,res){
+  try{
+    const action=clean(req.query?.action);
+    if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
+    if(!['checkout','status','webhook'].includes(action))return json(res,410,{error:'Simulated payment activation has been disabled. Use Stripe Checkout.'});
+    const cfg=settings();if(!accountSessionSecret())throw fail(503,'Account sessions are not configured.');
+    const raw=await rawBody(req);
+    if(action==='webhook')return await webhook(req,res,raw);
+    if(req.headers.origin!==cfg.url)throw fail(403,'Request origin is not allowed.');
+    let b;try{b=JSON.parse(raw.toString()||'{}');}catch{throw fail(400,'Invalid JSON.');}
+    if(action==='checkout'){
+      const plan=clean(b.plan);if(!Object.hasOwn(PLANS,plan))throw fail(422,'Choose a valid package.');
+      const session=owner(req);
+      // Members cannot start owner checkout, even when supplying a different email.
+      const anySession=verifySession(parseCookies(req).cc_account_session,accountSessionSecret());
+      if(anySession?.memberId)throw fail(403,'Only the agency owner can buy a package.');
+      let email=clean(b.email).toLowerCase();
+      if(session){const a=(await db(`accounts?id=eq.${encodeURIComponent(session.accountId)}&select=email&limit=1`))?.[0];if(!a)throw fail(401,'Sign in again.');email=a.email.toLowerCase();}
+      if(!/^\S+@\S+\.\S+$/.test(email))throw fail(422,'Enter your assessment email.');
+      const ids=await priceIds(plan);
+      const order=await rpc('cc_stripe_begin',{p_email:email,p_plan:plan,p_account_id:session?.accountId||null});
+      if(order.error)throw fail(409,order.error);
+      let checkout;
+      if(order.session_id){checkout=await stripe(`checkout/sessions/${encodeURIComponent(order.session_id)}`);if(checkout.status!=='open')throw fail(409,'This checkout is completed or expired. Return to the payment confirmation or contact support.');}
+      else{
+        checkout=await stripe('checkout/sessions',checkoutParams(order,ids),`cc-checkout-${order.id}`);
+        await db(`cc_stripe_orders?id=eq.${order.id}`,'PATCH',{session_id:checkout.id});
+      }
+      const cookie=signSession({role:'checkout',orderId:order.id},accountSessionSecret(),86400);
+      setSessionCookie(res,'cc_checkout_session',cookie,86400);
+      return json(res,200,{url:checkout.url});
+    }
+    const binding=verifySession(parseCookies(req).cc_checkout_session,accountSessionSecret());
+    if(binding?.role!=='checkout')throw fail(401,'Open this confirmation in the browser used for checkout. You can also sign in using the email sent after payment.');
+    const order=await orderById(binding.orderId);
+    if(!order.session_id||b.sessionId!==order.session_id)throw fail(403,'This checkout belongs to a different session.');
+    const checkout=await stripe(`checkout/sessions/${encodeURIComponent(order.session_id)}`);
+    if(checkout.payment_status!=='paid')return json(res,202,{paid:false,state:checkout.status});
+    // Webhook owns fulfillment; the return page may safely run the same idempotent path.
+    let fulfilled;try{fulfilled=await fulfill(checkout);}catch(error){
+      const saved=await orderById(order.id);if(saved.state!=='paid')throw error;fulfilled=saved;
+    }
+    return json(res,200,{paid:true,plan:fulfilled.plan,emailSent:Boolean(fulfilled.notification_sent_at),loginUrl:`${cfg.url}/login/`});
+  }catch(error){
+    console.error('Stripe billing error',{status:error.status||500,message:error.message});
+    return json(res,error.status||500,{error:error.status?error.message:'Payment processing is temporarily unavailable. Your payment will be retried automatically; do not pay again.'});
+  }
+}
