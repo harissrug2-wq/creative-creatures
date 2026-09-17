@@ -1,3 +1,4 @@
+import { readChat, sendChat } from '../lib/ask-creature-chat.js';
 import { WORKSPACE_ACCOUNT_SELECT, workspaceAccount, isCreatureGreeting, boundedCreatureHistory, compactCreatureData, creatureTimings } from '../lib/ask-creature-performance.js';
 import crypto from 'node:crypto';
 import { sendEmail, escapeHtml } from '../lib/email-service.js';
@@ -277,55 +278,6 @@ async function requestOpenAI(key,instructions,inputMessages,maxTokens=300){
   return text;
 }
 
-async function askCreature(c,account,actor,input,timing){
-  const message=clean(input.message).slice(0,4000);
-  if(!message)throw Object.assign(new Error('Enter a question for Ask Creature.'),{status:422});
-  const greeting=isCreatureGreeting(message);
-  const key=clean(process.env.OPENAI_API_KEY);
-
-  if(greeting){
-    let answer='Hello! What would you like help with in your agency today?';
-    if(key){
-      try{
-        answer=await timing.run('openai_greeting',()=>requestOpenAI(key,'You are Ask Creature, the Creative Creatures agency operations assistant. Give a very brief, friendly welcome (1-2 sentences) asking how you can assist their agency today.',[{role:'user',content:message}],100));
-      }catch{}
-    }
-    const createdAt=Date.now();
-    const savePromise=db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([
-      {account_id:account.id,member_id:actor.memberId||null,role:'user',content:message,created_at:new Date(createdAt).toISOString()},
-      {account_id:account.id,member_id:actor.memberId||null,role:'assistant',content:answer,created_at:new Date(createdAt+1).toISOString()}
-    ])}).catch(err=>console.error('Background save failed:',err));
-    if(c?.executionCtx?.waitUntil)c.executionCtx.waitUntil(savePromise);
-    return answer;
-  }
-
-  if(!key)throw Object.assign(new Error('Ask Creature is not configured.'),{status:503});
-  const memberFilter=actor.role==='member'?`&member_id=eq.${encodeURIComponent(actor.memberId)}`:'';
-  const since=new Date(Date.now()-10*60*1000).toISOString();
-  const requiresDiagnostic=actor.role==='owner'&&/\b(diagnostic|report|scorecard|archetype|score|results|focus|priority|benchmark|weakness|strength)\b/i.test(message);
-
-  const [recent,history,contextRows]=await Promise.all([
-    timing.run('rate_limit',()=>db(c,`ask_creature_messages?select=id&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&role=eq.user&created_at=gte.${encodeURIComponent(since)}&limit=20`)),
-    timing.run('history',()=>db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.desc,id.desc&limit=6`)),
-    requiresDiagnostic?timing.run('context',()=>db(c,`accounts?select=diagnostic_state,report_data&id=eq.${encodeURIComponent(account.id)}&limit=1`)):[]
-  ]);
-
-  if((recent||[]).length>=20)throw Object.assign(new Error('Ask Creature has reached the short-term message limit. Try again in a few minutes.'),{status:429});
-
-  const details=Array.isArray(contextRows)?contextRows[0]:null;
-  const context={agency:account.agency_name||account.name,plan:accessPlan(account),actorRole:actor.role,departments:actor.departments,currentPage:clean(input.currentPath).slice(0,200),diagnostic:requiresDiagnostic?compactCreatureData(details?.diagnostic_state||{},6000):undefined,report:requiresDiagnostic?compactCreatureData(details?.report_data||{},6000):undefined};
-
-  const answer=await timing.run('openai',()=>requestOpenAI(key,'You are Ask Creature, the Creative Creatures agency operations assistant. Use only the supplied agency context and conversation. Context may be shortened or omitted to fit a size budget; ask for missing details rather than guessing. Never claim access to missing data, never invent metrics, never reveal another agency, and respect the member department list. Give concise, practical guidance.',[...boundedCreatureHistory(history),{role:'user',content:`Agency context: ${JSON.stringify(context)}\n\nQuestion: ${message}`}],300));
-
-  const createdAt=Date.now();
-  const savePromise=db(c,'ask_creature_messages',{method:'POST',body:JSON.stringify([
-    {account_id:account.id,member_id:actor.memberId||null,role:'user',content:message,created_at:new Date(createdAt).toISOString()},
-    {account_id:account.id,member_id:actor.memberId||null,role:'assistant',content:answer,created_at:new Date(createdAt+1).toISOString()}
-  ])}).catch(err=>console.error('Background save failed:',err));
-  if(c?.executionCtx?.waitUntil)c.executionCtx.waitUntil(savePromise);
-
-  return answer;
-}
 
 const QB_SELECT='id,account_id,realm_id,company_name,access_token_encrypted,refresh_token_encrypted,access_token_expires_at,refresh_token_expires_at,scope,status,last_synced_at,last_sync_error,created_at,updated_at';
 async function getQuickBooksConnection(c,accountId){const rows=await db(c,`quickbooks_connections?select=${QB_SELECT}&account_id=eq.${encodeURIComponent(accountId)}&limit=1`);return Array.isArray(rows)?rows[0]||null:null}
@@ -1060,7 +1012,7 @@ export default async function handler(req,res){
     }
     if(req.method==='GET'){
 
-      if(action==='workspace_access'||action==='workspace_users'||action==='ask_creature_history'){
+      if(action==='workspace_access'||action==='workspace_users'||action==='ask_creature_history'||action==='ask_creature_faqs'){
         return await workspaceResult(res,action,async timing=>{
           const {account,actor}=await workspaceIdentity(c,session,timing);
           if(action==='workspace_access')return{authenticated:true,account:{id:account.id,name:account.name,email:account.email,agency_name:account.agency_name,journey:account.journey,accessPlan:accessPlan(account)},access:publicAccess(account,actor)};
@@ -1070,9 +1022,7 @@ export default async function handler(req,res){
             return{owner:{name:account.name,email:account.email},users,departments:DEPARTMENTS};
           }
           requireFeature(account,'ask');
-          const memberFilter=actor.role==='member'?`&member_id=eq.${encodeURIComponent(actor.memberId)}`:'';
-          const rows=await timing.run('history',()=>db(c,`ask_creature_messages?select=role,content,created_at&account_id=eq.${encodeURIComponent(account.id)}${memberFilter}&order=created_at.desc,id.desc&limit=50`));
-          return{messages:Array.isArray(rows)?rows.reverse():[]};
+          return readChat((path,options)=>db(c,path,options),account,actor,{...req.query,action});
         });
       }
 
@@ -1224,7 +1174,7 @@ export default async function handler(req,res){
       return await workspaceResult(res,bodyAction,async timing=>{
         const {account,actor}=await workspaceIdentity(c,session,timing);
         requireFeature(account,'ask');
-        return{success:true,answer:await askCreature(c,account,actor,b,timing)};
+        return{success:true,...await sendChat((path,options)=>db(c,path,options),account,actor,b)};
       });
     }
     if(['workspace_invite_user','workspace_update_user','workspace_remove_user'].includes(bodyAction)){
