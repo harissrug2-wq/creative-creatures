@@ -317,13 +317,54 @@
           <td data-label="URL">${url ? `<a class="table-link" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(displayUrl(account.agencyUrl))}</a>` : '—'}</td>
           <td data-label="Email"><a class="table-link" href="mailto:${escapeHtml(account.email)}">${escapeHtml(account.email || '—')}</a></td>
           <td data-label="Date of Visit"><span>${escapeHtml(formatDate(account.visitDate, true))}</span></td>
-          <td data-label="View Report"><button class="mini-btn primary report-btn" data-view-owner-report="${escapeHtml(account.id)}">View Report</button></td>
+          <td data-label="Actions"><div class="owner-report-actions"><button class="mini-btn primary report-btn" data-view-owner-report="${escapeHtml(account.id)}">View Report</button><button type="button" class="mini-btn danger" data-delete-owner="${escapeHtml(account.id)}">Delete</button></div></td>
         </tr>`;
     }).join('');
 
+    const heading = body.closest('table')?.querySelector('thead th:last-child');
+    if (heading) heading.textContent = 'Actions';
+    body.querySelectorAll('[data-delete-owner]').forEach(button => {
+      button.addEventListener('click', () => confirmOwnerDeletion(button.dataset.deleteOwner, button));
+    });
     body.querySelectorAll('[data-view-owner-report]').forEach(button => {
       button.addEventListener('click', () => openOwnerReport(button.dataset.viewOwnerReport, button));
     });
+  }
+
+  function confirmOwnerDeletion(id, trigger) {
+    const record = ownerArchetypes.find(item => item.id === id);
+    if (!record || document.querySelector('.owner-delete-dialog')) return;
+    const dialog = document.createElement('dialog');
+    dialog.className = 'owner-delete-dialog';
+    dialog.setAttribute('aria-labelledby', 'ownerDeleteTitle');
+    dialog.setAttribute('aria-describedby', 'ownerDeleteDescription');
+    dialog.innerHTML = `<h2 id="ownerDeleteTitle">Delete Owner Archetype record?</h2>
+      <p><strong>${escapeHtml(record.name)}</strong><br>${escapeHtml(record.email)}</p>
+      <p id="ownerDeleteDescription">This permanently removes this entry from Owner Archetype history. Any linked paid workspace and its saved report remain available. This does not cancel a subscription.</p>
+      <p class="delete-error" role="alert"></p>
+      <div class="owner-report-actions"><button type="button" class="mini-btn" data-cancel autofocus>Cancel</button><button type="button" class="mini-btn danger" data-confirm>Delete record</button></div>`;
+    document.body.appendChild(dialog);
+    let deleting = false;
+    dialog.addEventListener('cancel', event => { if (deleting) event.preventDefault(); });
+    dialog.addEventListener('close', () => { dialog.remove(); if (trigger.isConnected) trigger.focus(); });
+    dialog.querySelector('[data-cancel]').onclick = () => dialog.close();
+    dialog.querySelector('[data-confirm]').onclick = async () => {
+      if (deleting) return;
+      deleting = true;
+      dialog.querySelectorAll('button').forEach(button => button.disabled = true);
+      const error = dialog.querySelector('.delete-error'); error.textContent = '';
+      try {
+        const response = await fetch(OWNER_LEAD_API, {method:'DELETE',headers:{'Content-Type':'application/json'},body:JSON.stringify({id,confirm:true})});
+        const payload = await response.json();
+        if (!response.ok || payload.deleted !== true) throw new Error(payload.error || 'Deletion failed. Please try again.');
+        ownerArchetypes = ownerArchetypes.filter(item => item.id !== id);
+        dialog.close();
+        renderOwnerArchetypeTable(ownerArchetypes);
+        document.querySelector('[data-view-owner-report]')?.focus();
+      } catch (e) { error.textContent = e.message; }
+      finally { deleting = false; dialog.querySelectorAll('button').forEach(button => button.disabled = false); }
+    };
+    dialog.showModal();
   }
 
   async function openOwnerReport(id, button) {

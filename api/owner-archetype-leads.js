@@ -8,7 +8,17 @@ function cfg(){const url=clean(process.env.SUPABASE_URL).replace(/\/+$/,'');cons
 async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${path}`,{...options,headers:{apikey:c.key,'Content-Type':'application/json',...(options.headers||{})}});const t=await r.text();let p=null;try{p=t?JSON.parse(t):null}catch{p=t}if(!r.ok){const e=new Error(p?.message||p?.hint||'Database request failed.');e.status=r.status;throw e}return p}
 function pub(r,accountIds=null){const accountExists=Boolean(r?.converted_account_id&&(accountIds?accountIds.has(r.converted_account_id):true));return r?{id:r.id,name:r.name,email:r.email,agency_url:r.agency_url,agency_url_normalized:r.agency_url_normalized,agency_name:r.agency_name,journey:r.journey,source:r.source,archetype_result:r.archetype_result||{},report_data:r.report_data||{},converted_account_id:r.converted_account_id,converted_at:r.converted_at,payment_completed_at:r.payment_completed_at,account_exists:accountExists,is_paid:accountExists&&Boolean(r.payment_completed_at||r.converted_at),created_at:r.created_at,updated_at:r.updated_at}:null}
 async function attachAccountState(c,rows){const list=Array.isArray(rows)?rows:[];const ids=[...new Set(list.map(r=>r.converted_account_id).filter(Boolean))];if(!ids.length)return list.map(r=>pub(r,new Set()));const filter=encodeURIComponent(`(${ids.join(',')})`);const accounts=await db(c,`accounts?select=id&id=in.${filter}`);const accountIds=new Set((Array.isArray(accounts)?accounts:[]).map(a=>a.id));return list.map(r=>pub(r,accountIds))}
-export default async function handler(req,res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');if(req.method==='OPTIONS')return json(res,204,{});const c=cfg();if(!c)return json(res,503,{error:'Lead database is not configured.'});try{
+export default async function handler(req,res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');if(req.method==='OPTIONS')return json(res,204,{});const c=cfg();if(!c)return json(res,503,{error:'Lead database is not configured.'});try{
+ if(req.method==='DELETE'){
+   if(!requireAdmin(req))return json(res,401,{error:'Admin authentication required.'});
+   const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});
+   const id=clean(b.id);
+   if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)||b.confirm!==true)return json(res,422,{error:'Confirm deletion of a valid Owner Archetype record.'});
+   // Delete only the lead row. Paid accounts, reports on accounts and billing survive.
+   const rows=await db(c,`owner_archetype_leads?id=eq.${encodeURIComponent(id)}&select=id`,{method:'DELETE',headers:{Prefer:'return=representation'}});
+   if(!Array.isArray(rows)||!rows.length)return json(res,404,{error:'This Owner Archetype record no longer exists.'});
+   return json(res,200,{deleted:true,id});
+ }
  if(req.method==='GET'){
    const all=req.query?.all==='true'||req.query?.all==='1';
    if(all){
