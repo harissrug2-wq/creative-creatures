@@ -88,6 +88,12 @@ body.offer-detail-page {
   font-size: 17px;
 }
 
+.header-brand img {
+  height: 32px;
+  width: auto;
+  display: block;
+}
+
 .header-right {
   display: flex;
   align-items: center;

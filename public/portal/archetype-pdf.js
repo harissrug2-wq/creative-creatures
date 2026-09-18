@@ -341,11 +341,15 @@
     });
   }
 
-  async function emailReport(email) {
+  async function emailReport(email, options) {
     const recipient = String(email || '').trim().toLowerCase();
     if (!/^\S+@\S+\.\S+$/.test(recipient)) {
       throw new Error('A valid email address is required to email the report.');
     }
+
+    const report = localReport();
+    const opts = typeof options === 'string' ? { firstName: options } : (options || {});
+    const firstName = String(opts.firstName || report?.firstName || report?.answers?.first_name || localStorage.getItem('ccOwnerFirstName') || '').trim();
 
     const { token, blob: pdfBlob } = await reportPdf();
     const pdfBase64 = await new Promise((resolve, reject) => {
@@ -362,6 +366,8 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         to: recipient,
+        type: 'owner-archetype',
+        firstName,
         title: 'Your Owner Identity Report',
         summary: 'Your Creative Creatures Owner Identity Report is attached.',
         filename: 'creative-creatures-owner-identity-report.pdf',

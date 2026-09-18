@@ -5,3 +5,6 @@
 .payment-thanks-check{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--cc-green-soft);color:var(--cc-green);font-size:22px;font-weight:800;margin-bottom:20px}
 .payment-thanks h1{font-size:34px;letter-spacing:-.04em;margin:0 0 12px}.payment-thanks p{font-size:15px;line-height:1.6;color:var(--cc-muted);margin:0 0 10px}.payment-continue{margin-top:18px;text-decoration:none;width:max-content;padding:0 22px}
 @media(max-width:640px){.payment-thanks{padding:28px 22px}.payment-thanks h1{font-size:29px}.payment-continue{width:100%}}
+.payment-page [hidden] {
+  display: none !important;
+}

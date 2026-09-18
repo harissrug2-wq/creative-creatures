@@ -532,7 +532,7 @@
       localStorage.setItem('ownerArchetypeEmailStatus', 'sending');
       if (window.CCArchetypePDF?.emailReport) {
         try {
-          await window.CCArchetypePDF.emailReport(ownerEmail);
+          await window.CCArchetypePDF.emailReport(ownerEmail, { firstName: report.firstName });
           localStorage.setItem('ownerArchetypeEmailStatus', 'sent');
           localStorage.removeItem('ownerArchetypeEmailError');
         } catch (error) {

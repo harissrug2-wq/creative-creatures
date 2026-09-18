@@ -107,9 +107,10 @@
     }
 
     function proceedToPayment(lead) {
-      selectLead(lead);
-      location.href = '/payment/';
-    }
+  selectLead(lead);
+  localStorage.setItem('ccProgramPath', destination);
+  location.href = '/payment/?plan=' + encodeURIComponent(destination);
+}
 
     function loginToDiagnostic(lead) {
       const email = String(lead?.email || '').trim(), query = new URLSearchParams();
