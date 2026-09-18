@@ -18,11 +18,11 @@
       <h3>Find My Identity (archetype) Report</h3>
       <p>We’ll match one or all three fields. Select your existing account if you have already received your Owner Identity Report.</p>
       <form id="lookupForm" novalidate>
-        <div class="field"><label for="lookupName">Name <small>optional</small></label><input id="lookupName" name="name" autocomplete="name" placeholder="Jane Doe"></div>
+        <div class="field"><label for="lookupName">Name <small>optional</small></label><input id="lookupName" name="name" autocomplete="name" placeholder="First and last name"></div>
         <div class="lookup-or-grid">
-          <div class="field"><label for="lookupEmail">Email</label><input id="lookupEmail" name="email" type="email" autocomplete="email" placeholder="jane@directingdesign.com"></div>
+          <div class="field"><label for="lookupEmail">Email</label><input id="lookupEmail" name="email" type="email" autocomplete="email" placeholder="you@youragency.com"></div>
           <div class="lookup-or"><span>or</span></div>
-          <div class="field"><label for="lookupUrl">Agency URL</label><input id="lookupUrl" name="agencyUrl" inputmode="url" placeholder="https://directingdesign.com"></div>
+          <div class="field"><label for="lookupUrl">Agency URL</label><input id="lookupUrl" name="agencyUrl" inputmode="url" placeholder="https://youragency.com"></div>
         </div>
         <button class="cc-btn cc-btn-primary" id="lookupSubmit" type="submit">Find My Report →</button>
         <div class="cc-error" id="lookupError" role="alert"></div><div class="cc-success" id="lookupSuccess"></div><div id="lookupResults" class="lookup-results"></div>

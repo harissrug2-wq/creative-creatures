@@ -14,13 +14,27 @@
   const previousFocus=document.activeElement,hadModal=document.body.classList.contains('cc-modal-open');
   const wrap=el('div','cc-chat-overlay');
   wrap.innerHTML=`<section class="cc-chat-panel" role="dialog" aria-modal="true" aria-labelledby="ccChatTitle">
-   <header class="cc-chat-header"><div class="cc-chat-brand" aria-hidden="true">✦</div><div class="cc-chat-heading"><h2 id="ccChatTitle">Ask Creature</h2><p>Your Creative Creatures guide</p></div><button type="button" class="cc-chat-icon cc-chat-close" aria-label="Close chat">×</button></header>
+   <header class="cc-chat-header">
+     <div class="cc-chat-brand" aria-hidden="true">✦</div>
+     <div class="cc-chat-heading">
+       <h2 id="ccChatTitle">Ask Creature</h2>
+       <p class="cc-chat-page-badge" id="ccChatBadge">Agency Scorecard context · A</p>
+     </div>
+     <button type="button" class="cc-chat-icon cc-chat-close" aria-label="Close chat">×</button>
+   </header>
    <nav class="cc-chat-toolbar" aria-label="Chat controls"><button type="button" class="cc-chat-new">＋ New chat</button><button type="button" class="cc-chat-history" aria-pressed="false">◷ History</button><span class="cc-chat-page"></span></nav>
    <div class="cc-chat-content"></div><p class="cc-chat-error" role="alert" hidden></p>
-   <form class="cc-chat-form" data-no-loader="true"><label class="cc-chat-sr" for="ccChatInput">Your question</label><div class="cc-chat-compose"><textarea id="ccChatInput" rows="2" maxlength="4000" placeholder="Ask about your Creative Creatures workspace…" required></textarea><button type="submit" aria-label="Send message">↑</button></div><p>Creative Creatures questions only · Enter to send</p></form>
+   <form class="cc-chat-form" data-no-loader="true">
+     <label class="cc-chat-sr" for="ccChatInput">Your question</label>
+     <div class="cc-chat-compose">
+       <textarea id="ccChatInput" rows="1" maxlength="4000" placeholder="Ask about Agency Scorecard…" required></textarea>
+       <button type="submit" aria-label="Send message">↑</button>
+     </div>
+     <p class="cc-chat-footer-note" id="ccChatFooterNote">Mock responses · scoped to agency scorecard</p>
+   </form>
   </section>`;
   document.body.appendChild(wrap);document.body.classList.add('cc-modal-open');
-  const content=wrap.querySelector('.cc-chat-content'),form=wrap.querySelector('form'),input=wrap.querySelector('textarea'),send=form.querySelector('button'),error=wrap.querySelector('.cc-chat-error'),historyButton=wrap.querySelector('.cc-chat-history'),newButton=wrap.querySelector('.cc-chat-new');
+  const content=wrap.querySelector('.cc-chat-content'),form=wrap.querySelector('form'),input=wrap.querySelector('textarea'),send=form.querySelector('button'),error=wrap.querySelector('.cc-chat-error'),historyButton=wrap.querySelector('.cc-chat-history'),newButton=wrap.querySelector('.cc-chat-new'),badgeNode=wrap.querySelector('#ccChatBadge'),footerNoteNode=wrap.querySelector('#ccChatFooterNote');
   let conversationId,messageCount=0,messages=[],sending=false,closed=false,view='chat',epoch=0,faq=null,historyOffset=0,olderOffset=0,hasOlder=false,retry=null,loading=false;
   const showError=e=>{error.hidden=false;error.textContent=e.message||String(e);};
   const clearError=()=>{error.hidden=true;error.textContent='';};
@@ -30,11 +44,32 @@
   document.addEventListener('keydown',onKey);wrap.querySelector('.cc-chat-close').onclick=close;wrap.onclick=e=>{if(e.target===wrap)close();};
   function bubble(m){const row=el('div',`cc-chat-message ${m.role==='user'?'is-user':'is-creature'}`);row.append(el('span','cc-chat-speaker',m.role==='user'?'You':'✦ Ask Creature'),el('div','cc-chat-text',m.content));return row;}
   function welcome(){
-   content.replaceChildren();const box=el('section','cc-chat-welcome');box.append(el('div','cc-chat-orb','✦'),el('span','cc-chat-eyebrow',faq?.topic||'YOUR WORKSPACE'),el('h3','','What can we help you do?'),el('p','','Explore this page, understand your reports, or find your next step.'));
-   const choices=el('div','cc-chat-suggestions');
-   if(faq)for(const question of faq.questions){const b=el('button','',question);b.type='button';b.onclick=()=>{input.value=question;form.requestSubmit();};choices.append(b);}
-   else choices.append(el('p','cc-chat-muted','Loading questions for this page…'));
-   box.append(choices);content.append(box);
+   content.replaceChildren();
+   const topicName = faq?.topic || 'Agency Scorecard';
+   const card = el('section','cc-chat-welcome-card');
+   card.append(
+     el('h3','',`How can I help with ${topicName}?`),
+     el('p','',`I can summarize what's on screen, surface what needs attention, or draft a quick update based on this tab's data.`)
+   );
+
+   const suggestionsWrap = el('div','cc-chat-suggestions-wrap');
+   suggestionsWrap.append(el('div','cc-chat-suggestions-title','Suggestions'));
+   const choices = el('div','cc-chat-suggestions');
+   const defaultQuestions = [
+     'Summarize this tab',
+     'What needs my attention?',
+     'Draft a quick update'
+   ];
+   const questionsList = (faq && faq.questions && faq.questions.length) ? faq.questions : defaultQuestions;
+   for(const question of questionsList){
+     const b = el('button','cc-chat-suggestion-btn');
+     b.type = 'button';
+     b.append(el('span','',question), el('span','cc-chat-btn-arrow','→'));
+     b.onclick = () => { input.value = question; form.requestSubmit(); };
+     choices.append(b);
+   }
+   suggestionsWrap.append(choices);
+   content.append(card, suggestionsWrap);
   }
   function render(){content.replaceChildren();if(hasOlder){const b=el('button','cc-chat-more','Load older messages');b.type='button';b.onclick=()=>loadOlder(b);content.append(b);}messages.forEach(m=>content.append(bubble(m)));content.scrollTop=content.scrollHeight;}
   function fresh(){if(sending)return;epoch++;conversationId=crypto.randomUUID();messageCount=0;messages=[];olderOffset=0;hasOlder=false;retry=null;view='chat';loading=false;input.value='';form.hidden=false;historyButton.setAttribute('aria-pressed','false');clearError();welcome();busy();input.focus();}
@@ -68,7 +103,25 @@
    finally{sending=false;if(!closed&&ticket===epoch){busy();input.focus();content.scrollTop=content.scrollHeight;}}
   };
   current={fresh};fresh();
-  api('ask_creature_faqs',{path:location.pathname}).then(r=>{if(closed)return;faq=r;wrap.querySelector('.cc-chat-page').textContent=r.topic;if(view==='chat'&&!messages.length&&!sending)welcome();}).catch(e=>{if(!closed){faq={topic:'Creative Creatures',questions:[]};if(view==='chat'&&!messages.length&&!sending)welcome();showError(e);}});
+  api('ask_creature_faqs',{path:location.pathname}).then(r=>{
+    if(closed)return;
+    faq=r;
+    const pageTopic = r.topic || 'Agency Scorecard';
+    wrap.querySelector('.cc-chat-page').textContent = pageTopic;
+    if(badgeNode) badgeNode.textContent = `${pageTopic} context · A`;
+    if(input) input.placeholder = `Ask about ${pageTopic}...`;
+    if(footerNoteNode) footerNoteNode.textContent = `Mock responses · scoped to ${pageTopic.toLowerCase()}`;
+    if(view==='chat'&&!messages.length&&!sending)welcome();
+  }).catch(e=>{
+    if(!closed){
+      faq={topic:'Agency Scorecard',questions:[]};
+      if(badgeNode) badgeNode.textContent = `Agency Scorecard context · A`;
+      if(input) input.placeholder = `Ask about Agency Scorecard...`;
+      if(footerNoteNode) footerNoteNode.textContent = `Mock responses · scoped to agency scorecard`;
+      if(view==='chat'&&!messages.length&&!sending)welcome();
+      showError(e);
+    }
+  });
  }
  window.CCAskCreature={open};
 })();
