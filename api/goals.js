@@ -665,7 +665,7 @@ async function loadModel(config, account) {
     description: row.description || '',
     owner: row.owner_name || 'Agency Owner',
     due: row.due || 'This quarter',
-    dueDate: row.due_date || '',
+    dueDate: row.due_date || (row.created_at ? new Date(new Date(row.created_at).getTime() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10) : new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)),
     status: row.status || 'Not started'
   }));
 
@@ -676,12 +676,16 @@ async function loadModel(config, account) {
     reason: item.source || 'Required source evidence has not been supplied.'
   }));
   const definedDepartmentCount = departments.filter(item => clean(item.goal)).length;
-  const partialDepartments = departments
-    .filter(item => clean(item.goal) && (!clean(item.owner) || !clean(item.done) || !clean(item.completionDate)))
-    .map(item => item.name);
-  const incompleteRocks = rocks
-    .filter(item => !clean(item.owner) || !clean(item.dueDate))
-    .map(item => item.title);
+  const partialDepartments = Array.from(new Set(
+    departments
+      .filter(item => clean(item.goal) && (!clean(item.owner) || !clean(item.done) || !clean(item.completionDate)))
+      .map(item => item.name)
+  ));
+  const incompleteRocks = Array.from(new Set(
+    rocks
+      .filter(item => !clean(item.owner) || (!clean(item.due) && !clean(item.dueDate)))
+      .map(item => item.title)
+  ));
 
   return {
     account: { id: account.id, name: account.name, email: account.email, agencyName: account.agency_name },
@@ -1022,10 +1026,10 @@ export default async function handler(req, res) {
         blockers.push(`Set targets for all ${readiness.targetTotal || METRICS.length} Agency Goal cards.`);
       }
       if (Array.isArray(readiness.partialDepartments) && readiness.partialDepartments.length) {
-        blockers.push(`Finish owner, measurable outcome, and completion date for: ${readiness.partialDepartments.join(', ')}.`);
+        blockers.push(`Finish owner, measurable outcome, and completion date for: ${Array.from(new Set(readiness.partialDepartments)).join(', ')}.`);
       }
       if (Array.isArray(readiness.incompleteRocks) && readiness.incompleteRocks.length) {
-        blockers.push(`Add an owner and due date for: ${readiness.incompleteRocks.join(', ')}.`);
+        blockers.push(`Add an owner and due date for: ${Array.from(new Set(readiness.incompleteRocks)).join(', ')}.`);
       }
       if (blockers.length) {
         const error = new Error(blockers.join(' '));

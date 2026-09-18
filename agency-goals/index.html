@@ -355,7 +355,7 @@
             ${model.goalsComplete ? 'Goals &amp; Priorities Completed' : 'Goals &amp; Priorities Finished!'}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="20" height="20"><path d="M5 12h14M14 7l5 5-5 5"/></svg>
           </button>
-          ${readiness.canComplete ? '' : `<div class="completion-warning">Before finishing, set all ${Number(readiness.targetTotal || goals.length)} agency targets${Array.isArray(readiness.partialDepartments) && readiness.partialDepartments.length ? ` and finish the defined departmental goals: ${esc(readiness.partialDepartments.join(', '))}` : ''}${Array.isArray(readiness.incompleteRocks) && readiness.incompleteRocks.length ? ` and complete owner/due date for ${esc(readiness.incompleteRocks.join(', '))}` : ''}.</div>`}
+          ${readiness.canComplete ? '' : `<div class="completion-warning">Before finishing, set all ${Number(readiness.targetTotal || goals.length)} agency targets${Array.isArray(readiness.partialDepartments) && readiness.partialDepartments.length ? ` and finish the defined departmental goals: ${esc(Array.from(new Set(readiness.partialDepartments)).join(', '))}` : ''}${Array.isArray(readiness.incompleteRocks) && readiness.incompleteRocks.length ? ` and complete owner/due date for ${esc(Array.from(new Set(readiness.incompleteRocks)).join(', '))}` : ''}.</div>`}
         </div>
       </div>`;
 
