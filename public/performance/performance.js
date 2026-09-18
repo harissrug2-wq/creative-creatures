@@ -157,20 +157,20 @@
     wrap.className='bk-modal-backdrop';
     wrap.id='bookkeepingConnectModal';
     wrap.innerHTML=`
-      <div class="bk-modal" role="dialog" aria-modal="true" aria-label="Connect Bookkeeping Software">
+      <div class="bk-modal" role="dialog" aria-modal="true" aria-label="Connect Available Integrations">
         <div class="bk-modal-head">
-          <h3>Connect Bookkeeping Software</h3>
+          <h3>Connect Integrations</h3>
           <button class="bk-modal-close" type="button" id="closeBkModal" aria-label="Close">×</button>
         </div>
-        <p class="bk-modal-sub">Connect your bookkeeping or accounting platform to automatically import your financial statements and evidence.</p>
-        <div class="bk-options">
+        <p class="bk-modal-sub">Connect your agency tools and accounting software to automatically import evidence, sync data, and power your performance score.</p>
+        <div class="bk-options" style="max-height: 380px; overflow-y: auto;">
           <div class="bk-option">
             <div class="bk-logo qb">QB</div>
             <div class="bk-info">
               <strong>QuickBooks Online</strong>
               <span>Sync P&L, Balance Sheet, A/R Aging & Client Revenue</span>
             </div>
-            <button type="button" class="bk-action-btn primary" id="connectQB">Connect</button>
+            <button type="button" class="bk-action-btn primary" data-oauth-action="quickbooks_connect">Connect</button>
           </div>
           <div class="bk-option">
             <div class="bk-logo fb">FB</div>
@@ -178,27 +178,92 @@
               <strong>FreshBooks</strong>
               <span>Sync client revenue, payments & invoices</span>
             </div>
-            <button type="button" class="bk-action-btn secondary" id="connectFB">Connect</button>
+            <button type="button" class="bk-action-btn secondary" data-oauth-action="freshbooks_connect">Connect</button>
           </div>
           <div class="bk-option">
-            <div class="bk-logo xero">Xero</div>
+            <div class="bk-logo" style="background:#0052cc">Jira</div>
+            <div class="bk-info">
+              <strong>Jira Software</strong>
+              <span>Sync development issues, projects & status</span>
+            </div>
+            <button type="button" class="bk-action-btn secondary" data-oauth-action="jira_connect">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo" style="background:#ff7a59">HS</div>
+            <div class="bk-info">
+              <strong>HubSpot CRM</strong>
+              <span>Sync deals, pipelines, contacts & revenue</span>
+            </div>
+            <button type="button" class="bk-action-btn secondary" data-oauth-action="hubspot_connect">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo" style="background:#4a154b">Slack</div>
+            <div class="bk-info">
+              <strong>Slack Workspace</strong>
+              <span>Notifications, channel feeds & team updates</span>
+            </div>
+            <button type="button" class="bk-action-btn secondary" data-oauth-action="slack_connect">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo" style="background:#2D8CFF">Zoom</div>
+            <div class="bk-info">
+              <strong>Zoom Video Communications</strong>
+              <span>Sync meetings, recordings & executive sessions</span>
+            </div>
+            <button type="button" class="bk-action-btn secondary" data-oauth-action="zoom_connect">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo" style="background:#4285f4">Cal</div>
+            <div class="bk-info">
+              <strong>Google Calendar</strong>
+              <span>Sync calendar events & leadership meetings</span>
+            </div>
+            <button type="button" class="bk-action-btn secondary" data-oauth-action="google_calendar_connect">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo" style="background:#0f9d58">Drive</div>
+            <div class="bk-info">
+              <strong>Google Drive</strong>
+              <span>Sync evidence documents & shared agency folders</span>
+            </div>
+            <button type="button" class="bk-action-btn secondary" data-oauth-action="google_drive_connect">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo" style="background:#7b68ee">CU</div>
+            <div class="bk-info">
+              <strong>ClickUp</strong>
+              <span>Sync tasks, spaces & project delivery</span>
+            </div>
+            <button type="button" class="bk-action-btn secondary" data-oauth-action="clickup_connect">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo" style="background:#0085ff">Mon</div>
+            <div class="bk-info">
+              <strong>Monday.com</strong>
+              <span>Sync boards, workspaces & team tasks</span>
+            </div>
+            <button type="button" class="bk-action-btn secondary" data-oauth-action="monday_connect">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo" style="background:#c00">Zoho</div>
+            <div class="bk-info">
+              <strong>Zoho CRM</strong>
+              <span>Sync deals, accounts & sales pipeline</span>
+            </div>
+            <button type="button" class="bk-action-btn secondary" data-oauth-action="zoho_connect">Connect</button>
+          </div>
+          <div class="bk-option">
+            <div class="bk-logo" style="background:#13b5ea">Xero</div>
             <div class="bk-info">
               <strong>Xero Accounting</strong>
               <span>Import financial statements directly from Xero</span>
             </div>
             <span class="bk-badge coming-soon">Coming Soon</span>
           </div>
-          <div class="bk-option">
-            <div class="bk-logo erp">ERP</div>
-            <div class="bk-info">
-              <strong>NetSuite / Sage / Wave</strong>
-              <span>Enterprise financial software connectors</span>
-            </div>
-            <span class="bk-badge coming-soon">Coming Soon</span>
-          </div>
         </div>
-        <div class="bk-modal-footer">
-          <a href="/integrations/">View all available integrations →</a>
+        <div class="bk-modal-footer" style="display:flex;justify-content:space-between;align-items:center;">
+          <button type="button" class="upload-button other-btn" id="reqOtherBtn" style="font-size:11px;padding:6px 12px;">Request Other...</button>
+          <a href="/integrations/" style="font-weight:700;">View &amp; Manage All Integrations →</a>
         </div>
       </div>
     `;
@@ -208,21 +273,33 @@
     wrap.querySelector('#closeBkModal').onclick=close;
     wrap.onclick=e=>{if(e.target===wrap)close();};
 
-    wrap.querySelector('#connectQB').onclick=async()=>{
-      try{
-        const res=await fetch('/api/account-auth?action=quickbooks_connect').then(r=>r.json());
-        if(res.authorizationUrl)location.href=res.authorizationUrl;
-        else alert(res.error||'QuickBooks connection is currently unavailable.');
-      }catch(e){alert('QuickBooks connection failed: '+e.message);}
-    };
+    wrap.querySelector('#reqOtherBtn')?.addEventListener('click', () => {
+      close();
+      showOtherIntegrationModal();
+    });
 
-    wrap.querySelector('#connectFB').onclick=async()=>{
-      try{
-        const res=await fetch('/api/account-auth?action=freshbooks_connect').then(r=>r.json());
-        if(res.authorizationUrl)location.href=res.authorizationUrl;
-        else alert(res.error||'FreshBooks connection is currently unavailable.');
-      }catch(e){alert('FreshBooks connection failed: '+e.message);}
-    };
+    wrap.querySelectorAll('[data-oauth-action]').forEach(btn => {
+      btn.onclick = async () => {
+        const action = btn.dataset.oauthAction;
+        const originalText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = 'Connecting…';
+        try {
+          const res = await fetch(`/api/account-auth?action=${encodeURIComponent(action)}`).then(r => r.json());
+          if (res.authorizationUrl) {
+            location.href = res.authorizationUrl;
+          } else {
+            alert(res.error || 'Connection URL could not be generated. Please try again or manage integrations.');
+            btn.disabled = false;
+            btn.textContent = originalText;
+          }
+        } catch(e) {
+          alert('Integration connection failed: ' + e.message);
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      };
+    });
   }
 
   function showBookkeepingModal(){

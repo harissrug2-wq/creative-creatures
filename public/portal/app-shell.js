@@ -76,10 +76,10 @@
       <header class="app-topbar">
         <a class="top-logo" href="/login/"><img class="cc-platform-logo" src="/portal/creative-creatures-logo.png" alt="Creative Creatures"></a>
         <nav class="app-nav">${desktopNav}</nav>
-        <a class="shell-upgrade" href="/account/upgrade/" data-account-upgrade hidden>Upgrade</a><button class="ask-creature" hidden>${icon('spark')}Ask Creature</button>${profile}
+        <a class="shell-upgrade" href="/account/upgrade/" data-account-upgrade hidden>Upgrade</a><button class="ask-creature" hidden><img src="/favicon.svg" class="cc-ask-logo-icon" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;">Ask Creature</button>${profile}
         <button class="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false">☰</button>
       </header>
-      <nav class="mobile-nav-panel">${mobileNav.map(([label,href,enabled,key]) => `<a href="${enabled ? href : '#'}" data-workspace-feature="${key}" hidden class="${active===key?'active ':''}${enabled?'':'nav-disabled'}" ${enabled?'':'onclick="return false" aria-disabled="true"'}>${label}</a>`).join('')}<a href="/account/upgrade/" data-account-upgrade hidden>Upgrade account</a>${identity ? `<button class="mobile-signout" type="button">${icon('logout')}Sign out ${esc(displayName || agencyName)}</button>` : ''}<button class="mobile-ask-creature" type="button" hidden>${icon("spark")}Ask Creature</button></nav>
+      <nav class="mobile-nav-panel">${mobileNav.map(([label,href,enabled,key]) => `<a href="${enabled ? href : '#'}" data-workspace-feature="${key}" hidden class="${active===key?'active ':''}${enabled?'':'nav-disabled'}" ${enabled?'':'onclick="return false" aria-disabled="true"'}>${label}</a>`).join('')}<a href="/account/upgrade/" data-account-upgrade hidden>Upgrade account</a>${identity ? `<button class="mobile-signout" type="button">${icon('logout')}Sign out ${esc(displayName || agencyName)}</button>` : ''}<button class="mobile-ask-creature" type="button" hidden><img src="/favicon.svg" class="cc-ask-logo-icon" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;">Ask Creature</button></nav>
       ${status}
       ${identity ? `<div class="top-account-menu" hidden><strong>${esc(displayName || agencyName)}</strong><span>${esc(account?.email || '')}</span><a href="/account/upgrade/" data-account-upgrade hidden>Change account type</a><button type="button">${icon('logout')}Sign out</button></div>` : ''}`;
 

@@ -224,6 +224,8 @@
     let activeProgressGoal = null;
     const pendingTargets = new Map();
 
+    const agencyOwnerName = (model?.account?.name || [localStorage.getItem('ccOwnerFirstName'), localStorage.getItem('ccOwnerLastName')].filter(Boolean).join(' ') || localStorage.getItem('ccOwnerFirstName') || window.CCAccount?.getAccount?.()?.name || 'Agency Owner').trim();
+
     if (model.goalsComplete) {
       localStorage.setItem('agencyGoalsComplete', 'true');
       localStorage.setItem('diagnosticComplete', 'true');
@@ -296,11 +298,38 @@
           <span class="suggestion-meta">${esc(suggestion.capability)} · ${esc(suggestion.confidence)}% confidence${suggestion.score !== null && suggestion.score !== undefined ? ` · score ${esc(suggestion.score)}` : ''}</span>
           <button type="button" data-use-suggestion="${esc(suggestion.goal)}">Use suggestion</button>
         </div>` : '';
+
+      const deptMembers = (Array.isArray(model.members) ? model.members : []).filter(m => 
+        Array.isArray(m.departments) && m.departments.some(d => d && String(d).trim().toLowerCase() === String(department.name).trim().toLowerCase())
+      );
+
+      const rawOwner = (department.owner || '').trim();
+      const selectedOwnerValue = (!rawOwner || rawOwner === 'Agency Owner') ? agencyOwnerName : rawOwner;
+
+      const ownerOptions = [
+        { value: agencyOwnerName, label: `${agencyOwnerName} (Agency Owner)` }
+      ];
+
+      deptMembers.forEach(m => {
+        const mName = (m.name || m.email || '').trim();
+        if (mName && mName !== agencyOwnerName && !ownerOptions.some(o => o.value === mName)) {
+          ownerOptions.push({ value: mName, label: m.email ? `${mName} (${m.email})` : mName });
+        }
+      });
+
+      if (selectedOwnerValue && !ownerOptions.some(o => o.value === selectedOwnerValue)) {
+        ownerOptions.push({ value: selectedOwnerValue, label: selectedOwnerValue });
+      }
+
+      const ownerSelectHtml = `<select data-field="owner" class="owner-select" style="width:100%;border:1px solid var(--line);border-radius:7px;padding:7px 8px;font-size:13px;background:#fff;">
+        ${ownerOptions.map(o => `<option value="${esc(o.value)}" ${o.value === selectedOwnerValue ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}
+      </select>`;
+
       return `
       <tr data-department="${esc(department.name)}">
         <td><strong>${esc(department.name)}</strong></td>
         <td><div class="department-goal-wrap"><input data-field="goal" value="${esc(department.goal)}" placeholder="Add goal">${suggestionHtml}</div></td>
-        <td><input data-field="owner" value="${esc(department.owner)}" placeholder="Owner name"></td>
+        <td>${ownerSelectHtml}</td>
         <td>
           <select data-field="status" class="status-select" title="On Track: expected to hit target. Watch: at risk and needs attention. Off Track: target is unlikely without intervention.">
             ${['Needs Definition','On Track','Watch','Off Track'].map(option => `<option ${department.status === option ? 'selected' : ''}>${option}</option>`).join('')}
@@ -311,19 +340,23 @@
       </tr>`;
     };
 
-    const rockRow = rock => `
+    const rockRow = rock => {
+      const rawOwner = (rock.owner || '').trim();
+      const resolvedOwner = (!rawOwner || rawOwner === 'Agency Owner') ? agencyOwnerName : rawOwner;
+      return `
       <div class="rock-row" data-rock-id="${esc(rock.id)}">
         <div class="rock-title">
           <strong>${esc(rock.title)}</strong>
           <span>${esc(rock.description || '90-Day priority')}</span>
           <small class="rock-source">${esc(rock.sourceType === 'manual' ? 'Manual' : 'Scorecard')}</small>
         </div>
-        <input data-rock-field="owner" value="${esc(rock.owner || 'Agency Owner')}" aria-label="Rock owner" placeholder="Owner">
+        <input data-rock-field="owner" value="${esc(resolvedOwner)}" aria-label="Rock owner" placeholder="Owner">
         <input data-rock-field="dueDate" type="date" value="${esc(rock.dueDate || '')}" aria-label="Rock due date">
         <select data-rock-field="status">
           ${['Not started','On track','Watch','Complete'].map(option => `<option ${rock.status === option ? 'selected' : ''}>${option}</option>`).join('')}
         </select>
       </div>`;
+    };
 
     app.innerHTML = `
       <div class="wrap">
@@ -621,7 +654,7 @@
     document.querySelector('#addPriority').addEventListener('click', () => {
       document.querySelector('#rockTitle').value = '';
       document.querySelector('#rockDescription').value = '';
-      document.querySelector('#rockOwner').value = 'Agency Owner';
+      document.querySelector('#rockOwner').value = agencyOwnerName;
       document.querySelector('#rockDueDate').value = defaultRockDue();
       show('#rockModal');
     });
@@ -638,7 +671,7 @@
           sourceKey,
           title,
           description: document.querySelector('#rockDescription').value.trim(),
-          owner: document.querySelector('#rockOwner').value.trim() || 'Agency Owner',
+          owner: document.querySelector('#rockOwner').value.trim() || agencyOwnerName,
           dueDate: document.querySelector('#rockDueDate').value || defaultRockDue(),
           status: 'Not started'
         }]);
