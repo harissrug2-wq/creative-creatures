@@ -21,11 +21,18 @@
   font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 * { box-sizing: border-box; }
-html { min-height: 100%; background: var(--cc-bg); }
-body { margin: 0; min-height: 100vh; background: var(--cc-bg); color: var(--cc-text); font-family: inherit; -webkit-font-smoothing: antialiased; }
+html { min-height: 100%; background: var(--cc-bg); scroll-behavior: smooth; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }
+body { margin: 0; min-height: 100vh; background: var(--cc-bg); color: var(--cc-text); font-family: inherit; -webkit-font-smoothing: antialiased; contain: layout style; }
 button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; }
+
+/* GPU Hardware Acceleration for smooth UI transitions */
+:is(.cc-chat-panel,.s3-modal-dialog,.modal-card,.modal-dialog,.dialog-card,.dialog-panel,.top-account-menu,.mobile-nav-panel) {
+  will-change: transform, opacity;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
+}
 img { max-width: 100%; }
 .cc-logo { display:block; width: 126px; height:auto; }
 .cc-platform-logo { display:block; width: 186px; height:auto; }

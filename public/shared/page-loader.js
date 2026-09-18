@@ -6,6 +6,25 @@
   let windowLoaded=document.readyState==='complete';
   let holdCount=0;
 
+  const isPaymentPath = () => {
+    const p = (window.location.pathname || '').toLowerCase();
+    return p.includes('/payment') || p.includes('/signup-3') || p.includes('/checkout');
+  };
+
+  const isPaymentTarget = (formOrAnchor, urlStr) => {
+    if (isPaymentPath()) return true;
+    if (formOrAnchor) {
+      if (formOrAnchor.hasAttribute?.('data-no-loader')) return true;
+      if (['paymentForm', 's3LookupForm', 'lookupForm', 'archetypeLookupForm'].includes(formOrAnchor.id)) return true;
+      if (formOrAnchor.classList?.contains('payment-form') || formOrAnchor.classList?.contains('payment-submit') || formOrAnchor.classList?.contains('s3-lookup-form')) return true;
+    }
+    if (urlStr) {
+      const u = String(urlStr).toLowerCase();
+      if (u.includes('/payment') || u.includes('stripe.com') || u.includes('/api/payment-confirmation') || u.includes('/checkout')) return true;
+    }
+    return false;
+  };
+
   const setCopy=(label)=>{
     const text=loader.querySelector('[data-loader-copy]');
     if(text&&label)text.textContent=label;
@@ -14,30 +33,31 @@
   const actuallyHide=()=>{
     if(!windowLoaded||holdCount>0)return;
     clearTimeout(fallbackTimer);
-    const delay=Math.max(0,260-(Date.now()-started));
-    setTimeout(()=>{
-      if(holdCount>0)return;
-      loader.classList.add('cc-page-loader--hidden');
-      loader.setAttribute('aria-hidden','true');
-    },delay);
+    loader.classList.add('cc-page-loader--hidden');
+    loader.setAttribute('aria-hidden','true');
   };
 
+  if (isPaymentPath()) {
+    actuallyHide();
+  }
+
   const show=(label='Loading your agency workspace…')=>{
+    if (isPaymentPath()) return;
     setCopy(label);
     loader.classList.remove('cc-page-loader--hidden');
     loader.setAttribute('aria-hidden','false');
     clearTimeout(fallbackTimer);
-    // Safety only. App-level holds normally release explicitly.
     fallbackTimer=setTimeout(()=>{
       holdCount=0;
       windowLoaded=true;
       actuallyHide();
-    },30000);
+    },15000);
   };
 
   const hide=()=>actuallyHide();
 
   const hold=(label='Loading your agency workspace…')=>{
+    if (isPaymentPath()) return () => {};
     holdCount+=1;
     show(label);
     let released=false;
@@ -62,14 +82,15 @@
 
   document.addEventListener('submit',event=>{
     const form=event.target;
-    if(form?.target==='_blank'||form?.classList?.contains('cc-ai-form')||form?.closest?.('.cc-ai-panel')||form?.hasAttribute('data-no-loader'))return;
+    if(!form)return;
+    if(form.target==='_blank'||form.classList?.contains('cc-ai-form')||form.closest?.('.cc-ai-panel')||isPaymentTarget(form,form.action))return;
     show('Saving and loading…');
   },true);
 
   document.addEventListener('click',event=>{
     const anchor=event.target.closest?.('a[href]');
     if(!anchor||event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
-    if(anchor.target==='_blank'||anchor.hasAttribute('download'))return;
+    if(anchor.target==='_blank'||anchor.hasAttribute('download')||isPaymentTarget(anchor,anchor.getAttribute('href')))return;
     const href=anchor.getAttribute('href')||'';
     if(!href||href.startsWith('#')||/^(mailto:|tel:|javascript:)/i.test(href))return;
     try{
@@ -80,3 +101,4 @@
     }catch(_){ }
   },true);
 })();
+
