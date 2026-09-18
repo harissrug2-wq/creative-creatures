@@ -464,14 +464,42 @@
 
   function sectionCard(section){
     const done=isComplete(section);
+    const isFetching = !state.remoteLoaded;
+    const isUploading = Boolean(state.uploadState[section.id]) || Object.keys(state.uploadState).length > 0;
+    const isSaving = state.saveState[section.id] === 'saving';
+    const isBusy = isFetching || isUploading || isSaving;
+
+    let buttonLabel = state.sectionIndex === sections.length - 1 ? 'Review' : 'Continue';
+    if (isFetching) buttonLabel = 'Fetching values…';
+    else if (state.uploadState[section.id] === 'uploading') buttonLabel = 'Uploading…';
+    else if (state.uploadState[section.id] === 'extracting') buttonLabel = 'Extracting…';
+    else if (isUploading) buttonLabel = 'Uploading…';
+    else if (isSaving) buttonLabel = 'Saving…';
+
+    const btnClass = isBusy ? 'btn-next disabled' : 'btn-next active';
+    const disabledAttr = isBusy ? 'disabled' : '';
+    const btnContent = isBusy ? esc(buttonLabel) : `${buttonLabel} ${arrowIcon}`;
+
     return `<article class="q-card fade-in">
       <header class="q-card-header"><div><div class="question-kicker">SECTION ${state.sectionIndex+1} OF ${sections.length}</div><h1>${esc(section.title)}</h1><p>${esc(section.copy)}</p></div><span class="evidence-status ${done?'complete':''}">${done?`${checkIcon} Complete`:'Required'}</span></header>
       <div class="q-card-body">${section.type==='sde'?sdeBody(section):`${uploadBody(section)}${manualBody(section)}`}</div>
-      <footer class="q-card-footer"><button type="button" class="btn-back" id="previous" ${state.sectionIndex===0?'disabled':''}>← Back</button><span class="saved-note">Saved securely</span><button type="button" class="btn-next active" id="next">${state.sectionIndex===sections.length-1?'Review':'Continue'} ${arrowIcon}</button></footer>
+      <footer class="q-card-footer"><button type="button" class="btn-back" id="previous" ${state.sectionIndex===0||isBusy?'disabled':''}>← Back</button><span class="saved-note">Saved securely</span><button type="button" class="${btnClass}" id="next" ${disabledAttr}>${btnContent}</button></footer>
     </article>`;
   }
 
   function reviewCard(){
+    const isFetching = !state.remoteLoaded;
+    const isUploading = Object.keys(state.uploadState).length > 0;
+    const isBusy = isFetching || isUploading;
+    const canComplete = allComplete() && !isBusy;
+
+    let buttonLabel = IS_RETAKE ? 'Recalculate & regenerate report' : 'Calculate Performance Index';
+    if (isFetching) buttonLabel = 'Fetching values…';
+    else if (isUploading) buttonLabel = 'Uploading…';
+
+    const btnClass = canComplete ? 'btn-next active' : 'btn-next disabled';
+    const disabledAttr = canComplete ? '' : 'disabled';
+
     return `<article class="q-card fade-in">
       <header class="q-card-header review-header"><div><div class="question-kicker">REVIEW</div><h1>Calculate Agency Performance</h1><p>The Performance Index will now be calculated from the confirmed financial values using the five-capability scoring rubric.</p></div><span class="evidence-status ${allComplete()?'complete':''}">${allComplete()?`${checkIcon} Ready`:'Incomplete'}</span></header>
       <div class="q-card-body">
@@ -479,7 +507,7 @@
         <div class="review-error ${state.finishError?'show':''}" id="reviewError">${esc(state.finishError||'Complete every section before calculating Financial Performance.')}</div>
         <div class="performance-analysis-note"><strong>Scoring:</strong> Profitability 25%, Growth 20%, Revenue Quality 20%, Cash Performance 20%, Capital Allocation 15%. Missing optional metrics reduce confidence rather than being silently scored as zero. Manual/unverified evidence is capped below fully verified confidence.</div>
       </div>
-      <footer class="q-card-footer"><button type="button" class="btn-back" id="previous">← Back</button><span class="saved-note">Database-backed</span><button type="button" class="btn-next ${allComplete()?'active':'disabled'}" id="completePerformance">${IS_RETAKE?'Recalculate & regenerate report':'Calculate Performance Index'} ${arrowIcon}</button></footer>
+      <footer class="q-card-footer"><button type="button" class="btn-back" id="previous" ${isBusy?'disabled':''}>← Back</button><span class="saved-note">Database-backed</span><button type="button" class="${btnClass}" id="completePerformance" ${disabledAttr}>${esc(buttonLabel)} ${arrowIcon}</button></footer>
     </article>`;
   }
 
@@ -573,8 +601,15 @@
   }
 
   function bindSection(section){
-    document.querySelector('#previous')?.addEventListener('click',()=>{captureManualInputs(section);state.sectionIndex=Math.max(0,state.sectionIndex-1);persist();render();});
+    document.querySelector('#previous')?.addEventListener('click',()=>{
+      if (!state.remoteLoaded || state.uploadState[section.id] || Object.keys(state.uploadState).length > 0 || state.saveState[section.id] === 'saving') return;
+      captureManualInputs(section);
+      state.sectionIndex=Math.max(0,state.sectionIndex-1);
+      persist();
+      render();
+    });
     document.querySelector('#next')?.addEventListener('click',async()=>{
+      if (!state.remoteLoaded || state.uploadState[section.id] || Object.keys(state.uploadState).length > 0 || state.saveState[section.id] === 'saving') return;
       captureManualInputs(section);
       const missing=sectionMissing(section);
       if(missing.length){const el=document.querySelector(`#manualError-${section.id}`);if(el){el.textContent=`Complete: ${missing.join(', ')}.`;el.classList.add('show');}return;}
@@ -668,7 +703,7 @@
 
   async function hydrateRemoteEvidence(){
     checkBookkeepingConnection().then(()=>render());
-    if(!window.CCFinancialEvidence?.list){state.remoteLoaded=true;return;}
+    if(!window.CCFinancialEvidence?.list){state.remoteLoaded=true;render();return;}
     try{const result=await window.CCFinancialEvidence.list();(result.evidence||[]).forEach(hydrateEvidenceRow);state.remoteError='';}
     catch(error){state.remoteError=error.message||'Saved financial evidence could not be loaded.';}
     finally{state.remoteLoaded=true;persist();render();}
