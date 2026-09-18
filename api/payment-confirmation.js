@@ -132,13 +132,17 @@ export default async function handler(req,res){
       const anySession=verifySession(parseCookies(req).cc_account_session,accountSessionSecret());
       if(anySession?.memberId)throw fail(403,'Only the agency owner can buy a package.');
       let email=clean(b.email).toLowerCase();
+      let accountId=null;
       if(session){
-        const accs = await db(`accounts?id=eq.${encodeURIComponent(session.accountId)}&select=email&limit=1`).catch(()=>null);
-        if(accs?.[0]?.email) email = accs[0].email.toLowerCase();
+        const accs = await db(`accounts?id=eq.${encodeURIComponent(session.accountId)}&select=id,email&limit=1`).catch(()=>null);
+        if(accs?.[0]?.id){
+          accountId = accs[0].id;
+          email = accs[0].email.toLowerCase();
+        }
       }
       if(!/^\S+@\S+\.\S+$/.test(email))throw fail(422,'Enter your assessment email.');
       const ids=await priceIds(plan);
-      const order=await rpc('cc_stripe_begin',{p_email:email,p_plan:plan,p_account_id:session?.accountId||null});
+      const order=await rpc('cc_stripe_begin',{p_email:email,p_plan:plan,p_account_id:accountId});
       if(order.error)throw fail(409,order.error);
       let checkout;
       if(order.session_id){
