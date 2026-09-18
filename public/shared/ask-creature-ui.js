@@ -33,13 +33,28 @@
      <p class="cc-chat-footer-note" id="ccChatFooterNote">Mock responses · scoped to agency scorecard</p>
    </form>
   </section>`;
-  document.body.appendChild(wrap);document.body.classList.add('cc-modal-open');
+  document.body.appendChild(wrap);
+  const panel = wrap.querySelector('.cc-chat-panel');
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      panel.classList.add('is-open');
+    });
+  });
   const content=wrap.querySelector('.cc-chat-content'),form=wrap.querySelector('form'),input=wrap.querySelector('textarea'),send=form.querySelector('button'),error=wrap.querySelector('.cc-chat-error'),historyButton=wrap.querySelector('.cc-chat-history'),newButton=wrap.querySelector('.cc-chat-new'),badgeNode=wrap.querySelector('#ccChatBadge'),footerNoteNode=wrap.querySelector('#ccChatFooterNote');
   let conversationId,messageCount=0,messages=[],sending=false,closed=false,view='chat',epoch=0,faq=null,historyOffset=0,olderOffset=0,hasOlder=false,retry=null,loading=false;
   const showError=e=>{error.hidden=false;error.textContent=e.message||String(e);};
   const clearError=()=>{error.hidden=true;error.textContent='';};
   function busy(){send.disabled=sending||loading||view!=='chat';input.disabled=loading||view!=='chat';newButton.disabled=sending;historyButton.disabled=sending;}
-  function close(){closed=true;epoch++;wrap.remove();if(!hadModal)document.body.classList.remove('cc-modal-open');document.removeEventListener('keydown',onKey);current=null;previousFocus?.focus();}
+  function close(){
+    if (closed) return;
+    closed=true;
+    epoch++;
+    panel.classList.remove('is-open');
+    setTimeout(() => { wrap.remove(); }, 260);
+    document.removeEventListener('keydown',onKey);
+    current=null;
+    previousFocus?.focus();
+  }
   function onKey(e){if(e.key==='Escape'){e.preventDefault();close();}if(e.key==='Tab'){const items=[...wrap.querySelectorAll('button:not(:disabled),textarea:not(:disabled),a[href]')].filter(n=>n.getClientRects().length);const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}
   document.addEventListener('keydown',onKey);wrap.querySelector('.cc-chat-close').onclick=close;wrap.onclick=e=>{if(e.target===wrap)close();};
   function bubble(m){const row=el('div',`cc-chat-message ${m.role==='user'?'is-user':'is-creature'}`);row.append(el('span','cc-chat-speaker',m.role==='user'?'You':'✦ Ask Creature'),el('div','cc-chat-text',m.content));return row;}
