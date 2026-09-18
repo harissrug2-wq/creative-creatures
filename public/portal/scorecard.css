@@ -183,6 +183,30 @@
     font-size: 16px
 }
 
+.aofi-action-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px dashed #e2e8f0;
+}
+
+.aofi-footer-note {
+    margin: 0;
+    font-size: 12px;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.aofi-footer-note svg {
+    color: #94a3b8;
+    flex-shrink: 0;
+}
+
 .aofi-side {
     padding: 28px;
     background: linear-gradient(145deg, #fff 10%, #f3f5ff 100%);
@@ -728,6 +752,17 @@
 
     .aofi-stats {
         grid-template-columns: 1fr
+    }
+
+    .aofi-action-row {
+        flex-direction: column-reverse;
+        align-items: stretch;
+        gap: 12px
+    }
+
+    .aofi-action-row .vantage-what-changed-btn {
+        width: 100%;
+        justify-content: center
     }
 
     .valuation-note {
