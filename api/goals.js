@@ -1,3 +1,4 @@
+import { requireAccountSession, authorizedAccount } from '../lib/account-api-access.js';
 import { buildValuationSnapshot, withValuationReportData } from '../lib/valuation-engine.js';
 
 const json = (res, status, payload) => {
@@ -70,41 +71,6 @@ async function supabaseRequest(config, path, options = {}) {
     throw error;
   }
   return payload;
-}
-
-async function findAccount(config, { accountId, email, agencyUrl }) {
-  const select = 'id,name,email,agency_url,agency_name,diagnostic_state';
-
-  if (accountId && !String(accountId).startsWith('local-')) {
-    const params = new URLSearchParams({ select, id: `eq.${accountId}`, limit: '1' });
-    const rows = await supabaseRequest(config, `accounts?${params.toString()}`);
-    if (Array.isArray(rows) && rows[0]) return rows[0];
-  }
-
-  const candidates = [];
-  const normalizedEmail = lower(email);
-  const normalizedUrl = normalizeAgencyUrl(agencyUrl);
-
-  if (normalizedEmail) {
-    const params = new URLSearchParams({ select, email_normalized: `eq.${normalizedEmail}`, limit: '2' });
-    const rows = await supabaseRequest(config, `accounts?${params.toString()}`);
-    if (Array.isArray(rows)) candidates.push(...rows);
-  }
-
-  if (normalizedUrl) {
-    const params = new URLSearchParams({ select, agency_url_normalized: `eq.${normalizedUrl}`, limit: '2' });
-    const rows = await supabaseRequest(config, `accounts?${params.toString()}`);
-    if (Array.isArray(rows)) candidates.push(...rows);
-  }
-
-  const unique = [...new Map(candidates.map(row => [row.id, row])).values()];
-  if (unique.length === 1) return unique[0];
-  if (unique.length > 1) {
-    const error = new Error('The supplied identifiers match more than one account.');
-    error.status = 409;
-    throw error;
-  }
-  return null;
 }
 
 async function getCurrentRun(config, accountId) {
@@ -537,7 +503,7 @@ async function saveProgressUpdate(config, accountId, runId, body) {
   return row ? normalizeProgressRow(row) : null;
 }
 
-async function loadModel(config, account) {
+async function loadModel(config, account, session = null) {
   const run = await getCurrentRun(config, account.id);
   if (!run) {
     const error = new Error('Complete the diagnostic before defining Agency Goals.');
@@ -687,12 +653,14 @@ async function loadModel(config, account) {
       .map(item => item.title)
   ));
 
-  const hasMonitorAccess = ['platform', 'fractional_coo'].includes(account.access_plan) || account.journey === 'platform';
+  const purchasedPlans = Array.isArray(account.diagnostic_state?.purchasedPlans) ? account.diagnostic_state.purchasedPlans : [];
+  const hasMonitorAccess = [account.access_plan, ...purchasedPlans].some(plan => ['platform', 'fractional_coo'].includes(plan));
   const members = await supabaseRequest(config, `account_members?account_id=eq.${encodeURIComponent(account.id)}&select=id,name,email,departments`).catch(() => []);
 
   return {
     account: { id: account.id, name: account.name, email: account.email, agencyName: account.agency_name, accessPlan: account.access_plan, journey: account.journey },
     hasMonitorAccess,
+    canManageTeam: !session?.memberId,
     memberCount: Array.isArray(members) ? members.length : 0,
     members: (Array.isArray(members) ? members : []).map(m => ({ id: m.id, name: m.name, email: m.email, departments: m.departments })),
     diagnosticRun: { id: run.id, status: run.status },
@@ -964,29 +932,21 @@ async function markGoalsComplete(config, account) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return json(res, 204, {});
+  if (!['GET', 'POST'].includes(req.method)) return json(res, 405, { error: 'Method not allowed.' });
 
   const config = getSupabaseConfig();
   if (!config) return json(res, 503, { error: 'Goals database is not configured.', code: 'BACKEND_NOT_CONFIGURED' });
 
   try {
+    const session = requireAccountSession(req);
     const body = req.method === 'POST'
       ? (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}))
       : {};
-    const query = req.query || {};
-    const identity = req.method === 'GET' ? query : body;
-    const account = await findAccount(config, {
-      accountId: identity.accountId || identity.account_id,
-      email: identity.email,
-      agencyUrl: identity.agencyUrl || identity.agency_url
-    });
-    if (!account) return json(res, 404, { error: 'Account not found.', code: 'ACCOUNT_NOT_FOUND' });
+    const account = await authorizedAccount(req, body, session, config, supabaseRequest, 'id,name,email,agency_url,agency_name,diagnostic_state,access_plan,journey');
 
     if (req.method === 'GET') {
-      const model = await loadModel(config, account);
+      const model = await loadModel(config, account, session);
       return json(res, 200, { ok: true, goals: model });
     }
 
@@ -994,13 +954,13 @@ export default async function handler(req, res) {
 
     const action = clean(body.action);
     if (action === 'set_target') {
-      const model = await loadModel(config, account);
+      const model = await loadModel(config, account, session);
       const currentMetric = model.metrics.find(item => item.id === clean(body.metricId)) || null;
       const row = await upsertTarget(config, account.id, body, currentMetric);
       return json(res, 200, { ok: true, target: row });
     }
     if (action === 'bulk_set_targets') {
-      const model = await loadModel(config, account);
+      const model = await loadModel(config, account, session);
       const rows = await upsertTargets(config, account.id, body.targets, model.metrics);
       return json(res, 200, { ok: true, targets: rows });
     }
@@ -1010,6 +970,22 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, progress: row });
     }
     if (action === 'save_department') {
+      if (session?.memberId) {
+        const memberRows = await supabaseRequest(config, `account_members?id=eq.${encodeURIComponent(session.memberId)}&account_id=eq.${encodeURIComponent(account.id)}&select=departments,status&limit=1`).catch(() => []);
+        const member = Array.isArray(memberRows) ? memberRows[0] : null;
+        if (!member || member.status !== 'active') {
+          const error = new Error('Your account access is no longer active.');
+          error.status = 401;
+          throw error;
+        }
+        const normDept = clean(body.department).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const allowedDepts = (Array.isArray(member.departments) ? member.departments : []).map(d => clean(d).toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+        if (!allowedDepts.includes(normDept)) {
+          const error = new Error('Your account does not have access to this department.');
+          error.status = 403;
+          throw error;
+        }
+      }
       const row = await upsertDepartment(config, account.id, body);
       return json(res, 200, { ok: true, department: row });
     }
@@ -1025,7 +1001,7 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, rock: row });
     }
     if (action === 'complete') {
-      const model = await loadModel(config, account);
+      const model = await loadModel(config, account, session);
       const readiness = model.readiness || {};
       const blockers = [];
       if (Number(readiness.targetCount || 0) < Number(readiness.targetTotal || METRICS.length)) {
@@ -1050,7 +1026,7 @@ export default async function handler(req, res) {
     return json(res, 422, { error: 'Unknown Goals action.', code: 'INVALID_ACTION' });
   } catch (error) {
     console.error('goals API error', error);
-    const status = [400, 404, 409, 422].includes(error.status) ? error.status : 500;
+    const status = [400, 401, 403, 404, 409, 422].includes(error.status) ? error.status : 500;
     return json(res, status, {
       error: error.message || 'Agency Goals could not be loaded or saved.',
       code: error.code || 'GOALS_API_ERROR'

@@ -255,9 +255,9 @@ async function sessionActor(c,session){
   const rows=await db(c,`account_members?select=id,account_id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(session.accountId)}&id=eq.${encodeURIComponent(session.memberId)}&limit=1`),member=Array.isArray(rows)?rows[0]:null;
   return member?.status==='active'?{role:'member',accountId:session.accountId,memberId:member.id,name:member.name,email:member.email,departments:Array.isArray(member.departments)?member.departments:[]}:null;
 }
-function sanitizeDepartments(value){return [...new Set((Array.isArray(value)?value:[]).map(clean).filter(v=>DEPARTMENTS.includes(v)))]}
+function sanitizeDepartments(value){return [...new Set((Array.isArray(value)?value:[]).map(v=>clean(v).toLowerCase().replace(/[^a-z0-9]+/g,'-')).filter(v=>DEPARTMENTS.includes(v)))]}
 function requireOwner(actor){if(actor?.role!=='owner')throw Object.assign(new Error('Only the agency owner can manage users or integrations.'),{status:403})}
-function requireDepartment(actor,department){if(actor?.role==='member'&&!actor.departments.includes(department))throw Object.assign(new Error('Your account does not have access to this department.'),{status:403})}
+function requireDepartment(actor,department){if(actor?.role==='member'){const norm=clean(department).toLowerCase().replace(/[^a-z0-9]+/g,'-');const memberDepts=(actor?.departments||[]).map(d=>clean(d).toLowerCase().replace(/[^a-z0-9]+/g,'-'));if(!memberDepts.includes(norm))throw Object.assign(new Error('Your account does not have access to this department.'),{status:403})}}
 function requireFeature(account,feature){if(!featuresForAccount(account).includes(feature))throw Object.assign(new Error(`${feature.replace(/-/g,' ')} is not included in this agency plan.`),{status:403})}
 function publicAccess(account,actor){const plan=accessPlan(account),purchasedPlans=[...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);return{plan,purchasedPlans,features:featuresForAccount(account),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS}}
 async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
@@ -1181,8 +1181,24 @@ export default async function handler(req,res){
       if(!session)return json(res,401,{error:'Sign in to continue.'});const account=await findById(c,session.accountId),actor=await sessionActor(c,session);if(!account||!actor)return json(res,401,{error:'Your account access is no longer active.'});
       requireOwner(actor);if(!featuresForAccount(account).includes('users'))return json(res,403,{error:'User management is not included in this plan.'});
       if(bodyAction==='workspace_invite_user'){
-        const name=clean(b.name).slice(0,120),email=lower(b.email),password=clean(b.password),departments=sanitizeDepartments(b.departments);if(!name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<10||!departments.length)return json(res,422,{error:'Name, valid email, temporary password (10+ characters), and at least one department are required.'});
-        const rows=await db(c,'account_members?select=id,name,email,departments,status,invited_at,last_login_at',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:account.id,name,email,email_normalized:email,password_hash:hashPassword(password),departments,status:'active'})});return json(res,200,{success:true,user:publicMember(rows?.[0])});
+        const name=clean(b.name).slice(0,120),email=lower(b.email),password=clean(b.password),departments=sanitizeDepartments(b.departments);
+        if(!name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<10||!departments.length)return json(res,422,{error:'Name, valid email, temporary password (10+ characters), and at least one department are required.'});
+        const rows=await db(c,'account_members?select=id,name,email,departments,status,invited_at,last_login_at',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({account_id:account.id,name,email,email_normalized:email,password_hash:hashPassword(password),departments,status:'active'})});
+        const user=publicMember(rows?.[0]);
+        let emailSent=false;
+        try{
+          const origin=requestOrigin(req);
+          await sendEmail({
+            to:email,
+            subject:`You've been invited to join ${account.agency_name||account.name||'Creative Creatures'}`,
+            text:`Hi ${name},\n\nYou have been invited to join ${account.agency_name||account.name||'Creative Creatures'} on Creative Creatures.\n\nSign in at: ${origin}/login/\nTemporary Password: ${password}\nAssigned Department(s): ${departments.join(', ')}`,
+            html:`<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#171820"><h2>Welcome to Creative Creatures</h2><p>Hi ${escapeHtml(name)},</p><p>You've been invited to join <strong>${escapeHtml(account.agency_name||account.name||'Creative Creatures')}</strong>.</p><p><strong>Sign in URL:</strong> <a href="${escapeHtml(origin)}/login/">${escapeHtml(origin)}/login/</a><br><strong>Temporary Password:</strong> ${escapeHtml(password)}<br><strong>Assigned Department(s):</strong> ${escapeHtml(departments.join(', '))}</p></div>`
+          });
+          emailSent=true;
+        }catch{
+          emailSent=false;
+        }
+        return json(res,200,{success:true,emailSent,user});
       }
       const id=clean(b.id);if(!id)return json(res,422,{error:'User ID is required.'});
       if(bodyAction==='workspace_remove_user'){await db(c,`account_members?account_id=eq.${encodeURIComponent(account.id)}&id=eq.${encodeURIComponent(id)}`,{method:'DELETE'});return json(res,200,{success:true})}

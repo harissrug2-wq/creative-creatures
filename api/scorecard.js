@@ -1,3 +1,4 @@
+import { requireAccountSession, authorizedAccount } from '../lib/account-api-access.js';
 import { buildValuationSnapshot, withValuationReportData } from '../lib/valuation-engine.js';
 
 const json = (res, status, payload) => {
@@ -57,42 +58,6 @@ async function supabaseRequest(config, path, options = {}) {
     throw error;
   }
   return payload;
-}
-
-async function findAccount(config, { accountId, email, agencyUrl }) {
-  const select = 'id,name,email,agency_url,agency_name,archetype_result,report_data,diagnostic_state';
-
-  if (accountId && !String(accountId).startsWith('local-')) {
-    const params = new URLSearchParams({ select, id: `eq.${accountId}`, limit: '1' });
-    const rows = await supabaseRequest(config, `accounts?${params.toString()}`);
-    if (Array.isArray(rows) && rows[0]) return rows[0];
-  }
-
-  const candidates = [];
-  const cleanEmail = lower(email);
-  const normalizedUrl = normalizeAgencyUrl(agencyUrl);
-
-  if (cleanEmail) {
-    const params = new URLSearchParams({ select, email_normalized: `eq.${cleanEmail}`, limit: '2' });
-    const rows = await supabaseRequest(config, `accounts?${params.toString()}`);
-    if (Array.isArray(rows)) candidates.push(...rows);
-  }
-
-  if (normalizedUrl) {
-    const params = new URLSearchParams({ select, agency_url_normalized: `eq.${normalizedUrl}`, limit: '2' });
-    const rows = await supabaseRequest(config, `accounts?${params.toString()}`);
-    if (Array.isArray(rows)) candidates.push(...rows);
-  }
-
-  const unique = new Map(candidates.map(row => [row.id, row]));
-  const rows = [...unique.values()];
-  if (rows.length === 1) return rows[0];
-  if (rows.length > 1) {
-    const error = new Error('The supplied identifiers match more than one account.');
-    error.status = 409;
-    throw error;
-  }
-  return null;
 }
 
 async function getCurrentRun(config, accountId) {
@@ -665,9 +630,6 @@ async function markAccountGenerated(config, account, model) {
 }
 
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') return json(res, 204, {});
   if (!['GET', 'POST'].includes(req.method)) return json(res, 405, { error: 'Method not allowed.' });
 
@@ -675,17 +637,11 @@ export default async function handler(req, res) {
   if (!config) return json(res, 503, { error: 'Scorecard database is not configured.', code: 'BACKEND_NOT_CONFIGURED' });
 
   try {
+    const session = requireAccountSession(req);
     const body = req.method === 'POST'
       ? (typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}))
       : {};
-    const query = req.query || {};
-    const account = await findAccount(config, {
-      accountId: body.accountId || body.account_id || query.accountId || query.account_id,
-      email: body.email || query.email,
-      agencyUrl: body.agencyUrl || body.agency_url || query.agencyUrl || query.agency_url
-    });
-
-    if (!account) return json(res, 404, { error: 'Account not found.', code: 'ACCOUNT_NOT_FOUND' });
+    const account = await authorizedAccount(req, body, session, config, supabaseRequest, 'id,name,email,agency_url,agency_name,archetype_result,report_data,diagnostic_state');
     const run = await getCurrentRun(config, account.id);
     if (!run) return json(res, 404, { error: 'No diagnostic run was found for this account.', code: 'DIAGNOSTIC_RUN_NOT_FOUND' });
 
@@ -738,7 +694,7 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('scorecard API error', error);
-    const status = [400, 404, 409, 422].includes(error.status) ? error.status : 500;
+    const status = [400, 401, 403, 404, 409, 422].includes(error.status) ? error.status : 500;
     return json(res, status, {
       error: error.message || 'The Agency Scorecard could not be generated.',
       code: error.code || 'SCORECARD_API_ERROR'
