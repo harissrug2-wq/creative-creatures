@@ -15,7 +15,7 @@
   const wrap=el('div','cc-chat-overlay');
   wrap.innerHTML=`<section class="cc-chat-panel" role="dialog" aria-modal="true" aria-labelledby="ccChatTitle">
    <header class="cc-chat-header">
-     <div class="cc-chat-brand" aria-hidden="true">✦</div>
+     <div class="cc-chat-brand" aria-hidden="true"><img src="/portal/creative-creatures-logo.png" alt="Creative Creatures" class="cc-chat-brand-logo"></div>
      <div class="cc-chat-heading">
        <h2 id="ccChatTitle">Ask Creature</h2>
        <p class="cc-chat-page-badge" id="ccChatBadge">Agency Scorecard context · A</p>
@@ -34,6 +34,7 @@
    </form>
   </section>`;
   document.body.appendChild(wrap);
+  document.body.classList.add('cc-ask-creature-open');
   const panel = wrap.querySelector('.cc-chat-panel');
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -50,6 +51,7 @@
     closed=true;
     epoch++;
     panel.classList.remove('is-open');
+    document.body.classList.remove('cc-ask-creature-open');
     setTimeout(() => { wrap.remove(); }, 260);
     document.removeEventListener('keydown',onKey);
     current=null;
@@ -57,7 +59,17 @@
   }
   function onKey(e){if(e.key==='Escape'){e.preventDefault();close();}if(e.key==='Tab'){const items=[...wrap.querySelectorAll('button:not(:disabled),textarea:not(:disabled),a[href]')].filter(n=>n.getClientRects().length);const first=items[0],last=items.at(-1);if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}}
   document.addEventListener('keydown',onKey);wrap.querySelector('.cc-chat-close').onclick=close;wrap.onclick=e=>{if(e.target===wrap)close();};
-  function bubble(m){const row=el('div',`cc-chat-message ${m.role==='user'?'is-user':'is-creature'}`);row.append(el('span','cc-chat-speaker',m.role==='user'?'You':'✦ Ask Creature'),el('div','cc-chat-text',m.content));return row;}
+  function bubble(m){
+    const row=el('div',`cc-chat-message ${m.role==='user'?'is-user':'is-creature'}`);
+    const speaker = el('span','cc-chat-speaker');
+    if (m.role === 'user') {
+      speaker.textContent = 'You';
+    } else {
+      speaker.innerHTML = '<img src="/portal/creative-creatures-logo.png" class="cc-speaker-logo" alt=""> Ask Creature';
+    }
+    row.append(speaker, el('div','cc-chat-text',m.content));
+    return row;
+  }
   function welcome(){
    content.replaceChildren();
    const topicName = faq?.topic || 'Agency Scorecard';
