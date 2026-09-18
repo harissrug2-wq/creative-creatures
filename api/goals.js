@@ -687,8 +687,14 @@ async function loadModel(config, account) {
       .map(item => item.title)
   ));
 
+  const hasMonitorAccess = ['platform', 'fractional_coo'].includes(account.access_plan) || account.journey === 'platform';
+  const members = await supabaseRequest(config, `account_members?account_id=eq.${encodeURIComponent(account.id)}&select=id,name,email,departments`).catch(() => []);
+
   return {
-    account: { id: account.id, name: account.name, email: account.email, agencyName: account.agency_name },
+    account: { id: account.id, name: account.name, email: account.email, agencyName: account.agency_name, accessPlan: account.access_plan, journey: account.journey },
+    hasMonitorAccess,
+    memberCount: Array.isArray(members) ? members.length : 0,
+    members: (Array.isArray(members) ? members : []).map(m => ({ id: m.id, name: m.name, email: m.email, departments: m.departments })),
     diagnosticRun: { id: run.id, status: run.status },
     scorecard: { id: scorecard.id, aofiScore: Number(scorecard.aofi_score), generatedAt: scorecard.generated_at },
     metrics,

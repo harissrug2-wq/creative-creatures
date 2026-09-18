@@ -135,6 +135,31 @@
         <button class="button primary" id="saveRock">Create Priority</button>
       </div>
     </section>
+  <div class="modal-backdrop" id="teamMemberModal">
+    <section class="modal">
+      <h2>Add Team Member</h2>
+      <p>Grant department-level access to your agency workspace. Their access will be limited specifically to their assigned department.</p>
+      <div class="form-grid">
+        <div class="field full"><label for="teamMemberName">Full Name</label><input id="teamMemberName" placeholder="First and last name" required></div>
+        <div class="field full"><label for="teamMemberEmail">Email Address</label><input id="teamMemberEmail" type="email" placeholder="team.member@youragency.com" required></div>
+        <div class="field"><label for="teamMemberDept">Assigned Department</label>
+          <select id="teamMemberDept" style="width:100%;padding:10px 12px;border:1px solid #d0d7de;border-radius:8px;font:inherit;">
+            <option value="Sales">Sales</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Client Success">Client Success</option>
+            <option value="Service Delivery">Service Delivery</option>
+            <option value="Systems & Ops">Systems & Ops</option>
+            <option value="Talent & HR">Talent & HR</option>
+            <option value="Finance & Admin">Finance & Admin</option>
+          </select>
+        </div>
+        <div class="field"><label for="teamMemberPassword">Temporary Password</label><input id="teamMemberPassword" type="password" placeholder="Minimum 10 characters" required></div>
+      </div>
+      <div class="modal-actions">
+        <button class="button" data-close-team type="button">Cancel</button>
+        <button class="button primary" id="saveTeamMember" type="button">Add Team Member</button>
+      </div>
+    </section>
   </div>
 
   <div class="toast" id="toast"></div>
@@ -325,7 +350,10 @@
 
         <div class="section-head">
           <div><h2>Departmental Goals</h2><p>High-confidence diagnostic suggestions appear when supported by evidence. Otherwise the goal stays blank until you define it.</p><p class="status-help"><strong>On Track</strong> = expected to hit target · <strong>Watch</strong> = at risk · <strong>Off Track</strong> = unlikely without intervention</p></div>
-          <span>Department Targets</span>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <span>Department Targets</span>
+            ${(model.hasMonitorAccess && (!model.memberCount || model.memberCount === 0)) ? `<button type="button" class="button primary add-team-member-btn" id="addTeamMemberBtn" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:8px 14px;">＋ Add Team Member</button>` : ''}
+          </div>
         </div>
 
         <section class="card table-wrap">
@@ -611,6 +639,46 @@
         setTimeout(() => location.reload(), 250);
       } catch (error) {
         showToast(error.message || 'Priority could not be created.');
+      } finally {
+        button.disabled = false;
+      }
+    });
+
+    document.querySelector('#addTeamMemberBtn')?.addEventListener('click', () => {
+      document.querySelector('#teamMemberName').value = '';
+      document.querySelector('#teamMemberEmail').value = '';
+      document.querySelector('#teamMemberPassword').value = '';
+      show('#teamMemberModal');
+    });
+    document.querySelectorAll('[data-close-team]').forEach(button => button.addEventListener('click', () => hide('#teamMemberModal')));
+    document.querySelector('#saveTeamMember')?.addEventListener('click', async () => {
+      const name = document.querySelector('#teamMemberName').value.trim();
+      const email = document.querySelector('#teamMemberEmail').value.trim();
+      const dept = document.querySelector('#teamMemberDept').value;
+      const password = document.querySelector('#teamMemberPassword').value;
+      if (!name || !email || password.length < 10) {
+        showToast('Name, valid email, and temporary password (10+ characters) are required.');
+        return;
+      }
+      const button = document.querySelector('#saveTeamMember');
+      button.disabled = true;
+      try {
+        const response = await fetch('/api/account-auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'workspace_invite_user', name, email, password, departments: [dept] })
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(result.error || 'Team member could not be added.');
+        hide('#teamMemberModal');
+        showToast(`Team member ${name} added for ${dept}.`);
+        const row = document.querySelector(`[data-department="${dept}"] [data-field="owner"]`);
+        if (row && !row.value) {
+          row.value = name;
+          row.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      } catch (error) {
+        showToast(error.message || 'Could not add team member.');
       } finally {
         button.disabled = false;
       }

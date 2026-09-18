@@ -1305,6 +1305,32 @@
   background: #1d4ed8;
 }
 
+.define-goals-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 36px 0 20px;
+}
+.define-goals-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #ffffff !important;
+  font-size: 18px;
+  font-weight: 800;
+  padding: 18px 44px;
+  border-radius: 16px;
+  text-decoration: none !important;
+  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.3);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.define-goals-cta:hover {
+  background: linear-gradient(135deg, #1d4ed8, #2563eb);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(37, 99, 235, 0.4);
+}
+
 @media (max-width: 640px) {
   .modal-elements-grid {
     grid-template-columns: 1fr;

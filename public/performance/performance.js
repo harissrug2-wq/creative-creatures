@@ -230,6 +230,74 @@
     document.querySelector('#bookkeepingConnectModal')?.classList.add('show');
   }
 
+  function renderOtherIntegrationModal(){
+    if(document.querySelector('#otherIntegrationModal'))return;
+    const wrap=document.createElement('div');
+    wrap.className='other-req-backdrop';
+    wrap.id='otherIntegrationModal';
+    wrap.innerHTML=`
+      <div class="other-req-card" role="dialog" aria-modal="true" aria-label="Request another integration">
+        <h3>Request another integration</h3>
+        <p class="other-req-sub">Tell us what software you use and how we can support your workflow.</p>
+        <form class="other-req-form" id="otherIntegrationForm">
+          <div class="other-req-row">
+            <div class="other-req-field">
+              <label for="otherReqName">Integration name</label>
+              <input type="text" id="otherReqName" placeholder="Vendor or product name" required>
+            </div>
+            <div class="other-req-field">
+              <label for="otherReqUseCase">What should it support?</label>
+              <input type="text" id="otherReqUseCase" placeholder="Optional use case">
+            </div>
+            <button type="submit" class="other-req-send-btn" id="otherReqSubmitBtn">Send request</button>
+          </div>
+        </form>
+        <div class="other-req-footer">
+          <button type="button" class="other-req-close-btn" id="otherReqCloseBtn">Close</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(wrap);
+
+    const close=()=>wrap.classList.remove('show');
+    wrap.querySelector('#otherReqCloseBtn').onclick=close;
+    wrap.onclick=e=>{if(e.target===wrap)close();};
+
+    wrap.querySelector('#otherIntegrationForm').onsubmit=async e=>{
+      e.preventDefault();
+      const nameInput=wrap.querySelector('#otherReqName');
+      const useCaseInput=wrap.querySelector('#otherReqUseCase');
+      const submitBtn=wrap.querySelector('#otherReqSubmitBtn');
+      const name=nameInput.value.trim();
+      const useCase=useCaseInput.value.trim();
+      if(!name)return;
+
+      submitBtn.disabled=true;
+      submitBtn.textContent='Sending…';
+      try{
+        const res=await fetch('/api/account-auth',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({action:'request_integration',integrationName:name,useCase})
+        }).then(r=>r.json());
+        alert(res.message||'Thank you! Your integration request has been received.');
+        nameInput.value='';
+        useCaseInput.value='';
+        close();
+      }catch(err){
+        alert(err.message||'Failed to send request.');
+      }finally{
+        submitBtn.disabled=false;
+        submitBtn.textContent='Send request';
+      }
+    };
+  }
+
+  function showOtherIntegrationModal(){
+    renderOtherIntegrationModal();
+    document.querySelector('#otherIntegrationModal')?.classList.add('show');
+  }
+
   async function checkBookkeepingConnection(){
     try{
       const qb=await fetch('/api/account-auth?action=quickbooks_status').then(r=>r.json()).catch(()=>({}));
@@ -246,6 +314,39 @@
   document.querySelector('#backDiagnostic').addEventListener('click',()=>{persist();location.href='/diagnostic/';});
 
   app.addEventListener('click',async event=>{
+    const qbBtn=event.target.closest('[data-qb-connect]');
+    if(qbBtn){
+      event.preventDefault();
+      try{
+        const res=await fetch('/api/account-auth?action=quickbooks_connect').then(r=>r.json());
+        if(res.authorizationUrl)location.href=res.authorizationUrl;
+        else showBookkeepingModal();
+      }catch{
+        showBookkeepingModal();
+      }
+      return;
+    }
+
+    const fbBtn=event.target.closest('[data-fb-connect]');
+    if(fbBtn){
+      event.preventDefault();
+      try{
+        const res=await fetch('/api/account-auth?action=freshbooks_connect').then(r=>r.json());
+        if(res.authorizationUrl)location.href=res.authorizationUrl;
+        else showBookkeepingModal();
+      }catch{
+        showBookkeepingModal();
+      }
+      return;
+    }
+
+    const otherBtn=event.target.closest('[data-other-integration]');
+    if(otherBtn){
+      event.preventDefault();
+      showOtherIntegrationModal();
+      return;
+    }
+
     const button=event.target.closest('[data-qb-sync]');
     if(!button)return;
     event.preventDefault();
@@ -307,7 +408,6 @@
     const meta=state.documents[section.id];
     const status=meta?extractionLabel({...meta,sectionId:section.id}):null;
     const canRetry=meta?.evidenceId && ['failed','uploaded'].includes(meta.extractionStatus||meta.extraction_status||'');
-    const syncText=state.bookkeepingConnected?'Sync Now':'Connect';
     return `<div class="evidence-upload ${meta?'received':''}">
       <div class="upload-mark">${meta?checkIcon:'<span>↑</span>'}</div>
       <div class="upload-copy">
@@ -316,8 +416,10 @@
         ${meta?`<div class="uploaded-file"><strong>${esc(meta.name)}</strong>${meta.size?`<span>${formatSize(meta.size)}</span>`:''}</div>`:''}
         ${status?`<div class="extraction-status ${status.className}">${esc(status.text)}</div>`:''}
         <div class="upload-actions">
-          <label class="upload-button">${meta?'Replace PDF':'Upload PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
-          <button type="button" class="upload-button" data-qb-sync="${section.id}">${syncText}</button>
+          <button type="button" class="upload-button qb-btn" data-qb-connect="${section.id}">Connect QuickBooks</button>
+          <button type="button" class="upload-button fb-btn" data-fb-connect="${section.id}">Connect FreshBooks</button>
+          <label class="upload-button pdf-btn">${meta?'Replace PDF':'Upload PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
+          <button type="button" class="upload-button other-btn" data-other-integration="${section.id}">Other Integration...</button>
           ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry automated extraction</button>`:''}
         </div>
       </div>

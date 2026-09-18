@@ -1543,6 +1543,20 @@ export default async function handler(req,res){
       const {connection,accessToken}=await googleConnectionAccess(c,session.accountId);await deleteGoogleCalendarEvent({accessToken,calendarId:connection.calendar_id||'primary',eventId:clean(b.eventId)});
       return json(res,200,{success:true});
     }
+    if(bodyAction==='request_integration'){
+      const integrationName=clean(b.integrationName||b.company||b.name);
+      if(!integrationName)return json(res,422,{error:'Integration name is required.'});
+      const useCase=clean(b.useCase||b.notes);
+      try{
+        await sendEmail({
+          to: process.env.NOTIFICATION_EMAIL || 'support@creativecreatures.co',
+          subject: `New Integration Request: ${integrationName}`,
+          html: `<p>A user requested a new integration:</p><ul><li><strong>Integration:</strong> ${escapeHtml(integrationName)}</li><li><strong>Use Case / Notes:</strong> ${escapeHtml(useCase||'N/A')}</li><li><strong>User:</strong> ${session?.email ? escapeHtml(session.email) : 'Anonymous'}</li></ul>`
+        }).catch(()=>null);
+      }catch{}
+      return json(res,200,{success:true,message:'Integration request received.'});
+    }
+
     if(bodyAction==='google_calendar_disconnect'){
       if(!session)return json(res,401,{error:'Sign in before disconnecting Google Calendar.'});
       const connection=await getGoogleCalendarConnection(c,session.accountId);
