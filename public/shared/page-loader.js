@@ -3,7 +3,7 @@
   if(!loader)return;
   const started=Date.now();
   let fallbackTimer=null;
-  let windowLoaded=document.readyState==='complete';
+  let windowLoaded=document.readyState!=='loading';
   let holdCount=0;
 
   const isPaymentPath = () => {
@@ -77,14 +77,15 @@
   window.CCPageLoader={show,hide,hold,releaseAll,get holdCount(){return holdCount;}};
 
   if(windowLoaded)actuallyHide();
-  else window.addEventListener('load',()=>{windowLoaded=true;actuallyHide();},{once:true});
+  else document.addEventListener('DOMContentLoaded',()=>{windowLoaded=true;actuallyHide();},{once:true});
   window.addEventListener('pageshow',()=>{windowLoaded=true;actuallyHide();});
 
   document.addEventListener('submit',event=>{
     const form=event.target;
     if(!form)return;
     if(form.target==='_blank'||form.classList?.contains('cc-ai-form')||form.closest?.('.cc-ai-panel')||isPaymentTarget(form,form.action))return;
-    show('Saving and loading…');
+    // Let AJAX form handlers cancel native submission before deciding to block the page.
+    queueMicrotask(()=>{if(!event.defaultPrevented)show('Saving and loading…');});
   },true);
 
   document.addEventListener('click',event=>{

@@ -8,6 +8,7 @@ const pageLoaderPlugin = {
   name: 'creative-creatures-page-loader',
   transformIndexHtml() {
     return [
+      { tag: 'link', attrs: { rel: 'stylesheet', href: '/shared/responsive.css' }, injectTo: 'head' },
       { tag: 'link', attrs: { rel: 'stylesheet', href: '/shared/page-loader.css' }, injectTo: 'head' },
       {
         tag: 'div',
