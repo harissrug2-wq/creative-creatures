@@ -15,18 +15,12 @@ main :is(h1,h2,h3,p,a,strong),.cc-account-menu{overflow-wrap:anywhere}
 .cc-account-menu>strong,.cc-account-menu>small{display:block;white-space:normal;margin:0 8px 6px}.cc-account-menu>small{color:#667085}
 .cc-account-menu a,.cc-account-menu button{box-sizing:border-box;display:flex;align-items:center;min-height:44px;width:100%;padding:10px 12px;text-align:left;font:inherit;text-decoration:none;background:#fff;border:0;border-radius:8px;color:inherit;cursor:pointer}
 .cc-account-menu :is(a,button):hover{background:#f0f2ff}.cc-account-menu .cc-signout{color:#b42318}
-.cc-account-menu[hidden],[data-team-access][hidden],.cc-duplicate-ask{display:none!important}
+.cc-account-menu[hidden],[data-team-access][hidden]{display:none!important}
 .app-topbar .cc-profile-toggle,.cc-topbar .cc-profile-toggle{display:flex!important;align-items:center;gap:8px;min-height:44px;flex-shrink:0;max-width:160px;padding:4px;border:0;background:transparent;color:#303642;cursor:pointer}
 .cc-profile-toggle>span{display:grid;place-items:center;width:32px;height:32px;flex:0 0 32px;border-radius:50%;background:linear-gradient(135deg,#3035f1,#ef6a4f);color:white;font-size:11px;font-weight:700}
 .cc-profile-toggle>b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
-.cc-ask-dock{position:fixed;right:16px;top:calc(var(--cc-header-offset) + 10px);z-index:99}
-.cc-ask-dock .cc-sticky-ask{display:flex!important;align-items:center;justify-content:center;gap:6px;width:auto;min-height:44px;height:auto;max-width:calc(100vw - 32px);padding:10px 14px;background:#fff;border:1px solid #c9cdfc;border-radius:12px;box-shadow:0 4px 16px #3730a31a;color:#3730a3;font:600 13px/1.3 Inter,system-ui,sans-serif;cursor:pointer}
-.cc-ask-dock .cc-sticky-ask span{display:inline}.cc-sticky-ask img{width:18px;height:18px}
-body.cc-ask-creature-open .cc-ask-dock{display:none}
-.cc-profile-toggle:focus-visible,.cc-account-menu :is(a,button):focus-visible,.cc-sticky-ask:focus-visible{outline:3px solid #8b80ff;outline-offset:2px}
-/* Leave breathing room for the dock below the menu. */
-body:has(.cc-ask-dock) :is(.page-wrap,.leadership-live,.partner-portal){padding-top:64px}
-body:has(.cc-ask-dock)>[data-app-header]+main{margin-top:58px}
+body.cc-ask-creature-open .cc-menu-ask{display:none!important}
+.cc-profile-toggle:focus-visible,.cc-account-menu :is(a,button):focus-visible,.cc-menu-ask:focus-visible{outline:3px solid #8b80ff;outline-offset:2px}
 :is(.table-wrap,.table-scroll,.trend-history-wrap,.trend-chart-wrap){max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}
 :is(.grid-2,.grid-4,.grid-5,.goals-layout)>*,.lead-meeting-row>*,.user-info{min-width:0}
 @media(max-width:1180px){
@@ -43,7 +37,6 @@ body:has(.cc-ask-dock)>[data-app-header]+main{margin-top:58px}
  .grid-4,.grid-5{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media(max-width:600px){
- .cc-ask-dock{right:12px;top:calc(var(--cc-header-offset) + 8px)}
  .cc-shell{width:calc(100% - 24px)}
  .grid-2,.grid-4,.grid-5,.goals-layout{grid-template-columns:minmax(0,1fr)}
  .page-wrap{padding-inline:12px}.section-head,.card-titlebar{gap:10px;flex-wrap:wrap}
