@@ -27,17 +27,12 @@
     const setHeight = () => document.documentElement.style.setProperty('--cc-header-offset', `${Math.ceil(header.getBoundingClientRect().height)}px`);
     setHeight();
     if (window.ResizeObserver) new ResizeObserver(setHeight).observe(header);
-    const trigger = document.querySelector('#askButton,.ask-creature,[data-cc-ask]');
-    if (trigger && access.features.includes('ask')) {
-      const dock = element('div','cc-ask-dock');
-      // Preserve the original button and its authenticated click handler.
-      trigger.classList.add('cc-sticky-ask');
-      trigger.hidden = false;
-      trigger.setAttribute('aria-label','Open Ask Creature');
-      dock.append(trigger);
-      document.body.append(dock);
-    }
-    document.querySelectorAll('#mobileAskButton,.mobile-ask-creature').forEach(button => {button.hidden=true;button.classList.add('cc-duplicate-ask');});
+    // Keep each launcher in its original desktop/mobile menu.
+    document.querySelectorAll('#askButton,.ask-creature,[data-cc-ask],#mobileAskButton,.mobile-ask-creature').forEach(button => {
+      button.classList.add('cc-menu-ask');
+      button.hidden = !access.features.includes('ask');
+      button.setAttribute('aria-label','Open Ask Creature');
+    });
     if (document.querySelector('.monitor-app')) {
       const old=document.querySelector('.profile-menu .signout');
       if(old){const replacement=old.cloneNode(true);old.replaceWith(replacement);replacement.onclick=()=>signOut(replacement);}
