@@ -32,7 +32,7 @@
   }
 
   if (!model) {
-    root.innerHTML = `<section class="scorecard-empty"><h1>Your Agency Scorecard is still locked</h1><p>Complete all three indexes and generate the diagnostic before opening any report.</p>${databaseError ? `<p>${esc(databaseError.message || 'The saved scorecard is not available yet.')}</p>` : ''}<a class="cc-btn cc-btn-primary" href="/diagnostic/">Return to Diagnostic</a></section>`;
+    root.innerHTML = `<section class="scorecard-empty"><h1>Your Agency Scorecard is still locked</h1><p>Complete all three indexes and generate the diagnostic before opening any report.</p><p>Trends will appear after your next quarterly assessment.</p>${databaseError ? `<p>${esc(databaseError.message || 'The saved scorecard is not available yet.')}</p>` : ''}<a class="cc-btn cc-btn-primary" href="/diagnostic/">Return to Diagnostic</a></section>`;
     releasePageLoader();
     return;
   }
@@ -93,36 +93,31 @@
 
   const history = window.CCScorecard?.getHistory?.() || [];
 
+  const baselineMessage = 'Trends will appear after your next quarterly assessment.';
   const persistedHistory = Array.isArray(history) && history.length
     ? history
     : [{
         generatedAt: model.generatedAt,
-        quarter: 'Q3 2026',
-        previousQuarter: 'Q2 2026',
         score: model.score,
         confidence: model.confidence,
         performance: model.reports.performance.score,
         strength: model.reports.strength.score,
         independence: model.reports.independence.score,
         enterpriseValue: model.valuation?.available ? model.valuation.enterpriseValue : null,
-        positiveElements: [
-          { category: 'Agency Performance', title: 'Revenue Quality & Delivery Speed', points: 4, impact: 'positive', description: 'Performance score gained driven by recurring retainer stability and billable rate optimization.' },
-          { category: 'Agency Strength', title: 'SOP Coverage & Systems Documentation', points: 3, impact: 'positive', description: 'Strength index gained following completion of department playbooks and documented KPIs.' }
-        ],
-        negativeElements: [
-          { category: 'Owner Independence', title: 'Founder Client Escalation Time', points: 3, impact: 'negative', description: 'Owner Independence dropped due to founder hours spent resolving major client issues.' }
-        ]
+        positiveElements: [],
+        negativeElements: []
       }];
 
   const latestHistory = persistedHistory[persistedHistory.length - 1] || {};
-  const momentum = model.momentum || {
-    state: 'up',
-    delta: 3,
-    label: 'Up 3 pts',
-    quarter: latestHistory.quarter || 'Q3 2026',
-    previousQuarter: latestHistory.previousQuarter || 'Q2 2026',
-    positiveElements: latestHistory.positiveElements || [],
-    negativeElements: latestHistory.negativeElements || []
+  const quarters = new Set(persistedHistory.map(getQuarterName).filter(name => name !== 'Quarter'));
+  const hasComparison = quarters.size >= 2;
+  const momentum = hasComparison && model.momentum ? model.momentum : {
+    state: hasComparison ? 'unavailable' : 'baseline',
+    delta: null,
+    label: hasComparison ? 'Not available' : 'Baseline',
+    primaryDriver: null,
+    positiveElements: [],
+    negativeElements: []
   };
 
   const trendDirectionClass = momentum.state === 'up'
@@ -238,7 +233,7 @@
     <header class="scorecard-header"><div><span class="eyebrow">✣ Owner briefing</span><h1>Agency Scorecard</h1><p>Executive view of the Agency Owner Freedom Index, three index reports, confidence, validation, and quarterly score progression over time.</p></div><div class="scorecard-meta">Archetype · <strong>${esc(model.archetype)}</strong><br>Generated · <strong>${model.generatedAt ? new Date(model.generatedAt).toLocaleDateString() : 'Today'}</strong></div></header>
     <div class="section-title"><div><div class="section-kicker">Section 01</div><h2>Executive Summary</h2></div><p>Headline score with VantageScore-style credit tracking and quarterly score movement analysis.</p></div>
     <section class="aofi-card">
-      <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance (40%), Strength (40%), and Owner Independence (20%). Confidence is weighted using the same formula.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)}</strong></div><div class="aofi-stat"><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong></div></div><div class="aofi-action-row"><p class="aofi-footer-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Scores tracked quarterly with Creative Creatures Clarify™</p><button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnSummary"><span>What changed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
+      <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance (40%), Strength (40%), and Owner Independence (20%). Confidence is weighted using the same formula.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)}</strong></div><div class="aofi-stat"><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong></div></div><div class="aofi-action-row"><p class="aofi-footer-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Scores tracked quarterly with Creative Creatures Clarify™</p><button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnSummary" ${hasComparison ? '' : 'hidden'}><span>What changed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
       <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(model.weakest[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[model.weakest[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">Create 90 Day Rock</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
     </section>
 
@@ -252,7 +247,7 @@
   const driver = momentum.primaryDriver;
   const driverCopy = driver
     ? `${driver.label} ${driver.change > 0 ? 'improved' : driver.change < 0 ? 'declined' : 'was unchanged'} by ${Math.abs(Number(driver.change)).toFixed(1)} points versus the previous quarter.`
-    : 'This is the baseline scorecard. The next generated diagnostic will establish measurable momentum.';
+    : hasComparison ? 'No measured score driver is available for this comparison.' : baselineMessage;
 
   const currentView = document.createElement('div');
   currentView.id = 'scorecardCurrentView';
@@ -274,6 +269,7 @@
       <div class="snapshot-count"><strong>${persistedHistory.length}</strong><span>quarterly snapshot${persistedHistory.length === 1 ? '' : 's'}</span></div>
     </header>
 
+    ${!hasComparison ? `<p class="trend-baseline-note" role="status">${baselineMessage}</p>` : ''}
     <section class="vantage-card-wrap">
       <article class="vantage-score-card">
         <div class="vantage-header">
@@ -291,7 +287,7 @@
           <div class="vantage-band-col">
             <span class="vantage-band-title">${esc(model.band?.label || 'Freedom Optimized')}</span>
             <span class="vantage-trend-pill ${momentum.state === 'down' ? 'down' : momentum.state === 'up' ? 'up' : 'flat'}">
-              ${momentum.state === 'down' ? '▼' : momentum.state === 'up' ? '▲' : '•'} ${Math.abs(momentum.delta || 0)} pts vs ${esc(latestHistory.previousQuarter || 'last quarter')}
+              ${hasComparison && Number.isFinite(momentum.delta) ? `${momentum.state === 'down' ? '▼' : momentum.state === 'up' ? '▲' : '•'} ${Math.abs(momentum.delta)} pts vs ${esc(latestHistory.previousQuarter || 'previous quarter')}` : esc(momentum.label)}
             </span>
           </div>
         </div>
@@ -300,7 +296,7 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
             Scores tracked quarterly with Creative Creatures AOFI
           </p>
-          <button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnTrends">
+          <button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnTrends" ${hasComparison ? '' : 'hidden'}>
             <span>What changed?</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg>
           </button>
@@ -310,7 +306,7 @@
 
     <section class="trend-summary-grid">
       <article><span>Current AOFI</span><strong>${Number(latestHistory.score ?? model.score).toFixed(0)}</strong><small>${esc(model.band?.label || '')}</small></article>
-      <article><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong><small>${persistedHistory.length > 1 ? 'vs previous quarter' : 'first snapshot'}</small></article>
+      <article><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong><small>${hasComparison ? 'vs previous quarter' : 'first snapshot'}</small></article>
       <article><span>Confidence</span><strong>${Number(latestHistory.confidence ?? model.confidence).toFixed(0)}%</strong><small>${esc(model.validation || '')}</small></article>
       <article><span>Enterprise value</span><strong>${Number.isFinite(Number(latestHistory.enterpriseValue)) ? money(latestHistory.enterpriseValue) : 'Not available'}</strong><small>current valuation</small></article>
     </section>
@@ -330,7 +326,7 @@
 
     <section class="trend-driver-card ${trendDirectionClass}">
       <span>What moved this quarter</span>
-      <h3>${driver ? esc(driver.label) : 'Baseline established'}</h3>
+      <h3>${driver ? esc(driver.label) : hasComparison ? 'Quarterly comparison' : 'Baseline established'}</h3>
       <p>${esc(driverCopy)}</p>
     </section>
 
@@ -385,25 +381,15 @@
 
   // Modal Popup for "What Changed?"
   function openWhatChangedModal() {
+    if (!hasComparison) return;
     let existingModal = document.getElementById('whatChangedModal');
     if (existingModal) existingModal.remove();
 
     const currentPoint = latestHistory;
-    const prevQuarterName = currentPoint.previousQuarter || 'Q2 2026';
+    const prevQuarterName = currentPoint.previousQuarter || 'previous quarter';
     const currQuarterName = getQuarterName(currentPoint);
-
-    const posList = (currentPoint.positiveElements && currentPoint.positiveElements.length)
-      ? currentPoint.positiveElements
-      : [
-          { category: 'Agency Performance', title: 'Revenue Quality & Delivery Speed', points: 4, impact: 'positive', description: 'Performance score gained driven by recurring retainer stability and billable rate optimization.' },
-          { category: 'Agency Strength', title: 'SOP Coverage & Operating Systems', points: 3, impact: 'positive', description: 'Strength index gained following completion of department playbooks and documented KPIs.' }
-        ];
-
-    const negList = (currentPoint.negativeElements && currentPoint.negativeElements.length)
-      ? currentPoint.negativeElements
-      : [
-          { category: 'Owner Independence', title: 'Founder Client Escalation Time', points: 3, impact: 'negative', description: 'Owner Independence dropped due to founder hours spent resolving major client issues.' }
-        ];
+    const posList = Array.isArray(currentPoint.positiveElements) ? currentPoint.positiveElements : [];
+    const negList = Array.isArray(currentPoint.negativeElements) ? currentPoint.negativeElements : [];
 
     const posHtml = posList.map(item => `
       <div class="element-card positive-item">
@@ -444,18 +430,18 @@
           </div>
           <div class="banner-delta">
             <span class="delta-chip">${momentum.state === 'down' ? '▼' : '▲'} ${Math.abs(momentum.delta || 0)} pts overall</span>
-            <small>Performance: <strong>${Math.round(latestHistory.performance ?? 82)}</strong> · Strength: <strong>${Math.round(latestHistory.strength ?? 76)}</strong> · Independence: <strong>${Math.round(latestHistory.independence ?? 72)}</strong></small>
+            <small>Performance: <strong>${Math.round(latestHistory.performance ?? model.reports.performance.score)}</strong> · Strength: <strong>${Math.round(latestHistory.strength ?? model.reports.strength.score)}</strong> · Independence: <strong>${Math.round(latestHistory.independence ?? model.reports.independence.score)}</strong></small>
           </div>
         </div>
 
         <div class="modal-elements-grid">
           <div class="elements-col positive-col">
             <h3><span class="badge-icon positive">+</span> Positive Score Elements</h3>
-            <div class="element-list">${posHtml}</div>
+            <div class="element-list">${posHtml || '<p>No recorded positive score changes.</p>'}</div>
           </div>
           <div class="elements-col negative-col">
             <h3><span class="badge-icon negative">-</span> Negative Score Elements</h3>
-            <div class="element-list">${negHtml}</div>
+            <div class="element-list">${negHtml || '<p>No recorded negative score changes.</p>'}</div>
           </div>
         </div>
 
