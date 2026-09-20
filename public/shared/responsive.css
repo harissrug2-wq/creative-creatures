@@ -58,3 +58,14 @@ body.cc-ask-creature-open .cc-menu-ask{display:none!important}
  .partner-modal-actions,.modal-actions,.finish-actions{flex-wrap:wrap}
  .card-titlebar{padding-block:10px}
 }
+
+/* Keep navigation above the chat layer and spanning the reserved chat column. */
+body.cc-ask-creature-open [data-app-header]{display:contents!important}
+body.cc-ask-creature-open :is([data-cc-topbar],[data-app-header] .app-topbar,.main-shell>.topbar){z-index:100005;background:#fff}
+body.cc-ask-creature-open :is(.mobile-nav-panel.open,.top-menu-panel.open){z-index:100006}
+@media(min-width:900px){
+ body.cc-ask-creature-open [data-app-header] .app-topbar,
+ body.cc-ask-creature-open [data-cc-topbar],
+ body.cc-ask-creature-open .main-shell>.topbar{width:calc(100% + 420px)!important;max-width:none!important;box-sizing:border-box}
+ body.cc-ask-creature-open .monitor-app{overflow-x:visible}
+}
