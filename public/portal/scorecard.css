@@ -1343,3 +1343,13 @@
     width: 100%;
   }
 }
+
+/* One selection includes the issue and its corresponding opportunity. */
+.insight-grid.paired-insights{grid-template-columns:minmax(0,1fr)}
+.paired-insights-help{margin:0 0 14px;color:var(--cc-muted);font-size:13px}
+.paired-insight{display:flex;align-items:flex-start;gap:12px}
+.paired-insight input{flex:0 0 auto;margin-top:3px}
+.paired-insight-copy{display:block;min-width:0;flex:1}
+.paired-opportunity{display:block;margin-top:12px;padding-top:10px;border-top:1px solid var(--cc-line)}
+.paired-opportunity strong{display:block;font-size:12px;color:var(--cc-blue);margin-bottom:4px}
+.paired-opportunity>span{display:block;font-size:12px;line-height:1.5;color:var(--cc-muted);overflow-wrap:anywhere}

@@ -70,17 +70,22 @@
   const opportunitySource = Array.isArray(model.opportunities) && model.opportunities.length
     ? model.opportunities
     : model.weakest.map(row => ({ capability: row.name, index: row.index, indexTitle: row.indexTitle, score: row.score, recommendation: model.reports[row.index]?.recommendation, estimatedLift: Math.max(1, Math.round((100-row.score)*.18)) }));
-  const issueRows = issueSource.map((row,index) => {
-    const id=`issue-${index}`;
-    rockCandidates[id]={title:row.capability,description:row.description,sourceType:'issue',sourceKey:`issue:${row.index||'index'}:${String(row.capability||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')}`};
-    const exists=existingRockKeys.has(rockCandidates[id].sourceKey);
-    return `<label class="insight-row selectable-insight${exists?' selected':''}"><input type="checkbox" data-rock-candidate="${id}" ${exists?'disabled':''}><span><b>${esc(row.capability)} · ${row.score}/100</b><p>${esc(row.description)}</p>${exists?'<small>Already a 90-Day Rock</small>':''}</span></label>`;
-  }).join('');
-  const opportunityRows = opportunitySource.map((row,index) => {
-    const id=`opportunity-${index}`;
-    rockCandidates[id]={title:row.capability,description:row.recommendation,sourceType:'opportunity',sourceKey:`opportunity:${row.index||'index'}:${String(row.capability||'').toLowerCase().replace(/[^a-z0-9]+/g,'-')}`};
-    const exists=existingRockKeys.has(rockCandidates[id].sourceKey);
-    return `<label class="insight-row opportunity-row selectable-insight${exists?' selected':''}"><input type="checkbox" data-rock-candidate="${id}" ${exists?'disabled':''}><i>${index+1}</i><div><b>${esc(row.capability)}</b><p>${esc(row.recommendation)}</p>${exists?'<small>Already a 90-Day Rock</small>':''}</div><em>+${row.estimatedLift} pts</em></label>`;
+  const capabilityKey = row => `${row.index || 'index'}:${String(row.capability || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const opportunitiesByKey = new Map(opportunitySource.map(row => [capabilityKey(row), row]));
+  const pairedIssues = [...new Map(issueSource.map(row => [capabilityKey(row), row])).values()];
+  const issueRows = pairedIssues.map((row,index) => {
+    const id = `issue-${index}`;
+    const key = capabilityKey(row);
+    const opportunity = opportunitiesByKey.get(key);
+    const recommendation = opportunity?.recommendation || model.reports[row.index]?.recommendation || 'Validate this capability and agree an improvement action.';
+    rockCandidates[id] = {
+      title: row.capability,
+      description: `Issue: ${row.description || row.capability}\n\nOpportunity: ${recommendation}`,
+      sourceType: 'issue',
+      sourceKey: `issue:${key}`
+    };
+    const exists = existingRockKeys.has(`issue:${key}`) || existingRockKeys.has(`opportunity:${key}`);
+    return `<label class="insight-row selectable-insight paired-insight${exists ? ' selected' : ''}"><input type="checkbox" data-rock-candidate="${id}" ${exists ? 'disabled' : ''}><span class="paired-insight-copy"><b>${esc(row.capability)} · ${esc(row.score)}/100</b><p>${esc(row.description || '')}</p><span class="paired-opportunity"><strong>Opportunity</strong><span>${esc(recommendation)}</span></span>${exists ? '<small>Already a 90-Day Rock</small>' : ''}</span></label>`;
   }).join('');
   const perf = model.reports.performance;
   const valuation = model.valuation && typeof model.valuation === 'object' ? model.valuation : null;
@@ -240,7 +245,7 @@
     <div class="section-title"><div><div class="section-kicker">Section 02</div><h2>Three Index Reports</h2></div><p>Reports appear here only after all three indexes are complete and generated.</p></div>
     <section class="index-grid">${cards}</section>
     <div class="section-title"><div><div class="section-kicker">Section 03</div><h2>Issues &amp; Opportunities</h2></div><p>Prioritized from the lowest-scoring capabilities across all three indices.</p></div>
-    <section class="insight-grid"><article class="insight-card"><h3>Key issues</h3><div class="insight-list">${issueRows}</div></article><article class="insight-card"><h3>Biggest opportunities</h3><div class="insight-list">${opportunityRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues or opportunities.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">Create 90 Day Rock(s)</button></div>
+    <section class="insight-grid paired-insights"><article class="insight-card"><h3>Issues &amp; their opportunities</h3><p class="paired-insights-help">Select an issue to create one 90-Day Rock. Its opportunity is included in the Rock.</p><div class="insight-list">${issueRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">Create 90 Day Rock(s)</button></div>
     <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Agency Valuation</h2></div><p>Calculated from the approved Agency Valuation™ methodology and current diagnostic evidence.</p></div>
     ${valuationHtml}<div class="define-goals-wrap"><a class="define-goals-cta" href="/agency-goals/">Define Agency Goals →</a></div>`;
 
@@ -494,7 +499,7 @@
   root.querySelector('#createSelectedRocks')?.addEventListener('click',async event=>{
     const chosen=[...root.querySelectorAll('[data-rock-candidate]:checked')].map(input=>rockCandidates[input.dataset.rockCandidate]);
     const note=root.querySelector('#rockSelectionNote');
-    if(!chosen.length){note.textContent='Select at least one issue or opportunity first.';return;}
+    if(!chosen.length){note.textContent='Select at least one issue first.';return;}
     const button=event.currentTarget;
     button.disabled=true;
     try {
