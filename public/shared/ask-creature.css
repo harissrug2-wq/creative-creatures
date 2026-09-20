@@ -38,9 +38,17 @@
 @media(prefers-reduced-motion:reduce){.cc-chat-overlay *,.cc-chat-panel{animation:none!important;transition:none!important}}
 
 
-/* Keep the drawer anchored to the viewport below navigation, without reflowing the page. */
+/* Keep the drawer anchored to the viewport below navigation. */
 .cc-chat-overlay .cc-chat-panel[role="dialog"]{top:var(--cc-header-offset,60px)!important;bottom:0!important;width:min(420px,100vw)!important;max-width:100vw!important;height:calc(100dvh - var(--cc-header-offset,60px))!important;max-height:calc(100dvh - var(--cc-header-offset,60px))!important;margin:0!important;padding:0!important;border-radius:0!important;overflow:hidden!important}
 .cc-chat-header,.cc-chat-toolbar,.cc-chat-form,.cc-chat-error{flex-shrink:0}
 .cc-chat-close,.cc-chat-toolbar button,.cc-chat-compose button{min-height:44px;min-width:44px}
 .cc-chat-compose textarea{font-size:16px}
 @media(max-width:600px){.cc-chat-overlay .cc-chat-panel[role="dialog"]{width:100vw!important}.cc-chat-page{display:none}}
+
+/* Restore the original desktop space alongside the 420px chat panel. */
+@media (min-width:900px){
+  body.cc-ask-creature-open{
+    padding-right:420px!important;
+    box-sizing:border-box;
+  }
+}
