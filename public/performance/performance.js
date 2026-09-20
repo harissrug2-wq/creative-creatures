@@ -151,303 +151,59 @@
       </div>
     </div>`;
 
-  function renderBookkeepingModal(){
-    if(document.querySelector('#bookkeepingConnectModal'))return;
-    const wrap=document.createElement('div');
-    wrap.className='bk-modal-backdrop';
-    wrap.id='bookkeepingConnectModal';
-    wrap.innerHTML=`
-      <div class="bk-modal" role="dialog" aria-modal="true" aria-label="Connect Available Integrations">
-        <div class="bk-modal-head">
-          <h3>Connect Integrations</h3>
-          <button class="bk-modal-close" type="button" id="closeBkModal" aria-label="Close">×</button>
-        </div>
-        <p class="bk-modal-sub">Connect your agency tools and accounting software to automatically import evidence, sync data, and power your performance score.</p>
-        <div class="bk-options" style="max-height: 380px; overflow-y: auto;">
-          <div class="bk-option">
-            <div class="bk-logo qb">QB</div>
-            <div class="bk-info">
-              <strong>QuickBooks Online</strong>
-              <span>Sync P&L, Balance Sheet, A/R Aging & Client Revenue</span>
-            </div>
-            <button type="button" class="bk-action-btn primary" data-oauth-action="quickbooks_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo fb">FB</div>
-            <div class="bk-info">
-              <strong>FreshBooks</strong>
-              <span>Sync client revenue, payments & invoices</span>
-            </div>
-            <button type="button" class="bk-action-btn secondary" data-oauth-action="freshbooks_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo" style="background:#0052cc">Jira</div>
-            <div class="bk-info">
-              <strong>Jira Software</strong>
-              <span>Sync development issues, projects & status</span>
-            </div>
-            <button type="button" class="bk-action-btn secondary" data-oauth-action="jira_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo" style="background:#ff7a59">HS</div>
-            <div class="bk-info">
-              <strong>HubSpot CRM</strong>
-              <span>Sync deals, pipelines, contacts & revenue</span>
-            </div>
-            <button type="button" class="bk-action-btn secondary" data-oauth-action="hubspot_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo" style="background:#4a154b">Slack</div>
-            <div class="bk-info">
-              <strong>Slack Workspace</strong>
-              <span>Notifications, channel feeds & team updates</span>
-            </div>
-            <button type="button" class="bk-action-btn secondary" data-oauth-action="slack_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo" style="background:#2D8CFF">Zoom</div>
-            <div class="bk-info">
-              <strong>Zoom Video Communications</strong>
-              <span>Sync meetings, recordings & executive sessions</span>
-            </div>
-            <button type="button" class="bk-action-btn secondary" data-oauth-action="zoom_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo" style="background:#4285f4">Cal</div>
-            <div class="bk-info">
-              <strong>Google Calendar</strong>
-              <span>Sync calendar events & leadership meetings</span>
-            </div>
-            <button type="button" class="bk-action-btn secondary" data-oauth-action="google_calendar_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo" style="background:#0f9d58">Drive</div>
-            <div class="bk-info">
-              <strong>Google Drive</strong>
-              <span>Sync evidence documents & shared agency folders</span>
-            </div>
-            <button type="button" class="bk-action-btn secondary" data-oauth-action="google_drive_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo" style="background:#7b68ee">CU</div>
-            <div class="bk-info">
-              <strong>ClickUp</strong>
-              <span>Sync tasks, spaces & project delivery</span>
-            </div>
-            <button type="button" class="bk-action-btn secondary" data-oauth-action="clickup_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo" style="background:#0085ff">Mon</div>
-            <div class="bk-info">
-              <strong>Monday.com</strong>
-              <span>Sync boards, workspaces & team tasks</span>
-            </div>
-            <button type="button" class="bk-action-btn secondary" data-oauth-action="monday_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo" style="background:#c00">Zoho</div>
-            <div class="bk-info">
-              <strong>Zoho CRM</strong>
-              <span>Sync deals, accounts & sales pipeline</span>
-            </div>
-            <button type="button" class="bk-action-btn secondary" data-oauth-action="zoho_connect">Connect</button>
-          </div>
-          <div class="bk-option">
-            <div class="bk-logo" style="background:#13b5ea">Xero</div>
-            <div class="bk-info">
-              <strong>Xero Accounting</strong>
-              <span>Import financial statements directly from Xero</span>
-            </div>
-            <span class="bk-badge coming-soon">Coming Soon</span>
-          </div>
-        </div>
-        <div class="bk-modal-footer" style="display:flex;justify-content:space-between;align-items:center;">
-          <button type="button" class="upload-button other-btn" id="reqOtherBtn" style="font-size:11px;padding:6px 12px;">Request Other...</button>
-          <a href="/integrations/" style="font-weight:700;">View &amp; Manage All Integrations →</a>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(wrap);
-
-    const close=()=>wrap.classList.remove('show');
-    wrap.querySelector('#closeBkModal').onclick=close;
-    wrap.onclick=e=>{if(e.target===wrap)close();};
-
-    wrap.querySelector('#reqOtherBtn')?.addEventListener('click', () => {
-      close();
-      showOtherIntegrationModal();
-    });
-
-    wrap.querySelectorAll('[data-oauth-action]').forEach(btn => {
-      btn.onclick = async () => {
-        const action = btn.dataset.oauthAction;
-        const originalText = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = 'Connecting…';
-        try {
-          const res = await fetch(`/api/account-auth?action=${encodeURIComponent(action)}`).then(r => r.json());
-          if (res.authorizationUrl) {
-            location.href = res.authorizationUrl;
-          } else {
-            alert(res.error || 'Connection URL could not be generated. Please try again or manage integrations.');
-            btn.disabled = false;
-            btn.textContent = originalText;
-          }
-        } catch(e) {
-          alert('Integration connection failed: ' + e.message);
-          btn.disabled = false;
-          btn.textContent = originalText;
-        }
-      };
-    });
-  }
-
-  function showBookkeepingModal(){
-    renderBookkeepingModal();
-    document.querySelector('#bookkeepingConnectModal')?.classList.add('show');
-  }
-
-  function renderOtherIntegrationModal(){
-    if(document.querySelector('#otherIntegrationModal'))return;
-    const wrap=document.createElement('div');
-    wrap.className='other-req-backdrop';
-    wrap.id='otherIntegrationModal';
-    wrap.innerHTML=`
-      <div class="other-req-card" role="dialog" aria-modal="true" aria-label="Request another integration">
-        <h3>Request another integration</h3>
-        <p class="other-req-sub">Tell us what software you use and how we can support your workflow.</p>
-        <form class="other-req-form" id="otherIntegrationForm">
-          <div class="other-req-row">
-            <div class="other-req-field">
-              <label for="otherReqName">Integration name</label>
-              <input type="text" id="otherReqName" placeholder="Vendor or product name" required>
-            </div>
-            <div class="other-req-field">
-              <label for="otherReqUseCase">What should it support?</label>
-              <input type="text" id="otherReqUseCase" placeholder="Optional use case">
-            </div>
-            <button type="submit" class="other-req-send-btn" id="otherReqSubmitBtn">Send request</button>
-          </div>
-        </form>
-        <div class="other-req-footer">
-          <button type="button" class="other-req-close-btn" id="otherReqCloseBtn">Close</button>
-        </div>
-      </div>
-    `;
-    document.body.appendChild(wrap);
-
-    const close=()=>wrap.classList.remove('show');
-    wrap.querySelector('#otherReqCloseBtn').onclick=close;
-    wrap.onclick=e=>{if(e.target===wrap)close();};
-
-    wrap.querySelector('#otherIntegrationForm').onsubmit=async e=>{
-      e.preventDefault();
-      const nameInput=wrap.querySelector('#otherReqName');
-      const useCaseInput=wrap.querySelector('#otherReqUseCase');
-      const submitBtn=wrap.querySelector('#otherReqSubmitBtn');
-      const name=nameInput.value.trim();
-      const useCase=useCaseInput.value.trim();
-      if(!name)return;
-
-      submitBtn.disabled=true;
-      submitBtn.textContent='Sending…';
-      try{
-        const res=await fetch('/api/account-auth',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({action:'request_integration',integrationName:name,useCase})
-        }).then(r=>r.json());
-        alert(res.message||'Thank you! Your integration request has been received.');
-        nameInput.value='';
-        useCaseInput.value='';
-        close();
-      }catch(err){
-        alert(err.message||'Failed to send request.');
-      }finally{
-        submitBtn.disabled=false;
-        submitBtn.textContent='Send request';
-      }
-    };
-  }
-
-  function showOtherIntegrationModal(){
-    renderOtherIntegrationModal();
-    document.querySelector('#otherIntegrationModal')?.classList.add('show');
-  }
-
+  const bookkeepingProviders = [
+    {id:'quickbooks',name:'QuickBooks Online'},
+    {id:'freshbooks',name:'FreshBooks'}
+  ];
+  let bookkeepingStatus = {};
   async function checkBookkeepingConnection(){
-    try{
-      const qb=await fetch('/api/account-auth?action=quickbooks_status').then(r=>r.json()).catch(()=>({}));
-      if(qb?.connection?.connected){state.bookkeepingConnected=true;return;}
-      const fb=await fetch('/api/account-auth?action=freshbooks_status').then(r=>r.json()).catch(()=>({}));
-      if(fb?.connection?.connected){state.bookkeepingConnected=true;return;}
-      state.bookkeepingConnected=false;
-    }catch{
-      state.bookkeepingConnected=false;
-    }
+    const results=await Promise.all(bookkeepingProviders.map(async provider=>{
+      try{
+        const response=await fetch(`/api/account-auth?action=${provider.id}_status`);
+        const payload=await response.json();
+        return [provider.id,response.ok?payload:{available:false}];
+      }catch{return [provider.id,{available:false}];}
+    }));
+    bookkeepingStatus=Object.fromEntries(results);
+  }
+  function bookkeepingButtons(){
+    return bookkeepingProviders.filter(provider=>bookkeepingStatus[provider.id]?.available).map(provider=>{
+      const connected=bookkeepingStatus[provider.id]?.connection?.connected;
+      return `<button type="button" class="upload-button bookkeeping-provider" data-bookkeeping-provider="${provider.id}" data-bookkeeping-operation="${connected?'sync':'connect'}"><img src="/performance/logos/${provider.id}.svg" alt="" width="24" height="24">${connected?'Sync':'Connect'} ${provider.name}</button>`;
+    }).join('');
   }
 
   const host=document.querySelector('#sectionHost');
   document.querySelector('#backDiagnostic').addEventListener('click',()=>{persist();location.href='/diagnostic/';});
 
   app.addEventListener('click',async event=>{
-    const qbBtn=event.target.closest('[data-qb-connect]');
-    if(qbBtn){
-      event.preventDefault();
-      try{
-        const res=await fetch('/api/account-auth?action=quickbooks_connect').then(r=>r.json());
-        if(res.authorizationUrl)location.href=res.authorizationUrl;
-        else showBookkeepingModal();
-      }catch{
-        showBookkeepingModal();
-      }
-      return;
-    }
-
-    const fbBtn=event.target.closest('[data-fb-connect]');
-    if(fbBtn){
-      event.preventDefault();
-      try{
-        const res=await fetch('/api/account-auth?action=freshbooks_connect').then(r=>r.json());
-        if(res.authorizationUrl)location.href=res.authorizationUrl;
-        else showBookkeepingModal();
-      }catch{
-        showBookkeepingModal();
-      }
-      return;
-    }
-
-    const otherBtn=event.target.closest('[data-other-integration]');
-    if(otherBtn){
-      event.preventDefault();
-      showOtherIntegrationModal();
-      return;
-    }
-
-    const button=event.target.closest('[data-qb-sync]');
-    if(!button)return;
+    const providerButton=event.target.closest('[data-bookkeeping-provider]');
+    if(!providerButton)return;
     event.preventDefault();
-    if(!state.bookkeepingConnected){
-      showBookkeepingModal();
-      return;
-    }
-    if(button.disabled)return;
-    button.disabled=true;
-    const original=button.textContent;
-    button.textContent='Syncing…';
+    if(providerButton.disabled)return;
+    const provider=providerButton.dataset.bookkeepingProvider;
+    if(!bookkeepingProviders.some(item=>item.id===provider))return;
+    const operation=providerButton.dataset.bookkeepingOperation;
+    const original=providerButton.innerHTML;
+    providerButton.disabled=true;
+    providerButton.textContent=operation==='sync'?'Syncing…':'Connecting…';
+    const status=app.querySelector('[data-bookkeeping-error]');
+    if(status)status.textContent='';
     try{
-      const response=await fetch('/api/account-auth',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({action:'quickbooks_sync'})
-      });
-      const payload=await response.json().catch(()=>({}));
-      if(!response.ok)throw new Error(payload.error||'Bookkeeping sync failed.');
-      location.reload();
+      persist();
+      const response=operation==='sync'
+        ?await fetch('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:`${provider}_sync`})})
+        :await fetch(`/api/account-auth?action=${provider}_connect`);
+      const payload=await response.json();
+      if(!response.ok)throw new Error(payload.error||'The bookkeeping provider could not be reached.');
+      if(operation==='sync'){location.reload();return;}
+      if(!payload.authorizationUrl)throw new Error('The provider did not return an authorization URL.');
+      sessionStorage.setItem(`cc_${provider}_return`,'/agency-performance-index/');
+      location.assign(payload.authorizationUrl);
     }catch(error){
-      alert(error?.message||'Bookkeeping sync failed.');
-      button.disabled=false;
-      button.textContent=original;
+      if(status)status.textContent=error.message||'Connection failed. Please try again.';
+      providerButton.disabled=false;
+      providerButton.innerHTML=original;
     }
   });
 
@@ -493,12 +249,11 @@
         ${meta?`<div class="uploaded-file"><strong>${esc(meta.name)}</strong>${meta.size?`<span>${formatSize(meta.size)}</span>`:''}</div>`:''}
         ${status?`<div class="extraction-status ${status.className}">${esc(status.text)}</div>`:''}
         <div class="upload-actions">
-          <button type="button" class="upload-button qb-btn" data-qb-connect="${section.id}">Connect QuickBooks</button>
-          <button type="button" class="upload-button fb-btn" data-fb-connect="${section.id}">Connect FreshBooks</button>
+          ${bookkeepingButtons()}
           <label class="upload-button pdf-btn">${meta?'Replace PDF':'Upload PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
-          <button type="button" class="upload-button other-btn" data-other-integration="${section.id}">Other Integration...</button>
           ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry automated extraction</button>`:''}
         </div>
+        <p data-bookkeeping-error role="status" class="bookkeeping-error"></p>
       </div>
     </div>
     <div class="evidence-requirements">${section.requirements.map(item=>`<div>${checkIcon}<span>${esc(item)}</span></div>`).join('')}</div>`;

@@ -21,7 +21,7 @@
   </main>
   <script>
     (async()=>{
-      const params=new URLSearchParams(location.search);
+      const returnTo=sessionStorage.getItem('cc_quickbooks_return')==='/agency-performance-index/'?'/agency-performance-index/':'/integrations/';document.querySelector('#back').href=returnTo;const params=new URLSearchParams(location.search);
       const error=params.get('error');
       const errorDescription=params.get('error_description');
       const code=params.get('code');
@@ -38,8 +38,8 @@
         const response=await fetch('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'quickbooks_callback',code,realmId,state})});
         const payload=await response.json().catch(()=>({}));
         if(!response.ok)throw new Error(payload.error||'QuickBooks authorization could not be completed.');
-        status.textContent='QuickBooks connected. Returning to Integrations…';
-        location.replace('/integrations/?quickbooks=connected');
+        status.textContent='QuickBooks connected. Returning to your workspace…';
+        sessionStorage.removeItem('cc_quickbooks_return');location.replace(returnTo+'?quickbooks=connected');
       }catch(err){fail(err.message||'QuickBooks authorization could not be completed.');}
     })();
   </script>

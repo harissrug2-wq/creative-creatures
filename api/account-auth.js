@@ -225,10 +225,10 @@ function currentSession(req, secret){
 const DEPARTMENTS=['leadership','marketing','sales','billing','onboarding','service-delivery','client-success','talent-acquisition','finance','communication','systems','sops'];
 const PLAN_FEATURES={
   owner_archetype:['owner-archetype'],
-  diagnostic:['owner-archetype','diagnostic','scorecard','goals','ask'],
-  accelerator:['owner-archetype','accelerator','scorecard','goals','ask'],
-  platform:['owner-archetype','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask'],
-  fractional_coo:['owner-archetype','accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask']
+  diagnostic:['owner-archetype','bookkeeping','diagnostic','scorecard','goals','ask'],
+  accelerator:['owner-archetype','bookkeeping','accelerator','scorecard','goals','ask'],
+  platform:['owner-archetype','bookkeeping','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask'],
+  fractional_coo:['owner-archetype','bookkeeping','accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask']
 };
 function planFromJourney(journey){return journey==='platform'?'platform':journey==='accelerator'?'accelerator':'diagnostic'}
 function accessPlan(account){return PLAN_FEATURES[account?.access_plan]?account.access_plan:planFromJourney(account?.journey)}
@@ -258,6 +258,7 @@ async function sessionActor(c,session){
 function sanitizeDepartments(value){return [...new Set((Array.isArray(value)?value:[]).map(v=>clean(v).toLowerCase().replace(/[^a-z0-9]+/g,'-')).filter(v=>DEPARTMENTS.includes(v)))]}
 function requireOwner(actor){if(actor?.role!=='owner')throw Object.assign(new Error('Only the agency owner can manage users or integrations.'),{status:403})}
 function requireDepartment(actor,department){if(actor?.role==='member'){const norm=clean(department).toLowerCase().replace(/[^a-z0-9]+/g,'-');const memberDepts=(actor?.departments||[]).map(d=>clean(d).toLowerCase().replace(/[^a-z0-9]+/g,'-'));if(!memberDepts.includes(norm))throw Object.assign(new Error('Your account does not have access to this department.'),{status:403})}}
+function integrationFeature(action){return /^(quickbooks|freshbooks)_(connect|status|callback|sync|disconnect|dashboard|select_business)$/.test(action)?'bookkeeping':'integrations'}
 function requireFeature(account,feature){if(!featuresForAccount(account).includes(feature))throw Object.assign(new Error(`${feature.replace(/-/g,' ')} is not included in this agency plan.`),{status:403})}
 function publicAccess(account,actor){const plan=accessPlan(account),purchasedPlans=[...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);return{plan,purchasedPlans,features:featuresForAccount(account),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS}}
 async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
@@ -1027,7 +1028,7 @@ export default async function handler(req,res){
       }
 
       if(session?.memberId&&action){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});return json(res,403,{error:'Only the agency owner can manage integrations and agency-wide programs.'})}
-      if(session&&action){const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});requireFeature(account,action==='accelerator'?'accelerator':action==='partner_portal'?'portal':'integrations')}
+      if(session&&action){const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});requireFeature(account,action==='accelerator'?'accelerator':action==='partner_portal'?'portal':integrationFeature(action))}
 
       if(action==='callback'){
         if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect GHL CRM.'});
@@ -1126,7 +1127,7 @@ export default async function handler(req,res){
       if(action==='quickbooks_status'){
         if(!session)return json(res,401,{error:'Sign in before viewing QuickBooks status.'});
         const connection=await getQuickBooksConnection(c,session.accountId);
-        return json(res,200,{connection:publicQuickBooksConnection(connection),environment:quickBooksConfig()?.environment||null});
+        return json(res,200,{connection:publicQuickBooksConnection(connection),available:Boolean(quickBooksConfig()),environment:quickBooksConfig()?.environment||null});
       }
       if(action==='freshbooks_connect'){
         if(!session)return json(res,401,{error:'Sign in before connecting FreshBooks.'});
@@ -1136,7 +1137,7 @@ export default async function handler(req,res){
       if(action==='freshbooks_status'){
         if(!session)return json(res,401,{error:'Sign in before viewing FreshBooks status.'});
         const connection=await getFreshBooksConnection(c,session.accountId);
-        return json(res,200,{connection:publicFreshBooksConnection(connection)});
+        return json(res,200,{connection:publicFreshBooksConnection(connection),available:Boolean(freshBooksConfig())});
       }
 
       if(action==='google_drive_connect'){
@@ -1207,7 +1208,7 @@ export default async function handler(req,res){
     if(session?.memberId&&bodyAction&&!['monitor_department','google_calendar_events','forgot_password','reset_password'].includes(bodyAction)){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});return json(res,403,{error:'Your department account cannot manage agency-wide programs or integrations.'})}
     if(session&&bodyAction&&!['forgot_password','reset_password'].includes(bodyAction)){
       const account=await findById(c,session.accountId);if(!account)return json(res,401,{error:'Your account access is no longer active.'});
-      const feature=bodyAction.startsWith('accelerator_')?'accelerator':bodyAction==='partner_referral'?'portal':bodyAction==='monitor_department'?'monitor':bodyAction==='google_calendar_events'?'leadership':'integrations';requireFeature(account,feature);
+      const feature=bodyAction.startsWith('accelerator_')?'accelerator':bodyAction==='partner_referral'?'portal':bodyAction==='monitor_department'?'monitor':bodyAction==='google_calendar_events'?'leadership':integrationFeature(bodyAction);requireFeature(account,feature);
       if(session.memberId&&bodyAction==='google_calendar_events'){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});requireDepartment(actor,'leadership')}
     }
     if(bodyAction==='accelerator_choose_plan'){if(!session)return json(res,401,{error:'Sign in before choosing an Accelerator payment plan.'});return json(res,200,{success:true,enrollment:await chooseAcceleratorPlan(c,session.accountId,clean(b.paymentPlan))})}

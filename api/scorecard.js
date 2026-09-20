@@ -507,6 +507,31 @@ function ownerArchetype(account) {
   return report.archetypeTitle || report.title || result.title || result.name || 'Owner Archetype';
 }
 
+function scorecardPriorities(reports){
+  const categoryRows = Object.values(reports)
+    .flatMap(report => report.categories.map(category => ({ ...category, index: report.id, indexTitle: report.title })))
+    .sort((a, b) => a.score - b.score);
+
+  const weakest = categoryRows.slice(0, 5);
+  const issues = weakest.map(row => ({
+    capability: row.name,
+    index: row.index,
+    indexTitle: row.indexTitle,
+    score: row.score,
+    description: `${row.name} scored ${row.score}/100 in ${row.indexTitle}, placing it among this assessment’s lowest-scoring capabilities. Validate the evidence and agree a 90-day improvement target.`
+  }));
+  const opportunities = weakest.map(row => ({
+    capability: row.name,
+    index: row.index,
+    indexTitle: row.indexTitle,
+    score: row.score,
+    estimatedLift: Math.max(1, Math.round((100 - row.score) * 0.18)),
+    recommendation: ({performance:performanceRecommendations,strength:strengthRecommendations,independence:independenceRecommendations}[row.index]?.[row.key]) || `Validate ${row.name} and assign a clear owner and measurable improvement target.`
+  }));
+
+  return {issues,opportunities};
+}
+
 function buildModel(account, rows, generatedAt, diagnosticRunId = null) {
   const map = Object.fromEntries(rows.map(row => [row.index_type, row]));
   const required = ['performance', 'strength', 'independence'];
@@ -529,26 +554,7 @@ function buildModel(account, rows, generatedAt, diagnosticRunId = null) {
   const score = Math.round(reports.performance.score * 0.40 + reports.strength.score * 0.40 + reports.independence.score * 0.20);
   const confidence = Math.round(reports.performance.confidence * 0.40 + reports.strength.confidence * 0.40 + reports.independence.confidence * 0.20);
   const validationDb = worstValidation([map.performance, map.strength, map.independence]);
-  const categoryRows = Object.values(reports)
-    .flatMap(report => report.categories.map(category => ({ ...category, index: report.id, indexTitle: report.title })))
-    .sort((a, b) => a.score - b.score);
-
-  const weakest = categoryRows.slice(0, 5);
-  const issues = weakest.map(row => ({
-    capability: row.name,
-    index: row.index,
-    indexTitle: row.indexTitle,
-    score: row.score,
-    description: `${row.indexTitle} is below the other measured capabilities and should be validated before the next planning cycle.`
-  }));
-  const opportunities = weakest.map(row => ({
-    capability: row.name,
-    index: row.index,
-    indexTitle: row.indexTitle,
-    score: row.score,
-    estimatedLift: Math.max(1, Math.round((100 - row.score) * 0.18)),
-    recommendation: reports[row.index]?.recommendation || 'Validate this capability and assign a clear owner.'
-  }));
+  const {issues,opportunities} = scorecardPriorities(reports);
 
   const valuation = buildValuationSnapshot(rows, { diagnosticRunId, calculatedAt: generatedAt });
   return withValuationReportData({
@@ -658,6 +664,7 @@ export default async function handler(req, res) {
       const rows = await getIndexRows(config, run.id);
       const valuation = buildValuationSnapshot(rows, { diagnosticRunId: run.id });
       const enriched = withValuationReportData(saved.report_data, valuation);
+      if(enriched.reports)Object.assign(enriched,scorecardPriorities(enriched.reports));
       await updateSavedScorecardReport(config, saved.id, enriched);
 
       const rawHistory = await getScorecardHistory(config, account.id);
