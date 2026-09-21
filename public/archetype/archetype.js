@@ -191,7 +191,7 @@
 
   const makeId = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-  const logo = () => `<a class="archetype-brand" href="/"><img src="/monitor/creative-creatures-logo.png" alt="Creative Creatures"></a>`;
+  const logo = () => `<a class="archetype-brand" href="/"><img src="/brand/creature-logo.png" alt="Creative Creatures"></a>`;
 
   function navigate(path, replace = false) {
     const target = `/owner-archetype${path}`;

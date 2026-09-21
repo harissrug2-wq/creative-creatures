@@ -18,7 +18,7 @@
   const wrap=el('div','cc-chat-overlay');
   wrap.innerHTML=`<section class="cc-chat-panel" role="dialog" aria-modal="false" aria-labelledby="ccChatTitle">
    <header class="cc-chat-header">
-     <div class="cc-chat-brand" aria-hidden="true"><img src="/favicon.svg" alt="Creative Creatures" class="cc-chat-brand-logo"></div>
+     <div class="cc-chat-brand" aria-hidden="true"><img src="/brand/creature-icon.png" alt="Creative Creatures" class="cc-chat-brand-logo"></div>
      <div class="cc-chat-heading">
        <h2 id="ccChatTitle">Ask Creature</h2>
        <p class="cc-chat-page-badge" id="ccChatBadge">Creative Creatures guidance</p>
@@ -68,7 +68,7 @@
     if (m.role === 'user') {
       speaker.textContent = 'You';
     } else {
-      speaker.innerHTML = '<img src="/favicon.svg" class="cc-speaker-logo" alt=""> Ask Creature';
+      speaker.innerHTML = '<img src="/brand/creature-icon.png" class="cc-speaker-logo" alt=""> Ask Creature';
     }
     row.append(speaker, el('div','cc-chat-text',m.content));
     return row;
