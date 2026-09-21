@@ -1,4 +1,5 @@
 import { emailStatus, escapeHtml, sendEmail, validEmail } from '../lib/email-service.js';
+import { generatePdfReport } from '../lib/pdf-report-generator.js';
 const json=(res,status,payload)=>{res.statusCode=status;res.setHeader('Content-Type','application/json; charset=utf-8');res.setHeader('Cache-Control','no-store');res.end(JSON.stringify(payload))};
 const clean=value=>String(value??'').trim();
 
@@ -100,9 +101,19 @@ export default async function handler(req,res){
         `</div>`;
     }
 
-    const title=clean(body.title)||'Creative Creatures Report';
-    const filename=clean(body.filename)||'creative-creatures-report.pdf';
-    const attachments=body.pdfBase64?[{filename,content:clean(body.pdfBase64)}]:undefined;
+    const title=clean(body.title)||(isScorecardReport?'Agency Diagnostic Report':'Creative Creatures Report');
+    const filename=clean(body.filename)||(isScorecardReport?'agency-diagnostic-report.pdf':'creative-creatures-report.pdf');
+    let pdfBase64 = body.pdfBase64;
+    if (!pdfBase64 && (body.model || body.scorecard || body.scores || isScorecardReport)) {
+      try {
+        const model = body.model || body;
+        const pdfBytes = await generatePdfReport(model);
+        pdfBase64 = Buffer.from(pdfBytes).toString('base64');
+      } catch (genErr) {
+        console.warn('PDF generation error in api/email-report:', genErr);
+      }
+    }
+    const attachments=pdfBase64?[{filename,content:clean(pdfBase64)}]:undefined;
 
     const result=await sendEmail({
       to,
