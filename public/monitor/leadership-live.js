@@ -21,7 +21,7 @@
 
   function identity() {
     const account = currentAccount();
-    const tenant = clean(qs.get('tenant'));
+    const tenant = clean(qs.get('tenant') || qs.get('accountId') || sessionStorage.getItem('cc_admin_tenant'));
     return {
       accountId: tenant || (account.id && !String(account.id).startsWith('local-') ? account.id : ''),
       email: tenant ? '' : clean(account.email || localStorage.getItem('ccOwnerEmail')),
@@ -35,6 +35,8 @@
     if (id.accountId) params.set('accountId', id.accountId);
     if (id.email) params.set('email', id.email);
     if (id.agencyUrl) params.set('agencyUrl', id.agencyUrl);
+    const admin = clean(qs.get('admin') || sessionStorage.getItem('cc_admin_mode'));
+    if (admin) params.set('admin', admin);
     return params.toString();
   }
 

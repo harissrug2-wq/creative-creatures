@@ -199,8 +199,9 @@ async function findById(c,id){const rows=await db(c,`accounts?select=${SELECT}&i
 
 
 async function findWorkspaceAccount(c,id,session){
-  if (id) {
-    const rows=await db(c,`accounts?select=${encodeURIComponent(WORKSPACE_ACCOUNT_SELECT)}&id=eq.${encodeURIComponent(id)}&limit=1`);
+  const cleanId = String(id || '').trim();
+  if (cleanId) {
+    const rows=await db(c,`accounts?select=${encodeURIComponent(WORKSPACE_ACCOUNT_SELECT)}&id=eq.${encodeURIComponent(cleanId)}&limit=1`);
     const found = workspaceAccount(Array.isArray(rows)?rows[0]:null);
     if (found) return found;
   }
@@ -238,7 +239,12 @@ function currentSession(req, secret){
   let admin = null;
   try { admin = requireAdmin(req); } catch {}
   if (admin) {
-    const targetAccountId = String(req.query?.tenant || req.query?.accountId || req.query?.account_id || '').trim();
+    let body = {};
+    try { body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}); } catch {}
+    const targetAccountId = String(
+      req.query?.tenant || req.query?.accountId || req.query?.account_id ||
+      body?.tenant || body?.accountId || body?.account_id || ''
+    ).trim();
     return { role: 'admin', accountId: targetAccountId, isAdmin: true, username: admin.username };
   }
 
