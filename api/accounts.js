@@ -11,7 +11,7 @@ const lower = value => clean(value).toLowerCase();
 const finite = value => { const n = Number(value); return Number.isFinite(n) ? n : null; };
 const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,access_plan,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
 const ACCESS_PLANS = ['owner_archetype', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
-function normalizePlan(value, fallback = 'diagnostic') {
+function normalizePlan(value, fallback = 'owner_archetype') {
   const plan = lower(value).replace(/-/g, '_');
   return ACCESS_PLANS.includes(plan) ? plan : fallback;
 }
@@ -367,7 +367,7 @@ export default async function handler(req, res) {
       const normalizedUrl = normalizeAgencyUrl(agencyUrl);
       // Public account requests cannot self-assign a paid package. Signup plan
       // activation is performed by payment-confirmation after payment succeeds.
-      const accessPlan = isAdminRequest ? normalizePlan(body.accessPlan || body.access_plan || body.journey) : 'diagnostic';
+      const accessPlan = isAdminRequest ? normalizePlan(body.accessPlan || body.access_plan || body.journey) : 'owner_archetype';
       const journey = planJourney(accessPlan);
 
       if (!name || !email || !normalizedUrl) return json(res, 422, { error: 'Name, email, and agency URL are required.' });

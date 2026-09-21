@@ -174,7 +174,7 @@
     return lines;
   }
 
-  function wrapLine(text, max=88) {
+  function wrapLine(text, max=80) {
     const words=String(text).replace(/[\u2010-\u2015]/g,'-').replace(/[^\x20-\x7E]/g,'').split(/\s+/).filter(Boolean);
     const out=[]; let line='';
     words.forEach(word=>{const next=line?`${line} ${word}`:word;if(next.length>max&&line){out.push(line);line=word}else line=next});
@@ -182,20 +182,48 @@
   }
   function makePdfBytes(title, rawLines) {
     const lines=rawLines.flatMap(line=>wrapLine(line));
-    const pages=[]; for(let i=0;i<lines.length;i+=47) pages.push(lines.slice(i,i+47));
+    const pages=[]; for(let i=0;i<lines.length;i+=44) pages.push(lines.slice(i,i+44));
     const objects=[]; const add=body=>{objects.push(body);return objects.length};
-    const catalogId=add(''); const pagesId=add(''); const fontId=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+    const catalogId=add(''); const pagesId=add('');
+    const fontRegularId=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>');
+    const fontBoldId=add('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>');
     const pageIds=[];
+
     pages.forEach((pageLines,pageIndex)=>{
-      const content=['BT','/F1 11 Tf','50 760 Td'];
+      const content=[];
+      // Header background banner (Creative Creatures dark blue/black header)
+      content.push('0.06 0.07 0.09 rg 0 740 612 52 re f');
+      content.push('0.16 0.16 0.93 rg 0 736 612 4 re f'); // Accent bar
+      // Header brand text
+      content.push('BT /F2 13 Tf 1.0 1.0 1.0 rg 36 758 Td (CREATIVE CREATURES) Tj ET');
+      const docTitle = String(title).toUpperCase().replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+      content.push(`BT /F1 10 Tf 0.8 0.85 1.0 rg 36 746 Td (${docTitle} | DIAGNOSTIC REPORT) Tj ET`);
+
+      // Page content stream
+      content.push('BT /F1 10 Tf 0.1 0.1 0.1 rg 36 705 Td');
       pageLines.forEach((line,index)=>{
-        const safe=line.replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+        const isHeader = line === line.toUpperCase() && line.length > 2 && !line.includes(':');
+        const isSection = line.startsWith('AOFI:') || line.startsWith('Index score:') || line.startsWith('CREATIVE CREATURES');
+        const safe = line.replace(/\\/g,'\\\\').replace(/\(/g,'\\(').replace(/\)/g,'\\)');
+
+        if (isHeader || isSection) {
+          content.push('/F2 11 Tf 0.16 0.16 0.93 rg');
+        } else {
+          content.push('/F1 10 Tf 0.1 0.1 0.1 rg');
+        }
+
         if(index===0) content.push(`(${safe}) Tj`); else content.push(`0 -15 Td (${safe}) Tj`);
       });
       content.push('ET');
+
+      // Footer bar
+      content.push('0.95 0.95 0.96 rg 0 0 612 30 re f');
+      content.push('0.85 0.86 0.88 RG 0.5 w 0 30 612 30 m 612 30 l S');
+      content.push(`BT /F1 8 Tf 0.4 0.45 0.5 rg 36 12 Td (Creative Creatures Agency Intelligence Platform  |  Page ${pageIndex + 1} of ${pages.length}) Tj ET`);
+
       const stream=content.join('\n');
       const contentId=add(`<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
-      const pageId=add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontId} 0 R >> >> /Contents ${contentId} 0 R >>`);
+      const pageId=add(`<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 ${fontRegularId} 0 R /F2 ${fontBoldId} 0 R >> >> /Contents ${contentId} 0 R >>`);
       pageIds.push(pageId);
     });
     objects[catalogId-1]=`<< /Type /Catalog /Pages ${pagesId} 0 R >>`;
@@ -224,11 +252,13 @@
     const model=index==='scorecard'?scorecard():reports()[index];
     const email=String(recipient || account()?.email || localStorage.getItem('ccOwnerEmail') || '').trim();
     if(!/^\S+@\S+\.\S+$/.test(email)) throw new Error('Enter a valid email address.');
+    const acc = account();
+    const firstName = acc?.name ? acc.name.split(' ')[0] : (localStorage.getItem('ccOwnerFirstName') || '');
     try {
-      const response=await fetch('/api/email-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:email,index,title:model.title || 'Agency Scorecard',summary:textSummary(index),pdfBase64:pdfBase64(index),filename:`creative-creatures-${index}-report.pdf`})});
+      const response=await fetch('/api/email-report',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({to:email,index,type:index==='scorecard'?'scorecard':index,firstName,title:model.title || 'Agency Scorecard',summary:textSummary(index),pdfBase64:pdfBase64(index),filename:`creative-creatures-${index}-report.pdf`})});
       const payload=await response.json().catch(()=>({})); if(!response.ok) throw new Error(payload.error || 'Email delivery is not configured.'); return payload;
     } catch(error) {
-      const subject=encodeURIComponent(`Creative Creatures - ${model.title || 'Agency Scorecard'}`);
+      const subject=encodeURIComponent(`See your AOFI™ score, what is affecting it and where to focus next.`);
       const body=encodeURIComponent(textSummary(index).slice(0,7000));
       window.location.href=`mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
       return {fallback:true};

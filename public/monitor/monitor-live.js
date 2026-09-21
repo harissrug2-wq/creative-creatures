@@ -480,7 +480,10 @@
   async function load() {
     renderLoading();
     try {
-      const query = queryString();
+      let query = queryString();
+      if (!query && (qs.get('admin') === '1' || document.cookie.includes('cc_admin_session'))) {
+        query = 'admin=1';
+      }
       if (!query) throw new Error('Sign in to load Monitor.');
       const [goalsPayload, evidencePayload] = await Promise.all([
         jsonRequest(`/api/goals?${query}`),

@@ -2,7 +2,7 @@ import { readChat, sendChat } from '../lib/ask-creature-chat.js';
 import { WORKSPACE_ACCOUNT_SELECT, workspaceAccount, isCreatureGreeting, boundedCreatureHistory, compactCreatureData, creatureTimings } from '../lib/ask-creature-performance.js';
 import crypto from 'node:crypto';
 import { sendEmail, escapeHtml } from '../lib/email-service.js';
-import { accountSessionSecret, clearSessionCookie, hashPassword, parseCookies, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
+import { accountSessionSecret, clearSessionCookie, hashPassword, parseCookies, requireAdmin, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
 import { createJiraAuthorizationUrl, decryptJiraToken, encryptJiraToken, exchangeJiraCode, getJiraCurrentUser, jiraConfig, jiraTokenExpiry, listJiraIssues, listJiraIssueTypes, listJiraProjects, listJiraResources, listJiraTransitions, refreshJiraTokens, saveJiraIssue, transitionJiraIssue, verifyJiraOAuthState } from '../lib/jira.js';
 import { createZoomAuthorizationUrl, createZoomMeeting, decryptZoomToken, deleteZoomMeeting, encryptZoomToken, exchangeZoomCode, getZoomCurrentUser, getZoomMeeting, listZoomMeetings, refreshZoomTokens, revokeZoomToken, updateZoomMeeting, verifyZoomOAuthState, zoomConfig, zoomTokenExpiry } from '../lib/zoom.js';
 import { archiveGhlContact, archiveGhlOpportunity, createGhlAuthorizationUrl, decryptGhlToken, encryptGhlToken, exchangeGhlCode, getGhlLocation, ghlConfig, ghlTokenExpiry, listGhlContacts, listGhlOpportunities, listGhlPipelines, refreshGhlTokens, saveGhlContact, saveGhlOpportunity, verifyGhlOAuthState, verifyGhlWebhookSignature } from '../lib/ghl.js';
@@ -198,9 +198,17 @@ function pub(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_
 async function findById(c,id){const rows=await db(c,`accounts?select=${SELECT}&id=eq.${encodeURIComponent(id)}&limit=1`);return Array.isArray(rows)?rows[0]:null}
 
 
-async function findWorkspaceAccount(c,id){
-  const rows=await db(c,`accounts?select=${encodeURIComponent(WORKSPACE_ACCOUNT_SELECT)}&id=eq.${encodeURIComponent(id)}&limit=1`);
-  return workspaceAccount(Array.isArray(rows)?rows[0]:null);
+async function findWorkspaceAccount(c,id,session){
+  if (id) {
+    const rows=await db(c,`accounts?select=${encodeURIComponent(WORKSPACE_ACCOUNT_SELECT)}&id=eq.${encodeURIComponent(id)}&limit=1`);
+    const found = workspaceAccount(Array.isArray(rows)?rows[0]:null);
+    if (found) return found;
+  }
+  if (session?.role === 'admin' || session?.isAdmin) {
+    const rows=await db(c,`accounts?select=${encodeURIComponent(WORKSPACE_ACCOUNT_SELECT)}&order=created_at.desc&limit=1`);
+    return workspaceAccount(Array.isArray(rows)?rows[0]:null);
+  }
+  return null;
 }
 async function workspaceResult(res,action,work){
   const timing=creatureTimings(res,action);
@@ -210,7 +218,7 @@ async function workspaceResult(res,action,work){
 async function workspaceIdentity(c,session,timing){
   if(!session)throw Object.assign(new Error('Sign in to continue.'),{status:401});
   const [account,actor]=await Promise.all([
-    timing.run('account',()=>findWorkspaceAccount(c,session.accountId)),
+    timing.run('account',()=>findWorkspaceAccount(c,session.accountId,session)),
     timing.run('actor',()=>sessionActor(c,session))
   ]);
   if(!account||!actor)throw Object.assign(new Error('Your account access is no longer active.'),{status:401});
@@ -218,8 +226,23 @@ async function workspaceIdentity(c,session,timing){
 }
 
 function currentSession(req, secret){
-  const session=verifySession(parseCookies(req).cc_account_session,secret);
-  return session?.role==='account'&&session?.accountId?session:null;
+  let session = null;
+  try {
+    const token = parseCookies(req).cc_account_session;
+    if (typeof token === 'string' && token.includes('.')) {
+      session = verifySession(token, secret);
+    }
+  } catch {}
+  if (session?.role === 'account' && session?.accountId) return session;
+
+  let admin = null;
+  try { admin = requireAdmin(req); } catch {}
+  if (admin) {
+    const targetAccountId = String(req.query?.tenant || req.query?.accountId || req.query?.account_id || '').trim();
+    return { role: 'admin', accountId: targetAccountId, isAdmin: true, username: admin.username };
+  }
+
+  return null;
 }
 
 const DEPARTMENTS=['leadership','marketing','sales','billing','onboarding','service-delivery','client-success','talent-acquisition','finance','communication','systems','sops'];
@@ -232,7 +255,10 @@ const PLAN_FEATURES={
 };
 function planFromJourney(journey){return journey==='platform'?'platform':journey==='accelerator'?'accelerator':'diagnostic'}
 function accessPlan(account){return PLAN_FEATURES[account?.access_plan]?account.access_plan:planFromJourney(account?.journey)}
-function featuresForAccount(account){
+function featuresForAccount(account, actor){
+  if (actor?.role === 'admin' || actor?.isAdmin) {
+    return ['owner-archetype','bookkeeping','accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask'];
+  }
   const plan=accessPlan(account),purchased=Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[],features=new Set();
   for(const purchasedPlan of [...purchased,plan])for(const feature of PLAN_FEATURES[purchasedPlan]||[])features.add(feature);
   if(!features.size)for(const feature of PLAN_FEATURES.diagnostic)features.add(feature);
@@ -251,16 +277,17 @@ function featuresForAccount(account){
 function publicMember(row){return row?{id:row.id,name:row.name,email:row.email,role:'member',departments:Array.isArray(row.departments)?row.departments:[],status:row.status,invitedAt:row.invited_at,lastLoginAt:row.last_login_at}:null}
 async function sessionActor(c,session){
   if(!session)return null;
+  if(session.role==='admin')return{role:'admin',accountId:session.accountId,memberId:null,name:session.username||'Admin',email:'admin@creativecreatures.ai',departments:DEPARTMENTS,isAdmin:true};
   if(!session.memberId)return{role:'owner',accountId:session.accountId,memberId:null,departments:DEPARTMENTS};
   const rows=await db(c,`account_members?select=id,account_id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(session.accountId)}&id=eq.${encodeURIComponent(session.memberId)}&limit=1`),member=Array.isArray(rows)?rows[0]:null;
   return member?.status==='active'?{role:'member',accountId:session.accountId,memberId:member.id,name:member.name,email:member.email,departments:Array.isArray(member.departments)?member.departments:[]}:null;
 }
 function sanitizeDepartments(value){return [...new Set((Array.isArray(value)?value:[]).map(v=>clean(v).toLowerCase().replace(/[^a-z0-9]+/g,'-')).filter(v=>DEPARTMENTS.includes(v)))]}
-function requireOwner(actor){if(actor?.role!=='owner')throw Object.assign(new Error('Only the agency owner can manage users or integrations.'),{status:403})}
+function requireOwner(actor){if(actor?.role!=='owner'&&actor?.role!=='admin')throw Object.assign(new Error('Only the agency owner or administrator can manage users or integrations.'),{status:403})}
 function requireDepartment(actor,department){if(actor?.role==='member'){const norm=clean(department).toLowerCase().replace(/[^a-z0-9]+/g,'-');const memberDepts=(actor?.departments||[]).map(d=>clean(d).toLowerCase().replace(/[^a-z0-9]+/g,'-'));if(!memberDepts.includes(norm))throw Object.assign(new Error('Your account does not have access to this department.'),{status:403})}}
 function integrationFeature(action){return /^(quickbooks|freshbooks)_(connect|status|callback|sync|disconnect|dashboard|select_business)$/.test(action)?'bookkeeping':'integrations'}
-function requireFeature(account,feature){if(!featuresForAccount(account).includes(feature))throw Object.assign(new Error(`${feature.replace(/-/g,' ')} is not included in this agency plan.`),{status:403})}
-function publicAccess(account,actor){const plan=accessPlan(account),purchasedPlans=[...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);return{plan,purchasedPlans,features:featuresForAccount(account),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS}}
+function requireFeature(account,feature,actor){if(!featuresForAccount(account,actor).includes(feature))throw Object.assign(new Error(`${feature.replace(/-/g,' ')} is not included in this agency plan.`),{status:403})}
+function publicAccess(account,actor){const plan=accessPlan(account),purchasedPlans=[...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);return{plan,purchasedPlans,features:featuresForAccount(account,actor),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS,isAdmin:actor.role==='admin'||Boolean(actor.isAdmin)}}
 async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
 function responseText(payload){if(clean(payload?.output_text))return clean(payload.output_text);if(clean(payload?.choices?.[0]?.message?.content))return clean(payload.choices[0].message.content);for(const item of payload?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&clean(part.text))return clean(part.text);return''}
 
@@ -1166,7 +1193,12 @@ export default async function handler(req,res){
         return json(res,200,{connection:publicGoogleCalendarConnection(connection)});
       }
       if(!session)return json(res,401,{authenticated:false});
-      const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});
+      let account=session.accountId ? await findById(c,session.accountId) : null;
+      if(!account && session.role === 'admin') {
+        const latest = await db(c,`accounts?select=${SELECT}&order=created_at.desc&limit=1`);
+        account = Array.isArray(latest) ? latest[0] : null;
+      }
+      if(!account)return json(res,401,{authenticated:false});
       const actor=await sessionActor(c,session);if(!actor)return json(res,401,{authenticated:false});return json(res,200,{authenticated:true,account:pub(account),access:publicAccess(account,actor)});
     }
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
@@ -1175,7 +1207,10 @@ export default async function handler(req,res){
       return await workspaceResult(res,bodyAction,async timing=>{
         const {account,actor}=await workspaceIdentity(c,session,timing);
         requireFeature(account,'ask');
-        return{success:true,...await sendChat((path,options)=>db(c,path,options),account,actor,b)};
+        const conversationId=clean(b.conversationId)||crypto.randomUUID();
+        const requestId=clean(b.requestId)||crypto.randomUUID();
+        const messageCount=Number.isInteger(Number(b.messageCount))?Number(b.messageCount):0;
+        return{success:true,...await sendChat((path,options)=>db(c,path,options),account,actor,{...b,conversationId,requestId,messageCount})};
       });
     }
     if(['workspace_invite_user','workspace_update_user','workspace_remove_user'].includes(bodyAction)){
@@ -1188,7 +1223,7 @@ export default async function handler(req,res){
         const user=publicMember(rows?.[0]);
         let emailSent=false;
         try{
-          const origin=requestOrigin(req);
+          const origin = clean(process.env.APP_URL || process.env.STRIPE_APP_URL || process.env.VERCEL_URL).replace(/\/$/, '') || 'https://creativecreatures.ai';
           await sendEmail({
             to:email,
             subject:`You've been invited to join ${account.agency_name||account.name||'Creative Creatures'}`,
