@@ -1,3 +1,4 @@
+import { withQuickBooksRecovery } from '../lib/quickbooks.js';
 import { readChat, sendChat } from '../lib/ask-creature-chat.js';
 import { WORKSPACE_ACCOUNT_SELECT, workspaceAccount, isCreatureGreeting, boundedCreatureHistory, compactCreatureData, creatureTimings } from '../lib/ask-creature-performance.js';
 import crypto from 'node:crypto';
@@ -324,10 +325,11 @@ async function saveQuickBooksConnection(c,accountId,patch){
 async function deleteQuickBooksConnection(c,accountId){await db(c,`quickbooks_connections?account_id=eq.${encodeURIComponent(accountId)}`,{method:'DELETE'});}
 
 function tokenDates(tokens){const now=Date.now();return{access_token_expires_at:new Date(now+(Number(tokens.expires_in)||3600)*1000).toISOString(),refresh_token_expires_at:tokens.x_refresh_token_expires_in?new Date(now+Number(tokens.x_refresh_token_expires_in)*1000).toISOString():null}}
-async function ensureQuickBooksAccess(c,connection){
+async function ensureQuickBooksAccess(c,connection,force=false){
   const qbc=quickBooksConfig();if(!qbc)throw new Error('QuickBooks is not configured.');
   const expiresAt=Date.parse(connection.access_token_expires_at||'');
-  if(Number.isFinite(expiresAt)&&expiresAt>Date.now()+120000){return{connection,accessToken:decryptQuickBooksToken(connection.access_token_encrypted,qbc.encryptionSecret)}}
+  if(!force&&Number.isFinite(expiresAt)&&expiresAt>Date.now()+120000){return{connection,accessToken:decryptQuickBooksToken(connection.access_token_encrypted,qbc.encryptionSecret)}}
+  if(!connection.refresh_token_encrypted || Date.parse(connection.refresh_token_expires_at||'')<=Date.now())throw Object.assign(new Error('Reconnect QuickBooks to continue syncing.'),{status:401,code:'QUICKBOOKS_RECONNECT_REQUIRED'});
   const refreshToken=decryptQuickBooksToken(connection.refresh_token_encrypted,qbc.encryptionSecret);
   const tokens=await refreshQuickBooksTokens(refreshToken);
   const updated=await saveQuickBooksConnection(c,connection.account_id,{access_token_encrypted:encryptQuickBooksToken(tokens.access_token,qbc.encryptionSecret),refresh_token_encrypted:encryptQuickBooksToken(tokens.refresh_token||refreshToken,qbc.encryptionSecret),...tokenDates(tokens),scope:tokens.scope||connection.scope||'com.intuit.quickbooks.accounting',status:'connected',last_sync_error:null});
@@ -675,11 +677,13 @@ async function saveAccountingEvidence(c,runId,evidenceType,data,{provider='Quick
 
 async function syncQuickBooks(c,accountId){
   const connection=await getQuickBooksConnection(c,accountId);if(!connection||connection.status!=='connected')throw Object.assign(new Error('Connect QuickBooks before syncing.'),{status:409});
-  const {connection:refreshed,accessToken}=await ensureQuickBooksAccess(c,connection);const realmId=refreshed.realm_id;
   try{
-    const [pnl,balance,ar,clients,services]=await Promise.all([
+    const access=await ensureQuickBooksAccess(c,connection);
+    const [pnl,balance,ar,clients,services]=await withQuickBooksRecovery(access,()=>ensureQuickBooksAccess(c,connection,true),({connection:refreshed,accessToken})=>{
+      const realmId=refreshed.realm_id;
+      return Promise.all([
       fetchProfitLossEvidence({realmId,accessToken}),fetchBalanceSheetEvidence({realmId,accessToken}),fetchArAgingEvidence({realmId,accessToken}),fetchClientRevenueEvidence({realmId,accessToken}),fetchServiceRevenueEvidence({realmId,accessToken})
-    ]);
+    ]);});
     if(pnl?.monthlyOperatingExpenses!==null&&pnl?.monthlyOperatingExpenses!==undefined&&balance?.monthlyOperatingExpenses==null)balance.monthlyOperatingExpenses=pnl.monthlyOperatingExpenses;
     const run=await getOrCreateCurrentRun(c,accountId);
     const evidence=[];
@@ -690,7 +694,11 @@ async function syncQuickBooks(c,accountId){
     evidence.push(await saveAccountingEvidence(c,run.id,'service_revenue_mix',services));
     const synced=await saveQuickBooksConnection(c,accountId,{status:'connected',last_synced_at:new Date().toISOString(),last_sync_error:null});
     return{connection:publicQuickBooksConnection(synced),evidence:evidence.filter(Boolean),warnings:[...(balance?.warnings||[]),...(services?.warnings||[])]};
-  }catch(error){await saveQuickBooksConnection(c,accountId,{last_sync_error:error.message||'QuickBooks sync failed.'}).catch(()=>null);throw error}
+  }catch(error){
+    const reconnect=error.code==='invalid_grant'||error.code==='QUICKBOOKS_RECONNECT_REQUIRED';
+    if(reconnect){error.message='QuickBooks authorization expired or was revoked. Reconnect QuickBooks to continue syncing.';error.code='QUICKBOOKS_RECONNECT_REQUIRED';error.status=401;}
+    await saveQuickBooksConnection(c,accountId,{...(reconnect?{status:'error'}:{}),last_sync_error:error.message||'QuickBooks sync failed.'}).catch(()=>null);throw error
+  }
 }
 
 async function syncFreshBooks(c,accountId){
