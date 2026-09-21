@@ -1,3 +1,4 @@
+import { requireAccountSession, authorizedAccount } from '../lib/account-api-access.js';
 import { requireAdmin } from '../lib/session-utils.js';
 const json = (res, status, payload) => {
   res.statusCode = status;
@@ -11,7 +12,7 @@ const lower = value => clean(value).toLowerCase();
 const finite = value => { const n = Number(value); return Number.isFinite(n) ? n : null; };
 const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,access_plan,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
 const ACCESS_PLANS = ['owner_archetype', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
-function normalizePlan(value, fallback = 'diagnostic') {
+function normalizePlan(value, fallback = 'owner_archetype') {
   const plan = lower(value).replace(/-/g, '_');
   return ACCESS_PLANS.includes(plan) ? plan : fallback;
 }
@@ -344,8 +345,13 @@ export default async function handler(req, res) {
       if (rows.length > 1) return json(res, 409, { error: 'The email and agency URL belong to different accounts. Use one identifier.' });
 
       const account = rows[0];
+      if (String(req.headers?.cookie || '').includes('cc_account_session=')) {
+        const session = requireAccountSession(req);
+        const authorized = await authorizedAccount(req, {accountId:account.id}, session, config, supabaseRequest, SELECT);
+        return json(res, 200, {account:publicAccount(authorized)});
+      }
       await updateById(config, account.id, { last_lookup_at: new Date().toISOString() });
-      return json(res, 200, { account: publicAccount(account) });
+      return json(res, 200, { account: {id:account.id,name:account.name,email:account.email,agency_url:account.agency_url,agency_name:account.agency_name,journey:account.journey,accessPlan:account.access_plan} });
     }
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
@@ -367,7 +373,7 @@ export default async function handler(req, res) {
       const normalizedUrl = normalizeAgencyUrl(agencyUrl);
       // Public account requests cannot self-assign a paid package. Signup plan
       // activation is performed by payment-confirmation after payment succeeds.
-      const accessPlan = isAdminRequest ? normalizePlan(body.accessPlan || body.access_plan || body.journey) : 'diagnostic';
+      const accessPlan = isAdminRequest ? normalizePlan(body.accessPlan || body.access_plan || body.journey) : 'owner_archetype';
       const journey = planJourney(accessPlan);
 
       if (!name || !email || !normalizedUrl) return json(res, 422, { error: 'Name, email, and agency URL are required.' });
@@ -395,6 +401,12 @@ export default async function handler(req, res) {
 
       let account;
       if (existing.length === 1) {
+        if(!isAdminRequest){
+          const session=requireAccountSession(req);
+          if(session.memberId) return json(res,403,{error:'Only the agency owner can update the account.'});
+          await authorizedAccount(req,{accountId:existing[0].id},session,config,supabaseRequest,'id');
+          delete record.access_plan; delete record.journey;
+        }
         // Retaking/updating Owner Identity must not overwrite an existing
         // account's diagnostic history. Diagnostic progress is managed only
         // by /api/diagnostic-state.
@@ -424,6 +436,11 @@ export default async function handler(req, res) {
         accountId = rows[0].id;
       }
 
+      if(!requireAdmin(req)){
+        const session=requireAccountSession(req);
+        if(session.memberId) return json(res,403,{error:'Only the agency owner can update the account.'});
+        await authorizedAccount(req,{accountId},session,config,supabaseRequest,'id');
+      }
       const patch = {};
       if (body.diagnosticState || body.diagnostic_state) patch.diagnostic_state = body.diagnosticState || body.diagnostic_state;
       if (body.reportData || body.report_data) patch.report_data = body.reportData || body.report_data;
@@ -446,6 +463,6 @@ export default async function handler(req, res) {
     return json(res, 405, { error: 'Method not allowed.' });
   } catch (error) {
     console.error('accounts API error', error);
-    return json(res, error.status === 400 ? 400 : 500, { error: 'The account could not be saved or loaded.', code: 'ACCOUNT_API_ERROR' });
+    return json(res, [400,401,403,404,409,422].includes(error.status) ? error.status : 500, { error: 'The account could not be saved or loaded.', code: 'ACCOUNT_API_ERROR' });
   }
 }

@@ -31,7 +31,7 @@ begin
  select * into a from accounts where email_normalized=lower(p_email) for update;
  if a.id is not null and (p_account_id is null or p_account_id<>a.id) then return jsonb_build_object('error','Sign in as the agency owner before buying another package.'); end if;
  if p_account_id is not null and a.id is null then return jsonb_build_object('error','Account not found.'); end if;
- if a.id is not null and (a.access_plan=p_plan or coalesce(a.diagnostic_state->'purchasedPlans','[]'::jsonb)?p_plan) then return jsonb_build_object('error','This account already has this package.'); end if;
+ if a.id is not null and a.access_plan <> 'owner_archetype' and (a.access_plan=p_plan or coalesce(a.diagnostic_state->'purchasedPlans','[]'::jsonb)?p_plan) and coalesce((a.diagnostic_state->>'paymentComplete')::boolean, true) = true then return jsonb_build_object('error','This account already has this package.'); end if;
  if p_plan in ('platform','fractional_coo') and exists(select 1 from cc_stripe_orders where email=lower(p_email) and subscription_id is not null and subscription_status not in ('canceled','incomplete_expired')) then
   return jsonb_build_object('error','An existing subscription must be managed before starting another monthly package.');
  end if;

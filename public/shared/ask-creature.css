@@ -4,7 +4,7 @@
 .cc-chat-panel.is-open{transform:translateX(0)}
 .cc-chat-overlay button{font:inherit;cursor:pointer;transition:background .15s,border-color .15s;color:inherit}
 .cc-chat-overlay button:disabled{opacity:.5;cursor:wait}
-.cc-chat-overlay button:focus-visible,.cc-chat-overlay textarea:focus-visible{outline:3px solid #8b80ff;outline-offset:3px}
+.cc-chat-overlay button:focus-visible,.cc-chat-overlay textarea:focus-visible{outline:0px;outline-offset:3px}
 .cc-chat-header{display:flex;align-items:center;gap:12px;padding:20px 24px 16px;background:#ffffff;border-bottom:1px solid #f1f5f9}
 .cc-chat-brand{display:grid;place-items:center;width:38px;height:38px;flex-shrink:0;background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:5px;box-shadow:0 2px 8px rgba(15,23,42,0.06)}
 .cc-chat-brand-logo{width:100%;height:100%;object-fit:contain}

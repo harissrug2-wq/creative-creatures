@@ -1,3 +1,4 @@
+import { requireAccountSession, authorizedAccount } from '../lib/account-api-access.js';
 const BUCKET = 'diagnostic-evidence';
 const MAX_FILE_BYTES = 4 * 1024 * 1024;
 const DEFAULT_MODEL = 'gpt-4.1-mini';
@@ -1454,6 +1455,12 @@ export default async function handler(req, res) {
   if (!config) return json(res, 503, { error: 'Financial evidence backend is not configured.', code: 'BACKEND_NOT_CONFIGURED' });
 
   try {
+    const session = requireAccountSession(req);
+    const input = req.method === 'POST' ? parseBody(req) : {};
+    const account = await authorizedAccount(req, input, session, config, supabaseRequest, 'id,name,email,agency_url,agency_name,diagnostic_state');
+    if (session.memberId) return json(res, 403, {error:'Only the agency owner can manage financial evidence.'});
+    req.query = {...req.query, accountId:account.id, email:account.email, agencyUrl:account.agency_url};
+    req.body = {...input, accountId:account.id, email:account.email, agencyUrl:account.agency_url};
     if (req.method === 'GET') {
       const { account, run } = await requireContext(config, {
         accountId: req.query?.accountId,
