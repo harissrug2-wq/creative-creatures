@@ -118,8 +118,8 @@
         <p>Based on the quiz you completed at signup. It sets the frame for the three questionnaires below — how you lead shapes what the agency needs next.</p>
       </div>
       <div class="summary-actions">
-        <a class="diag-button primary" href="/owner-archetype/report/${encodeURIComponent(reportToken)}">▧ &nbsp;View report</a>
-        <a class="diag-button" href="/owner-archetype/assessment?retake=1">↻ &nbsp;Retake quiz</a>
+        <a class="diag-button primary" href="/owner-archetype/report/${encodeURIComponent(reportToken)}">View report</a>
+        <a class="diag-button" href="/owner-archetype/assessment?retake=1">↻ &nbsp;Retake</a>
       </div>
     </section>
 
