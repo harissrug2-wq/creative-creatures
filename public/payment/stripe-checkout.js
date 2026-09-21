@@ -14,8 +14,22 @@
   email.value=account?.email||localStorage.getItem('ccOwnerEmail')||'';
   const form=document.getElementById('paymentForm'),button=form.querySelector('button[type=submit]'),error=document.getElementById('paymentError');
   const showError=message=>{error.textContent=message;error.classList.add('show');};
-  async function request(action,body){const r=await fetch(`/api/payment-confirmation?action=${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw new Error(data.error||'Unable to complete checkout.');return data;}
-  form.addEventListener('submit',async event=>{event.preventDefault();button.disabled=true;error.textContent='';button.textContent='Opening Stripe…';try{const data=await request('checkout',{plan,email:email.value.trim()});const target=new URL(data.url);if(target.protocol!=='https:'||target.hostname!=='checkout.stripe.com')throw new Error('Unexpected checkout address.');location.assign(target.href);}catch(e){showError(e.message);button.disabled=false;button.textContent='Continue to secure payment';}});
+  async function request(action,body){const r=await fetch(`/api/payment-confirmation?action=${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.error||'Unable to complete checkout.'),{code:data.code});return data;}
+  const signOutButton=document.getElementById('checkoutSignOut');
+  signOutButton.addEventListener('click',async()=>{
+    if(signOutButton.disabled)return;
+    signOutButton.disabled=true;button.disabled=true;
+    try{
+      const response=await fetch('/api/account-auth',{method:'DELETE'});
+      if(!response.ok)throw new Error('Sign out failed. Please try again.');
+      ['ccSignedIn','cc_account','ccUserAccount'].forEach(key=>localStorage.removeItem(key));
+      // Keep the assessment email and report data needed for this purchase.
+      localStorage.setItem('ccOwnerEmail',email.value.trim());
+      signOutButton.hidden=true;button.disabled=false;
+      form.requestSubmit();
+    }catch(e){showError(e.message);signOutButton.disabled=false;button.disabled=false;}
+  });
+  form.addEventListener('submit' ,async event=>{event.preventDefault();signOutButton.hidden=true;signOutButton.disabled=false;button.disabled=true;error.textContent='';button.textContent='Opening Stripe…';try{const data=await request('checkout',{plan,email:email.value.trim()});const target=new URL(data.url);if(target.protocol!=='https:'||target.hostname!=='checkout.stripe.com')throw new Error('Unexpected checkout address.');location.assign(target.href);}catch(e){showError(e.message);signOutButton.hidden=e.code!=='MEMBER_CHECKOUT_SESSION';button.disabled=false;button.textContent='Continue to secure payment';}});
   if(query.get('cancelled')==='1')showError('Checkout was cancelled. No access was activated.');
   async function confirmPayment(){
     button.disabled=true;button.textContent='Checking payment…';

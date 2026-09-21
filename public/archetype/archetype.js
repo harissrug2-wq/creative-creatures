@@ -565,7 +565,7 @@
       STORE.set('ownerArchetypeReportData', data);
     }
     if (!data) {
-      app.innerHTML = `<main class="report-page">${logo()}<section class="missing-report"><h1>Your report is not available in this browser.</h1><p>Retake the questionnaire to create a new Owner Identity Report.</p><a class="nav-btn primary" href="/owner-archetype/assessment?retake=1">Retake quiz</a></section></main>`;
+      app.innerHTML = `<main class="report-page">${logo()}<section class="missing-report"><h1>Your report is not available in this browser.</h1><p>Retake the questionnaire to create a new Owner Identity Report.</p><a class="nav-btn primary" href="/owner-archetype/assessment?retake=1">Retake</a></section></main>`;
       return;
     }
 
