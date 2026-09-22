@@ -311,12 +311,18 @@
       const name=categoryModalBody.querySelector('#categoryRequestName').value.trim();
       const note=categoryModalBody.querySelector('#categoryRequestNote').value.trim();
       if(!name){categoryModalBody.querySelector('#categoryRequestResult').textContent='Enter the integration name first.';return}
+      const btn=categoryModalBody.querySelector('#categoryRequestSave');
+      if(btn)btn.disabled=true;
       const requests=safeJson(localStorage.getItem('agencyIntegrationRequests'),[]);
       requests.push({category:activeCategory,vendor:name,note,createdAt:new Date().toISOString()});
       localStorage.setItem('agencyIntegrationRequests',JSON.stringify(requests));
       await persistIntegrationState();
+      try{
+        await apiPost('request_integration',{integrationName:name,useCase:note,category:activeCategory});
+      }catch(err){console.warn('Integration request email failed',err);}
+      if(btn)btn.disabled=false;
       categoryModalBody.querySelector('#categoryRequestName').value='';categoryModalBody.querySelector('#categoryRequestNote').value='';
-      categoryModalBody.querySelector('#categoryRequestResult').textContent='✓ Request saved for this agency.';
+      categoryModalBody.querySelector('#categoryRequestResult').textContent='✓ Request saved and emailed to agency team.';
     }
     async function loadToolStatus(tool){
       stateMap.set(tool,{loading:true});render();

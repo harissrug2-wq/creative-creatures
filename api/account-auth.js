@@ -1560,17 +1560,33 @@ export default async function handler(req,res){
       return json(res,200,{success:true});
     }
     if(bodyAction==='request_integration'){
-      const integrationName=clean(b.integrationName||b.company||b.name);
+      const integrationName=clean(b.integrationName||b.vendor||b.name||b.company);
       if(!integrationName)return json(res,422,{error:'Integration name is required.'});
-      const useCase=clean(b.useCase||b.notes);
+      const useCase=clean(b.useCase||b.notes||b.note);
+      const category=clean(b.category);
+      const userEmail = session?.email || clean(b.email) || 'Anonymous';
+      const agencyName = session?.accountId ? 'Connected Agency Workspace' : 'Diagnostic Lead';
       try{
         await sendEmail({
           to: process.env.NOTIFICATION_EMAIL || 'support@creativecreatures.co',
           subject: `New Integration Request: ${integrationName}`,
-          html: `<p>A user requested a new integration:</p><ul><li><strong>Integration:</strong> ${escapeHtml(integrationName)}</li><li><strong>Use Case / Notes:</strong> ${escapeHtml(useCase||'N/A')}</li><li><strong>User:</strong> ${session?.email ? escapeHtml(session.email) : 'Anonymous'}</li></ul>`
-        }).catch(()=>null);
-      }catch{}
-      return json(res,200,{success:true,message:'Integration request received.'});
+          html: `<div style="font-family:Inter,Arial,sans-serif;color:#111218;line-height:1.6;max-width:600px;margin:0 auto;padding:28px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">` +
+            `<div style="margin-bottom:20px;border-bottom:2px solid #2563eb;padding-bottom:12px;">` +
+            `<span style="font-size:12px;font-weight:700;letter-spacing:1px;color:#2563eb;text-transform:uppercase;">Creative Creatures</span>` +
+            `<h2 style="font-size:20px;font-weight:700;color:#111218;margin:4px 0 0 0;">New Integration Request</h2>` +
+            `</div>` +
+            `<p style="font-size:15px;margin-bottom:16px;">A user has submitted a request for a new integration:</p>` +
+            `<ul style="font-size:15px;margin:0 0 20px 0;padding-left:24px;line-height:1.8;color:#1f2937;">` +
+            `<li><strong>Integration Name:</strong> ${escapeHtml(integrationName)}</li>` +
+            (category ? `<li><strong>Category / Section:</strong> ${escapeHtml(category)}</li>` : '') +
+            `<li><strong>Use Case / Notes:</strong> ${escapeHtml(useCase||'None provided')}</li>` +
+            `<li><strong>Requested By:</strong> ${escapeHtml(userEmail)} (${escapeHtml(agencyName)})</li>` +
+            `</ul>` +
+            `<p style="font-size:13px;color:#6b7280;margin-top:24px;">This notification was sent automatically from Creative Creatures.</p>` +
+            `</div>`
+        }).catch(err => console.warn('sendEmail catch:', err));
+      }catch(err){ console.error('Integration request email exception:', err); }
+      return json(res,200,{success:true,message:'Thank you! Your integration request has been received.'});
     }
 
     if(bodyAction==='google_calendar_disconnect'){

@@ -352,10 +352,11 @@
       submitBtn.disabled=true;
       submitBtn.textContent='Sending…';
       try{
+        const currentSection = sections[state.sectionIndex]?.title || 'Agency Performance Index';
         const res=await fetch('/api/account-auth',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({action:'request_integration',integrationName:name,useCase})
+          body:JSON.stringify({action:'request_integration',integrationName:name,useCase,category:currentSection})
         }).then(r=>r.json());
         alert(res.message||'Thank you! Your integration request has been received.');
         nameInput.value='';
@@ -496,7 +497,7 @@
           <button type="button" class="upload-button qb-btn" data-qb-connect="${section.id}">Connect QuickBooks</button>
           <button type="button" class="upload-button fb-btn" data-fb-connect="${section.id}">Connect FreshBooks</button>
           <label class="upload-button pdf-btn">${meta?'Replace PDF':'Upload PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
-          <button type="button" class="upload-button other-btn" data-other-integration="${section.id}">Other Integration...</button>
+          <button type="button" class="upload-button other-btn" data-other-integration="${section.id}">Request another integration</button>
           ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry automated extraction</button>`:''}
         </div>
       </div>
