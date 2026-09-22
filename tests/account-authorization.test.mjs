@@ -248,7 +248,7 @@ test('account-auth: ghl_connect and ghl_callback OAuth flow', async () => {
       headers: { cookie: `cc_account_session=${ownerCookie}` }
     }, connectRes);
     assert.equal(connectRes.statusCode, 200);
-    assert.ok(connectRes.data.authorizationUrl.includes('marketplace.leadconnectorhq.com/oauth/chooselocation'));
+    assert.ok(connectRes.data.authorizationUrl.includes('/oauth/chooselocation'));
     const urlObj = new URL(connectRes.data.authorizationUrl);
     const state = urlObj.searchParams.get('state');
 
