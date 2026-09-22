@@ -27,7 +27,7 @@
       const fail=m=>{spinner.style.display='none';errorEl.textContent=m;back.style.display='inline-flex'};
       back.onclick=()=>location.href='/integrations/';
       if(oauthError)return fail(oauthError==='access_denied'?'GoHighLevel connection was cancelled.':`GoHighLevel authorization failed: ${oauthError}`);
-      if(!code||!state)return fail('GoHighLevel did not return the required authorization information.');
+      if(!code)return fail('GoHighLevel did not return an authorization code.');
       try{
         const response=await fetch('/api/account-auth',{
           method:'POST',
