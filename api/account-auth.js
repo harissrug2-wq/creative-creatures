@@ -1030,11 +1030,15 @@ export default async function handler(req,res){
       if(session&&action){const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});requireFeature(account,action==='accelerator'?'accelerator':action==='partner_portal'?'portal':'integrations')}
 
       if(action==='callback'){
-        if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect GHL CRM.'});
+        if(!session){
+          res.statusCode=302;
+          res.setHeader('Location',`/portal/login.html?redirect_uri=${encodeURIComponent(req.url||'/integrations/')}`);
+          return res.end();
+        }
         const code=clean(req.query?.code),state=clean(req.query?.state),providerError=clean(req.query?.error_description||req.query?.error);
         if(providerError)return json(res,400,{error:providerError});
-        if(!code||!state)return json(res,422,{error:'The CRM provider did not return the required authorization values.'});
-        if(!verifyGhlOAuthState(state,session.accountId))return json(res,403,{error:'CRM authorization state is invalid or expired.'});
+        if(!code)return json(res,422,{error:'The CRM provider did not return the required authorization values.'});
+        if(state&&!verifyGhlOAuthState(state,session.accountId))return json(res,403,{error:'CRM authorization state is invalid or expired.'});
         const gc=ghlConfig(),tokens=await exchangeGhlCode(code),locationId=clean(tokens.locationId||tokens.location_id);
         if(!locationId||!tokens.refresh_token)return json(res,409,{error:'The CRM provider did not return a location and refresh token.'});
         let location={};try{location=await getGhlLocation(tokens.access_token,locationId)}catch{}
