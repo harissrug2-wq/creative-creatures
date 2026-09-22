@@ -150,7 +150,7 @@
       'Sage':{group:'Bookkeeping',code:'Sg',color:'#00a376',copy:'Accounting · reporting'},
       'FreshBooks':{group:'Bookkeeping',code:'Fb',color:'#0075dd',copy:'OAuth2 · clients · invoices · payments · expenses · reports',status:'freshbooks_status',connect:'freshbooks_connect',sync:'freshbooks_sync',disconnect:'freshbooks_disconnect',manage:'freshbooks'},
       'NetSuite':{group:'Bookkeeping',code:'Ns',color:'#425563',copy:'ERP · finance · reporting'},
-      'Stripe':{group:'Billing',code:'St',color:'#635bff',copy:'OAuth2 · charges · invoices · subscriptions'},
+      'Stripe':{group:'Billing',code:'St',color:'#635bff',copy:'Customers · draft invoices · payment status',status:'stripe_status',connect:'stripe_connect',disconnect:'stripe_disconnect',manage:'stripe'},
       'Square':{group:'Billing',code:'Sq',color:'#111',copy:'Payments · customers · orders'},
       'PayPal':{group:'Billing',code:'PP',color:'#0070ba',copy:'Payments · transactions'},
       'Chargebee':{group:'Billing',code:'Cb',color:'#6c48ff',copy:'Subscriptions · invoices'},
@@ -222,21 +222,28 @@
     const hide=id=>document.querySelector(id)?.classList.remove('show');
 
     async function apiGet(action){
+      if(action.startsWith('stripe_'))return stripeApi(action.slice(7),action!=='stripe_status');
       const r=await fetch(`/api/account-auth?action=${encodeURIComponent(action)}`);
       const p=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(p.error||'Integration request failed.');
       return p;
     }
     async function apiPost(action,data={}){
+      if(action.startsWith('stripe_'))return stripeApi(action.slice(7),true,data);
       const r=await fetch('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});
       const p=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(p.error||'Integration request failed.');
       return p;
     }
+    async function stripeApi(action,post=false,data={}){
+      const r=await fetch(`/api/agency-stripe/?action=${encodeURIComponent(action)}`,post?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{});
+      const result=await r.json();if(!r.ok)throw new Error(result.error||'Stripe request failed.');return result;
+    }
     function connectionFrom(payload){return payload?.connection||{connected:false}}
     function statusLabel(tool){
       const s=stateMap.get(tool);
       if(!meta[tool]?.status)return ['provisioning','Provisioning — our team is on it'];
+      if(s?.configured===false)return ['provisioning','Setup required'];
       if(s?.loading)return ['','Checking…'];
       if(s?.reconnectRequired)return ['error','Reconnect required'];
       if(s?.error)return ['error','Needs attention'];
@@ -261,7 +268,7 @@
       const supported=Boolean(m.status),connected=s.connected===true;
       let actions='';
       if(!supported)actions=`<span class="status provisioning">${label}</span><span class="working">● Working on it</span>`;
-      else if(!connected)actions=`<span class="status ${cls}">${label}</span><button class="btn primary" data-connect="${esc(tool)}">${s.reconnectRequired?'Reconnect':'Connect'}</button>`;
+      else if(!connected)actions=`<span class="status ${cls}">${label}</span><button class="btn primary" data-connect="${esc(tool)}" ${s.configured===false?'disabled':''}>${s.reconnectRequired?'Reconnect':'Connect'}</button>`;
       else actions=`<span class="status ${cls}">${label}</span>${m.manage?`<button class="btn" data-manage="${esc(tool)}">Manage</button>`:''}${m.sync?`<button class="btn" data-sync="${esc(tool)}">Sync now</button>`:''}${m.disconnect?`<button class="btn danger" data-disconnect="${esc(tool)}">Disconnect</button>`:''}`;
       return `<article class="integration-row"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="row-main"><div class="row-title"><strong>${esc(tool)}</strong>${connected?'<span class="active-source">active source</span>':''}</div><div class="row-copy">${esc(m.copy)}</div></div><div class="row-actions">${actions}</div></article>`;
     }
@@ -391,6 +398,7 @@
     document.querySelector('#modalClose').onclick=()=>hide('#dataModal');
 
     async function manageTool(tool){
+      if(tool==='Stripe'){location.href='/integrations/stripe/';return;}
       modalError.textContent='';modalTitle.textContent=tool;modalBody.innerHTML='<div class="data-item"><strong>Loading…</strong></div>';show('#dataModal');
       try{
         if(tool==='Google Meet')return await manageMeet();

@@ -1,3 +1,4 @@
+import agencyStripeHandler from '../lib/agency-stripe.js';
 import crypto from 'node:crypto';
 import { PLANS, clean, fail, json, settings, db, rpc, stripe, owner, rawBody, jsonBody, verifyWebhook, priceIds, checkoutParams, checkoutSettled, validatePaidSession } from '../lib/stripe-billing.js';
 import { hashPassword, signSession, verifySession, parseCookies, setSessionCookie, accountSessionSecret } from '../lib/session-utils.js';
@@ -117,6 +118,7 @@ async function webhook(req,res,raw){
   return json(res,200,{received:true});
 }
 export default async function handler(req,res){
+  if(req.query?.agency_stripe==='1')return agencyStripeHandler(req,res);
   try{
     const action=clean(req.query?.action);
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
