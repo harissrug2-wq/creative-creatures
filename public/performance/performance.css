@@ -237,3 +237,5 @@ html.performance-extraction-locked,body.performance-extraction-locked{overflow:h
     text-align: center;
   }
 }
+
+.bookkeeping-provider{display:inline-flex;align-items:center;gap:9px;white-space:normal;text-align:left}.bookkeeping-provider img{flex:0 0 24px;object-fit:contain}.bookkeeping-error{color:#b42318;font-size:14px}.bookkeeping-error:empty{display:none}

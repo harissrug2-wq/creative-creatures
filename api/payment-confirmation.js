@@ -132,7 +132,7 @@ export default async function handler(req,res){
       const session=owner(req);
       // Members cannot start owner checkout, even when supplying a different email.
       const anySession=verifySession(parseCookies(req).cc_account_session,accountSessionSecret());
-      if(anySession?.memberId)throw fail(403,'Only the agency owner can buy a package.');
+      if(anySession?.memberId)throw Object.assign(fail(403,'This browser is signed in as a team member. Sign out to purchase a package with your assessment email.'),{code:'MEMBER_CHECKOUT_SESSION'});
       let email=clean(b.email).toLowerCase();
       let accountId=null;
       if(session){
@@ -180,6 +180,6 @@ export default async function handler(req,res){
     return json(res,200,{paid:true,plan:fulfilled.plan,emailSent:Boolean(fulfilled.notification_sent_at),loginUrl:`${cfg.url}/login/`});
   }catch(error){
     console.error('Stripe billing error',{status:error.status||500,message:error.message});
-    return json(res,error.status||500,{error:error.status?error.message:'Payment processing is temporarily unavailable. Your payment will be retried automatically; do not pay again.'});
+    return json(res,error.status||500,{code:error.code==='MEMBER_CHECKOUT_SESSION'?error.code:undefined,error:error.status?error.message:'Payment processing is temporarily unavailable. Your payment will be retried automatically; do not pay again.'});
   }
 }

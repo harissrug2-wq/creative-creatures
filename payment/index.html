@@ -4,13 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Payment · Creative Creatures</title>
-  <link rel="icon" href="/favicon.svg">
+  <link rel="icon" href="/brand/creature-icon.png">
   <link rel="stylesheet" href="/portal/base.css">
   <link rel="stylesheet" href="/portal/payment.css">
 </head>
 <body class="payment-page">
   <main class="payment-shell">
-    <a class="payment-logo" href="/login/"><img src="/portal/creative-creatures-logo.png" alt="Creative Creatures"></a>
+    <a class="payment-logo" href="/login/"><img src="/brand/creature-logo.png" alt="Creative Creatures"></a>
     <section class="payment-progress" aria-label="Signup progress">
       <div class="pay-step complete"><span>✓</span><b>Account</b></div><i></i>
       <div class="pay-step complete"><span>✓</span><b>Plan</b></div><i></i>
@@ -27,6 +27,7 @@
           <div class="payment-note">Card details are entered securely on Stripe. All prices are in USD.</div>
           <p class="payment-terms-notice" style="margin-top:14px;font-size:12px;color:#717885;text-align:center;">By completing payment, you agree to Creative Creatures' <a href="/terms/" target="_blank" style="color:#2929ed;text-decoration:none;">Terms of Service</a> and <a href="/privacy-policy/" target="_blank" style="color:#2929ed;text-decoration:none;">Privacy Policy</a>.</p>
           <p class="payment-error" id="paymentError" role="alert"></p>
+          <button type="button" class="payment-submit payment-switch-session" id="checkoutSignOut" hidden>Sign out and continue with this email</button>
         </form>
       </section>
 

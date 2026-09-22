@@ -1,3 +1,4 @@
+import { requireAccountSession, authorizedAccount } from '../lib/account-api-access.js';
 const json = (res, status, payload) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -346,11 +347,9 @@ export default async function handler(req, res) {
     const diagnosticState = sanitizeDiagnosticState(body.diagnosticState || body.diagnostic_state || {});
     const reportData = body.reportData || body.report_data || {};
 
-    const account = await findAccount(config, {
-      accountId: body.accountId || body.account_id,
-      email: body.email,
-      agencyUrl: body.agencyUrl || body.agency_url
-    });
+    const session = requireAccountSession(req);
+    if(session.memberId) return json(res,403,{error:'Only the agency owner can save diagnostic results.'});
+    const account = await authorizedAccount(req, body, session, config, supabaseRequest, 'id,name,email,agency_url,agency_name,diagnostic_state,report_data');
 
     if (!account) return json(res, 404, { error: 'Account not found.', code: 'ACCOUNT_NOT_FOUND' });
 
@@ -392,7 +391,7 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('diagnostic-state API error', error);
-    const status = [400, 404, 409, 422].includes(error.status) ? error.status : 500;
+    const status = [400, 401, 403, 404, 409, 422].includes(error.status) ? error.status : 500;
     return json(res, status, {
       error: 'Diagnostic progress could not be saved.',
       code: 'DIAGNOSTIC_SYNC_ERROR'

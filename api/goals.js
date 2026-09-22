@@ -805,7 +805,7 @@ async function upsertTargets(config, accountId, targetInputs, metrics) {
   const records = [...unique.values()].map(input => targetRecord(accountId, input, metricMap.get(clean(input.metricId)) || null));
   const rows = await supabaseRequest(config, 'agency_goals?on_conflict=account_id%2Cmetric_id', {
     method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
     body: JSON.stringify(records)
   });
   return (Array.isArray(rows) ? rows : []).map(normalizeSavedTarget);
@@ -849,13 +849,18 @@ function normalizeSourceKey(value, title, index) {
   return `scorecard:${slug || 'rock'}:${index}`;
 }
 
+// Old scorecards used two keys for one capability; new requests share one key.
+function canonicalRockSourceKey(key) {
+  return String(key || '').replace(/^opportunity:/, 'issue:');
+}
+
 async function createRocks(config, accountId, scorecardId, items) {
   const defaultDueDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const input = Array.isArray(items) ? items.slice(0, 20) : [];
   const normalized = input
     .map((item, index) => ({
       sourceType: ['issue', 'opportunity', 'priority', 'manual'].includes(item?.sourceType) ? item.sourceType : 'scorecard',
-      sourceKey: normalizeSourceKey(item?.sourceKey, item?.title, index),
+      sourceKey: canonicalRockSourceKey(normalizeSourceKey(item?.sourceKey, item?.title, index)),
       title: clean(item?.title),
       description: clean(item?.description),
       owner: clean(item?.owner) || 'Agency Owner',
@@ -867,11 +872,16 @@ async function createRocks(config, accountId, scorecardId, items) {
 
   if (!normalized.length) return { added: 0, rows: [] };
 
-  const sourceKeys = [...new Set(normalized.map(item => item.sourceKey))];
   const existing = await getRocks(config, accountId);
-  const existingKeys = new Set((existing || []).map(row => row.source_key));
+  const existingKeys = new Set((existing || []).map(row => canonicalRockSourceKey(row.source_key)));
+  const newItems = normalized.filter(item => {
+    if (existingKeys.has(item.sourceKey)) return false;
+    existingKeys.add(item.sourceKey);
+    return true;
+  });
+  if (!newItems.length) return { added: 0, rows: [] };
 
-  const records = normalized.map(item => ({
+  const records = newItems.map(item => ({
     account_id: accountId,
     scorecard_id: scorecardId || null,
     source_type: item.sourceType,
@@ -887,11 +897,11 @@ async function createRocks(config, accountId, scorecardId, items) {
 
   const rows = await supabaseRequest(config, 'rocks?on_conflict=account_id%2Csource_key', {
     method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
+    headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
     body: JSON.stringify(records)
   });
 
-  return { added: sourceKeys.filter(key => !existingKeys.has(key)).length, rows: Array.isArray(rows) ? rows : [] };
+  return { added: Array.isArray(rows) ? rows.length : 0, rows: Array.isArray(rows) ? rows : [] };
 }
 
 async function updateRock(config, accountId, body) {

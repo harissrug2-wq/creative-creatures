@@ -363,7 +363,13 @@
   async function load() {
     loading();
     try{
-      const response=await fetch('/api/account-auth',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'monitor_department',department:page})});
+      const qs = new URLSearchParams(location.search);
+      const tenant = clean(qs.get('tenant') || qs.get('accountId') || sessionStorage.getItem('cc_admin_tenant'));
+      const admin = clean(qs.get('admin') || sessionStorage.getItem('cc_admin_mode'));
+      const bodyPayload = { action: 'monitor_department', department: page };
+      if (tenant) { bodyPayload.tenant = tenant; bodyPayload.accountId = tenant; }
+      if (admin) { bodyPayload.admin = admin; }
+      const response=await fetch('/api/account-auth',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(bodyPayload)});
       const payload=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(payload.error||'Department data could not be loaded.');
       state.payload=payload;render();

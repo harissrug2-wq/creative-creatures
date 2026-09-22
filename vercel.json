@@ -57,6 +57,9 @@
     }
   ],
   "functions": {
+    "api/account-auth.js": {
+      "maxDuration": 60
+    },
     "api/financial-evidence.js": {
       "maxDuration": 60
     },
