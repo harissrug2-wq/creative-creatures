@@ -1566,9 +1566,11 @@ export default async function handler(req,res){
       const category=clean(b.category);
       const userEmail = session?.email || clean(b.email) || 'Anonymous';
       const agencyName = session?.accountId ? 'Connected Agency Workspace' : 'Diagnostic Lead';
+      let emailed = false;
       try{
+        const recipient = clean(process.env.NOTIFICATION_EMAIL) || 'creature@creativecreatures.org';
         await sendEmail({
-          to: process.env.NOTIFICATION_EMAIL || 'support@creativecreatures.co',
+          to: recipient,
           subject: `New Integration Request: ${integrationName}`,
           html: `<div style="font-family:Inter,Arial,sans-serif;color:#111218;line-height:1.6;max-width:600px;margin:0 auto;padding:28px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">` +
             `<div style="margin-bottom:20px;border-bottom:2px solid #2563eb;padding-bottom:12px;">` +
@@ -1584,9 +1586,16 @@ export default async function handler(req,res){
             `</ul>` +
             `<p style="font-size:13px;color:#6b7280;margin-top:24px;">This notification was sent automatically from Creative Creatures.</p>` +
             `</div>`
-        }).catch(err => console.warn('sendEmail catch:', err));
+        });
+        emailed = true;
       }catch(err){ console.error('Integration request email exception:', err); }
-      return json(res,200,{success:true,message:'Thank you! Your integration request has been received.'});
+      return json(res,200,{
+        success: true,
+        emailed,
+        message: emailed
+          ? 'Thank you! Your integration request has been received and emailed to the agency team.'
+          : 'Thank you! Your integration request has been saved.'
+      });
     }
 
     if(bodyAction==='google_calendar_disconnect'){

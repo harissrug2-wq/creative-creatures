@@ -159,6 +159,34 @@ test('account-auth: workspace_invite_user enforced for owner entitlement and mem
     globalThis.fetch = oldFetch;
     console.error = oldError;
   }
+});test('account-auth: request_integration action handles email sending and returns emailed status', async () => {
+  const oldFetch = globalThis.fetch, oldError = console.error;
+  let sentEmailPayload = null;
+  globalThis.fetch = async (url, options = {}) => {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'api.resend.com') {
+      sentEmailPayload = JSON.parse(options.body);
+      return new Response(JSON.stringify({ id: 'msg_123' }), { status: 200 });
+    }
+    return new Response(JSON.stringify([]), { status: 200 });
+  };
+  console.error = () => {};
+  try {
+    process.env.RESEND_API_KEY = 're_test_key';
+    process.env.RESEND_FROM_EMAIL = 'support@creativecreatures.org';
+    const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(value) { this.data = JSON.parse(value); } };
+    await accountAuth({
+      method: 'POST',
+      body: { action: 'request_integration', integrationName: 'Salesforce', useCase: 'Sync CRM leads', category: 'CRM' },
+      headers: {}
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.data.success, true);
+    assert.equal(res.data.emailed, true);
+    assert.equal(sentEmailPayload.to[0], 'creature@creativecreatures.org');
+    assert.ok(sentEmailPayload.subject.includes('Salesforce'));
+  } finally {
+    globalThis.fetch = oldFetch;
+    console.error = oldError;
+  }
 });
-
-
