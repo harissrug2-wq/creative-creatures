@@ -4,6 +4,14 @@
   "trailingSlash": true,
   "rewrites": [
     {
+      "source": "/api/agency-stripe",
+      "destination": "/api/payment-confirmation?agency_stripe=1"
+    },
+    {
+      "source": "/api/agency-stripe/",
+      "destination": "/api/payment-confirmation?agency_stripe=1"
+    },
+    {
       "source": "/api/leadership-calendar-sync/",
       "destination": "/api/leadership?cron=calendar"
     },

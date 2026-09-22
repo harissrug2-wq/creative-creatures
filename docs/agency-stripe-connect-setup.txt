@@ -1,0 +1,119 @@
+CREATIVE CREATURES — AGENCY STRIPE CONNECT, PHASE 1
+
+Status: implemented and locally tested; NOT activated on your live Stripe account.
+Existing Creative Creatures package checkout continues using its existing STRIPE_* variables.
+Agency billing uses separate STRIPE_CONNECT_* configuration and database tables.
+
+Included
+- Agency-owner-only connection to an existing Stripe Standard account via OAuth.
+- Customer lists (25 records per page), creation, and name/email/phone editing.
+- Invoice lists (25 records per page), one-line draft invoice creation, reviewed finalization/send.
+- USD, GBP, EUR, CAD, AUD; amounts 1.00–999,999.99; due in 1–90 days.
+- Direct invoices on the connected account; no Creative Creatures commission added.
+- Stripe hosted invoice link and live payment status on Refresh.
+- Explicit disconnect and signed account.application.deauthorized webhook handling.
+- Customer/invoice mutations have durable retry identities. Uncertain requests older than
+  23 hours require checking Stripe manually, rather than risking duplication.
+
+Not included
+- Subscription creation/editing, refunds, automatic tax setup, invoice correction/voiding,
+  scheduled collection, multiple line items, team-member billing permissions, or automatic
+  propagation of Stripe figures into the accounting-evidence Billing dashboard.
+- Use the agency's Stripe Dashboard for these operations.
+- Disconnecting does NOT cancel invoices/subscriptions or delete customers/history in Stripe.
+
+1. APPLY CODE AND MIGRATION
+Apply this patch on current main (base 4193da2), review and run tests/build.
+Run supabase/migrations/20260922010000_agency_stripe_connect.sql in the same Supabase
+project as accounts. It adds three private tables and one service-role-only function.
+Do not run the older package-billing migration again as part of this change.
+Deploy initially with STRIPE_CONNECT_ENABLED=false (or absent).
+/api/agency-stripe/ rewrites to the existing payment-confirmation function's agency handler,
+so this change does not add a thirteenth Vercel function. Raw webhook bytes are preserved.
+Existing package checkout actions remain on their original handler.
+
+2. STRIPE CONNECT CONFIGURATION
+Use the Creative Creatures Stripe platform account; enable/configure Connect there.
+This implementation deliberately uses Standard OAuth to connect an EXISTING agency account.
+Stripe generally recommends hosted onboarding for new Connect platforms; hosted onboarding
+for newly provisioned accounts is not implemented here.
+Enable OAuth onboarding in Stripe Connect settings and obtain the correct test client ID.
+Some accounts controlled by another platform cannot grant read_write OAuth access.
+Register this exact redirect URI, including slash and query string:
+https://app.creativecreatures.org/api/agency-stripe/?action=callback
+
+Create a SEPARATE webhook destination for events on CONNECTED ACCOUNTS:
+https://app.creativecreatures.org/api/agency-stripe/?action=webhook
+Subscribe to account.application.deauthorized. Copy this destination's signing secret.
+Do not replace the existing package-checkout webhook or its signing secret.
+Invoice/customer status is fetched directly from Stripe on refresh; no payment events
+are needed for this phase. No background invoice-status synchronization is claimed.
+
+3. ENVIRONMENT VARIABLES (SERVER ONLY)
+STRIPE_CONNECT_ENABLED=true
+STRIPE_CONNECT_SECRET_KEY=<Stripe platform test secret key first>
+STRIPE_CONNECT_CLIENT_ID=<matching test OAuth client ID, ca_...>
+STRIPE_CONNECT_WEBHOOK_SECRET=<new connected-account webhook signing secret>
+STRIPE_CONNECT_APP_URL=https://app.creativecreatures.org
+
+Use the application's existing ACCOUNT_SESSION_SECRET, SUPABASE_URL and
+SUPABASE_SERVICE_ROLE_KEY. Do not change those values for this feature.
+The Connect key may belong to the same Stripe platform used for package billing, but
+set it under its separate name. Never substitute an agency user's secret key.
+Never expose these variables with a VITE_ prefix or paste secrets into chat.
+Vercel environment variable changes require a new deployment.
+
+4. SANDBOX ACCEPTANCE BEFORE LIVE ENABLEMENT
+Use test Connect credentials while preserving LIVE package-checkout credentials.
+Use an agency test workspace with a plan that includes integrations.
+Connect a separate test Stripe agency account, not the platform account itself.
+In Integrations > Stripe > Manage:
+- Create a customer with a test email, edit it, and refresh.
+- Create a 10.00 USD draft. Confirm it appears on the AGENCY Stripe account.
+- Review the total/recipient, finalize/send, and open the hosted invoice.
+- Stripe test sends produce events but do not deliver invoice emails.
+- Pay only in Stripe test mode using Stripe's test payment methods. Refresh and verify paid.
+- Verify a second agency cannot see or mutate the first agency's records.
+- Disconnect/reconnect. Verify revocation from Stripe also disables access here.
+- Confirm Creative Creatures' package checkout still opens with its existing prices.
+- Confirm more than 25 records can be paginated without repeating/skipping a page.
+Do not send a real invoice or charge a real customer during this test.
+
+5. SWITCH CONNECT TO LIVE
+After successful sandbox acceptance, use the LIVE platform key and matching LIVE OAuth
+client ID under STRIPE_CONNECT_*; configure the separate LIVE connected-account webhook
+and signing secret. Keep the same exact production redirect URI. Redeploy.
+Test and live connections/operations are stored separately; agencies must authorize live
+accounts again. Connect activation/account eligibility must be satisfied in Stripe.
+Do not overwrite the Creative Creatures STRIPE_SECRET_KEY, STRIPE_PRICE_*, or
+STRIPE_WEBHOOK_SECRET values.
+
+OPERATIONS AND RECOVERY
+Unfinished customer/invoice requests are retained in sessionStorage in the same browser tab.
+After a timeout use Resume unfinished billing request / Retry saved request. Do not close
+that tab and recreate the invoice before checking Stripe for an existing draft.
+Partial drafts are not marked ready and cannot be sent here; resume the original request
+or remove/correct the incomplete draft manually in the agency Stripe Dashboard.
+Finalizing an invoice is irreversible in the normal edit flow. Always review before send.
+A completed send is not replayed by repeated clicks. Use Stripe itself for reminder emails.
+If live OAuth exchange succeeds but database saving fails, restart Connect after fixing
+storage; an account may have authorized the platform even though local mapping failed.
+Expired OAuth state rows can be deleted periodically after their expires_at timestamp.
+Keep operation rows for idempotency/history; do not delete them to force a retry.
+For rollback set STRIPE_CONNECT_ENABLED=false and redeploy. This disables the new handler;
+existing invoices/subscriptions continue in Stripe. Keep the new tables for recovery.
+
+LOCAL VERIFICATION
+node --test tests/agency-stripe.test.mjs tests/stripe-billing.test.mjs tests/account-authorization.test.mjs
+npm run build
+Optional SQL test dependency: @electric-sql/pglite (test environment only).
+Optional DOM test dependency: jsdom (test environment only).
+PGLITE_MODULE and JSDOM_MODULE can point at separately installed test module files.
+node --test tests/agency-stripe-database.test.mjs tests/agency-stripe-ui.test.mjs
+Optional tests report skipped when their test dependencies are not installed.
+
+References:
+https://docs.stripe.com/connect/oauth-standard-accounts
+https://docs.stripe.com/connect/invoices
+https://docs.stripe.com/connect/webhooks
+https://docs.stripe.com/api/invoices/send

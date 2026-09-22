@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>Agency billing · Creative Creatures</title>
+<link rel="icon" href="/brand/creature-icon.png"><link rel="stylesheet" href="/integrations/stripe/style.css">
+<script src="/integrations/stripe/billing.js" defer></script>
+</head>
+<body><main>
+<header><div><a href="/integrations/">← Integrations</a><h1>Agency billing</h1><p>Manage your clients and invoices in your connected Stripe account.</p></div><div id="connection" role="status">Checking connection…</div></header>
+<div id="error" class="notice error" role="alert" hidden></div><div id="notice" class="notice" role="status" hidden></div>
+<div class="toolbar"><button id="connect" hidden>Connect Stripe</button><button id="refresh" hidden>Refresh</button><button id="disconnect" class="secondary" hidden>Disconnect</button></div>
+<section id="workspace" hidden>
+<nav aria-label="Billing views"><button id="customersTab" class="secondary">Customers</button><button id="invoicesTab" class="secondary">Invoices</button><a href="https://dashboard.stripe.com/" target="_blank" rel="noopener noreferrer">Open Stripe ↗</a></nav>
+<div class="toolbar"><h2 id="listTitle">Customers</h2><button id="newCustomer">New customer</button><button id="newInvoice">New invoice</button></div>
+<p id="scopeNote">Customers and invoices shown here belong to your agency’s Stripe account.</p>
+<div id="records" aria-live="polite"></div><button id="more" class="secondary" hidden>Load more</button>
+<p class="muted">Subscriptions, refunds, tax configuration, and invoice corrections are managed in Stripe. Disconnecting stops access here; it does not cancel invoices or subscriptions.</p>
+</section>
+<dialog id="editor"><form id="editorForm"><h2 id="editorTitle"></h2><div id="fields"></div><p id="formError" class="error" role="alert"></p><div class="toolbar"><button type="button" id="cancel" class="secondary">Cancel</button><button type="submit" id="save">Save</button></div></form></dialog>
+<dialog id="sendDialog"><form id="sendForm"><h2>Send invoice</h2><p id="sendSummary"></p><p>Stripe will finalize the invoice and email the payment link to this customer. This does not automatically charge a saved card.</p><p id="sendError" class="error" role="alert"></p><div class="toolbar"><button type="button" id="cancelSend" class="secondary">Cancel</button><button type="submit" id="confirmSend">Finalize and send</button></div></form></dialog>
+</main></body></html>

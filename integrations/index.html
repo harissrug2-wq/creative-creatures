@@ -27,15 +27,15 @@
     .status{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#f7f8f8;color:#718091;border-radius:999px;padding:6px 10px;font-size:11px;white-space:nowrap}.status:before{content:'';width:7px;height:7px;border-radius:50%;background:#aeb6c0}.status.connected{background:var(--green-soft);border-color:#d2ecda;color:#27804b}.status.connected:before{background:#22ad5a}.status.error{background:var(--red-soft);border-color:#f3d1ce;color:#a73a35}.status.error:before{background:#d45149}.status.provisioning{background:var(--amber-soft);border-color:#f3e1b0;color:#9b6e00}.status.provisioning:before{background:#e3a500}
     .working{background:var(--amber-soft);border:1px solid #ecd59b;color:#946600;border-radius:999px;padding:7px 11px;font-size:11px}
     .footnote{font-size:10px;color:#98a4b1;margin-top:18px}
-    .modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.46);backdrop-filter:blur(3px);z-index:300;display:none;place-items:center;padding:16px;overflow-y:auto}.modal-backdrop.show{display:grid}
-    .modal{width:min(920px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.2)}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.46);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:300;display:none;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;box-sizing:border-box}.modal-backdrop.show{display:flex}
+    .modal{width:min(920px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.2);margin:auto;box-sizing:border-box}
     .modal h2{margin:0 0 7px;font-size:25px}.modal>p{margin:0 0 18px;color:var(--muted);line-height:1.5;font-size:13px}.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:18px;position:sticky;bottom:-26px;background:#fff;padding:12px 0 2px}
     .modal-error{color:#a63333;font-size:12px;margin:10px 0}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}.data-list{display:grid;gap:9px;max-height:430px;overflow:auto;border:1px solid #e6e7eb;border-radius:13px;padding:12px}.data-item{border:1px solid var(--line);border-radius:11px;padding:12px 13px;background:#fbfbfa}.data-item strong{display:block;font-size:13px}.data-item span{display:block;color:#728094;font-size:11px;margin-top:4px;overflow-wrap:anywhere}
     .metric-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0}.metric{border:1px solid #cde8d5;background:#f8fdf9;border-radius:12px;padding:14px}.metric strong{font-size:20px;display:block}.metric span{font-size:11px;color:#6f7d8d}
-    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.field{display:grid;gap:5px;min-width:220px;flex:1}.field label{font-size:11px;font-weight:750}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:12px}.field textarea{min-height:85px;resize:vertical}
+    .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.field{display:grid;gap:5px;min-width:0;flex:1}.field label{font-size:11px;font-weight:750}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:12px;box-sizing:border-box}.field textarea{min-height:85px;resize:vertical}
     .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field.full{grid-column:1/-1}
-    .category-modal{width:min(840px,calc(100vw - 32px))}.catalog-section{padding:16px 0}.catalog-section+.catalog-section{border-top:1px solid var(--line)}.catalog-section h3{font-size:15px;margin:0 0 4px}.catalog-section>p{font-size:12px;color:var(--muted);margin:0 0 12px}.catalog-list{display:grid;gap:9px}.catalog-tool{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:11px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:11px}.catalog-tool .btn{min-height:34px}.catalog-copy{min-width:0}.catalog-copy strong{display:block;font-size:13px}.catalog-copy span{display:block;color:var(--muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}.request-grid{display:grid;grid-template-columns:1fr 1.4fr auto;gap:9px;align-items:end}.request-grid .field{min-width:0}.request-success{color:var(--green);font-size:12px;font-weight:700;margin-top:10px}
-    @media(max-width:900px){.page{width:calc(100% - 26px);padding-top:24px}.hero{flex-direction:column}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-row{grid-template-columns:38px minmax(0,1fr)}.row-actions{grid-column:1/-1;justify-content:flex-start;padding-left:50px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.request-grid{grid-template-columns:1fr}}
+    .category-modal{width:min(840px,calc(100vw - 32px))}.catalog-section{padding:16px 0}.catalog-section+.catalog-section{border-top:1px solid var(--line)}.catalog-section h3{font-size:15px;margin:0 0 4px}.catalog-section>p{font-size:12px;color:var(--muted);margin:0 0 12px}.catalog-list{display:grid;gap:9px}.catalog-tool{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:11px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:11px}.catalog-tool .btn{min-height:34px}.catalog-copy{min-width:0}.catalog-copy strong{display:block;font-size:13px}.catalog-copy span{display:block;color:var(--muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}.request-grid{display:grid;grid-template-columns:1fr 1.4fr auto;gap:9px;align-items:end}.request-grid .field{min-width:0}.request-success{color:var(--green);font-size:12px;font-weight:700;margin-top:10px;overflow-wrap:anywhere}
+    @media(max-width:900px){.page{width:calc(100% - 26px);padding-top:24px}.hero{flex-direction:column}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-row{grid-template-columns:38px minmax(0,1fr)}.row-actions{grid-column:1/-1;justify-content:flex-start;padding-left:50px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.request-grid{grid-template-columns:1fr;gap:12px}.request-grid .field input{font-size:16px}.request-grid .btn{width:100%;min-height:44px;margin-top:4px;font-size:15px}}
     @media(max-width:600px){.stats{grid-template-columns:1fr 1fr}.stat{padding:15px}.stat strong{font-size:25px}.group-head{align-items:flex-start}.integration-row{padding:14px}.row-actions{padding-left:0}.row-actions>*{flex:1}.row-actions .status{flex:0 0 100%;justify-content:center}.modal{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:18px 14px;border-radius:14px}.metric-grid,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions .btn{width:100%}.row-copy{white-space:normal}}
 
     /* CC_INTEGRATIONS_RESPONSIVE_HOTFIX_V1 */
@@ -44,9 +44,18 @@
     .integration-row>*{min-width:0}
     .row-actions .btn,.row-actions .working{max-width:100%;overflow-wrap:anywhere}
     .modal-backdrop{width:100%;max-width:100%;overflow-x:hidden}
-    .modal,#modalBody,.data-list,.toolbar,.metric-grid,.form-grid{min-width:0;max-width:100%}
+    .modal,#modalBody,.data-list,.toolbar,.metric-grid,.form-grid{min-width:0;max-width:100%;box-sizing:border-box}
     .metric-grid>*,.form-grid>*,.toolbar>*{min-width:0}
     .modal h2,.modal p,.data-item,.data-item *{overflow-wrap:anywhere}
+    @media(max-width:768px){
+      .modal-backdrop{padding:16px 10px;align-items:flex-start;justify-content:center}
+      .modal{width:calc(100vw - 20px);max-height:calc(100dvh - 24px);padding:20px 16px;border-radius:16px;margin:0 auto}
+      .category-modal{width:calc(100vw - 20px)}
+      .catalog-tool{grid-template-columns:34px minmax(0,1fr);gap:10px;padding:12px}.catalog-tool .btn{grid-column:1/-1;width:100%;min-height:42px;margin-top:6px;font-size:15px}
+      .request-grid{grid-template-columns:1fr;gap:12px}.request-grid .field input{font-size:16px}.request-grid .btn{width:100%;min-height:44px;margin-top:4px;font-size:15px}
+      .modal-actions{position:static;bottom:auto;margin-top:16px;padding:0;display:grid;grid-template-columns:1fr}
+      .modal-actions .btn{width:100%;min-height:44px;font-size:15px}
+    }
     @media(max-width:600px){
       .page{width:calc(100% - 20px)}
       .hero h1{font-size:32px}
@@ -61,7 +70,6 @@
       .modal-actions .btn{width:100%}
       .tabs .btn{flex:1 1 140px;white-space:normal}
       .field{min-width:0}
-      .catalog-tool{grid-template-columns:34px minmax(0,1fr)}.catalog-tool .btn{grid-column:1/-1;width:100%}
     }
   </style>
 </head>
@@ -142,12 +150,13 @@
       'Sage':{group:'Bookkeeping',code:'Sg',color:'#00a376',copy:'Accounting · reporting'},
       'FreshBooks':{group:'Bookkeeping',code:'Fb',color:'#0075dd',copy:'OAuth2 · clients · invoices · payments · expenses · reports',status:'freshbooks_status',connect:'freshbooks_connect',sync:'freshbooks_sync',disconnect:'freshbooks_disconnect',manage:'freshbooks'},
       'NetSuite':{group:'Bookkeeping',code:'Ns',color:'#425563',copy:'ERP · finance · reporting'},
-      'Stripe':{group:'Billing',code:'St',color:'#635bff',copy:'OAuth2 · charges · invoices · subscriptions'},
+      'Stripe':{group:'Billing',code:'St',color:'#635bff',copy:'Customers · draft invoices · payment status',status:'stripe_status',connect:'stripe_connect',disconnect:'stripe_disconnect',manage:'stripe'},
       'Square':{group:'Billing',code:'Sq',color:'#111',copy:'Payments · customers · orders'},
       'PayPal':{group:'Billing',code:'PP',color:'#0070ba',copy:'Payments · transactions'},
       'Chargebee':{group:'Billing',code:'Cb',color:'#6c48ff',copy:'Subscriptions · invoices'},
       'Bill.com':{group:'Billing',code:'Bi',color:'#0068ff',copy:'AP · AR · payments'},
       'GHL CRM':{group:'CRM',code:'GH',color:'#168ce5',copy:'OAuth2 · location-scoped · contacts · opportunities · pipelines',status:'ghl_status',connect:'ghl_connect',sync:'ghl_sync',disconnect:'ghl_disconnect',manage:'ghl'},
+      'GoHighLevel':{group:'CRM',code:'GH',color:'#168ce5',copy:'OAuth2 · location-scoped · contacts · opportunities · pipelines',status:'ghl_status',connect:'ghl_connect',sync:'ghl_sync',disconnect:'ghl_disconnect',manage:'ghl'},
       'HubSpot':{group:'CRM',code:'Hs',color:'#ff5c35',copy:'OAuth2 · contacts · companies · deals · pipelines',status:'hubspot_status',connect:'hubspot_connect',sync:'hubspot_dashboard',disconnect:'hubspot_disconnect',manage:'hubspot'},
       'Salesforce':{group:'CRM',code:'Sf',color:'#00a1e0',copy:'CRM · accounts · opportunities'},
       'Pipedrive':{group:'CRM',code:'Pd',color:'#22a06b',copy:'Deals · contacts · activities'},
@@ -213,21 +222,28 @@
     const hide=id=>document.querySelector(id)?.classList.remove('show');
 
     async function apiGet(action){
+      if(action.startsWith('stripe_'))return stripeApi(action.slice(7),action!=='stripe_status');
       const r=await fetch(`/api/account-auth?action=${encodeURIComponent(action)}`);
       const p=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(p.error||'Integration request failed.');
       return p;
     }
     async function apiPost(action,data={}){
+      if(action.startsWith('stripe_'))return stripeApi(action.slice(7),true,data);
       const r=await fetch('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...data})});
       const p=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(p.error||'Integration request failed.');
       return p;
     }
+    async function stripeApi(action,post=false,data={}){
+      const r=await fetch(`/api/agency-stripe/?action=${encodeURIComponent(action)}`,post?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}:{});
+      const result=await r.json();if(!r.ok)throw new Error(result.error||'Stripe request failed.');return result;
+    }
     function connectionFrom(payload){return payload?.connection||{connected:false}}
     function statusLabel(tool){
       const s=stateMap.get(tool);
       if(!meta[tool]?.status)return ['provisioning','Provisioning — our team is on it'];
+      if(s?.configured===false)return ['provisioning','Setup required'];
       if(s?.loading)return ['','Checking…'];
       if(s?.reconnectRequired)return ['error','Reconnect required'];
       if(s?.error)return ['error','Needs attention'];
@@ -252,7 +268,7 @@
       const supported=Boolean(m.status),connected=s.connected===true;
       let actions='';
       if(!supported)actions=`<span class="status provisioning">${label}</span><span class="working">● Working on it</span>`;
-      else if(!connected)actions=`<span class="status ${cls}">${label}</span><button class="btn primary" data-connect="${esc(tool)}">${s.reconnectRequired?'Reconnect':'Connect'}</button>`;
+      else if(!connected)actions=`<span class="status ${cls}">${label}</span><button class="btn primary" data-connect="${esc(tool)}" ${s.configured===false?'disabled':''}>${s.reconnectRequired?'Reconnect':'Connect'}</button>`;
       else actions=`<span class="status ${cls}">${label}</span>${m.manage?`<button class="btn" data-manage="${esc(tool)}">Manage</button>`:''}${m.sync?`<button class="btn" data-sync="${esc(tool)}">Sync now</button>`:''}${m.disconnect?`<button class="btn danger" data-disconnect="${esc(tool)}">Disconnect</button>`:''}`;
       return `<article class="integration-row"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="row-main"><div class="row-title"><strong>${esc(tool)}</strong>${connected?'<span class="active-source">active source</span>':''}</div><div class="row-copy">${esc(m.copy)}</div></div><div class="row-actions">${actions}</div></article>`;
     }
@@ -311,12 +327,22 @@
       const name=categoryModalBody.querySelector('#categoryRequestName').value.trim();
       const note=categoryModalBody.querySelector('#categoryRequestNote').value.trim();
       if(!name){categoryModalBody.querySelector('#categoryRequestResult').textContent='Enter the integration name first.';return}
+      const btn=categoryModalBody.querySelector('#categoryRequestSave');
+      if(btn)btn.disabled=true;
       const requests=safeJson(localStorage.getItem('agencyIntegrationRequests'),[]);
       requests.push({category:activeCategory,vendor:name,note,createdAt:new Date().toISOString()});
       localStorage.setItem('agencyIntegrationRequests',JSON.stringify(requests));
       await persistIntegrationState();
+      let emailed = false;
+      try{
+        const res = await apiPost('request_integration',{integrationName:name,useCase:note,category:activeCategory});
+        emailed = Boolean(res?.emailed);
+      }catch(err){console.warn('Integration request email failed',err);}
+      if(btn)btn.disabled=false;
       categoryModalBody.querySelector('#categoryRequestName').value='';categoryModalBody.querySelector('#categoryRequestNote').value='';
-      categoryModalBody.querySelector('#categoryRequestResult').textContent='✓ Request saved for this agency.';
+      categoryModalBody.querySelector('#categoryRequestResult').textContent = emailed
+        ? '✓ Request saved and emailed to agency team.'
+        : '✓ Request saved.';
     }
     async function loadToolStatus(tool){
       stateMap.set(tool,{loading:true});render();
@@ -361,9 +387,9 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',crm:'GHL CRM',ghl:'GHL CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com',jira:'Jira',zoom:'Zoom'};
+      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',crm:'GHL CRM',ghl:'GHL CRM',gohighlevel:'GHL CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com',jira:'Jira',zoom:'Zoom'};
       let changed=false;
-      Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
+      Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&(selected.includes(tool)||selected.includes('GoHighLevel'))){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
     }
 
@@ -372,12 +398,13 @@
     document.querySelector('#modalClose').onclick=()=>hide('#dataModal');
 
     async function manageTool(tool){
+      if(tool==='Stripe'){location.href='/integrations/stripe/';return;}
       modalError.textContent='';modalTitle.textContent=tool;modalBody.innerHTML='<div class="data-item"><strong>Loading…</strong></div>';show('#dataModal');
       try{
         if(tool==='Google Meet')return await manageMeet();
         if(tool==='Google Calendar')return manageCalendar();
         if(tool==='Google Drive')return manageDrive();
-        if(tool==='GHL CRM')return manageGhl();
+        if(tool==='GHL CRM'||tool==='GoHighLevel'||tool==='GHL')return manageGhl();
         if(tool==='HubSpot')return manageHubSpot();
         if(tool==='Zoho CRM')return manageZoho();
         if(tool==='FreshBooks')return manageFreshBooks();

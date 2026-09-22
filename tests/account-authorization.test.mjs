@@ -159,6 +159,112 @@ test('account-auth: workspace_invite_user enforced for owner entitlement and mem
     globalThis.fetch = oldFetch;
     console.error = oldError;
   }
+});test('account-auth: request_integration action handles email sending and returns emailed status', async () => {
+  const oldFetch = globalThis.fetch, oldError = console.error;
+  let sentEmailPayload = null;
+  globalThis.fetch = async (url, options = {}) => {
+    const parsed = new URL(url);
+    if (parsed.hostname === 'api.resend.com') {
+      sentEmailPayload = JSON.parse(options.body);
+      return new Response(JSON.stringify({ id: 'msg_123' }), { status: 200 });
+    }
+    return new Response(JSON.stringify([]), { status: 200 });
+  };
+  console.error = () => {};
+  try {
+    process.env.RESEND_API_KEY = 're_test_key';
+    process.env.RESEND_FROM_EMAIL = 'support@creativecreatures.org';
+    const res = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(value) { this.data = JSON.parse(value); } };
+    await accountAuth({
+      method: 'POST',
+      body: { action: 'request_integration', integrationName: 'Salesforce', useCase: 'Sync CRM leads', category: 'CRM' },
+      headers: {}
+    }, res);
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.data.success, true);
+    assert.equal(res.data.emailed, true);
+    assert.equal(sentEmailPayload.to[0], 'creature@creativecreatures.org');
+    assert.ok(sentEmailPayload.subject.includes('Salesforce'));
+  } finally {
+    globalThis.fetch = oldFetch;
+    console.error = oldError;
+  }
 });
 
+test('account-auth: ghl_connect and ghl_callback OAuth flow', async () => {
+  process.env.GHL_CLIENT_ID = 'ghl_client_test';
+  process.env.GHL_CLIENT_SECRET = 'ghl_secret_test';
+  process.env.GHL_REDIRECT_URI = 'http://localhost:5173/integrations/ghl/callback/';
+  const ownerCookie = token({ role: 'account', accountId: 'agency-a' });
+  const oldFetch = globalThis.fetch, oldError = console.error;
+  globalThis.fetch = async (url, options = {}) => {
+    const parsed = new URL(url);
+    if (parsed.pathname.endsWith('/oauth/token')) {
+      return new Response(JSON.stringify({
+        access_token: 'ghl_at_123',
+        refresh_token: 'ghl_rt_123',
+        expires_in: 86400,
+        locationId: 'loc_agency_a',
+        userType: 'Location'
+      }), { status: 200 });
+    }
+    if (parsed.pathname.includes('/locations/')) {
+      return new Response(JSON.stringify({ location: { id: 'loc_agency_a', name: 'Test Agency Location', timezone: 'America/New_York' } }), { status: 200 });
+    }
+    if (parsed.pathname.includes('/ghl_connections')) {
+      return new Response(JSON.stringify([{
+        id: 'ghl_conn_123',
+        account_id: 'agency-a',
+        location_id: 'loc_agency_a',
+        company_id: '',
+        location_name: 'Test Agency Location',
+        location_email: '',
+        location_phone: '',
+        timezone: 'America/New_York',
+        currency: 'USD',
+        country: 'US',
+        user_id: '',
+        user_type: 'Location',
+        scopes: [],
+        status: 'connected',
+        last_synced_at: null,
+        last_sync_error: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      }]), { status: 200 });
+    }
+    if (parsed.pathname.endsWith('/accounts')) {
+      return new Response(JSON.stringify([{ id: 'agency-a', access_plan: 'platform', diagnostic_state: {} }]), { status: 200 });
+    }
+    return new Response(JSON.stringify([]), { status: 200 });
+  };
+  console.error = () => {};
+  try {
+    // 1. ghl_connect returns authorizationUrl
+    const connectRes = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(value) { this.data = JSON.parse(value); } };
+    await accountAuth({
+      method: 'GET',
+      query: { action: 'ghl_connect' },
+      headers: { cookie: `cc_account_session=${ownerCookie}` }
+    }, connectRes);
+    assert.equal(connectRes.statusCode, 200);
+    assert.ok(connectRes.data.authorizationUrl.includes('marketplace.leadconnectorhq.com/oauth/chooselocation'));
+    const urlObj = new URL(connectRes.data.authorizationUrl);
+    const state = urlObj.searchParams.get('state');
+
+    // 2. POST ghl_callback completes connection
+    const callbackRes = { headers: {}, setHeader(k, v) { this.headers[k] = v; }, end(value) { this.data = JSON.parse(value); } };
+    await accountAuth({
+      method: 'POST',
+      body: { action: 'ghl_callback', code: 'valid_code_123', state },
+      headers: { cookie: `cc_account_session=${ownerCookie}` }
+    }, callbackRes);
+    assert.equal(callbackRes.statusCode, 200);
+    assert.equal(callbackRes.data.connected, true);
+    assert.equal(callbackRes.data.connection.locationId, 'loc_agency_a');
+  } finally {
+    globalThis.fetch = oldFetch;
+    console.error = oldError;
+  }
+});
 

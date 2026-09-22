@@ -1072,11 +1072,15 @@ export default async function handler(req,res){
       if(session&&action){const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});requireFeature(account,action==='accelerator'?'accelerator':action==='partner_portal'?'portal':integrationFeature(action))}
 
       if(action==='callback'){
-        if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect GHL CRM.'});
+        if(!session){
+          res.statusCode=302;
+          res.setHeader('Location',`/portal/login.html?redirect_uri=${encodeURIComponent(req.url||'/integrations/')}`);
+          return res.end();
+        }
         const code=clean(req.query?.code),state=clean(req.query?.state),providerError=clean(req.query?.error_description||req.query?.error);
         if(providerError)return json(res,400,{error:providerError});
-        if(!code||!state)return json(res,422,{error:'The CRM provider did not return the required authorization values.'});
-        if(!verifyGhlOAuthState(state,session.accountId))return json(res,403,{error:'CRM authorization state is invalid or expired.'});
+        if(!code)return json(res,422,{error:'The CRM provider did not return the required authorization values.'});
+        if(state&&!verifyGhlOAuthState(state,session.accountId))return json(res,403,{error:'CRM authorization state is invalid or expired.'});
         const gc=ghlConfig(),tokens=await exchangeGhlCode(code),locationId=clean(tokens.locationId||tokens.location_id);
         if(!locationId||!tokens.refresh_token)return json(res,409,{error:'The CRM provider did not return a location and refresh token.'});
         let location={};try{location=await getGhlLocation(tokens.access_token,locationId)}catch{}
@@ -1334,6 +1338,35 @@ export default async function handler(req,res){
     if(bodyAction==='jira_transition_issue'){if(!session)return json(res,401,{error:'Sign in before changing Jira issues.'});const{connection,accessToken}=await jiraConnectionAccess(c,session.accountId);await transitionJiraIssue(accessToken,connection.cloud_id,clean(b.issueKey),clean(b.transitionId));return json(res,200,{success:true})}
     if(bodyAction==='jira_disconnect'){if(!session)return json(res,401,{error:'Sign in before disconnecting Jira.'});await deleteJiraConnection(c,session.accountId);return json(res,200,{success:true,connection:publicJiraConnection(null)})}
 
+    if(bodyAction==='ghl_callback'){
+      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect GHL CRM.'});
+      const code=clean(b.code),state=clean(b.state),providerError=clean(b.error_description||b.error);
+      if(providerError)return json(res,400,{error:providerError});
+      if(!code||!state)return json(res,422,{error:'GoHighLevel did not return the required authorization values.'});
+      if(!verifyGhlOAuthState(state,session.accountId))return json(res,403,{error:'GoHighLevel authorization state is invalid or expired.'});
+      const gc=ghlConfig(),tokens=await exchangeGhlCode(code),locationId=clean(tokens.locationId||tokens.location_id);
+      if(!locationId||!tokens.refresh_token)return json(res,409,{error:'GoHighLevel did not return a location and refresh token.'});
+      let location={};try{location=await getGhlLocation(tokens.access_token,locationId)}catch{}
+      const saved=await saveGhlConnection(c,session.accountId,{
+        location_id:locationId,
+        company_id:clean(tokens.companyId||tokens.company_id),
+        location_name:clean(location.name),
+        location_email:clean(location.email),
+        location_phone:clean(location.phone),
+        timezone:clean(location.timezone),
+        currency:clean(location.currency),
+        country:clean(location.country),
+        access_token_encrypted:encryptGhlToken(tokens.access_token,gc.encryptionSecret),
+        refresh_token_encrypted:encryptGhlToken(tokens.refresh_token,gc.encryptionSecret),
+        access_token_expires_at:ghlTokenExpiry(tokens),
+        scopes:clean(tokens.scope).split(/\s+/).filter(Boolean),
+        user_id:clean(tokens.userId||tokens.user_id),
+        user_type:clean(tokens.userType||tokens.user_type)||'Location',
+        status:'connected',
+        last_sync_error:null
+      });
+      return json(res,200,{connected:true,connection:publicGhlConnection(saved)});
+    }
     if(bodyAction==='ghl_dashboard'||bodyAction==='ghl_sync'){if(!session)return json(res,401,{error:'Sign in before viewing CRM data.'});return json(res,200,{success:true,...await loadGhlDashboard(c,session.accountId)})}
     if(bodyAction==='ghl_save_contact'){if(!session)return json(res,401,{error:'Sign in before changing CRM contacts.'});const{connection,accessToken}=await ghlConnectionAccess(c,session.accountId);return json(res,200,{success:true,contact:await saveGhlContact(accessToken,connection.location_id,b.contact||{})})}
     if(bodyAction==='ghl_archive_contact'){if(!session)return json(res,401,{error:'Sign in before archiving CRM contacts.'});const{accessToken}=await ghlConnectionAccess(c,session.accountId);await archiveGhlContact(accessToken,clean(b.recordId));return json(res,200,{success:true})}
@@ -1610,17 +1643,42 @@ export default async function handler(req,res){
       return json(res,200,{success:true});
     }
     if(bodyAction==='request_integration'){
-      const integrationName=clean(b.integrationName||b.company||b.name);
+      const integrationName=clean(b.integrationName||b.vendor||b.name||b.company);
       if(!integrationName)return json(res,422,{error:'Integration name is required.'});
-      const useCase=clean(b.useCase||b.notes);
+      const useCase=clean(b.useCase||b.notes||b.note);
+      const category=clean(b.category);
+      const userEmail = session?.email || clean(b.email) || 'Anonymous';
+      const agencyName = session?.accountId ? 'Connected Agency Workspace' : 'Diagnostic Lead';
+      let emailed = false;
       try{
+        const recipient = clean(process.env.NOTIFICATION_EMAIL) || 'creature@creativecreatures.org';
         await sendEmail({
-          to: process.env.NOTIFICATION_EMAIL || 'support@creativecreatures.co',
+          to: recipient,
           subject: `New Integration Request: ${integrationName}`,
-          html: `<p>A user requested a new integration:</p><ul><li><strong>Integration:</strong> ${escapeHtml(integrationName)}</li><li><strong>Use Case / Notes:</strong> ${escapeHtml(useCase||'N/A')}</li><li><strong>User:</strong> ${session?.email ? escapeHtml(session.email) : 'Anonymous'}</li></ul>`
-        }).catch(()=>null);
-      }catch{}
-      return json(res,200,{success:true,message:'Integration request received.'});
+          html: `<div style="font-family:Inter,Arial,sans-serif;color:#111218;line-height:1.6;max-width:600px;margin:0 auto;padding:28px;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,0.04);">` +
+            `<div style="margin-bottom:20px;border-bottom:2px solid #2563eb;padding-bottom:12px;">` +
+            `<span style="font-size:12px;font-weight:700;letter-spacing:1px;color:#2563eb;text-transform:uppercase;">Creative Creatures</span>` +
+            `<h2 style="font-size:20px;font-weight:700;color:#111218;margin:4px 0 0 0;">New Integration Request</h2>` +
+            `</div>` +
+            `<p style="font-size:15px;margin-bottom:16px;">A user has submitted a request for a new integration:</p>` +
+            `<ul style="font-size:15px;margin:0 0 20px 0;padding-left:24px;line-height:1.8;color:#1f2937;">` +
+            `<li><strong>Integration Name:</strong> ${escapeHtml(integrationName)}</li>` +
+            (category ? `<li><strong>Category / Section:</strong> ${escapeHtml(category)}</li>` : '') +
+            `<li><strong>Use Case / Notes:</strong> ${escapeHtml(useCase||'None provided')}</li>` +
+            `<li><strong>Requested By:</strong> ${escapeHtml(userEmail)} (${escapeHtml(agencyName)})</li>` +
+            `</ul>` +
+            `<p style="font-size:13px;color:#6b7280;margin-top:24px;">This notification was sent automatically from Creative Creatures.</p>` +
+            `</div>`
+        });
+        emailed = true;
+      }catch(err){ console.error('Integration request email exception:', err); }
+      return json(res,200,{
+        success: true,
+        emailed,
+        message: emailed
+          ? 'Thank you! Your integration request has been received and emailed to the agency team.'
+          : 'Thank you! Your integration request has been saved.'
+      });
     }
 
     if(bodyAction==='google_calendar_disconnect'){
