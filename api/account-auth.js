@@ -1120,7 +1120,15 @@ export default async function handler(req,res){
       if(action==='jira_status'){if(!session)return json(res,401,{error:'Sign in before viewing Jira status.'});return json(res,200,{connection:publicJiraConnection(await getJiraConnection(c,session.accountId))})}
       if(action==='zoom_connect'){if(!session)return json(res,401,{error:'Sign in before connecting Zoom.'});if(!zoomConfig())return json(res,503,{error:'Zoom environment variables are not configured.'});return json(res,200,{authorizationUrl:createZoomAuthorizationUrl(session.accountId)})}
       if(action==='zoom_status'){if(!session)return json(res,401,{error:'Sign in before viewing Zoom status.'});return json(res,200,{connection:publicZoomConnection(await getZoomConnection(c,session.accountId))})}
-      if(action==='ghl_connect'){if(!session)return json(res,401,{error:'Sign in before connecting GHL CRM.'});if(!ghlConfig())return json(res,503,{error:'GHL CRM environment variables are not configured.'});return json(res,200,{authorizationUrl:createGhlAuthorizationUrl(session.accountId)})}
+      if(action==='ghl_connect'){
+        if(!session)return json(res,401,{error:'Sign in before connecting GHL CRM.'});
+        if(!ghlConfig())return json(res,503,{error:'GHL CRM environment variables are not configured.'});
+        // HighLevel draft-version Test Links return a code but no OAuth state.
+        // Keep a second, short-lived, HttpOnly signed binding so draft testing
+        // remains CSRF-safe without weakening the normal state validation.
+        setSessionCookie(res,'cc_ghl_oauth',signSession({purpose:'ghl-oauth-fallback',accountId:session.accountId},accountSessionSecret(),10*60),10*60);
+        return json(res,200,{authorizationUrl:createGhlAuthorizationUrl(session.accountId)});
+      }
       if(action==='ghl_status'){if(!session)return json(res,401,{error:'Sign in before viewing GHL CRM status.'});return json(res,200,{connection:publicGhlConnection(await getGhlConnection(c,session.accountId))})}
 
       if(action==='slack_connect'){
@@ -1342,8 +1350,13 @@ export default async function handler(req,res){
       if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect GHL CRM.'});
       const code=clean(b.code),state=clean(b.state),providerError=clean(b.error_description||b.error);
       if(providerError)return json(res,400,{error:providerError});
-      if(!code||!state)return json(res,422,{error:'GoHighLevel did not return the required authorization values.'});
-      if(!verifyGhlOAuthState(state,session.accountId))return json(res,403,{error:'GoHighLevel authorization state is invalid or expired.'});
+      if(!code)return json(res,422,{error:'GoHighLevel did not return an authorization code.'});
+      const cookieState=verifySession(parseCookies(req).cc_ghl_oauth,accountSessionSecret());
+      const stateValid=state
+        ? verifyGhlOAuthState(state,session.accountId)
+        : Boolean(cookieState?.purpose==='ghl-oauth-fallback'&&cookieState?.accountId===session.accountId);
+      if(!stateValid)return json(res,403,{error:'GoHighLevel authorization state is invalid or expired. Start the connection again from Creative Creatures.'});
+      clearSessionCookie(res,'cc_ghl_oauth');
       const gc=ghlConfig(),tokens=await exchangeGhlCode(code),locationId=clean(tokens.locationId||tokens.location_id);
       if(!locationId||!tokens.refresh_token)return json(res,409,{error:'GoHighLevel did not return a location and refresh token.'});
       let location={};try{location=await getGhlLocation(tokens.access_token,locationId)}catch{}
