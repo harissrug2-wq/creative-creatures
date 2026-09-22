@@ -156,6 +156,7 @@
       'Chargebee':{group:'Billing',code:'Cb',color:'#6c48ff',copy:'Subscriptions · invoices'},
       'Bill.com':{group:'Billing',code:'Bi',color:'#0068ff',copy:'AP · AR · payments'},
       'GHL CRM':{group:'CRM',code:'GH',color:'#168ce5',copy:'OAuth2 · location-scoped · contacts · opportunities · pipelines',status:'ghl_status',connect:'ghl_connect',sync:'ghl_sync',disconnect:'ghl_disconnect',manage:'ghl'},
+      'GoHighLevel':{group:'CRM',code:'GH',color:'#168ce5',copy:'OAuth2 · location-scoped · contacts · opportunities · pipelines',status:'ghl_status',connect:'ghl_connect',sync:'ghl_sync',disconnect:'ghl_disconnect',manage:'ghl'},
       'HubSpot':{group:'CRM',code:'Hs',color:'#ff5c35',copy:'OAuth2 · contacts · companies · deals · pipelines',status:'hubspot_status',connect:'hubspot_connect',sync:'hubspot_dashboard',disconnect:'hubspot_disconnect',manage:'hubspot'},
       'Salesforce':{group:'CRM',code:'Sf',color:'#00a1e0',copy:'CRM · accounts · opportunities'},
       'Pipedrive':{group:'CRM',code:'Pd',color:'#22a06b',copy:'Deals · contacts · activities'},
@@ -379,9 +380,9 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',crm:'GHL CRM',ghl:'GHL CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com',jira:'Jira',zoom:'Zoom'};
+      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',crm:'GHL CRM',ghl:'GHL CRM',gohighlevel:'GHL CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com',jira:'Jira',zoom:'Zoom'};
       let changed=false;
-      Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&selected.includes(tool)){changed=true}});
+      Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&(selected.includes(tool)||selected.includes('GoHighLevel'))){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
     }
 
@@ -395,7 +396,7 @@
         if(tool==='Google Meet')return await manageMeet();
         if(tool==='Google Calendar')return manageCalendar();
         if(tool==='Google Drive')return manageDrive();
-        if(tool==='GHL CRM')return manageGhl();
+        if(tool==='GHL CRM'||tool==='GoHighLevel'||tool==='GHL')return manageGhl();
         if(tool==='HubSpot')return manageHubSpot();
         if(tool==='Zoho CRM')return manageZoho();
         if(tool==='FreshBooks')return manageFreshBooks();

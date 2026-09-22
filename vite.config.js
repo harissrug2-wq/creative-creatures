@@ -68,6 +68,8 @@ export default defineConfig({
         integrationInformation: page('integration-information'),
         integrations: page('integrations'),
         partnerPortal: page('portal'),
+        ghlCallback: resolve(__dirname, 'integrations', 'ghl', 'callback', 'index.html'),
+        gohighlevelCallback: resolve(__dirname, 'integrations', 'gohighlevel', 'callback', 'index.html'),
         quickbooksCallback: resolve(__dirname, 'integrations', 'quickbooks', 'callback', 'index.html'),
         freshbooksCallback: resolve(__dirname, 'integrations', 'freshbooks', 'callback', 'index.html'),
         googleCalendarCallback: resolve(__dirname, 'integrations', 'google-calendar', 'callback', 'index.html'),

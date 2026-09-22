@@ -1284,6 +1284,35 @@ export default async function handler(req,res){
     if(bodyAction==='jira_transition_issue'){if(!session)return json(res,401,{error:'Sign in before changing Jira issues.'});const{connection,accessToken}=await jiraConnectionAccess(c,session.accountId);await transitionJiraIssue(accessToken,connection.cloud_id,clean(b.issueKey),clean(b.transitionId));return json(res,200,{success:true})}
     if(bodyAction==='jira_disconnect'){if(!session)return json(res,401,{error:'Sign in before disconnecting Jira.'});await deleteJiraConnection(c,session.accountId);return json(res,200,{success:true,connection:publicJiraConnection(null)})}
 
+    if(bodyAction==='ghl_callback'){
+      if(!session)return json(res,401,{error:'Your Creative Creatures login expired. Sign in again and reconnect GHL CRM.'});
+      const code=clean(b.code),state=clean(b.state),providerError=clean(b.error_description||b.error);
+      if(providerError)return json(res,400,{error:providerError});
+      if(!code||!state)return json(res,422,{error:'GoHighLevel did not return the required authorization values.'});
+      if(!verifyGhlOAuthState(state,session.accountId))return json(res,403,{error:'GoHighLevel authorization state is invalid or expired.'});
+      const gc=ghlConfig(),tokens=await exchangeGhlCode(code),locationId=clean(tokens.locationId||tokens.location_id);
+      if(!locationId||!tokens.refresh_token)return json(res,409,{error:'GoHighLevel did not return a location and refresh token.'});
+      let location={};try{location=await getGhlLocation(tokens.access_token,locationId)}catch{}
+      const saved=await saveGhlConnection(c,session.accountId,{
+        location_id:locationId,
+        company_id:clean(tokens.companyId||tokens.company_id),
+        location_name:clean(location.name),
+        location_email:clean(location.email),
+        location_phone:clean(location.phone),
+        timezone:clean(location.timezone),
+        currency:clean(location.currency),
+        country:clean(location.country),
+        access_token_encrypted:encryptGhlToken(tokens.access_token,gc.encryptionSecret),
+        refresh_token_encrypted:encryptGhlToken(tokens.refresh_token,gc.encryptionSecret),
+        access_token_expires_at:ghlTokenExpiry(tokens),
+        scopes:clean(tokens.scope).split(/\s+/).filter(Boolean),
+        user_id:clean(tokens.userId||tokens.user_id),
+        user_type:clean(tokens.userType||tokens.user_type)||'Location',
+        status:'connected',
+        last_sync_error:null
+      });
+      return json(res,200,{connected:true,connection:publicGhlConnection(saved)});
+    }
     if(bodyAction==='ghl_dashboard'||bodyAction==='ghl_sync'){if(!session)return json(res,401,{error:'Sign in before viewing CRM data.'});return json(res,200,{success:true,...await loadGhlDashboard(c,session.accountId)})}
     if(bodyAction==='ghl_save_contact'){if(!session)return json(res,401,{error:'Sign in before changing CRM contacts.'});const{connection,accessToken}=await ghlConnectionAccess(c,session.accountId);return json(res,200,{success:true,contact:await saveGhlContact(accessToken,connection.location_id,b.contact||{})})}
     if(bodyAction==='ghl_archive_contact'){if(!session)return json(res,401,{error:'Sign in before archiving CRM contacts.'});const{accessToken}=await ghlConnectionAccess(c,session.accountId);await archiveGhlContact(accessToken,clean(b.recordId));return json(res,200,{success:true})}
