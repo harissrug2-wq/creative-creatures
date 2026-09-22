@@ -6,7 +6,7 @@ import { sendEmail, escapeHtml } from '../lib/email-service.js';
 import { accountSessionSecret, clearSessionCookie, hashPassword, parseCookies, requireAdmin, setSessionCookie, signSession, verifyPassword, verifySession } from '../lib/session-utils.js';
 import { createJiraAuthorizationUrl, decryptJiraToken, encryptJiraToken, exchangeJiraCode, getJiraCurrentUser, jiraConfig, jiraTokenExpiry, listJiraIssues, listJiraIssueTypes, listJiraProjects, listJiraResources, listJiraTransitions, refreshJiraTokens, saveJiraIssue, transitionJiraIssue, verifyJiraOAuthState } from '../lib/jira.js';
 import { createZoomAuthorizationUrl, createZoomMeeting, decryptZoomToken, deleteZoomMeeting, encryptZoomToken, exchangeZoomCode, getZoomCurrentUser, getZoomMeeting, listZoomMeetings, refreshZoomTokens, revokeZoomToken, updateZoomMeeting, verifyZoomOAuthState, zoomConfig, zoomTokenExpiry } from '../lib/zoom.js';
-import { archiveGhlContact, archiveGhlOpportunity, createGhlAuthorizationUrl, decryptGhlToken, encryptGhlToken, exchangeGhlCode, getGhlLocation, ghlConfig, ghlTokenExpiry, listGhlContacts, listGhlOpportunities, listGhlPipelines, refreshGhlTokens, saveGhlContact, saveGhlOpportunity, verifyGhlOAuthState, verifyGhlWebhookSignature } from '../lib/ghl.js';
+import { archiveGhlContact, archiveGhlOpportunity, createGhlAuthorizationUrl, decryptGhlToken, encryptGhlToken, exchangeGhlCode, ensureGhlLocationTokens, getGhlLocation, ghlConfig, ghlInstallLocationId, ghlTokenExpiry, listGhlContacts, listGhlOpportunities, listGhlPipelines, refreshGhlTokens, saveGhlContact, saveGhlOpportunity, verifyGhlOAuthState, verifyGhlWebhookSignature } from '../lib/ghl.js';
 import {
   createMondayAuthorizationUrl,
   decryptMondayToken,
@@ -1126,7 +1126,7 @@ export default async function handler(req,res){
         // HighLevel draft-version Test Links return a code but no OAuth state.
         // Keep a second, short-lived, HttpOnly signed binding so draft testing
         // remains CSRF-safe without weakening the normal state validation.
-        setSessionCookie(res,'cc_ghl_oauth',signSession({purpose:'ghl-oauth-fallback',accountId:session.accountId},accountSessionSecret(),10*60),10*60);
+        setSessionCookie(res,'cc_ghl_oauth',signSession({purpose:'ghl-oauth-fallback',accountId:session.accountId,locationId:ghlInstallLocationId()},accountSessionSecret(),10*60),10*60);
         return json(res,200,{authorizationUrl:createGhlAuthorizationUrl(session.accountId)});
       }
       if(action==='ghl_status'){if(!session)return json(res,401,{error:'Sign in before viewing GHL CRM status.'});return json(res,200,{connection:publicGhlConnection(await getGhlConnection(c,session.accountId))})}
@@ -1357,8 +1357,8 @@ export default async function handler(req,res){
         : Boolean(cookieState?.purpose==='ghl-oauth-fallback'&&cookieState?.accountId===session.accountId);
       if(!stateValid)return json(res,403,{error:'GoHighLevel authorization state is invalid or expired. Start the connection again from Creative Creatures.'});
       clearSessionCookie(res,'cc_ghl_oauth');
-      const gc=ghlConfig(),tokens=await exchangeGhlCode(code),locationId=clean(tokens.locationId||tokens.location_id);
-      if(!locationId||!tokens.refresh_token)return json(res,409,{error:'GoHighLevel did not return a location and refresh token.'});
+      const gc=ghlConfig(),initialTokens=await exchangeGhlCode(code),tokens=await ensureGhlLocationTokens(initialTokens,clean(cookieState?.locationId)),locationId=clean(tokens.locationId||tokens.location_id);
+      if(!locationId||!tokens.refresh_token)return json(res,409,{error:'GoHighLevel did not return a usable sub-account token.'});
       let location={};try{location=await getGhlLocation(tokens.access_token,locationId)}catch{}
       const saved=await saveGhlConnection(c,session.accountId,{
         location_id:locationId,
