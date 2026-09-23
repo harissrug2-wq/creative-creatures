@@ -1,4 +1,5 @@
 import { withQuickBooksRecovery } from '../lib/quickbooks.js';
+import { readAgencyStripeContext } from '../lib/agency-stripe.js';
 import { readChat, sendChat } from '../lib/ask-creature-chat.js';
 import { WORKSPACE_ACCOUNT_SELECT, workspaceAccount, isCreatureGreeting, boundedCreatureHistory, compactCreatureData, creatureTimings } from '../lib/ask-creature-performance.js';
 import crypto from 'node:crypto';
@@ -1035,6 +1036,101 @@ async function savePartnerReferral(c,accountId,partnerAppId,intent){
   return{saved:true,...(Array.isArray(rows)?rows[0]||{}:{})};
 }
 
+
+function creatureCanRead(actor,departments=[]){
+  if(actor?.role!=='member')return true;
+  const allowed=new Set((actor.departments||[]).map(d=>clean(d).toLowerCase()));
+  return departments.some(d=>allowed.has(d));
+}
+async function creatureTrySource(sources,name,enabled,loader){
+  if(!enabled)return;
+  try{sources[name]=compactCreatureData(await loader(),10000)}
+  catch(error){sources[name]={available:false,error:clean(error?.message)||'This connected source is unavailable.'}}
+}
+async function buildAskCreatureLiveContext(c,account,actor,message){
+  const q=lower(message),sources={},now=new Date();
+  const wantsCalendar=/\b(calendar|meeting|meetings|schedule|scheduled|appointment|appointments|today|tomorrow|this week|next week|upcoming)\b/i.test(message);
+  const wantsCrm=/\b(crm|lead|leads|contact|contacts|opportunity|opportunities|pipeline|pipelines|deal|deals|sales)\b/i.test(message);
+  const wantsProjects=/\b(project|projects|task|tasks|issue|issues|ticket|tickets|board|boards|clickup|jira|monday|teamwork)\b/i.test(message);
+  const wantsComms=/\b(slack|google chat|chat space|chat spaces|channel|channels|communication|communications|workspace users)\b/i.test(message);
+  const wantsFinance=/\b(finance|financial|bookkeeping|revenue|profit|loss|balance sheet|accounts receivable|receivable|invoice|invoices|expense|expenses|freshbooks|quickbooks)\b/i.test(message);
+  const wantsDrive=/\b(google drive|drive file|drive files|document|documents|folder|folders|file|files)\b/i.test(message);
+  const wantsZoom=/\b(zoom|zoom meeting|zoom meetings)\b/i.test(message);
+
+  if(wantsCalendar&&creatureCanRead(actor,['leadership','communication','sales'])){
+    await creatureTrySource(sources,'googleCalendar',true,async()=>{
+      const row=await getGoogleCalendarConnection(c,account.id);
+      if(!row||row.status!=='connected')return{connected:false,message:'Google Calendar is not connected.'};
+      const {connection,accessToken}=await ensureGoogleCalendarAccess(c,row);
+      const calendars=await listGoogleCalendars({accessToken});
+      const selected=calendars.find(x=>x.id===(connection.calendar_id||'primary'))||calendars.find(x=>x.primary)||calendars[0]||null;
+      const timeMin=new Date(now.getTime()-90*24*60*60*1000).toISOString();
+      const timeMax=new Date(now.getTime()+180*24*60*60*1000).toISOString();
+      const events=await listGoogleCalendarEvents({accessToken,calendarId:connection.calendar_id||'primary',maxResults:100,timeMin,timeMax});
+      return{connected:true,connectedEmail:connection.connected_email||'',calendar:selected?{id:selected.id,summary:selected.summary,timeZone:selected.timeZone,primary:selected.primary}:null,currentTime:now.toISOString(),queryWindow:{timeMin,timeMax},events};
+    });
+  }
+
+  if(wantsCrm&&creatureCanRead(actor,['sales','marketing','client-success'])){
+    const explicitGhl=/\b(ghl|gohighlevel|highlevel)\b/i.test(message);
+    const explicitHubSpot=/\bhubspot\b/i.test(message);
+    const explicitZoho=/\bzoho\b/i.test(message);
+    const [ghlRow,hubRow,zohoRow]=await Promise.all([getGhlConnection(c,account.id),getHubSpotConnection(c,account.id),getZohoConnection(c,account.id)]);
+    await creatureTrySource(sources,'gohighlevel',(explicitGhl||(!explicitHubSpot&&!explicitZoho))&&ghlRow?.status==='connected',()=>loadGhlDashboard(c,account.id));
+    await creatureTrySource(sources,'hubspot',(explicitHubSpot||(!explicitGhl&&!explicitZoho))&&hubRow?.status==='connected',()=>loadHubSpotDashboard(c,account.id));
+    await creatureTrySource(sources,'zoho',(explicitZoho||(!explicitGhl&&!explicitHubSpot))&&zohoRow?.status==='connected',()=>loadZohoDashboard(c,account.id));
+    if(!ghlRow?.status?.includes('connected')&&!hubRow?.status?.includes('connected')&&!zohoRow?.status?.includes('connected'))sources.crm={connected:false,message:'No supported CRM is connected.'};
+  }
+
+  if(wantsProjects&&creatureCanRead(actor,['service-delivery','onboarding','client-success','systems'])){
+    const explicit={jira:/\bjira\b/i.test(message),clickup:/\bclickup\b/i.test(message),monday:/\bmonday(?:\.com)?\b/i.test(message),teamwork:/\bteamwork\b/i.test(message)};
+    const anyExplicit=Object.values(explicit).some(Boolean);
+    const [jiraRow,clickRow,mondayRow,teamworkRow]=await Promise.all([getJiraConnection(c,account.id),getClickUpConnection(c,account.id),getMondayConnection(c,account.id),getTeamworkConnection(c,account.id)]);
+    const options=[
+      ['jira',explicit.jira,jiraRow,()=>loadJiraDashboard(c,account.id)],
+      ['clickup',explicit.clickup,clickRow,()=>loadClickUpDashboard(c,account.id)],
+      ['monday',explicit.monday,mondayRow,()=>loadMondayDashboard(c,account.id)],
+      ['teamwork',explicit.teamwork,teamworkRow,()=>loadTeamworkDashboard(c,account.id)]
+    ];
+    let loaded=false;
+    for(const [name,isExplicit,row,loader] of options){
+      const enabled=row?.status==='connected'&&(isExplicit||(!anyExplicit&&!loaded));
+      if(enabled){await creatureTrySource(sources,name,true,loader);loaded=true}
+    }
+    if(!loaded)sources.projectTools={connected:false,message:'No supported project-management connection is available for this question.'};
+  }
+
+  if(wantsComms&&creatureCanRead(actor,['communication','leadership','systems'])){
+    const explicitSlack=/\bslack\b/i.test(message),explicitGoogle=/\bgoogle chat\b/i.test(message);
+    const [slackRow,chatRow]=await Promise.all([getSlackConnection(c,account.id),getGoogleChatConnection(c,account.id)]);
+    await creatureTrySource(sources,'slack',(explicitSlack||!explicitGoogle)&&slackRow?.status==='connected',()=>loadSlackDashboard(c,account.id));
+    await creatureTrySource(sources,'googleChat',(explicitGoogle||!explicitSlack)&&chatRow?.status==='connected',()=>loadGoogleChatDashboard(c,account.id));
+    if(slackRow?.status!=='connected'&&chatRow?.status!=='connected')sources.communications={connected:false,message:'No supported communication workspace is connected.'};
+  }
+
+  if(wantsFinance&&creatureCanRead(actor,['finance','billing'])){
+    await creatureTrySource(sources,'stripe',true,()=>readAgencyStripeContext(account.id));
+    const fb=await getFreshBooksConnection(c,account.id);
+    if(fb?.status==='connected')await creatureTrySource(sources,'freshbooks',true,()=>loadFreshBooksDashboard(c,account.id));
+    const qb=await getQuickBooksConnection(c,account.id);
+    if(qb?.status==='connected')sources.quickbooks={connected:true,companyName:qb.company_name||'',lastSyncedAt:qb.last_synced_at||null,note:'QuickBooks detailed financial evidence is available through the bookkeeping sync; Ask Creature does not trigger a new sync automatically.'};
+    if(fb?.status!=='connected'&&qb?.status!=='connected')sources.bookkeeping={connected:false,message:'No supported bookkeeping source is connected.'};
+  }
+
+  if(wantsDrive&&creatureCanRead(actor,['systems','leadership','marketing','sales','service-delivery'])){
+    const drive=await getGoogleDriveConnection(c,account.id);
+    sources.googleDrive=drive?.status==='connected'?{connected:true,connectedEmail:drive.connected_email||'',selectedItems:sanitizePickerItems(drive.selected_items||[]),lastRefreshedAt:drive.last_refreshed_at||null}:{connected:false,message:'Google Drive is not connected.'};
+  }
+
+  if(wantsZoom&&creatureCanRead(actor,['leadership','communication','sales'])){
+    const zoom=await getZoomConnection(c,account.id);
+    if(zoom?.status==='connected')await creatureTrySource(sources,'zoom',true,()=>loadZoomDashboard(c,account.id));
+    else sources.zoom={connected:false,message:'Zoom is not connected.'};
+  }
+
+  return Object.keys(sources).length?{retrievedAt:now.toISOString(),sources}:null;
+}
+
 export default async function handler(req,res){
   res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,X-GHL-Signature');
   if(req.method==='OPTIONS')return json(res,204,{});
@@ -1236,7 +1332,8 @@ export default async function handler(req,res){
         const conversationId=clean(b.conversationId)||crypto.randomUUID();
         const requestId=clean(b.requestId)||crypto.randomUUID();
         const messageCount=Number.isInteger(Number(b.messageCount))?Number(b.messageCount):0;
-        return{success:true,...await sendChat((path,options)=>db(c,path,options),account,actor,{...b,conversationId,requestId,messageCount})};
+        const liveContext=await timing.run('connected_data',()=>buildAskCreatureLiveContext(c,account,actor,clean(b.message)));
+        return{success:true,...await sendChat((path,options)=>db(c,path,options),account,actor,{...b,conversationId,requestId,messageCount},{liveContext})};
       });
     }
     if(['workspace_invite_user','workspace_update_user','workspace_remove_user'].includes(bodyAction)){

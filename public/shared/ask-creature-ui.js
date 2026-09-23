@@ -30,7 +30,7 @@
    <form class="cc-chat-form" data-no-loader="true">
      <label class="cc-chat-sr" for="ccChatInput">Your question</label>
      <div class="cc-chat-compose">
-       <textarea id="ccChatInput" rows="1" maxlength="4000" placeholder="Ask about Creative Creatures…" required></textarea>
+       <textarea id="ccChatInput" rows="1" maxlength="4000" placeholder="Ask about your agency, meetings, CRM, projects, finance…" required></textarea>
        <button type="submit" aria-label="Send message">↑</button>
      </div>
      <p class="cc-chat-footer-note" id="ccChatFooterNote">Creative Creatures guidance · Check important details</p>
@@ -79,7 +79,7 @@
    const card = el('section','cc-chat-welcome-card');
    card.append(
      el('h3','',`How can I help with ${topicName}?`),
-     el('p','',`Ask how Creative Creatures works, or choose a question below to get started.`)
+     el('p','',`Ask about Creative Creatures or data from your connected agency tools. I can look up supported calendar, CRM, project, communication and finance information you are allowed to access.`)
    );
 
    const suggestionsWrap = el('div','cc-chat-suggestions-wrap');
@@ -137,14 +137,14 @@
     const pageTopic = r.topic || 'Creative Creatures';
     wrap.querySelector('.cc-chat-page').textContent = pageTopic;
     if(badgeNode) badgeNode.textContent = `${pageTopic} guidance`;
-    if(input) input.placeholder = `Ask about ${pageTopic}...`;
+    if(input) input.placeholder = `Ask about ${pageTopic}, your agency data, or connected tools...`;
     if(footerNoteNode) footerNoteNode.textContent = `Creative Creatures guidance · ${pageTopic}`;
     if(view==='chat'&&!messages.length&&!sending)welcome();
   }).catch(e=>{
     if(!closed){
       faq={topic:'Creative Creatures',questions:[]};
       if(badgeNode) badgeNode.textContent = `Creative Creatures guidance`;
-      if(input) input.placeholder = `Ask about Creative Creatures...`;
+      if(input) input.placeholder = `Ask about your agency, meetings, CRM, projects, finance...`;
       if(footerNoteNode) footerNoteNode.textContent = `Creative Creatures guidance · Check important details`;
       if(view==='chat'&&!messages.length&&!sending)welcome();
       showError(e);
