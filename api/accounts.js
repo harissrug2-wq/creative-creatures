@@ -451,6 +451,13 @@ export default async function handler(req, res) {
           body: JSON.stringify(record)
         });
         account = Array.isArray(rows) ? rows[0] : rows;
+        const leadId = clean(body.leadId || body.lead_id);
+        if (account?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leadId)) {
+          await supabaseRequest(config, `owner_archetype_leads?id=eq.${encodeURIComponent(leadId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ converted_account_id: account.id, converted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          }).catch(error => console.error('Owner Identity lead conversion link failed', error));
+        }
         if (accessPlan === 'aofi_free' && account?.id) {
           const secret = accountSessionSecret();
           if (secret) {
