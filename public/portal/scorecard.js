@@ -24,6 +24,7 @@
   }
 
   if (model) window.CCReports.setScorecardModel?.(model);
+  const weakestRows = Array.isArray(model?.weakest) ? model.weakest : [];
 
   if (!model && state?.reportReady) {
     // Temporary migration fallback only. New generations are always stored
@@ -66,10 +67,10 @@
   }
   const issueSource = Array.isArray(model.issues) && model.issues.length
     ? model.issues
-    : model.weakest.map(row => ({ capability: row.name, index: row.index, indexTitle: row.indexTitle, score: row.score, description: `${row.indexTitle} is below the other measured capabilities and should be validated before the next planning cycle.` }));
+    : weakestRows.map(row => ({ capability: row.name, index: row.index, indexTitle: row.indexTitle, score: row.score, description: `${row.indexTitle} is below the other measured capabilities and should be validated before the next planning cycle.` }));
   const opportunitySource = Array.isArray(model.opportunities) && model.opportunities.length
     ? model.opportunities
-    : model.weakest.map(row => ({ capability: row.name, index: row.index, indexTitle: row.indexTitle, score: row.score, recommendation: model.reports[row.index]?.recommendation, estimatedLift: Math.max(1, Math.round((100-row.score)*.18)) }));
+    : weakestRows.map(row => ({ capability: row.name, index: row.index, indexTitle: row.indexTitle, score: row.score, recommendation: model.reports[row.index]?.recommendation, estimatedLift: Math.max(1, Math.round((100-row.score)*.18)) }));
   const capabilityKey = row => `${row.index || 'index'}:${String(row.capability || '').toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
   const opportunitiesByKey = new Map(opportunitySource.map(row => [capabilityKey(row), row]));
   const pairedIssues = [...new Map(issueSource.map(row => [capabilityKey(row), row])).values()];
@@ -239,7 +240,7 @@
     <div class="section-title"><div><div class="section-kicker">Section 01</div><h2>Executive Summary</h2></div><p>Headline score with VantageScore-style credit tracking and quarterly score movement analysis.</p></div>
     <section class="aofi-card">
       <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance (40%), Strength (40%), and Owner Independence (20%). Confidence is weighted using the same formula.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)}</strong></div><div class="aofi-stat"><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong></div></div><div class="aofi-action-row"><p class="aofi-footer-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Scores tracked quarterly with Creative Creatures Clarify™</p><button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnSummary" ${hasComparison ? '' : 'hidden'}><span>What changed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
-      <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(model.weakest[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[model.weakest[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">Create 90 Day Rock</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
+      <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(weakestRows[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[weakestRows[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">Create 90 Day Rock</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
     </section>
 
     <div class="section-title"><div><div class="section-kicker">Section 02</div><h2>Three Index Reports</h2></div><p>Reports appear here only after all three indexes are complete and generated.</p></div>
@@ -453,7 +454,7 @@
         <div class="modal-footer-takeaway">
           <div class="takeaway-text">
             <strong>Recommended Priority for Next Quarter</strong>
-            <p>${esc(model.reports[model.weakest[0]?.index || 'strength']?.recommendation || 'Focus on systemizing key operational capabilities to raise overall AOFI score.')}</p>
+            <p>${esc(model.reports[weakestRows[0]?.index || 'strength']?.recommendation || 'Focus on systemizing key operational capabilities to raise overall AOFI score.')}</p>
           </div>
           <button type="button" class="cc-modal-btn primary" id="modalCloseAction">Got it</button>
         </div>
@@ -524,7 +525,7 @@
     }
   });
   root.querySelector('#createSingleRock')?.addEventListener('click',async event=>{
-    const first=model.weakest[0],report=model.reports[first?.index||'strength'];
+    const first=weakestRows[0],report=model.reports[first?.index||'strength'];
     const button=event.currentTarget;
     button.disabled=true;
     try {
