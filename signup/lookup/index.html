@@ -39,12 +39,14 @@
   <script>
     const params=new URLSearchParams(location.search),requestedDestination=(params.get('destination')||'diagnostic').replace(/-/g,'_'),destination=['aofi_free','diagnostic','accelerator','platform','fractional_coo','owner_archetype'].includes(requestedDestination)?requestedDestination:'diagnostic';
     localStorage.setItem('ccProgramPath',destination);
+    const prefillEmail=String(params.get('email')||'').trim();
     const yesOption=document.getElementById('yesOption'),noOption=document.getElementById('noOption'),yesPanel=document.getElementById('yesPanel'),noPanel=document.getElementById('noPanel'),cta=document.getElementById('archetypeCta');
     cta.href='/owner-archetype/assessment/?destination='+encodeURIComponent(destination)+'&source=signup';
     if(destination==='aofi_free')cta.textContent='Start My Owner Identity Assessment →';
     cta.addEventListener('click',()=>localStorage.setItem('ccProgramPath',destination));
     function select(mode){const yes=mode==='yes';yesOption.classList.toggle('selected',yes);noOption.classList.toggle('selected',!yes);yesPanel.hidden=!yes;noPanel.hidden=yes;cta.hidden=yes;}
     yesOption.onclick=()=>select('yes');noOption.onclick=()=>select('no');
+    if(prefillEmail){document.getElementById('lookupEmail').value=prefillEmail;select('yes');}
     const resultsNode=document.getElementById('lookupResults');
     const esc=v=>String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     function selectLead(lead){
