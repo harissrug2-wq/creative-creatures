@@ -136,6 +136,7 @@
 
   const pagePlan = () => String(document.body.dataset.adminPlan || '').trim();
   const pagePlanLabel = () => ({
+    aofi_free: 'Free AOFI™',
     diagnostic: 'Diagnostic',
     accelerator: 'Accelerator',
     platform: 'Platform',
@@ -216,6 +217,7 @@
 
   function planLabel(account) {
     return ({
+      aofi_free: 'Free AOFI™',
       diagnostic: '1:1 Diagnostic',
       accelerator: 'Accelerator',
       platform: 'Platform',
@@ -279,20 +281,14 @@
 
           <div class="card-foot">
             <span class="since">since ${escapeHtml(formatDate(account.createdAt))}</span>
-            <button class="mini-btn" data-delete-id="${escapeHtml(account.id)}">Delete</button>
-            <a class="mini-btn" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>◉ Dashboard</a>
-            <a class="mini-btn primary" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>Manage →</a>
+            <a class="mini-btn" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>◉ Dashboard</a>
+            <a class="mini-btn primary" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>View →</a>
           </div>
         </article>`;
     }).join('');
 
-    grid.querySelectorAll('[data-delete-id]').forEach(button => {
-      button.addEventListener('click', async () => {
-        const id = button.dataset.deleteId;
-        if (!confirm(`Are you sure you want to remove this ${pagePlanLabel()} account?`)) return;
-        await deleteAccount(id);
-      });
-    });
+    // Account workspaces are intentionally read-only from the admin portfolio.
+    // Provisioning remains available through the dedicated account setup flows.
   }
 
   function renderOwnerArchetypeTable(items) {
@@ -445,7 +441,7 @@
             <strong>${account.completeCount}/3</strong>
             <div class="progress-cell"><div class="bar"><span style="width:${account.averageProgress}%"></span></div><span>${account.averageProgress}%</span></div>
             <div><span class="status-pill ${status.className}">${escapeHtml(status.label)}</span></div>
-            <div class="action-icons"><a class="circle-btn" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}" title="Open Dashboard">◉</a><a class="circle-btn primary" href="/platform/?admin=1&tenant=${encodeURIComponent(account.id)}" title="Manage Diagnostic">→</a></div>
+            <div class="action-icons"><a class="circle-btn" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" title="Open read-only workspace">◉</a><a class="circle-btn primary" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" title="View read-only workspace">→</a></div>
           </div>`;
       }).join('')}`;
   }

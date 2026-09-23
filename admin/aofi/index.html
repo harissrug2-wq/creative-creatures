@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Agencies · Creative Creatures Admin</title>
+  <title>Free AOFI™ Accounts · Creative Creatures Admin</title>
   <link rel="icon" href="/brand/creature-icon.png">
   <link rel="stylesheet" href="/admin/admin.css">
 </head>
-<body data-admin-plan="diagnostic">
+<body data-admin-plan="aofi_free">
   <div class="admin-app">
     <aside class="admin-side">
       <div class="admin-brand">
@@ -18,8 +18,8 @@
         <a class="admin-link" href="/admin/owner-archetypes/">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Owner Archetype
         </a>
-        <a class="admin-link" href="/admin/aofi/"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Free AOFI™</a>
-        <a class="admin-link active" href="/admin/">
+        <a class="admin-link active" href="/admin/aofi/"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Free AOFI™</a>
+        <a class="admin-link" href="/admin/">
           <svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg>Diagnostics
         </a>
         <a class="admin-link" href="/admin/accelerator/"><svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Accelerator</a>
@@ -36,11 +36,11 @@
     </aside>
     <div class="admin-overlay"></div>
     <div class="admin-main">
-      <header class="admin-top"><button class="admin-mobile">☰</button><span>Creative Creatures</span>&nbsp;/&nbsp;Admin&nbsp;/&nbsp;Diagnostics</header>
+      <header class="admin-top"><button class="admin-mobile">☰</button><span>Creative Creatures</span>&nbsp;/&nbsp;Admin&nbsp;/&nbsp;Free AOFI™</header>
       <main class="admin-content">
         <header class="admin-head">
-          <div><h1>Diagnostics</h1><p>1:1 Analysis &amp; Planning Diagnostic accounts.</p></div>
-          <div class="admin-head-actions"><span class="admin-updated" data-admin-updated></span><button class="admin-primary" data-new-agency>＋ New Diagnostic</button></div>
+          <div><h1>Free AOFI™ Accounts</h1><p>Free Agency Owner Freedom Index™ accounts created from the Owner Identity journey.</p></div>
+          <div class="admin-head-actions"><span class="admin-updated" data-admin-updated></span></div>
         </header>
         <p class="admin-inline-error" data-admin-error hidden></p>
         <section class="admin-grid" id="agencyGrid"></section>
@@ -48,17 +48,6 @@
     </div>
   </div>
 
-  <div class="admin-modal" id="newAgencyModal">
-    <div class="admin-dialog">
-      <h2>Add New Diagnostic</h2>
-      <form id="newAgencyForm">
-        <input type="text" id="newAgencyName" placeholder="Agency Name" required>
-        <input type="email" id="newAgencyEmail" placeholder="Owner Email" required>
-        <input type="text" id="newAgencyWebsite" placeholder="Agency Website" required>
-        <div class="dialog-actions"><button type="button" class="mini-btn" data-close-modal>Cancel</button><button type="submit" class="mini-btn primary">Create Diagnostic</button></div>
-      </form>
-    </div>
-  </div>
   <script src="/admin/admin-auth.js"></script>
   <script src="/admin/admin.js"></script>
 </body>

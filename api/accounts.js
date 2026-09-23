@@ -32,6 +32,24 @@ function requestOrigin(req) {
   const host = clean(req.headers?.['x-forwarded-host'] || req.headers?.host) || 'app.creativecreatures.org';
   return `${proto}://${host}`;
 }
+async function provisionAofiFreeAccess(req, config, account) {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const patch = {
+    password_hash: hashPassword(crypto.randomBytes(32).toString('hex')),
+    password_reset_token_hash: tokenHash(resetToken),
+    password_reset_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  };
+  const updated = await updateById(config, account.id, patch);
+  let emailSent = false;
+  try {
+    await sendAofiFreeWelcome(req, updated, resetToken);
+    emailSent = true;
+  } catch (error) {
+    console.error('AOFI free welcome email failed', error);
+  }
+  return { account: updated, emailSent };
+}
+
 async function sendAofiFreeWelcome(req, account, resetToken) {
   const origin = requestOrigin(req);
   const link = `${origin}/login/?reset=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(account.email)}`;
@@ -482,28 +500,55 @@ export default async function handler(req, res) {
       if (existing.length > 1) return json(res, 409, { error: 'The email and agency URL are already assigned to different accounts.' });
 
       let account;
+      let welcomeEmailSent = null;
       if (existing.length === 1) {
-        if(!isAdminRequest){
-          const session=requireAccountSession(req);
-          if(session.memberId) return json(res,403,{error:'Only the agency owner can update the account.'});
-          await authorizedAccount(req,{accountId:existing[0].id},session,config,supabaseRequest,'id');
-          delete record.access_plan; delete record.journey;
+        const existingAccount = existing[0];
+
+        // A public free-AOFI activation must never overwrite an existing paid
+        // or already-activated account. Send the user to the normal sign-in
+        // flow instead.
+        if (!isAdminRequest && requestedPlan === 'aofi_free') {
+          const existingPlan = normalizePlan(existingAccount.access_plan || existingAccount.journey, 'owner_archetype');
+          const sameEmail = lower(existingAccount.email) === email;
+          if (!sameEmail || existingPlan !== 'owner_archetype') {
+            return json(res, 409, {
+              error: 'This email already has a Creative Creatures account. Please sign in to continue.',
+              code: 'ACCOUNT_EXISTS',
+              loginUrl: `/login/?email=${encodeURIComponent(email)}`
+            });
+          }
+
+          // A completed Owner Identity record can be promoted to the free
+          // AOFI™ workspace without requiring a second sign-in first.
+          record.access_plan = 'aofi_free';
+          record.journey = 'diagnostic';
+          record.source = clean(body.source) || existingAccount.source || 'owner-archetype';
+          account = await updateById(config, existingAccount.id, record);
+          const provisioned = await provisionAofiFreeAccess(req, config, account);
+          account = provisioned.account;
+          welcomeEmailSent = provisioned.emailSent;
+
+          const secret = accountSessionSecret();
+          if (secret) {
+            const sessionToken = signSession({ role: 'account', accountId: account.id, email: account.email }, secret, 30 * 24 * 60 * 60);
+            setSessionCookie(res, 'cc_account_session', sessionToken, 30 * 24 * 60 * 60);
+          }
+        } else {
+          if(!isAdminRequest){
+            const session=requireAccountSession(req);
+            if(session.memberId) return json(res,403,{error:'Only the agency owner can update the account.'});
+            await authorizedAccount(req,{accountId:existingAccount.id},session,config,supabaseRequest,'id');
+            delete record.access_plan; delete record.journey;
+          }
+          // Retaking/updating Owner Identity must not overwrite an existing
+          // account's diagnostic history. Diagnostic progress is managed only
+          // by /api/diagnostic-state.
+          account = await updateById(config, existingAccount.id, record);
         }
-        // Retaking/updating Owner Identity must not overwrite an existing
-        // account's diagnostic history. Diagnostic progress is managed only
-        // by /api/diagnostic-state.
-        account = await updateById(config, existing[0].id, record);
       } else {
         // A truly new account always begins with a clean diagnostic state,
         // regardless of any stale browser payload sent by the client.
         record.diagnostic_state = EMPTY_DIAGNOSTIC_STATE;
-        let freeResetToken = '';
-        if (accessPlan === 'aofi_free') {
-          freeResetToken = crypto.randomBytes(32).toString('hex');
-          record.password_hash = hashPassword(crypto.randomBytes(32).toString('hex'));
-          record.password_reset_token_hash = tokenHash(freeResetToken);
-          record.password_reset_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-        }
         const rows = await supabaseRequest(config, 'accounts', {
           method: 'POST',
           headers: { Prefer: 'return=representation' },
@@ -518,15 +563,17 @@ export default async function handler(req, res) {
           }).catch(error => console.error('Owner Identity lead conversion link failed', error));
         }
         if (accessPlan === 'aofi_free' && account?.id) {
+          const provisioned = await provisionAofiFreeAccess(req, config, account);
+          account = provisioned.account;
+          welcomeEmailSent = provisioned.emailSent;
           const secret = accountSessionSecret();
           if (secret) {
             const sessionToken = signSession({ role: 'account', accountId: account.id, email: account.email }, secret, 30 * 24 * 60 * 60);
             setSessionCookie(res, 'cc_account_session', sessionToken, 30 * 24 * 60 * 60);
           }
-          if (freeResetToken) sendAofiFreeWelcome(req, account, freeResetToken).catch(error => console.error('AOFI free welcome email failed', error));
         }
       }
-      return json(res, 200, { account: publicAccount(account), authenticated: accessPlan === 'aofi_free' });
+      return json(res, 200, { account: publicAccount(account), authenticated: accessPlan === 'aofi_free', welcomeEmailSent });
     }
 
     if (req.method === 'PATCH') {
