@@ -296,7 +296,7 @@ function requireOwner(actor){if(actor?.role!=='owner'&&actor?.role!=='admin')thr
 function requireDepartment(actor,department){if(actor?.role==='member'){const norm=clean(department).toLowerCase().replace(/[^a-z0-9]+/g,'-');const memberDepts=(actor?.departments||[]).map(d=>clean(d).toLowerCase().replace(/[^a-z0-9]+/g,'-'));if(!memberDepts.includes(norm))throw Object.assign(new Error('Your account does not have access to this department.'),{status:403})}}
 function integrationFeature(action){return /^(quickbooks|freshbooks)_(connect|status|callback|sync|disconnect|dashboard|select_business)$/.test(action)?'bookkeeping':'integrations'}
 function requireFeature(account,feature,actor){if(!featuresForAccount(account,actor).includes(feature))throw Object.assign(new Error(`${feature.replace(/-/g,' ')} is not included in this agency plan.`),{status:403})}
-function publicAccess(account,actor){const plan=accessPlan(account),purchasedPlans=[...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);return{plan,purchasedPlans,features:featuresForAccount(account,actor),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS,isAdmin:actor.role==='admin'||Boolean(actor.isAdmin)}}
+function publicAccess(account,actor){const plan=accessPlan(account),purchasedPlans=[...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);return{plan,purchasedPlans,features:featuresForAccount(account,actor),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS,isAdmin:actor.role==='admin'||Boolean(actor.isAdmin),readOnly:actor.role==='admin'||Boolean(actor.isAdmin)}}
 async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
 function responseText(payload){if(clean(payload?.output_text))return clean(payload.output_text);if(clean(payload?.choices?.[0]?.message?.content))return clean(payload.choices[0].message.content);for(const item of payload?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&clean(part.text))return clean(part.text);return''}
 
@@ -1166,6 +1166,10 @@ export default async function handler(req,res){
     if(req.method==='DELETE'){clearSessionCookie(res,'cc_account_session');return json(res,200,{success:true})}
     const session=currentSession(req,secret);
     const action=clean(req.query?.action);
+    const adminReadOnly = session?.role === 'admin';
+    if (adminReadOnly && req.method === 'GET' && /(?:_connect|callback$|_disconnect|_sync|_save|_create|_update|_delete|_archive|select_business)/.test(action)) {
+      return json(res,403,{error:'Admin account view is read-only.'});
+    }
     if(req.method==='POST'&&action==='webhook'){
       const event=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{}),serialized=JSON.stringify(event),signature=clean(req.headers['x-ghl-signature']);
       if(!verifyGhlWebhookSignature(serialized,signature))return json(res,401,{error:'Invalid webhook signature.'});
@@ -1352,6 +1356,15 @@ export default async function handler(req,res){
     }
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
     const b=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});const bodyAction=clean(b.action);
+    if (adminReadOnly) {
+      const adminReadActions = new Set([
+        'monitor_department','google_calendar_events',
+        'monday_dashboard','teamwork_dashboard','clickup_dashboard','jira_dashboard','jira_issue_types','jira_transitions',
+        'ghl_dashboard','zoom_dashboard','zoom_meeting','slack_dashboard','google_chat_dashboard','hubspot_dashboard',
+        'zoho_dashboard','quickbooks_dashboard','freshbooks_dashboard','google_drive_dashboard','google_calendar_dashboard'
+      ]);
+      if (!adminReadActions.has(bodyAction)) return json(res,403,{error:'Admin account view is read-only.'});
+    }
     if(bodyAction==='ask_creature'){
       return await workspaceResult(res,bodyAction,async timing=>{
         const {account,actor}=await workspaceIdentity(c,session,timing);
