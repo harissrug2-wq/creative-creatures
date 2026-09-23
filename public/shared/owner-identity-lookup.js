@@ -125,7 +125,9 @@
         const leads=await requestLeads(values);
         if(!leads.length)throw new Error('No Owner Identity Report was found using those details.');
         message.className='cc-identity-lookup-message cc-identity-lookup-success';
-        message.textContent='Owner Identity Report found. Choose your next step below.';
+        message.textContent=leads.some(lead=>lead.account_exists)
+          ? 'A Creative Creatures account already exists for this report. Sign in to continue.'
+          : 'Owner Identity Report found. Choose your next step below.';
         results.innerHTML=leads.map((lead,index)=>`
           <article class="cc-identity-result" data-index="${index}">
             <strong>${esc(lead.name)}</strong><span>${esc(lead.email)}</span><small>${esc(lead.agency_url)}</small>
