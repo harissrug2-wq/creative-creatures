@@ -10,14 +10,37 @@
     const style = document.createElement('style');
     style.id = 'cc-owner-identity-lookup-style';
     style.textContent = `
-      .cc-identity-lookup{max-width:760px;margin:34px auto 28px;padding:24px;border:1px solid #e2e5ee;border-radius:18px;background:#fff;box-shadow:0 16px 38px rgba(27,30,55,.07);text-align:left}
-      .cc-identity-lookup *{box-sizing:border-box}.cc-identity-lookup h2{font-size:22px;line-height:1.2;margin:0 0 8px;color:#171820}.cc-identity-lookup>p{margin:0 0 18px;color:#626b7d;line-height:1.55}
-      .cc-identity-lookup-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}.cc-identity-lookup-option{border:1px solid #dfe3ec;background:#fff;border-radius:12px;padding:15px;text-align:left;cursor:pointer;color:#22263b}.cc-identity-lookup-option strong{display:block;font-size:15px}.cc-identity-lookup-option span{display:block;color:#6b7280;font-size:13px;margin-top:3px}.cc-identity-lookup-option.selected{border-color:#3538ee;box-shadow:0 0 0 2px rgba(53,56,238,.09)}
-      .cc-identity-lookup-panel{margin-top:16px;padding-top:16px;border-top:1px solid #eceef4}.cc-identity-lookup-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.cc-identity-lookup-field.full{grid-column:1/-1}.cc-identity-lookup label{display:block;font-weight:700;font-size:12px;margin:0 0 6px;color:#374151}.cc-identity-lookup input{width:100%;border:1px solid #d6dae4;border-radius:9px;padding:11px 12px;font:inherit;background:#fff}.cc-identity-lookup button,.cc-identity-lookup a.cc-lookup-btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:9px;padding:11px 15px;font-weight:750;text-decoration:none;cursor:pointer}.cc-lookup-primary{background:#3033eb!important;color:#fff!important}.cc-lookup-secondary{background:#f4f5f8!important;color:#25283b!important}.cc-identity-lookup-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
-      .cc-identity-lookup-message{margin-top:12px;padding:10px 12px;border-radius:9px;font-size:13px}.cc-identity-lookup-error{background:#fff0f0;color:#b42318}.cc-identity-lookup-success{background:#effaf3;color:#18794e}.cc-identity-lookup-results{display:grid;gap:10px;margin-top:12px}.cc-identity-result{border:1px solid #e5e7ef;border-radius:12px;padding:13px}.cc-identity-result strong,.cc-identity-result span,.cc-identity-result small{display:block}.cc-identity-result span,.cc-identity-result small{color:#6b7280;margin-top:2px}.cc-identity-why{color:#4b5563;line-height:1.55}
-      @media(max-width:640px){.cc-identity-lookup{padding:18px}.cc-identity-lookup-options,.cc-identity-lookup-fields{grid-template-columns:1fr}}
-    `;
-    document.head.appendChild(style);
+      .cc-identity-lookup{margin:0;padding:0;background:transparent;text-align:left;color:#111827}
+      .cc-identity-lookup *{box-sizing:border-box}
+      .cc-identity-lookup h2{font-size:36px;line-height:1.16;letter-spacing:-.035em;margin:0 0 24px;color:#111827;font-weight:800}
+      .cc-identity-lookup>p{margin:0 0 34px;color:#566072;line-height:1.5;font-size:18px;max-width:1180px}
+      .cc-identity-lookup-options{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+      .cc-identity-lookup-option{min-height:132px;border:1px solid #d9dce5;background:#fff;border-radius:20px;padding:28px 28px;text-align:left;cursor:pointer;color:#171b2a;transition:border-color .15s,box-shadow .15s,transform .15s}
+      .cc-identity-lookup-option:hover{border-color:#bbbff8;transform:translateY(-1px)}
+      .cc-identity-lookup-option strong{display:block;font-size:24px;line-height:1.2;font-weight:800}
+      .cc-identity-lookup-option span{display:block;color:#70798a;font-size:18px;line-height:1.4;margin-top:14px}
+      .cc-identity-lookup-option.selected{border-color:#3739f0;box-shadow:0 0 0 3px rgba(55,57,240,.08)}
+      .cc-identity-lookup-panel{margin-top:24px;padding-top:22px;border-top:1px solid #dedff1}
+      .cc-identity-lookup-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+      .cc-identity-lookup-field.full{grid-column:1/-1}
+      .cc-identity-lookup label{display:block;font-weight:750;font-size:14px;margin:0 0 8px;color:#22283a}
+      .cc-identity-lookup input{width:100%;border:1px solid #ccd2df;border-radius:12px;padding:14px 15px;font:inherit;background:#fff;font-size:16px}
+      .cc-identity-lookup button,.cc-identity-lookup a.cc-lookup-btn{display:inline-flex;align-items:center;justify-content:center;border:0;border-radius:12px;padding:13px 18px;font-weight:800;text-decoration:none;cursor:pointer}
+      .cc-lookup-primary{background:#3033eb!important;color:#fff!important}
+      .cc-lookup-secondary{background:#f4f5f8!important;color:#25283b!important}
+      .cc-identity-lookup-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+      .cc-identity-lookup-message{margin-top:14px;padding:11px 13px;border-radius:10px;font-size:14px}
+      .cc-identity-lookup-error{background:#fff0f0;color:#b42318}.cc-identity-lookup-success{background:#effaf3;color:#18794e}
+      .cc-identity-lookup-results{display:grid;gap:10px;margin-top:12px}.cc-identity-result{border:1px solid #e5e7ef;border-radius:12px;padding:13px;background:#fff}
+      .cc-identity-result strong,.cc-identity-result span,.cc-identity-result small{display:block}.cc-identity-result span,.cc-identity-result small{color:#6b7280;margin-top:2px}
+      .cc-identity-why{color:#4b5563;line-height:1.55}
+      @media(max-width:780px){
+        .cc-identity-lookup h2{font-size:30px}.cc-identity-lookup>p{font-size:16px;margin-bottom:24px}
+        .cc-identity-lookup-options,.cc-identity-lookup-fields{grid-template-columns:1fr}
+        .cc-identity-lookup-option{min-height:auto;padding:22px}
+        .cc-identity-lookup-option strong{font-size:21px}.cc-identity-lookup-option span{font-size:16px}
+      }
+    `;    document.head.appendChild(style);
   }
 
   async function requestLeads(values) {
@@ -83,10 +106,10 @@
     root.classList.add('cc-identity-lookup');
     root.innerHTML = `
       <h2>Have you received your Agency Owner Identity Report yet?</h2>
-      <p>Tell us where you are so we can take you to the right next step.</p>
+      <p>Our first step is to examine the identity (archetype) of the agency owner. This helps us understand you and how your identity is shaping how you scale your agency. This is free, but extremely valuable and important.</p>
       <div class="cc-identity-lookup-options">
-        <button type="button" class="cc-identity-lookup-option" data-choice="yes"><strong>Yes — find my report</strong><span>Use my email, name, or agency URL</span></button>
-        <button type="button" class="cc-identity-lookup-option" data-choice="no"><strong>No — start now</strong><span>Complete the 3-minute Owner Identity assessment</span></button>
+        <button type="button" class="cc-identity-lookup-option" data-choice="yes"><strong>Yes, I have one</strong><span>Please look it up for me</span></button>
+        <button type="button" class="cc-identity-lookup-option" data-choice="no"><strong>No, not yet</strong><span>Please let me get started</span></button>
       </div>
       <section class="cc-identity-lookup-panel" data-panel="yes" hidden>
         <form data-lookup-form>
@@ -99,10 +122,7 @@
         </form>
         <div data-message></div><div class="cc-identity-lookup-results" data-results></div>
       </section>
-      <section class="cc-identity-lookup-panel" data-panel="no" hidden>
-        <p class="cc-identity-why">Your Owner Identity assessment takes about three minutes. When it is complete, your next step is to establish your free AOFI™ score.</p>
-        <a class="cc-lookup-btn cc-lookup-primary" href="/owner-archetype/assessment/?destination=aofi_free&source=aofi-lookup">Start My Owner Identity Assessment →</a>
-      </section>`;
+      <section class="cc-identity-lookup-panel" data-panel="no" hidden></section>`;
 
     const yes=root.querySelector('[data-panel="yes"]'), no=root.querySelector('[data-panel="no"]'), results=root.querySelector('[data-results]'), message=root.querySelector('[data-message]');
     root.querySelectorAll('[data-choice]').forEach(button => button.addEventListener('click', () => {
