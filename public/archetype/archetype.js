@@ -225,8 +225,12 @@
           <p class="identity-ceiling">The Agency Owner Freedom Index™ is a 0–100 score that shows how scalable, financially healthy, owner-independent and more valuable your marketing agency is becoming.</p>
           <button class="cta" id="startArchetype">Get My Owner Identity Report →</button>
           <div class="meta">About 3 minutes · 12 questions</div>
+          <div class="identity-lookup-wrap">
+            <div data-owner-identity-lookup></div>
+          </div>
         </div>
       </section>`;
+    window.CCOwnerIdentityLookup?.mountAll?.();
     document.querySelector('#startArchetype')?.addEventListener('click', () => {
       resetAssessment();
       STORE.set('cc_archetype_index', 0);
