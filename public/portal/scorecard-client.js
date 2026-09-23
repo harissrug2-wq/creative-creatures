@@ -45,6 +45,13 @@
     return current;
   }
 
+  function normalizeScorecard(value) {
+    if (!value || typeof value !== 'object') return null;
+    const legacyWeakness = Array.isArray(value.weakness) ? value.weakness : [];
+    const weakest = Array.isArray(value.weakest) ? value.weakest : legacyWeakness;
+    return { ...value, weakest };
+  }
+
   async function load(options = {}) {
     if (cached && options.fresh !== true) return cached;
     const current = requireIdentity();
@@ -53,7 +60,7 @@
     if (current.email) params.set('email', current.email);
     if (current.agencyUrl) params.set('agencyUrl', current.agencyUrl);
     const payload = await request(`${API_BASE}?${params.toString()}`);
-    cached = payload.scorecard || null;
+    cached = normalizeScorecard(payload.scorecard);
     cachedHistory = Array.isArray(payload.history) ? payload.history : [];
     return cached;
   }
@@ -64,7 +71,7 @@
       method: 'POST',
       body: JSON.stringify(current)
     });
-    cached = payload.scorecard || null;
+    cached = normalizeScorecard(payload.scorecard);
     cachedHistory = Array.isArray(payload.history) ? payload.history : [];
     return cached;
   }
