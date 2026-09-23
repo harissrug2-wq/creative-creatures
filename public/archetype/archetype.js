@@ -19,8 +19,14 @@
     }
   };
 
-  const PAID_PLANS = ['diagnostic', 'accelerator', 'platform', 'fractional_coo'];
+  const PAID_PLANS = ['aofi_free', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
   const PLAN_OFFERS = {
+    aofi_free: {
+      kicker: 'FREE AOFI™ SCORE',
+      title: 'Get My Free Agency Owner Freedom Index™ Score',
+      subtitle: 'Complete the Agency Diagnostic across Performance, Strength, and Owner Independence. No card required.',
+      cta: 'Get My Free AOFI™ Score →'
+    },
     diagnostic: {
       kicker: '1:1 DIAGNOSTIC',
       title: 'Start My 1:1 Analysis & Planning Diagnostic',
@@ -217,11 +223,14 @@
           <h1>Learn How Owner Identity<br>Impacts Your AOFI™ Score and Agency Value</h1>
           <p>The marketing agency you are building is heavily influenced by the patterns of your identity. Think of the decision making, actions you need your team to take or the culture you’ve built; all influenced by your identity.</p>
           <p class="identity-ceiling">The Agency Owner Freedom Index™ is a 0–100 score that shows how scalable, financially healthy, owner-independent and more valuable your marketing agency is becoming.</p>
-          <button class="cta" id="startArchetype">Get My Owner Identity Report →</button>
-          <div class="meta">About 3 minutes · 12 questions</div>
+          <div data-owner-identity-lookup></div>
+          <button class="cta" id="startArchetype">Get Started on My AOFI™ Score →</button>
+          <div class="meta">Owner Identity takes about 3 minutes · 12 questions</div>
         </div>
       </section>`;
+    window.CCOwnerIdentityLookup?.mountAll?.();
     document.querySelector('#startArchetype')?.addEventListener('click', () => {
+      localStorage.setItem('ccProgramPath','aofi_free');
       resetAssessment();
       STORE.set('cc_archetype_index', 0);
       navigate('/assessment');
