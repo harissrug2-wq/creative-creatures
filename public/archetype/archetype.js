@@ -214,7 +214,7 @@
       <header class="archetype-header">${logo()}<a class="back-link" href="/login/">Back to sign in</a></header>
       <section class="hero identity-hero">
         <div class="hero-inner">
-          <h1>Learn How Owner Identity<br>Impacts Your AOFI Score and Agency Value</h1>
+          <h1>Learn How Owner Identity<br>Impacts Your AOFI™ Score and Agency Value</h1>
           <p>The marketing agency you are building is heavily influenced by the patterns of your identity. Think of the decision making, actions you need your team to take or the culture you’ve built; all influenced by your identity.</p>
           <p class="identity-ceiling">The Agency Owner Freedom Index™ is a 0–100 score that shows how scalable, financially healthy, owner-independent and more valuable your marketing agency is becoming.</p>
           <button class="cta" id="startArchetype">Get My Owner Identity Report →</button>
