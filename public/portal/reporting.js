@@ -345,7 +345,7 @@
     page1.drawText('CORE INDEX BREAKDOWN', { x: 36, y, size: 11, font: fontBold, color: C.royal });
     y -= 15;
 
-    const repList = Object.values(reports);
+    const repList = isScorecard ? Object.values(reports) : [model];
     const cardW = (width - 72 - 24) / 3;
     let cx = 36;
     const indexH = 100;
