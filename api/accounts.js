@@ -1,5 +1,7 @@
+import crypto from 'node:crypto';
 import { requireAccountSession, authorizedAccount } from '../lib/account-api-access.js';
-import { requireAdmin } from '../lib/session-utils.js';
+import { requireAdmin, hashPassword, signSession, setSessionCookie, accountSessionSecret } from '../lib/session-utils.js';
+import { sendEmail, escapeHtml } from '../lib/email-service.js';
 const json = (res, status, payload) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -20,6 +22,26 @@ function planJourney(plan) {
   if (plan === 'accelerator') return 'accelerator';
   if (plan === 'platform' || plan === 'fractional_coo') return 'platform';
   return 'diagnostic';
+}
+
+function tokenHash(value) {
+  return crypto.createHash('sha256').update(String(value || '')).digest('hex');
+}
+function requestOrigin(req) {
+  const proto = clean(req.headers?.['x-forwarded-proto']) || 'https';
+  const host = clean(req.headers?.['x-forwarded-host'] || req.headers?.host) || 'app.creativecreatures.org';
+  return `${proto}://${host}`;
+}
+async function sendAofiFreeWelcome(req, account, resetToken) {
+  const origin = requestOrigin(req);
+  const link = `${origin}/login/?reset=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(account.email)}`;
+  const firstName = clean(account.name).split(/\s+/)[0] || 'there';
+  await sendEmail({
+    to: account.email,
+    subject: 'Your free AOFI™ score account is ready',
+    text: `Hi ${firstName},\n\nYour free Agency Owner Freedom Index™ account is ready.\n\nStart your AOFI™ assessment here: ${origin}/diagnostic/\n\nChoose a password for future sign-ins: ${link}\n\nThis setup link expires in 24 hours.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#171820"><h2>Your free AOFI™ score account is ready</h2><p>Hi ${escapeHtml(firstName)},</p><p>Complete the Agency Diagnostic to establish your Agency Owner Freedom Index™ score.</p><p style="margin:24px 0"><a href="${escapeHtml(origin)}/diagnostic/" style="display:inline-block;background:#2929ed;color:#fff;text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:700">Get My Free AOFI™ Score</a></p><p>For future sign-ins, choose your password using this secure setup link:</p><p><a href="${escapeHtml(link)}">Choose my password</a></p><p style="font-size:13px;color:#667085">The setup link expires in 24 hours.</p></div>`
+  });
 }
 
 const EMPTY_DIAGNOSTIC_STATE = {
@@ -416,14 +438,29 @@ export default async function handler(req, res) {
         // A truly new account always begins with a clean diagnostic state,
         // regardless of any stale browser payload sent by the client.
         record.diagnostic_state = EMPTY_DIAGNOSTIC_STATE;
+        let freeResetToken = '';
+        if (accessPlan === 'aofi_free') {
+          freeResetToken = crypto.randomBytes(32).toString('hex');
+          record.password_hash = hashPassword(crypto.randomBytes(32).toString('hex'));
+          record.password_reset_token_hash = tokenHash(freeResetToken);
+          record.password_reset_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        }
         const rows = await supabaseRequest(config, 'accounts', {
           method: 'POST',
           headers: { Prefer: 'return=representation' },
           body: JSON.stringify(record)
         });
         account = Array.isArray(rows) ? rows[0] : rows;
+        if (accessPlan === 'aofi_free' && account?.id) {
+          const secret = accountSessionSecret();
+          if (secret) {
+            const sessionToken = signSession({ role: 'account', accountId: account.id, email: account.email }, secret, 30 * 24 * 60 * 60);
+            setSessionCookie(res, 'cc_account_session', sessionToken, 30 * 24 * 60 * 60);
+          }
+          if (freeResetToken) sendAofiFreeWelcome(req, account, freeResetToken).catch(error => console.error('AOFI free welcome email failed', error));
+        }
       }
-      return json(res, 200, { account: publicAccount(account) });
+      return json(res, 200, { account: publicAccount(account), authenticated: accessPlan === 'aofi_free' });
     }
 
     if (req.method === 'PATCH') {
