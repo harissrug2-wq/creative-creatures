@@ -54,14 +54,23 @@
         })
       });
       const data = await response.json().catch(() => ({}));
-      if (!response.ok || !data.account) throw new Error(data.error || 'Your free AOFI™ account could not be created.');
+      if (!response.ok || !data.account) {
+        const error = new Error(data.error || 'Your free AOFI™ account could not be created.');
+        error.code = data.code || '';
+        error.loginUrl = data.loginUrl || '';
+        throw error;
+      }
       window.CCAccount?.saveAccount?.({...data.account,backend_saved:true},{forceReset:true,replaceDiagnostic:true});
       localStorage.setItem('ccProgramPath','aofi_free');
       localStorage.setItem('ccSignedIn','true');
       location.href='/diagnostic/';
     } catch (error) {
       message.className='cc-identity-lookup-message cc-identity-lookup-error';
-      message.textContent=error.message || 'Your free AOFI™ account could not be created.';
+      if (error?.code === 'ACCOUNT_EXISTS' && error?.loginUrl) {
+        message.innerHTML=`This email already has a Creative Creatures account. <a href="${esc(error.loginUrl)}"><strong>Sign in to continue →</strong></a>`;
+      } else {
+        message.textContent=error.message || 'Your free AOFI™ account could not be created.';
+      }
       button.disabled=false;
       button.textContent=original;
     }
@@ -74,10 +83,10 @@
     root.classList.add('cc-identity-lookup');
     root.innerHTML = `
       <h2>Have you received your Agency Owner Identity Report yet?</h2>
-      <p>Your Owner Identity Report is the first context layer for your free Agency Owner Freedom Index™ score.</p>
+      <p>Tell us where you are so we can take you to the right next step.</p>
       <div class="cc-identity-lookup-options">
-        <button type="button" class="cc-identity-lookup-option" data-choice="yes"><strong>Yes, I have one</strong><span>Find my report and continue</span></button>
-        <button type="button" class="cc-identity-lookup-option" data-choice="no"><strong>No, not yet</strong><span>Start my Owner Identity assessment</span></button>
+        <button type="button" class="cc-identity-lookup-option" data-choice="yes"><strong>Yes — find my report</strong><span>Use my email, name, or agency URL</span></button>
+        <button type="button" class="cc-identity-lookup-option" data-choice="no"><strong>No — start now</strong><span>Complete the 3-minute Owner Identity assessment</span></button>
       </div>
       <section class="cc-identity-lookup-panel" data-panel="yes" hidden>
         <form data-lookup-form>
@@ -123,7 +132,7 @@
             <div class="cc-identity-lookup-actions">
               <button type="button" class="cc-lookup-secondary" data-view="${index}">View Report</button>
               ${lead.account_exists
-                ? `<button type="button" class="cc-lookup-primary" data-login="${index}">Continue to My AOFI™ Score</button>`
+                ? `<button type="button" class="cc-lookup-primary" data-login="${index}">Account Found — Sign In</button>`
                 : `<button type="button" class="cc-lookup-primary" data-free="${index}">Get My Free AOFI™ Score</button>`}
             </div>
           </article>`).join('');
