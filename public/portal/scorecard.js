@@ -3,6 +3,16 @@
   const root = document.getElementById('scorecardRoot');
   const state = window.CCDiagnostic?.getState?.();
   const esc = window.CCReports.esc;
+  let workspaceAccess = null;
+  try {
+    workspaceAccess = window.CCWorkspace?.getAccess
+      ? await window.CCWorkspace.getAccess()
+      : await fetch('/api/account-auth?action=workspace_access',{credentials:'same-origin'}).then(async response => {
+          const payload=await response.json().catch(()=>({}));
+          return response.ok ? payload.access : null;
+        });
+  } catch {}
+  const isAofiFree = workspaceAccess?.plan === 'aofi_free';
   let model = null;
   let databaseError = null;
 
@@ -238,19 +248,20 @@
   }
 
   root.innerHTML = `
-    <header class="scorecard-header"><div><span class="eyebrow">✣ Owner briefing</span><h1>Agency Scorecard</h1><p>Executive view of the Agency Owner Freedom Index, three index reports, confidence, validation, and quarterly score progression over time.</p></div><div class="scorecard-meta">Archetype · <strong>${esc(model.archetype)}</strong><br>Generated · <strong>${model.generatedAt ? new Date(model.generatedAt).toLocaleDateString() : 'Today'}</strong></div></header>
+    <header class="scorecard-header"><div><span class="eyebrow">✣ Owner briefing</span><h1>${isAofiFree?'Agency Owner Freedom Index™ Scorecard':'Agency Scorecard'}</h1><p>Executive view of the Agency Owner Freedom Index™, three index reports, confidence, validation, and quarterly score progression over time.</p></div><div class="scorecard-meta">Archetype · <strong>${esc(model.archetype)}</strong><br>Generated · <strong>${model.generatedAt ? new Date(model.generatedAt).toLocaleDateString() : 'Today'}</strong></div></header>
     <div class="section-title"><div><div class="section-kicker">Section 01</div><h2>Executive Summary</h2></div><p>Headline score with VantageScore-style credit tracking and quarterly score movement analysis.</p></div>
     <section class="aofi-card">
       <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance (40%), Strength (40%), and Owner Independence (20%). Confidence is weighted using the same formula.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)}</strong></div><div class="aofi-stat"><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong></div></div><div class="aofi-action-row"><p class="aofi-footer-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Scores tracked quarterly with Creative Creatures Clarify™</p><button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnSummary" ${hasComparison ? '' : 'hidden'}><span>What changed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
-      <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(weakestRows[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[weakestRows[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">Create 90 Day Rock</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
+      <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(weakestRows[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[weakestRows[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">${isAofiFree?'90-Day Priority · Upgrade':'Create 90 Day Rock'}</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
     </section>
 
-    <div class="section-title"><div><div class="section-kicker">Section 02</div><h2>Three Index Reports</h2></div><p>Reports appear here only after all three indexes are complete and generated.</p></div>
+    <div class="section-title"><div><div class="section-kicker">Section 02</div><h2>Agency Valuation</h2></div><p>Calculated from the approved Agency Valuation™ methodology and current diagnostic evidence.</p></div>
+    ${valuationHtml}
+    <div class="section-title"><div><div class="section-kicker">Section 03</div><h2>Three Index Reports</h2></div><p>Open or download the full Performance, Strength, and Owner Independence reports.</p></div>
     <section class="index-grid">${cards}</section>
-    <div class="section-title"><div><div class="section-kicker">Section 03</div><h2>Issues &amp; Opportunities</h2></div><p>Prioritized from the lowest-scoring capabilities across all three indices.</p></div>
-    <section class="insight-grid paired-insights"><article class="insight-card"><h3>Issues &amp; their opportunities</h3><p class="paired-insights-help">Select an issue to create one 90-Day Rock. Its opportunity is included in the Rock.</p><div class="insight-list">${issueRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">Select one or more issues.</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">Create 90 Day Rock(s)</button></div>
-    <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Agency Valuation</h2></div><p>Calculated from the approved Agency Valuation™ methodology and current diagnostic evidence.</p></div>
-    ${valuationHtml}<div class="define-goals-wrap"><a class="define-goals-cta" href="/agency-goals/">Define Agency Goals →</a></div>`;
+    <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Issues &amp; Opportunities</h2></div><p>Prioritized from the lowest-scoring capabilities across all three indices.</p></div>
+    <section class="insight-grid paired-insights"><article class="insight-card"><h3>Issues &amp; their opportunities</h3><p class="paired-insights-help">${isAofiFree?'Your improvement priorities are visible here. Activating 90-Day Priorities is included with a paid platform account.':'Select an issue to create one 90-Day Rock. Its opportunity is included in the Rock.'}</p><div class="insight-list">${issueRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">${isAofiFree?'Upgrade to activate these priorities in Agency Goals.':'Select one or more issues.'}</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">${isAofiFree?'Activate 90-Day Priorities · Upgrade':'Create 90 Day Rock(s)'}</button></div>
+    <div class="define-goals-wrap"><a class="define-goals-cta" href="${isAofiFree?'#':'/agency-goals/'}" id="defineAgencyGoals">${isAofiFree?'Define Agency Goals · Upgrade':'Define Agency Goals →'}</a></div>`;
 
   const driver = momentum.primaryDriver;
   const driverCopy = driver
@@ -271,7 +282,7 @@
     <header class="trends-header">
       <div>
         <span class="eyebrow">Quarterly score history</span>
-        <h1>Agency Scorecard Trends</h1>
+        <h1>${isAofiFree?'AOFI™ Scorecard Trends':'Agency Scorecard Trends'}</h1>
         <p>Each calendar quarter, scores (AOFI, Performance, Strength, Owner Independence) are automatically recorded as a frozen snapshot so score progression can be tracked over time.</p>
       </div>
       <div class="snapshot-count"><strong>${persistedHistory.length}</strong><span>quarterly snapshot${persistedHistory.length === 1 ? '' : 's'}</span></div>
@@ -486,6 +497,17 @@
   root.querySelector('#openWhatChangedBtnSummary')?.addEventListener('click', openWhatChangedModal);
   trendsView.querySelector('#openWhatChangedBtnTrends')?.addEventListener('click', openWhatChangedModal);
 
+  function showAofiUpgrade(feature='this feature'){
+    const existing=document.getElementById('aofiFreeUpgradeModal');if(existing)existing.remove();
+    const modal=document.createElement('div');modal.id='aofiFreeUpgradeModal';
+    modal.style.cssText='position:fixed;inset:0;z-index:9999;background:rgba(17,24,39,.58);display:grid;place-items:center;padding:20px';
+    modal.innerHTML=`<section role="dialog" aria-modal="true" aria-labelledby="aofiUpgradeTitle" style="width:min(520px,100%);background:#fff;border-radius:18px;padding:28px;box-shadow:0 24px 70px rgba(0,0,0,.22)"><span style="font-size:12px;font-weight:800;letter-spacing:.08em;color:#3033eb">PLATFORM UPGRADE</span><h2 id="aofiUpgradeTitle" style="margin:8px 0 10px;font-size:25px">Turn your AOFI™ score into action</h2><p style="margin:0;color:#596273;line-height:1.6">${esc(feature)} is a paid Creative Creatures platform feature. Your free AOFI™ account keeps your Diagnostic, Integrations, Scorecard, valuation, and reports available.</p><div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:22px"><button type="button" id="aofiUpgradeClose" style="border:1px solid #d6dae4;background:#fff;border-radius:9px;padding:10px 15px;font-weight:700;cursor:pointer">Not now</button><a href="/account/upgrade/" style="background:#3033eb;color:#fff;border-radius:9px;padding:10px 15px;font-weight:750;text-decoration:none">View upgrade options →</a></div></section>`;
+    document.body.appendChild(modal);
+    const close=()=>modal.remove();modal.querySelector('#aofiUpgradeClose')?.addEventListener('click',close);modal.addEventListener('click',event=>{if(event.target===modal)close()});
+  }
+
+  root.querySelector('#defineAgencyGoals')?.addEventListener('click',event=>{if(isAofiFree){event.preventDefault();showAofiUpgrade('Defining and tracking Agency Goals')}});
+
   const saveRocks = async candidates => {
     if (!candidates.length) return { added: 0 };
     const dueDate = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
@@ -500,6 +522,7 @@
   };
   root.querySelectorAll('[data-rock-candidate]').forEach(input=>input.addEventListener('change',()=>input.closest('.selectable-insight')?.classList.toggle('selected',input.checked)));
   root.querySelector('#createSelectedRocks')?.addEventListener('click',async event=>{
+    if(isAofiFree){showAofiUpgrade('Activating 90-Day Priorities and managing them in Agency Goals');return;}
     const chosen=[...root.querySelectorAll('[data-rock-candidate]:checked')].map(input=>rockCandidates[input.dataset.rockCandidate]);
     const note=root.querySelector('#rockSelectionNote');
     if(!chosen.length){note.textContent='Select at least one issue first.';return;}
@@ -527,6 +550,7 @@
     }
   });
   root.querySelector('#createSingleRock')?.addEventListener('click',async event=>{
+    if(isAofiFree){showAofiUpgrade('Creating and managing 90-Day Priorities');return;}
     const first=weakestRows[0],report=model.reports[first?.index||'strength'];
     const button=event.currentTarget;
     button.disabled=true;
