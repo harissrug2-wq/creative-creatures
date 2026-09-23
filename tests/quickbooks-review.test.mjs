@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {quickBooksApiRequest,refreshQuickBooksTokens,withQuickBooksRecovery,createQuickBooksAuthorizationUrl,verifyQuickBooksOAuthState} from '../lib/quickbooks.js';
+import {quickBooksApiRequest,refreshQuickBooksTokens,withQuickBooksRecovery,createQuickBooksAuthorizationUrl,verifyQuickBooksOAuthState,quickBooksConfig} from '../lib/quickbooks.js';
 import financial from '../api/financial-evidence.js';
 import diagnostic from '../api/diagnostic-state.js';
 import accounts from '../api/accounts.js';
@@ -13,6 +13,13 @@ test('validation failures do not refresh credentials',async()=>{let refreshed=fa
 test('provider errors capture intuit_tid without sensitive payloads',async()=>mocked(async()=>new Response(JSON.stringify({Fault:{Error:[{code:'2010',Detail:'PRIVATE FINANCIAL DATA'}]}}),{status:400,headers:{intuit_tid:'trace-123'}}),async()=>{await assert.rejects(quickBooksApiRequest({realmId:'r',accessToken:'secret',path:'reports/ProfitAndLoss'}),e=>e.intuitTid==='trace-123'&&e.code==='2010'&&!JSON.stringify(e).includes('PRIVATE')&&!e.message.includes('PRIVATE')&&!e.payload);}));
 test('invalid grant is preserved but provider descriptions are not disclosed',async()=>mocked(async()=>new Response(JSON.stringify({error:'invalid_grant',error_description:'SENSITIVE'}),{status:400}),async()=>{await assert.rejects(refreshQuickBooksTokens('refresh-secret'),e=>e.code==='invalid_grant'&&!e.message.includes('SENSITIVE'));}));
 test('malformed successful report is rejected rather than scored',async()=>mocked(async()=>new Response('not json',{status:200}),async()=>{await assert.rejects(quickBooksApiRequest({realmId:'r',accessToken:'t',path:'reports/ProfitAndLoss'}),{status:502});}));
+
+test('production QuickBooks always uses the Creative Creatures canonical callback',()=>{
+  process.env.QUICKBOOKS_ENVIRONMENT='production';
+  process.env.QUICKBOOKS_REDIRECT_URI='https://wrong.example/callback';
+  assert.equal(quickBooksConfig().redirectUri,'https://app.creativecreatures.org/integrations/quickbooks/callback/');
+  assert.equal(new URL(createQuickBooksAuthorizationUrl('a')).searchParams.get('redirect_uri'),'https://app.creativecreatures.org/integrations/quickbooks/callback/');
+});
 test('OAuth state is bound to its agency and rejects tampering',()=>{const state=new URL(createQuickBooksAuthorizationUrl('a')).searchParams.get('state');assert.equal(verifyQuickBooksOAuthState(state,'a'),true);assert.equal(verifyQuickBooksOAuthState(state,'b'),false);assert.equal(verifyQuickBooksOAuthState(state+'x','a'),false);});
 const cookie=(extra={})=>'cc_account_session='+signSession({role:'account',accountId:'a',...extra},process.env.ACCOUNT_SESSION_SECRET);
 async function invoke(handler,{method='POST',headers={},body={},query={}}={}){const res={setHeader(){},end(raw){this.data=JSON.parse(raw);}};await handler({method,headers,body,query},res);return res;}
