@@ -387,7 +387,7 @@
     }
     function handleOauthReturn(){
       const p=new URLSearchParams(location.search);
-      const map={quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',crm:'GHL CRM',ghl:'GHL CRM',gohighlevel:'GHL CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com',jira:'Jira',zoom:'Zoom'};
+      const map={stripe:'Stripe',quickbooks:'QuickBooks Online',freshbooks:'FreshBooks',google_calendar:'Google Calendar',google_drive:'Google Drive',google_chat:'Google Chat',hubspot:'HubSpot',zoho:'Zoho CRM',crm:'GHL CRM',ghl:'GHL CRM',gohighlevel:'GHL CRM',slack:'Slack',clickup:'ClickUp',teamwork:'Teamwork',monday:'Monday.com',jira:'Jira',zoom:'Zoom'};
       let changed=false;
       Object.entries(map).forEach(([key,tool])=>{if(p.get(key)==='connected'&&(selected.includes(tool)||selected.includes('GoHighLevel'))){changed=true}});
       if(changed)history.replaceState({},'',location.pathname);
@@ -398,9 +398,9 @@
     document.querySelector('#modalClose').onclick=()=>hide('#dataModal');
 
     async function manageTool(tool){
-      if(tool==='Stripe'){location.href='/integrations/stripe/';return;}
       modalError.textContent='';modalTitle.textContent=tool;modalBody.innerHTML='<div class="data-item"><strong>Loading…</strong></div>';show('#dataModal');
       try{
+        if(tool==='Stripe')return await manageStripe();
         if(tool==='Google Meet')return await manageMeet();
         if(tool==='Google Calendar')return manageCalendar();
         if(tool==='Google Drive')return manageDrive();
@@ -417,6 +417,101 @@
         if(tool==='Zoom')return manageZoom();
         modalBody.innerHTML='<div class="data-item"><strong>No manage view is required for this integration.</strong></div>';
       }catch(error){modalError.textContent=error.message}
+    }
+
+
+    let stripeData={connection:null,customers:[],invoices:[],customerMore:false,invoiceMore:false},stripeView='customers',stripeBusy=false;
+    const stripeMoney=(amount,currency)=>new Intl.NumberFormat(undefined,{style:'currency',currency:(currency||'USD').toUpperCase()}).format(Number(amount||0)/100);
+    const stripePendingKey=()=>stripeData.connection?.stripeAccountId?`ccAgencyStripe:${stripeData.connection.environment}:${stripeData.connection.stripeAccountId}`:'ccAgencyStripe:pending';
+    function stripePending(){try{return JSON.parse(sessionStorage.getItem(stripePendingKey()))}catch{return null}}
+    function setStripePending(value){const key=stripePendingKey();if(value)sessionStorage.setItem(key,JSON.stringify(value));else sessionStorage.removeItem(key)}
+
+    async function manageStripe(){
+      modalTitle.textContent='Stripe';
+      modalCopy.textContent='Manage customers and invoices in the Stripe account connected to this Creative Creatures agency.';
+      const status=await apiGet('stripe_status');
+      stripeData.connection=connectionFrom(status);
+      if(!stripeData.connection.connected){
+        modalBody.innerHTML='<div class="data-item"><strong>No Stripe account connected.</strong><span>Close this window and use Connect from the Billing integration row.</span></div>';
+        return;
+      }
+      await loadStripeView(false);
+    }
+    async function loadStripeView(more=false){
+      if(stripeBusy)return;stripeBusy=true;modalError.textContent='';
+      try{
+        const list=stripeView==='customers'?stripeData.customers:stripeData.invoices;
+        const r=await apiPost(`stripe_${stripeView}`,{cursor:more?list.at(-1)?.id:''});
+        stripeData.connection=r.connection||stripeData.connection;
+        if(stripeView==='customers'){stripeData.customers=more?stripeData.customers.concat(r.records||[]):(r.records||[]);stripeData.customerMore=Boolean(r.hasMore)}
+        else{stripeData.invoices=more?stripeData.invoices.concat(r.records||[]):(r.records||[]);stripeData.invoiceMore=Boolean(r.hasMore)}
+        drawStripe();
+      }catch(e){modalError.textContent=e.message}
+      finally{stripeBusy=false}
+    }
+    function drawStripe(){
+      const c=stripeData.connection||{},rows=stripeView==='customers'?stripeData.customers:stripeData.invoices,hasMore=stripeView==='customers'?stripeData.customerMore:stripeData.invoiceMore;
+      modalTitle.textContent='Stripe';
+      modalCopy.textContent=`${c.name||'Connected Stripe account'} · ${c.environment==='test'?'TEST MODE':'LIVE'} · ${c.stripeAccountId||''}`;
+      const pending=stripePending();
+      modalBody.innerHTML=`
+        ${pending?'<div class="data-item" style="margin-bottom:12px"><strong>Unfinished billing request</strong><span>Resume the saved request before creating another customer or invoice.</span><div style="margin-top:9px"><button class="btn" id="stripeResume">Resume</button></div></div>':''}
+        <div class="toolbar">
+          <div class="tabs" style="margin:0;flex:1">
+            <button class="btn ${stripeView==='customers'?'primary':''}" data-stripe-tab="customers">Customers</button>
+            <button class="btn ${stripeView==='invoices'?'primary':''}" data-stripe-tab="invoices">Invoices</button>
+          </div>
+          <button class="btn" id="stripeRefresh">Refresh</button>
+          <a class="btn" href="https://dashboard.stripe.com/" target="_blank" rel="noopener noreferrer">Open Stripe ↗</a>
+          <button class="btn primary" id="stripeNewCustomer">＋ New Customer</button>
+          <button class="btn primary" id="stripeNewInvoice">＋ New Invoice</button>
+        </div>
+        <div class="data-list" id="stripeList">
+          ${rows.length?rows.map(r=>stripeView==='customers'?stripeCustomerHtml(r):stripeInvoiceHtml(r)).join(''):'<div class="data-item"><strong>No records found in this Stripe account.</strong></div>'}
+        </div>
+        ${hasMore?'<div class="toolbar"><button class="btn" id="stripeMore">Load more</button></div>':''}
+        <p class="footnote">Customers and invoices shown here belong to the connected agency Stripe account. Subscriptions, refunds, tax configuration, and invoice corrections are managed in Stripe.</p>`;
+      document.querySelectorAll('[data-stripe-tab]').forEach(b=>b.onclick=async()=>{stripeView=b.dataset.stripeTab;await loadStripeView(false)});
+      document.querySelector('#stripeRefresh').onclick=()=>loadStripeView(false);
+      document.querySelector('#stripeNewCustomer').onclick=()=>openStripeCustomer();
+      document.querySelector('#stripeNewInvoice').onclick=()=>openStripeInvoiceChooser();
+      const more=document.querySelector('#stripeMore');if(more)more.onclick=()=>loadStripeView(true);
+      const resume=document.querySelector('#stripeResume');if(resume)resume.onclick=()=>resumeStripePending();
+      document.querySelectorAll('[data-stripe-edit]').forEach(b=>b.onclick=()=>openStripeCustomer(stripeData.customers.find(x=>x.id===b.dataset.stripeEdit)));
+      document.querySelectorAll('[data-stripe-invoice]').forEach(b=>b.onclick=()=>openStripeInvoice(stripeData.customers.find(x=>x.id===b.dataset.stripeInvoice)));
+      document.querySelectorAll('[data-stripe-send]').forEach(b=>b.onclick=()=>openStripeSend(stripeData.invoices.find(x=>x.id===b.dataset.stripeSend)));
+    }
+    function stripeCustomerHtml(r){return `<article class="data-item"><strong>${esc(r.name||r.email||r.id)}</strong><span>${esc([r.email,r.phone].filter(Boolean).join(' · '))}</span><div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap"><button class="btn" data-stripe-edit="${esc(r.id)}">Edit</button><button class="btn primary" data-stripe-invoice="${esc(r.id)}">New invoice</button></div></article>`}
+    function stripeInvoiceHtml(r){return `<article class="data-item"><strong>${esc(r.number||r.id)} <span class="tag">${esc(r.status||'')}</span></strong><span>${esc([r.customerName||r.customerEmail||r.customerId,r.description].filter(Boolean).join(' · '))}</span><span>${esc(stripeMoney(r.total,r.currency))}${r.dueDate?' · Due '+esc(new Date(r.dueDate*1000).toLocaleDateString()):''}</span><div style="display:flex;gap:8px;margin-top:9px;flex-wrap:wrap">${r.hostedUrl?`<a class="btn" href="${esc(r.hostedUrl)}" target="_blank" rel="noopener noreferrer">View invoice ↗</a>`:''}${r.manageable&&['draft','open'].includes(r.status)?`<button class="btn primary" data-stripe-send="${esc(r.id)}">Review &amp; send</button>`:''}</div></article>`}
+
+    function openStripeCustomer(record=null,pending=null){
+      modalTitle.textContent=record?'Edit Stripe Customer':'New Stripe Customer';modalCopy.textContent='This customer is saved directly in the connected agency Stripe account.';
+      const body=pending?.body||{id:record?.id||'',name:record?.name||'',email:record?.email||'',phone:record?.phone||''};
+      modalBody.innerHTML=`<div class="form-grid"><div class="field full"><label>Name</label><input id="stripeCustomerName" maxlength="200" value="${esc(body.name||'')}"></div><div class="field"><label>Email</label><input id="stripeCustomerEmail" type="email" maxlength="254" value="${esc(body.email||'')}"></div><div class="field"><label>Phone</label><input id="stripeCustomerPhone" maxlength="40" value="${esc(body.phone||'')}"></div></div><div class="modal-error" id="stripeEditorError"></div><div class="modal-actions"><button class="btn" id="stripeCancelEdit">Cancel</button><button class="btn primary" id="stripeSaveCustomer">${pending?'Retry saved request':'Save Customer'}</button></div>`;
+      document.querySelector('#stripeCancelEdit').onclick=drawStripe;
+      document.querySelector('#stripeSaveCustomer').onclick=async()=>{const b=document.querySelector('#stripeSaveCustomer');b.disabled=true;const payload=pending?.body||{id:body.id,name:document.querySelector('#stripeCustomerName').value,email:document.querySelector('#stripeCustomerEmail').value,phone:document.querySelector('#stripeCustomerPhone').value,requestId:crypto.randomUUID()};setStripePending({kind:'customer',body:payload});try{await apiPost('stripe_save_customer',payload);setStripePending(null);stripeView='customers';await loadStripeView(false)}catch(e){document.querySelector('#stripeEditorError').textContent=e.message;b.disabled=false}};
+    }
+    async function openStripeInvoiceChooser(){
+      if(!stripeData.customers.length){stripeView='customers';await loadStripeView(false)}
+      modalTitle.textContent='New Stripe Invoice';modalCopy.textContent='Choose the customer to bill.';
+      modalBody.innerHTML=`<div class="data-list">${stripeData.customers.length?stripeData.customers.map(r=>`<article class="data-item"><strong>${esc(r.name||r.email||r.id)}</strong><span>${esc(r.email||'')}</span><div style="margin-top:9px"><button class="btn primary" data-stripe-choose="${esc(r.id)}">Create invoice</button></div></article>`).join(''):'<div class="data-item"><strong>No customers yet.</strong><span>Create a Stripe customer first.</span></div>'}</div><div class="modal-actions"><button class="btn" id="stripeBackFromChooser">Back</button></div>`;
+      document.querySelector('#stripeBackFromChooser').onclick=drawStripe;
+      document.querySelectorAll('[data-stripe-choose]').forEach(b=>b.onclick=()=>openStripeInvoice(stripeData.customers.find(x=>x.id===b.dataset.stripeChoose)));
+    }
+    function openStripeInvoice(customer,pending=null){
+      if(!customer&&!pending)return;
+      const body=pending?.body||{customerId:customer.id,customerName:customer.name||customer.email||customer.id,description:'',amount:'',currency:'usd',daysUntilDue:30};
+      modalTitle.textContent='Create Draft Invoice';modalCopy.textContent=`Customer: ${body.customerName||body.customerId}`;
+      modalBody.innerHTML=`<div class="form-grid"><div class="field full"><label>Description</label><textarea id="stripeInvoiceDescription" maxlength="500">${esc(body.description||'')}</textarea></div><div class="field"><label>Amount</label><input id="stripeInvoiceAmount" inputmode="decimal" value="${esc(body.amount||'')}"></div><div class="field"><label>Currency</label><select id="stripeInvoiceCurrency">${['usd','gbp','eur','cad','aud'].map(x=>`<option value="${x}" ${body.currency===x?'selected':''}>${x.toUpperCase()}</option>`).join('')}</select></div><div class="field"><label>Payment due in days</label><input id="stripeInvoiceDue" type="number" min="1" max="90" value="${esc(body.daysUntilDue||30)}"></div></div><p class="footnote">A draft is created first. Review the final total before sending.</p><div class="modal-error" id="stripeEditorError"></div><div class="modal-actions"><button class="btn" id="stripeCancelEdit">Cancel</button><button class="btn primary" id="stripeCreateInvoice">${pending?'Retry saved request':'Create Draft'}</button></div>`;
+      document.querySelector('#stripeCancelEdit').onclick=drawStripe;
+      document.querySelector('#stripeCreateInvoice').onclick=async()=>{const b=document.querySelector('#stripeCreateInvoice');b.disabled=true;const payload=pending?.body||{customerId:body.customerId,customerName:body.customerName,description:document.querySelector('#stripeInvoiceDescription').value,amount:document.querySelector('#stripeInvoiceAmount').value,currency:document.querySelector('#stripeInvoiceCurrency').value,daysUntilDue:Number(document.querySelector('#stripeInvoiceDue').value),requestId:crypto.randomUUID()};setStripePending({kind:'invoice',body:payload});try{await apiPost('stripe_create_invoice',payload);setStripePending(null);stripeView='invoices';await loadStripeView(false)}catch(e){document.querySelector('#stripeEditorError').textContent=e.message;b.disabled=false}};
+    }
+    function resumeStripePending(){const p=stripePending();if(!p)return drawStripe();if(p.kind==='customer')return openStripeCustomer(null,p);if(p.kind==='invoice')return openStripeInvoice(null,p);setStripePending(null);drawStripe()}
+    function openStripeSend(invoice){
+      if(!invoice)return;modalTitle.textContent='Send Stripe Invoice';modalCopy.textContent='Review the recipient and amount before Stripe finalizes and sends the invoice.';
+      modalBody.innerHTML=`<div class="data-item"><strong>${esc(invoice.number||invoice.id)}</strong><span>${esc(stripeMoney(invoice.total,invoice.currency))} to ${esc(invoice.customerEmail||'(no email)')}</span><span>${esc(invoice.description||'')}</span></div><p class="footnote">Stripe will finalize this invoice and email the payment link. It will not automatically charge a saved card.</p><div class="modal-error" id="stripeEditorError"></div><div class="modal-actions"><button class="btn" id="stripeCancelSend">Cancel</button><button class="btn primary" id="stripeConfirmSend">${invoice.status==='draft'?'Finalize and send':'Send invoice'}</button></div>`;
+      document.querySelector('#stripeCancelSend').onclick=drawStripe;
+      document.querySelector('#stripeConfirmSend').onclick=async()=>{const b=document.querySelector('#stripeConfirmSend');b.disabled=true;try{await apiPost('stripe_send_invoice',{id:invoice.id,total:invoice.total,currency:invoice.currency,email:invoice.customerEmail,confirm:true});stripeView='invoices';await loadStripeView(false)}catch(e){document.querySelector('#stripeEditorError').textContent=e.message;b.disabled=false}};
     }
 
     async function manageMeet(){
