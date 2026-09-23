@@ -19,8 +19,14 @@
     }
   };
 
-  const PAID_PLANS = ['diagnostic', 'accelerator', 'platform', 'fractional_coo'];
+  const PAID_PLANS = ['aofi_free', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
   const PLAN_OFFERS = {
+    aofi_free: {
+      kicker: 'FREE AOFI™ SCORE',
+      title: 'Get My Free Agency Owner Freedom Index™ Score',
+      subtitle: 'Complete the Agency Diagnostic across Performance, Strength, and Owner Independence. No card required.',
+      cta: 'Get My Free AOFI™ Score →'
+    },
     diagnostic: {
       kicker: '1:1 DIAGNOSTIC',
       title: 'Start My 1:1 Analysis & Planning Diagnostic',
@@ -217,11 +223,14 @@
           <h1>Learn How Owner Identity<br>Impacts Your AOFI™ Score and Agency Value</h1>
           <p>The marketing agency you are building is heavily influenced by the patterns of your identity. Think of the decision making, actions you need your team to take or the culture you’ve built; all influenced by your identity.</p>
           <p class="identity-ceiling">The Agency Owner Freedom Index™ is a 0–100 score that shows how scalable, financially healthy, owner-independent and more valuable your marketing agency is becoming.</p>
-          <button class="cta" id="startArchetype">Get My Owner Identity Report →</button>
-          <div class="meta">About 3 minutes · 12 questions</div>
+          <div data-owner-identity-lookup></div>
+          <button class="cta" id="startArchetype">Get Started on My AOFI™ Score →</button>
+          <div class="meta">Owner Identity takes about 3 minutes · 12 questions</div>
         </div>
       </section>`;
+    window.CCOwnerIdentityLookup?.mountAll?.();
     document.querySelector('#startArchetype')?.addEventListener('click', () => {
+      localStorage.setItem('ccProgramPath','aofi_free');
       resetAssessment();
       STORE.set('cc_archetype_index', 0);
       navigate('/assessment');
@@ -649,23 +658,35 @@
             <p>So, we need you to think about what you truly want from your agency.</p>
             <ul><li>An exit that pays for your retirement</li><li>A business you can hand down to family</li><li>A great paycheck and challenge for the next decade</li></ul>
             <div class="guarantee-card"><div class="guarantee-mark">★</div><div><h3>100% Money Back Guarantee</h3><p>No matter what you want, work with one of our Fractional Executives and Back Office Platform, and if you do not scale revenue to hit goals, grow profit margins and increase your agency valuation by at least 3X, we’ll refund your money. No questions. Seriously!</p><p><strong>We are so confident in what we can help you achieve, we put our money where our mouth is.</strong></p></div></div>
-            <button class="nav-btn primary identity-continue" id="continueIdentity">Continue →</button>
+            <button class="nav-btn primary identity-continue" id="continueIdentity">${selectedPlan==='aofi_free'?'Get My Free AOFI™ Score →':'Continue →'}</button>
           </section>
         </section>
         <section class="diagnostic-offer" id="diagnosticOffer" hidden>
-          <div class="top-one-copy">
-            <h2>Are you ready to take the step<br>only the top 1% of agency owners take?</h2>
-            <p>Choose how you want to start! That’s what the 1% do, they get started, right now, working on themselves and their agencies. That’s it!</p>
-            <p>Ok, there is more to it than that, so let us take a deeper look under the hood with you and we guarantee you will be 100% satisfied. There are no quick fixes.</p>
-          </div>
-          <article class="diagnostic-offer-card">
-            <span class="offer-kicker">${escapeHtml(selectedOffer.kicker)}</span><h2>${escapeHtml(selectedOffer.title)}</h2><p class="offer-sub">${escapeHtml(selectedOffer.subtitle)}</p>
-            <div class="offer-columns">
-              <section><h3>What We Do</h3><ul><li>✓ Owner Identity Assessment</li><li>✓ Leadership &amp; Team Accountability Review</li><li>✓ Back Office Performance Analysis<div class="offer-sublist">Marketing · Sales · Onboarding · Client Success · Services Delivery · Billing &amp; Finance</div></li><li>✓ Agency Strength Assessment</li><li>✓ Owner Dependency Assessment</li><li>✓ Agency Valuation Snapshot</li></ul></section>
-              <section><h3>What You Get</h3><ul><li>✓ Owner Freedom Report</li><li>✓ Custom 90 Day Priority Roadmap</li><li>✓ Custom 1 Year Goals &amp; Strategic Plan</li><li>✓ (Optional) Accountability Partner &amp; Platform</li></ul></section>
+          ${selectedPlan==='aofi_free' ? `
+            <article class="diagnostic-offer-card">
+              <span class="offer-kicker">FREE AOFI™ SCORE</span>
+              <h2>Establish Your Agency Owner Freedom Index™ Score</h2>
+              <p class="offer-sub">Your Owner Identity Report is complete. Now answer the structured questions across Performance, Strength, and Owner Independence to calculate your free AOFI™ score.</p>
+              <div class="offer-columns">
+                <section><h3>Included Free</h3><ul><li>✓ Agency Diagnostic for AOFI™ Score</li><li>✓ Integrations</li><li>✓ Agency Owner Freedom Index™ Scorecard</li><li>✓ Individual index reports</li></ul></section>
+                <section><h3>Your Next Step</h3><ul><li>✓ Complete the three AOFI™ dimensions</li><li>✓ Review your Agency Valuation</li><li>✓ See your Issues &amp; Opportunities</li><li>✓ Track your score over time</li></ul></section>
+              </div>
+              <button type="button" class="offer-cta" id="startFreeAofiFromIdentity">Get My Free AOFI™ Score →</button>
+              <p id="freeAofiStartError" style="margin-top:12px;color:#b42318"></p>
+            </article>` : `
+            <div class="top-one-copy">
+              <h2>Are you ready to take the step<br>only the top 1% of agency owners take?</h2>
+              <p>Choose how you want to start! That’s what the 1% do, they get started, right now, working on themselves and their agencies. That’s it!</p>
+              <p>Ok, there is more to it than that, so let us take a deeper look under the hood with you and we guarantee you will be 100% satisfied. There are no quick fixes.</p>
             </div>
-            <a href="/payment/?plan=${encodeURIComponent(selectedPlan)}" class="next-payment offer-cta" data-plan="${escapeHtml(selectedPlan)}">${escapeHtml(selectedOffer.cta)}</a>
-          </article>
+            <article class="diagnostic-offer-card">
+              <span class="offer-kicker">${escapeHtml(selectedOffer.kicker)}</span><h2>${escapeHtml(selectedOffer.title)}</h2><p class="offer-sub">${escapeHtml(selectedOffer.subtitle)}</p>
+              <div class="offer-columns">
+                <section><h3>What We Do</h3><ul><li>✓ Owner Identity Assessment</li><li>✓ Leadership &amp; Team Accountability Review</li><li>✓ Back Office Performance Analysis<div class="offer-sublist">Marketing · Sales · Onboarding · Client Success · Services Delivery · Billing &amp; Finance</div></li><li>✓ Agency Strength Assessment</li><li>✓ Owner Dependency Assessment</li><li>✓ Agency Valuation Snapshot</li></ul></section>
+                <section><h3>What You Get</h3><ul><li>✓ Owner Freedom Report</li><li>✓ Custom 90 Day Priority Roadmap</li><li>✓ Custom 1 Year Goals &amp; Strategic Plan</li><li>✓ (Optional) Accountability Partner &amp; Platform</li></ul></section>
+              </div>
+              <a href="/payment/?plan=${encodeURIComponent(selectedPlan)}" class="next-payment offer-cta" data-plan="${escapeHtml(selectedPlan)}">${escapeHtml(selectedOffer.cta)}</a>
+            </article>`}
         </section>
       </main>`;
     document.getElementById('viewIdentityPdf')?.addEventListener('click', () => {
@@ -695,6 +716,29 @@
       const offer = document.querySelector('#diagnosticOffer');
       offer.hidden = false;
       offer.scrollIntoView({behavior:'smooth', block:'start'});
+    });
+    document.querySelector('#startFreeAofiFromIdentity')?.addEventListener('click', async event => {
+      const button=event.currentTarget,errorNode=document.querySelector('#freeAofiStartError');
+      button.disabled=true;button.textContent='Creating your free account…';if(errorNode)errorNode.textContent='';
+      try{
+        const response=await fetch('/api/accounts',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          name:[data.firstName,data.lastName].filter(Boolean).join(' ')||'Agency Owner',
+          email:data.email,
+          agencyUrl:data.agencyWebsite,
+          agencyName:data.agencyName||agencyNameFromWebsite(data.agencyWebsite),
+          accessPlan:'aofi_free',journey:'aofi_free',source:'aofi-free',
+          archetypeResult:{key:data.archetypeKey||'',title:data.archetypeTitle||'',primaryConstraint:data.primaryConstraint||'',desiredPath:data.desiredPath||''},
+          reportData:data,diagnosticState:{indexes:{},count:0,allComplete:false,reportReady:false}
+        })});
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||!result.account)throw new Error(result.error||'Your free AOFI™ account could not be created.');
+        window.CCAccount?.saveAccount?.({...result.account,backend_saved:true},{forceReset:true,replaceDiagnostic:true});
+        localStorage.setItem('ccProgramPath','aofi_free');localStorage.setItem('ccSignedIn','true');
+        location.href='/diagnostic/';
+      }catch(error){
+        if(errorNode)errorNode.textContent=error.message||'Your free AOFI™ account could not be created.';
+        button.disabled=false;button.textContent='Get My Free AOFI™ Score →';
+      }
     });
     document.querySelector('.next-payment')?.addEventListener('click', event => {
       localStorage.setItem('ccProgramPath', normalizePaidPlan(event.currentTarget.dataset.plan));
