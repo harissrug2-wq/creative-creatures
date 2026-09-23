@@ -91,6 +91,10 @@
     loadWorkspace().then(workspace=>workspace.getAccess()).then(access=>{
       el.querySelectorAll('[data-workspace-feature]').forEach(link=>{link.hidden=!access.features.includes(link.dataset.workspaceFeature)});
       el.querySelectorAll('.ask-creature,.mobile-ask-creature').forEach(button=>{button.hidden=!access.features.includes('ask')});
+      if(access.plan==='aofi_free'){
+        el.querySelectorAll('[data-workspace-feature="diagnostic"]').forEach(link=>{link.innerHTML=`${icon('diagnostic')}AOFI™ Diagnostic`});
+        el.querySelectorAll('[data-workspace-feature="scorecard"]').forEach(link=>{link.innerHTML=`${icon('score')}AOFI™ Scorecard`});
+      }
       const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo';
       el.querySelectorAll('[data-account-upgrade]').forEach(link=>{link.hidden=!canUpgrade});
     }).catch(()=>{});

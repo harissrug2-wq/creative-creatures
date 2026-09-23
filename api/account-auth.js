@@ -256,6 +256,7 @@ function currentSession(req, secret){
 const DEPARTMENTS=['leadership','marketing','sales','billing','onboarding','service-delivery','client-success','talent-acquisition','finance','communication','systems','sops'];
 const PLAN_FEATURES={
   owner_archetype:['owner-archetype'],
+  aofi_free:['owner-archetype','bookkeeping','integrations','diagnostic','scorecard'],
   diagnostic:['owner-archetype','bookkeeping','diagnostic','scorecard','goals','ask'],
   accelerator:['owner-archetype','bookkeeping','accelerator','scorecard','goals','ask'],
   platform:['owner-archetype','bookkeeping','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask'],
