@@ -217,32 +217,17 @@
   function landing() {
     document.onkeydown = null;
     app.innerHTML = `
-      <header class="archetype-header">${logo()}<a class="back-link" href="/login/">Sign in</a></header>
+      <header class="archetype-header">${logo()}<a class="back-link" href="/login/">Back to sign in</a></header>
       <section class="hero identity-hero">
-        <div class="hero-inner identity-hero-grid">
-          <div class="identity-hero-copy">
-            <span class="pill">FREE AOFI™ SCORE</span>
-            <h1>Learn How Owner Identity Impacts Your AOFI™ Score and Agency Value</h1>
-            <p>The marketing agency you are building is heavily influenced by the patterns of your identity — including how you make decisions, how your team works, and the culture you build.</p>
-            <p class="identity-ceiling">The Agency Owner Freedom Index™ is a 0–100 score that shows how scalable, financially healthy, owner-independent, and valuable your marketing agency is becoming.</p>
-            <div class="identity-path" aria-label="AOFI process">
-              <span><b>1</b>Owner Identity</span><i></i><span><b>2</b>Agency Diagnostic</span><i></i><span><b>3</b>AOFI™ Scorecard</span>
-            </div>
-          </div>
-          <aside class="identity-start-card">
-            <span class="identity-start-kicker">START HERE</span>
-            <div data-owner-identity-lookup></div>
-            <div class="identity-direct-start">
-              <span>Don't have a report yet?</span>
-              <button class="cta" id="startArchetype">Get Started on My AOFI™ Score →</button>
-              <div class="meta">Owner Identity takes about 3 minutes · 12 questions</div>
-            </div>
-          </aside>
+        <div class="hero-inner">
+          <h1>Learn How Owner Identity<br>Impacts Your AOFI™ Score and Agency Value</h1>
+          <p>The marketing agency you are building is heavily influenced by the patterns of your identity. Think of the decision making, actions you need your team to take or the culture you’ve built; all influenced by your identity.</p>
+          <p class="identity-ceiling">The Agency Owner Freedom Index™ is a 0–100 score that shows how scalable, financially healthy, owner-independent and more valuable your marketing agency is becoming.</p>
+          <button class="cta" id="startArchetype">Get My Owner Identity Report →</button>
+          <div class="meta">About 3 minutes · 12 questions</div>
         </div>
       </section>`;
-    window.CCOwnerIdentityLookup?.mountAll?.();
     document.querySelector('#startArchetype')?.addEventListener('click', () => {
-      localStorage.setItem('ccProgramPath','aofi_free');
       resetAssessment();
       STORE.set('cc_archetype_index', 0);
       navigate('/assessment');
