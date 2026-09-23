@@ -55,7 +55,7 @@
       {key:'adjustedSDE',label:'Adjusted SDE',type:'money',required:true,help:'Annual owner-operator earning power after approved add-backs.'},
       {key:'capitalInvested',label:'Capital Invested Last Year',type:'money'},
       {key:'incrementalOperatingProfit',label:'Incremental Operating Profit',type:'money',help:'Used with Capital Invested to calculate ROIC-Lite.'},
-      {key:'reinvestmentRatePercent',label:'Profit Reinvested',type:'percent',required:true},
+      {key:'reinvestmentRatePercent',label:'Profit Reinvested',type:'percent',help:'Optional. Add this when you know what percentage of profit was intentionally reinvested; leaving it blank reduces scoring coverage rather than blocking completion.'},
       {key:'technologyInvestmentLevel',label:'Technology Investment',type:'level'},
       {key:'talentInvestmentLevel',label:'Talent Investment',type:'level'},
       {key:'retainedEarningsGrowthLevel',label:'Retained Earnings Growth',type:'level'}
@@ -291,7 +291,7 @@
       <h3>Owner benefits</h3><p>${esc(section.copy)}</p>
       <div class="sde-options">${benefits.map(([id,label])=>`<label class="radio-option-card sde-option ${state.addbacks[id]?'selected':''}"><span class="option-copy">${esc(label)}</span><input type="checkbox" data-addback="${id}" ${state.addbacks[id]?'checked':''}><span class="checkbox-ui">${state.addbacks[id]?checkIcon:''}</span></label>`).join('')}</div>
       <label class="ownership-field ${state.addbacks.distributions?'show':''}" id="ownershipField"><span>Ownership percentage</span><div><input id="ownershipPercent" type="number" min="0" max="100" value="${esc(state.ownershipPercent)}" placeholder="100"><b>%</b></div></label>
-      <p class="sde-note">The scoring rubric specifically requires owner add-backs and capital allocation inputs. Enter the financial values below.</p>
+      <p class="sde-note">Start with Adjusted SDE. Add capital-allocation details when they are known; optional values improve scoring coverage but no longer block completion.</p>
     </div>${manualBody(section)}`;
   }
 
