@@ -1,4 +1,5 @@
 import { withQuickBooksRecovery } from '../lib/quickbooks.js';
+import { readAgencyStripeContext } from '../lib/agency-stripe.js';
 import { readChat, sendChat } from '../lib/ask-creature-chat.js';
 import { WORKSPACE_ACCOUNT_SELECT, workspaceAccount, isCreatureGreeting, boundedCreatureHistory, compactCreatureData, creatureTimings } from '../lib/ask-creature-performance.js';
 import crypto from 'node:crypto';
@@ -1063,9 +1064,9 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
       const {connection,accessToken}=await ensureGoogleCalendarAccess(c,row);
       const calendars=await listGoogleCalendars({accessToken});
       const selected=calendars.find(x=>x.id===(connection.calendar_id||'primary'))||calendars.find(x=>x.primary)||calendars[0]||null;
-      const timeMin=new Date(now.getTime()-36*60*60*1000).toISOString();
-      const timeMax=new Date(now.getTime()+8*24*60*60*1000).toISOString();
-      const events=await listGoogleCalendarEvents({accessToken,calendarId:connection.calendar_id||'primary',maxResults:60,timeMin,timeMax});
+      const timeMin=new Date(now.getTime()-90*24*60*60*1000).toISOString();
+      const timeMax=new Date(now.getTime()+180*24*60*60*1000).toISOString();
+      const events=await listGoogleCalendarEvents({accessToken,calendarId:connection.calendar_id||'primary',maxResults:100,timeMin,timeMax});
       return{connected:true,connectedEmail:connection.connected_email||'',calendar:selected?{id:selected.id,summary:selected.summary,timeZone:selected.timeZone,primary:selected.primary}:null,currentTime:now.toISOString(),queryWindow:{timeMin,timeMax},events};
     });
   }
@@ -1108,6 +1109,7 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
   }
 
   if(wantsFinance&&creatureCanRead(actor,['finance','billing'])){
+    await creatureTrySource(sources,'stripe',true,()=>readAgencyStripeContext(account.id));
     const fb=await getFreshBooksConnection(c,account.id);
     if(fb?.status==='connected')await creatureTrySource(sources,'freshbooks',true,()=>loadFreshBooksDashboard(c,account.id));
     const qb=await getQuickBooksConnection(c,account.id);
