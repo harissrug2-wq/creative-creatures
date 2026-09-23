@@ -529,7 +529,7 @@ function scorecardPriorities(reports){
     recommendation: ({performance:performanceRecommendations,strength:strengthRecommendations,independence:independenceRecommendations}[row.index]?.[row.key]) || `Validate ${row.name} and assign a clear owner and measurable improvement target.`
   }));
 
-  return {issues,opportunities};
+  return {weakest,issues,opportunities};
 }
 
 function buildModel(account, rows, generatedAt, diagnosticRunId = null) {
@@ -554,7 +554,7 @@ function buildModel(account, rows, generatedAt, diagnosticRunId = null) {
   const score = Math.round(reports.performance.score * 0.40 + reports.strength.score * 0.40 + reports.independence.score * 0.20);
   const confidence = Math.round(reports.performance.confidence * 0.40 + reports.strength.confidence * 0.40 + reports.independence.confidence * 0.20);
   const validationDb = worstValidation([map.performance, map.strength, map.independence]);
-  const {issues,opportunities} = scorecardPriorities(reports);
+  const {weakest,issues,opportunities} = scorecardPriorities(reports);
 
   const valuation = buildValuationSnapshot(rows, { diagnosticRunId, calculatedAt: generatedAt });
   return withValuationReportData({
