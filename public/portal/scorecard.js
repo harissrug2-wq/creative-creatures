@@ -13,6 +13,7 @@
         });
   } catch {}
   const isAofiFree = workspaceAccess?.plan === 'aofi_free';
+  if (isAofiFree) document.title = 'Agency Owner Freedom Index™ Scorecard · Creative Creatures';
   let model = null;
   let databaseError = null;
 
@@ -42,7 +43,7 @@
   }
 
   if (!model) {
-    root.innerHTML = `<section class="scorecard-empty"><h1>Your Agency Scorecard is still locked</h1><p>Complete all three indexes and generate the diagnostic before opening any report.</p><p>Trends will appear after your next quarterly assessment.</p>${databaseError ? `<p>${esc(databaseError.message || 'The saved scorecard is not available yet.')}</p>` : ''}<a class="cc-btn cc-btn-primary" href="/diagnostic/">Return to Diagnostic</a></section>`;
+    root.innerHTML = `<section class="scorecard-empty"><h1>${isAofiFree?'Your AOFI™ Scorecard is still locked':'Your Agency Scorecard is still locked'}</h1><p>Complete all three indexes and generate the diagnostic before opening any report.</p><p>Trends will appear after your next quarterly assessment.</p>${databaseError ? `<p>${esc(databaseError.message || 'The saved scorecard is not available yet.')}</p>` : ''}<a class="cc-btn cc-btn-primary" href="/diagnostic/">Return to Diagnostic</a></section>`;
     releasePageLoader();
     return;
   }
@@ -364,7 +365,7 @@
   const viewSwitcher = document.createElement('div');
   viewSwitcher.className = 'scorecard-view-switcher';
   viewSwitcher.innerHTML = `
-    <div class="view-switcher-copy"><strong>Agency Scorecard</strong><span>Current snapshot or quarterly progress over time</span></div>
+    <div class="view-switcher-copy"><strong>${isAofiFree?'AOFI™ Scorecard':'Agency Scorecard'}</strong><span>Current snapshot or quarterly progress over time</span></div>
     <div class="view-switcher-actions" role="tablist" aria-label="Scorecard view">
       <button type="button" class="active" data-scorecard-view="current" role="tab" aria-selected="true">Current</button>
       <button type="button" data-scorecard-view="trends" role="tab" aria-selected="false">Trends</button>
