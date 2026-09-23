@@ -11,7 +11,7 @@ const clean = value => String(value ?? '').trim();
 const lower = value => clean(value).toLowerCase();
 const finite = value => { const n = Number(value); return Number.isFinite(n) ? n : null; };
 const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,access_plan,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
-const ACCESS_PLANS = ['owner_archetype', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
+const ACCESS_PLANS = ['owner_archetype', 'aofi_free', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
 function normalizePlan(value, fallback = 'owner_archetype') {
   const plan = lower(value).replace(/-/g, '_');
   return ACCESS_PLANS.includes(plan) ? plan : fallback;
@@ -371,9 +371,10 @@ export default async function handler(req, res) {
       const email = lower(body.email);
       const agencyUrl = clean(body.agencyUrl || body.agency_url);
       const normalizedUrl = normalizeAgencyUrl(agencyUrl);
-      // Public account requests cannot self-assign a paid package. Signup plan
-      // activation is performed by payment-confirmation after payment succeeds.
-      const accessPlan = isAdminRequest ? normalizePlan(body.accessPlan || body.access_plan || body.journey) : 'owner_archetype';
+      // Public account requests cannot self-assign a paid package. The only
+      // public plan activation allowed without payment is the free AOFI™ account.
+      const requestedPlan = normalizePlan(body.accessPlan || body.access_plan || body.journey, 'owner_archetype');
+      const accessPlan = isAdminRequest ? requestedPlan : (requestedPlan === 'aofi_free' ? 'aofi_free' : 'owner_archetype');
       const journey = planJourney(accessPlan);
 
       if (!name || !email || !normalizedUrl) return json(res, 422, { error: 'Name, email, and agency URL are required.' });
