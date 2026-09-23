@@ -132,12 +132,13 @@ test('finalize/send is idempotent and a finalization total change prevents sendi
  const g=fixture();await call('create_invoice',invoice);g.priceChanged=true;assert.equal((await call('send_invoice',body)).statusCode,409);assert.equal(g.sent,undefined);
  assert.equal((await call('send_invoice',{...body,total:12650})).statusCode,200);assert.equal(g.sent,1);
 });
-test('OAuth rejects swapped, expired and replayed state',async()=>{
+test('OAuth accepts a valid server-side state even when the helper cookie is missing, and rejects swapped/replayed state',async()=>{
  const f=fixture();f.connections[0].status='disconnected';const start=await call('connect');assert.equal(start.statusCode,200);
- const state=new URL(start.data.authorizationUrl).searchParams.get('state');const cookie=`cc_account_session=${signSession({role:'account',accountId:A},'test-session')}; cc_stripe_connect_state=${state}`;
- assert.equal((await call('callback',{}, {method:'GET',query:{state:'0'.repeat(64),code:'ac_x'},headers:{cookie}})).statusCode,403);
- const r=await call('callback',{}, {method:'GET',query:{state,code:'ac_x'},headers:{cookie}});assert.equal(r.statusCode,303);
- assert.equal((await call('callback',{}, {method:'GET',query:{state,code:'ac_x'},headers:{cookie}})).statusCode,403);
+ const state=new URL(start.data.authorizationUrl).searchParams.get('state');
+ const sessionCookie=`cc_account_session=${signSession({role:'account',accountId:A},'test-session')}`;
+ assert.equal((await call('callback',{}, {method:'GET',query:{state:'0'.repeat(64),code:'ac_x'},headers:{cookie:sessionCookie}})).statusCode,403);
+ const r=await call('callback',{}, {method:'GET',query:{state,code:'ac_x'},headers:{cookie:sessionCookie}});assert.equal(r.statusCode,303);
+ assert.equal((await call('callback',{}, {method:'GET',query:{state,code:'ac_x'},headers:{cookie:sessionCookie}})).statusCode,403);
  assert.equal(f.connections[0].stripe_account_id,'acct_new');
 });
 test('OAuth cannot attach the platform account or use a different environment',async()=>{
