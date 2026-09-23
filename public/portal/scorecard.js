@@ -24,7 +24,6 @@
   }
 
   if (model) window.CCReports.setScorecardModel?.(model);
-  const weakestRows = Array.isArray(model?.weakest) ? model.weakest : [];
 
   if (!model && state?.reportReady) {
     // Temporary migration fallback only. New generations are always stored
@@ -37,6 +36,9 @@
     releasePageLoader();
     return;
   }
+  const weakestRows = Array.isArray(model?.weakest) ? model.weakest : (Array.isArray(model?.weakness) ? model.weakness : []);
+  model.weakest = weakestRows;
+  window.CCReports.setScorecardModel?.(model);
   const reportOrder = ['performance','strength','independence'];
   const colors = {performance:'#2e35e8',strength:'#e4a20d',independence:'#e35252'};
   const actionIcon = type => type === 'download'
