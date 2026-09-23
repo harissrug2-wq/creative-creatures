@@ -44,6 +44,61 @@ async function sendAofiFreeWelcome(req, account, resetToken) {
   });
 }
 
+async function sendAofiRequestSlack(record) {
+  const webhook = clean(process.env.AOFI_REQUEST_SLACK_WEBHOOK_URL);
+  if (!webhook) return false;
+  const response = await fetch(webhook, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: `New AOFI™ score request\nName: ${record.name}\nEmail: ${record.email}\nAgency: ${record.agency_name || record.agency_url || 'Not supplied'}` })
+  });
+  if (!response.ok) throw new Error('Slack notification failed.');
+  return true;
+}
+
+async function saveAofiScoreRequest(config, body) {
+  const name = clean(body.name || `${body.firstName || body.first_name || ''} ${body.lastName || body.last_name || ''}`);
+  const email = lower(body.email);
+  const agencyName = clean(body.agencyName || body.agency_name || body.company || body.companyName);
+  const agencyUrl = clean(body.agencyUrl || body.agency_url || body.website);
+  const phone = clean(body.phone || body.phoneNumber);
+  if (!name || !/^\S+@\S+\.\S+$/.test(email)) throw Object.assign(new Error('Name and a valid email address are required.'), { status: 422 });
+  const now = new Date().toISOString();
+  const record = {
+    name, email, email_normalized: email, agency_name: agencyName, agency_url: agencyUrl, phone,
+    source: clean(body.source) || 'aofreedomindex.com', status: 'requested',
+    metadata: { utm_source: clean(body.utm_source), utm_medium: clean(body.utm_medium), utm_campaign: clean(body.utm_campaign) },
+    updated_at: now
+  };
+  const existing = await supabaseRequest(config, `aofi_score_requests?select=id&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);
+  let rows;
+  if (Array.isArray(existing) && existing[0]) {
+    rows = await supabaseRequest(config, `aofi_score_requests?id=eq.${encodeURIComponent(existing[0].id)}&select=*`, { method:'PATCH', headers:{Prefer:'return=representation'}, body:JSON.stringify(record) });
+  } else {
+    rows = await supabaseRequest(config, 'aofi_score_requests?select=*', { method:'POST', headers:{Prefer:'return=representation'}, body:JSON.stringify({...record,created_at:now}) });
+  }
+  const saved = Array.isArray(rows) ? rows[0] : rows;
+  const redirectUrl = `https://app.creativecreatures.org/signup/lookup/?destination=aofi_free&email=${encodeURIComponent(email)}`;
+  const firstName = name.split(/\s+/)[0] || 'there';
+  const notices = await Promise.allSettled([
+    sendAofiRequestSlack(record),
+    sendEmail({
+      to: email,
+      subject: 'Get your free Agency Owner Freedom Index™ score',
+      text: `Hi ${firstName},\n\nYour free AOFI™ score request is ready. Start here: ${redirectUrl}\n\nFirst we will locate or create your Agency Owner Identity Report, then you can complete the Agency Diagnostic for your free AOFI™ score.`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#171820"><h2>Get your free AOFI™ score</h2><p>Hi ${escapeHtml(firstName)},</p><p>Your free Agency Owner Freedom Index™ score request is ready.</p><p>First we will locate or create your Agency Owner Identity Report. Then you can complete the Agency Diagnostic and generate your AOFI™ Scorecard.</p><p style="margin:26px 0"><a href="${escapeHtml(redirectUrl)}" style="display:inline-block;background:#3033eb;color:#fff;text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:700">Get My Free AOFI™ Score →</a></p></div>`
+    })
+  ]);
+  if (notices[0].status === 'rejected') console.error('AOFI request Slack notification failed', notices[0].reason?.message);
+  if (notices[1].status === 'rejected') console.error('AOFI request email failed', notices[1].reason?.message);
+  return {
+    requestId: saved?.id || null,
+    emailSent: notices[1].status === 'fulfilled',
+    slackSent: notices[0].status === 'fulfilled' && notices[0].value === true,
+    redirectUrl
+  };
+}
+
 const EMPTY_DIAGNOSTIC_STATE = {
   indexes: {},
   count: 0,
@@ -387,6 +442,10 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
+      if (clean(body.action) === 'aofi_request') {
+        const result = await saveAofiScoreRequest(config, body);
+        return json(res, 200, { success: true, ...result });
+      }
       const isAdminRequest = Boolean(requireAdmin(req));
       if (String(body.source || '').toLowerCase() === 'admin-console' && !isAdminRequest) return json(res, 401, { error: 'Admin authentication required.' });
       const name = clean(body.name || `${body.firstName || ''} ${body.lastName || ''}`);
