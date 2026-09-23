@@ -34,6 +34,7 @@ export default defineConfig({
         admin: page('admin'),
         adminLogin: resolve(__dirname, 'admin', 'login', 'index.html'),
         adminOwnerArchetypes: resolve(__dirname, 'admin', 'owner-archetypes', 'index.html'),
+        adminAofi: resolve(__dirname, 'admin', 'aofi', 'index.html'),
         adminAccelerator: resolve(__dirname, 'admin', 'accelerator', 'index.html'),
         adminPlatform: resolve(__dirname, 'admin', 'platform', 'index.html'),
         adminFractionalCoo: resolve(__dirname, 'admin', 'fractional-coo', 'index.html'),
