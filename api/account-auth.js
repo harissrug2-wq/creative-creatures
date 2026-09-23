@@ -671,7 +671,33 @@ async function saveAccountingEvidence(c,runId,evidenceType,data,{provider='Quick
   const rows=await db(c,`financial_evidence?select=${select}&diagnostic_run_id=eq.${encodeURIComponent(runId)}&evidence_type=eq.${encodeURIComponent(evidenceType)}&order=updated_at.desc&limit=1`);
   const existing=Array.isArray(rows)?rows[0]||null:null;const now=new Date().toISOString();
   const label={profit_loss:'Profit & Loss',balance_sheet:'Balance Sheet',ar_aging:'A/R Aging',client_revenue:'Client Revenue',service_revenue_mix:'Service Revenue Mix'}[evidenceType]||'Financial Evidence';
-  const patch={file_name:`${provider} · ${label}`,file_size_bytes:null,storage_path:null,mime_type:mimeType,extraction_status:'processed',extraction_model:model,extraction_error:null,extracted_at:now,extracted_data:data||{},validation_status:'verified',updated_at:now};
+  const existingData=existing?.extracted_data&&typeof existing.extracted_data==='object'?existing.extracted_data:{};
+  const extraction=existingData?.extraction&&typeof existingData.extraction==='object'?existingData.extraction:{};
+  const legacyManualFields={
+    profit_loss:['revenueTTM','cogsTTM','netIncomeTTM','revenueGrowthPercent','netIncomeGrowthPercent','grossProfitGrowthPercent','profitConversionPercent','marginStabilityLevel','growthConsistencyLevel','revenuePredictabilityLevel'],
+    balance_sheet:['cash','monthlyOperatingExpenses','currentAssets','currentLiabilities','totalDebt','ebitdaTTM','operatingCashFlowLevel'],
+    ar_aging:['totalAR','collectionRatePercent'],
+    client_revenue:['topClientPercent','revenueDiversificationLevel','averageClientTenureMonths','contractDurationLevel'],
+    service_revenue_mix:['recurringRevenuePercent','projectRevenuePercent']
+  };
+  let manualOverrides=Array.isArray(extraction.manualOverrides)?extraction.manualOverrides.map(clean).filter(Boolean):[];
+  if(!manualOverrides.length&&extraction.source==='manual_entry'){
+    manualOverrides=(legacyManualFields[evidenceType]||[]).filter(key=>existingData[key]!==undefined&&existingData[key]!==null&&existingData[key]!=='');
+  }
+  manualOverrides=[...new Set(manualOverrides)];
+  const mergedData={...(data&&typeof data==='object'?data:{})};
+  manualOverrides.forEach(key=>{if(Object.prototype.hasOwnProperty.call(existingData,key))mergedData[key]=existingData[key]});
+  if(manualOverrides.length){
+    mergedData.extraction={
+      ...(mergedData.extraction&&typeof mergedData.extraction==='object'?mergedData.extraction:{}),
+      ...extraction,
+      source:'provider_with_manual_overrides',
+      providerModel:model,
+      syncedAt:now,
+      manualOverrides
+    };
+  }
+  const patch={file_name:`${provider} · ${label}`,file_size_bytes:null,storage_path:null,mime_type:mimeType,extraction_status:'processed',extraction_model:model,extraction_error:null,extracted_at:now,extracted_data:mergedData,validation_status:manualOverrides.length?'unverified':'verified',updated_at:now};
   if(existing){const updated=await db(c,`financial_evidence?id=eq.${encodeURIComponent(existing.id)}&select=${select}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});return Array.isArray(updated)?updated[0]||existing:existing}
   const created=await db(c,`financial_evidence?select=${select}`,{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({diagnostic_run_id:runId,evidence_type:evidenceType,...patch,created_at:now})});return Array.isArray(created)?created[0]||null:null
 }

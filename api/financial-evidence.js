@@ -950,15 +950,21 @@ async function saveManualEvidence(config, body) {
     : {};
   const manual = sanitizeManualData(evidenceType, body.values || body.manualData || {});
   const capturedAt = new Date().toISOString();
+  const priorExtraction = current.extraction && typeof current.extraction === 'object' ? current.extraction : {};
+  const priorOverrides = Array.isArray(priorExtraction.manualOverrides)
+    ? priorExtraction.manualOverrides.map(clean).filter(Boolean)
+    : [];
+  const manualOverrides = [...new Set([...priorOverrides, ...Object.keys(manual)])];
   const merged = deriveMetrics(evidenceType, {
     ...current,
     ...manual,
     extraction: {
-      ...(current.extraction && typeof current.extraction === 'object' ? current.extraction : {}),
+      ...priorExtraction,
       source: 'manual_entry',
       capturedAt,
       evidenceType,
-      fileName: existing?.file_name || null
+      fileName: existing?.file_name || null,
+      manualOverrides
     }
   });
 

@@ -55,7 +55,7 @@
       {key:'adjustedSDE',label:'Adjusted SDE',type:'money',required:true,help:'Annual owner-operator earning power after approved add-backs.'},
       {key:'capitalInvested',label:'Capital Invested Last Year',type:'money'},
       {key:'incrementalOperatingProfit',label:'Incremental Operating Profit',type:'money',help:'Used with Capital Invested to calculate ROIC-Lite.'},
-      {key:'reinvestmentRatePercent',label:'Profit Reinvested',type:'percent',required:true},
+      {key:'reinvestmentRatePercent',label:'Profit Reinvested',type:'percent',help:'Optional. Add this when you know what percentage of profit was intentionally reinvested; leaving it blank reduces scoring coverage rather than blocking completion.'},
       {key:'technologyInvestmentLevel',label:'Technology Investment',type:'level'},
       {key:'talentInvestmentLevel',label:'Talent Investment',type:'level'},
       {key:'retainedEarningsGrowthLevel',label:'Retained Earnings Growth',type:'level'}
@@ -67,8 +67,8 @@
       {key:'contractDurationLevel',label:'Average Contract Duration',type:'level'}
     ],
     serviceRevenue: [
-      {key:'recurringRevenuePercent',label:'Recurring Revenue',type:'percent',required:true},
-      {key:'projectRevenuePercent',label:'Project Revenue',type:'percent',help:'Optional. If omitted, it can be treated as the remaining mix for reference only.'}
+      {key:'recurringRevenuePercent',label:'Recurring Revenue',type:'percent',required:true,help:'Retainer, subscription, or other recurring service revenue. Project / one-time revenue is kept as the remainder to 100%.'},
+      {key:'projectRevenuePercent',label:'Project / One-Time Revenue',type:'percent',help:'Automatically kept in sync with Recurring Revenue so the two values total 100%.'}
     ]
   };
 
@@ -84,6 +84,7 @@
     sdeReviewed:Boolean(saved.sdeReviewed),
     uploadState:{},
     saveState:{},
+    dirtyManual:{},
     remoteLoaded:false,
     remoteError:'',
     finishError:''
@@ -277,7 +278,7 @@
     const saveState=state.saveState[section.id]||'';
     return `<section class="manual-evidence-panel">
       <div class="manual-evidence-head">
-        <div><span class="manual-kicker">CONFIRM FINANCIAL VALUES</span><h3>Manual values used for scoring</h3><p>Enter values directly from the uploaded report or your accounting records. Required fields are marked. These values remain <strong>unverified</strong> until evidence is validated.</p></div>
+        <div><span class="manual-kicker">CONFIRM FINANCIAL VALUES</span><h3>Confirm values used for scoring</h3><p>Connected bookkeeping data is filled automatically. Edit only values that need correction. Confirmed edits are preserved on future syncs and remain <strong>unverified</strong> until supporting evidence is validated.</p></div>
         <button type="button" class="manual-save" data-save-manual="${section.id}">${saveState==='saving'?'Saving…':saveState==='saved'?'Saved ✓':'Save values'}</button>
       </div>
       <div class="manual-grid">${fields.map(field=>`<label class="manual-field"><span>${esc(field.label)}${field.required?'<b>Required</b>':''}</span>${inputControl(section,field)}${field.help?`<small>${esc(field.help)}</small>`:''}</label>`).join('')}</div>
@@ -290,7 +291,7 @@
       <h3>Owner benefits</h3><p>${esc(section.copy)}</p>
       <div class="sde-options">${benefits.map(([id,label])=>`<label class="radio-option-card sde-option ${state.addbacks[id]?'selected':''}"><span class="option-copy">${esc(label)}</span><input type="checkbox" data-addback="${id}" ${state.addbacks[id]?'checked':''}><span class="checkbox-ui">${state.addbacks[id]?checkIcon:''}</span></label>`).join('')}</div>
       <label class="ownership-field ${state.addbacks.distributions?'show':''}" id="ownershipField"><span>Ownership percentage</span><div><input id="ownershipPercent" type="number" min="0" max="100" value="${esc(state.ownershipPercent)}" placeholder="100"><b>%</b></div></label>
-      <p class="sde-note">The scoring rubric specifically requires owner add-backs and capital allocation inputs. Enter the financial values below.</p>
+      <p class="sde-note">Start with Adjusted SDE. Add capital-allocation details when they are known; optional values improve scoring coverage but no longer block completion.</p>
     </div>${manualBody(section)}`;
   }
 
@@ -361,6 +362,13 @@
     if(section.type!=='sde'&&!state.documents[section.id])missing.push('Sync QuickBooks or upload the PDF report');
     const values=manualFor(section);
     (fieldGroups[section.id]||[]).filter(field=>field.required).forEach(field=>{if(!hasNumber(values[field.key]))missing.push(field.label);});
+    if(section.id==='serviceRevenue'){
+      const recurring=hasNumber(values.recurringRevenuePercent)?Number(values.recurringRevenuePercent):null;
+      const project=hasNumber(values.projectRevenuePercent)?Number(values.projectRevenuePercent):null;
+      if(recurring!==null&&(recurring<0||recurring>100))missing.push('Recurring Revenue must be between 0% and 100%');
+      if(project!==null&&(project<0||project>100))missing.push('Project / One-Time Revenue must be between 0% and 100%');
+      if(recurring!==null&&project!==null&&Math.abs((recurring+project)-100)>.05)missing.push('Recurring and Project / One-Time Revenue must total 100%');
+    }
     return missing;
   }
 
@@ -370,19 +378,24 @@
     state.saveState[section.id]='saving';
     if(!silent)render();
     try{
-      let result;
+      let result=null;
       if(section.type==='sde'){
         state.sdeReviewed=true;
         result=await window.CCFinancialEvidence.saveSde({benefits:benefitIds(),ownershipPercent:state.ownershipPercent||null,values:manualFor(section)});
         if(result?.evidence)state.sdeEvidenceId=result.evidence.id;
       }else{
-        result=await window.CCFinancialEvidence.saveManual(section.evidenceType,manualFor(section));
+        const dirtyKeys=Object.keys(state.dirtyManual[section.id]||{});
+        if(dirtyKeys.length){
+          const changedValues=Object.fromEntries(dirtyKeys.map(key=>[key,manualFor(section)[key]]));
+          result=await window.CCFinancialEvidence.saveManual(section.evidenceType,changedValues);
+        }
       }
       const row=result?.evidence;
       if(row?.extracted_data)state.manual[section.id]={...manualFor(section),...row.extracted_data};
       if(row&&section.type!=='sde'&&state.documents[section.id]){
         state.documents[section.id]={...state.documents[section.id],extractionStatus:row.extraction_status||'processed',extractionModel:row.extraction_model||'manual_entry',extractionError:row.extraction_error||'',extractedAt:row.extracted_at||null};
       }
+      delete state.dirtyManual[section.id];
       state.saveState[section.id]='saved';
       state.remoteError='';
       persist();
@@ -424,10 +437,34 @@
     finally{delete state.uploadState[section.id];persist();render();}
   }
 
+  function syncServiceMix(section,changedKey){
+    if(section.id!=='serviceRevenue')return;
+    const values=manualFor(section);
+    const changed=Number(values[changedKey]);
+    if(!Number.isFinite(changed)||changed<0||changed>100)return;
+    const otherKey=changedKey==='recurringRevenuePercent'?'projectRevenuePercent':changedKey==='projectRevenuePercent'?'recurringRevenuePercent':'';
+    if(!otherKey)return;
+    const complement=Math.round((100-changed)*100)/100;
+    values[otherKey]=String(complement);
+    state.dirtyManual[section.id]=state.dirtyManual[section.id]||{};
+    state.dirtyManual[section.id][otherKey]=true;
+    const otherInput=document.querySelector(`[data-manual-key="${otherKey}"]`);
+    if(otherInput)otherInput.value=String(complement);
+  }
+
   function bindManual(section){
     document.querySelectorAll('[data-manual-key]').forEach(input=>{
-      input.addEventListener('input',()=>{manualFor(section)[input.dataset.manualKey]=input.value;state.saveState[section.id]='';persist();});
-      input.addEventListener('change',()=>{manualFor(section)[input.dataset.manualKey]=input.value;state.saveState[section.id]='';persist();});
+      const update=()=>{
+        const key=input.dataset.manualKey;
+        manualFor(section)[key]=input.value;
+        state.dirtyManual[section.id]=state.dirtyManual[section.id]||{};
+        state.dirtyManual[section.id][key]=true;
+        syncServiceMix(section,key);
+        state.saveState[section.id]='';
+        persist();
+      };
+      input.addEventListener('input',update);
+      input.addEventListener('change',update);
     });
     document.querySelector('[data-save-manual]')?.addEventListener('click',()=>saveManualSection(section).catch(()=>null));
   }
