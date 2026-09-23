@@ -1,5 +1,7 @@
+import crypto from 'node:crypto';
 import { requireAccountSession, authorizedAccount } from '../lib/account-api-access.js';
-import { requireAdmin } from '../lib/session-utils.js';
+import { requireAdmin, hashPassword, signSession, setSessionCookie, accountSessionSecret } from '../lib/session-utils.js';
+import { sendEmail, escapeHtml } from '../lib/email-service.js';
 const json = (res, status, payload) => {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -11,7 +13,7 @@ const clean = value => String(value ?? '').trim();
 const lower = value => clean(value).toLowerCase();
 const finite = value => { const n = Number(value); return Number.isFinite(n) ? n : null; };
 const SELECT = 'id,name,email,agency_url,agency_url_normalized,agency_name,journey,access_plan,source,archetype_result,report_data,diagnostic_state,created_at,updated_at';
-const ACCESS_PLANS = ['owner_archetype', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
+const ACCESS_PLANS = ['owner_archetype', 'aofi_free', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
 function normalizePlan(value, fallback = 'owner_archetype') {
   const plan = lower(value).replace(/-/g, '_');
   return ACCESS_PLANS.includes(plan) ? plan : fallback;
@@ -20,6 +22,26 @@ function planJourney(plan) {
   if (plan === 'accelerator') return 'accelerator';
   if (plan === 'platform' || plan === 'fractional_coo') return 'platform';
   return 'diagnostic';
+}
+
+function tokenHash(value) {
+  return crypto.createHash('sha256').update(String(value || '')).digest('hex');
+}
+function requestOrigin(req) {
+  const proto = clean(req.headers?.['x-forwarded-proto']) || 'https';
+  const host = clean(req.headers?.['x-forwarded-host'] || req.headers?.host) || 'app.creativecreatures.org';
+  return `${proto}://${host}`;
+}
+async function sendAofiFreeWelcome(req, account, resetToken) {
+  const origin = requestOrigin(req);
+  const link = `${origin}/login/?reset=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(account.email)}`;
+  const firstName = clean(account.name).split(/\s+/)[0] || 'there';
+  await sendEmail({
+    to: account.email,
+    subject: 'Your free AOFI™ score account is ready',
+    text: `Hi ${firstName},\n\nYour free Agency Owner Freedom Index™ account is ready.\n\nStart your AOFI™ assessment here: ${origin}/diagnostic/\n\nChoose a password for future sign-ins: ${link}\n\nThis setup link expires in 24 hours.`,
+    html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#171820"><h2>Your free AOFI™ score account is ready</h2><p>Hi ${escapeHtml(firstName)},</p><p>Complete the Agency Diagnostic to establish your Agency Owner Freedom Index™ score.</p><p style="margin:24px 0"><a href="${escapeHtml(origin)}/diagnostic/" style="display:inline-block;background:#2929ed;color:#fff;text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:700">Get My Free AOFI™ Score</a></p><p>For future sign-ins, choose your password using this secure setup link:</p><p><a href="${escapeHtml(link)}">Choose my password</a></p><p style="font-size:13px;color:#667085">The setup link expires in 24 hours.</p></div>`
+  });
 }
 
 const EMPTY_DIAGNOSTIC_STATE = {
@@ -371,9 +393,10 @@ export default async function handler(req, res) {
       const email = lower(body.email);
       const agencyUrl = clean(body.agencyUrl || body.agency_url);
       const normalizedUrl = normalizeAgencyUrl(agencyUrl);
-      // Public account requests cannot self-assign a paid package. Signup plan
-      // activation is performed by payment-confirmation after payment succeeds.
-      const accessPlan = isAdminRequest ? normalizePlan(body.accessPlan || body.access_plan || body.journey) : 'owner_archetype';
+      // Public account requests cannot self-assign a paid package. The only
+      // public plan activation allowed without payment is the free AOFI™ account.
+      const requestedPlan = normalizePlan(body.accessPlan || body.access_plan || body.journey, 'owner_archetype');
+      const accessPlan = isAdminRequest ? requestedPlan : (requestedPlan === 'aofi_free' ? 'aofi_free' : 'owner_archetype');
       const journey = planJourney(accessPlan);
 
       if (!name || !email || !normalizedUrl) return json(res, 422, { error: 'Name, email, and agency URL are required.' });
@@ -415,14 +438,36 @@ export default async function handler(req, res) {
         // A truly new account always begins with a clean diagnostic state,
         // regardless of any stale browser payload sent by the client.
         record.diagnostic_state = EMPTY_DIAGNOSTIC_STATE;
+        let freeResetToken = '';
+        if (accessPlan === 'aofi_free') {
+          freeResetToken = crypto.randomBytes(32).toString('hex');
+          record.password_hash = hashPassword(crypto.randomBytes(32).toString('hex'));
+          record.password_reset_token_hash = tokenHash(freeResetToken);
+          record.password_reset_expires_at = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+        }
         const rows = await supabaseRequest(config, 'accounts', {
           method: 'POST',
           headers: { Prefer: 'return=representation' },
           body: JSON.stringify(record)
         });
         account = Array.isArray(rows) ? rows[0] : rows;
+        const leadId = clean(body.leadId || body.lead_id);
+        if (account?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leadId)) {
+          await supabaseRequest(config, `owner_archetype_leads?id=eq.${encodeURIComponent(leadId)}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ converted_account_id: account.id, converted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          }).catch(error => console.error('Owner Identity lead conversion link failed', error));
+        }
+        if (accessPlan === 'aofi_free' && account?.id) {
+          const secret = accountSessionSecret();
+          if (secret) {
+            const sessionToken = signSession({ role: 'account', accountId: account.id, email: account.email }, secret, 30 * 24 * 60 * 60);
+            setSessionCookie(res, 'cc_account_session', sessionToken, 30 * 24 * 60 * 60);
+          }
+          if (freeResetToken) sendAofiFreeWelcome(req, account, freeResetToken).catch(error => console.error('AOFI free welcome email failed', error));
+        }
       }
-      return json(res, 200, { account: publicAccount(account) });
+      return json(res, 200, { account: publicAccount(account), authenticated: accessPlan === 'aofi_free' });
     }
 
     if (req.method === 'PATCH') {
