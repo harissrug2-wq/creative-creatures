@@ -315,13 +315,19 @@ function publicAccess(account,actor){
   const plan=accessPlan(account),state=account?.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
   const purchasedPlans=[...new Set([...(Array.isArray(state.purchasedPlans)?state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);
   const previewFeatures=plan==='aofi_free'?['monitor','goals','integrations']:plan==='diagnostic'?['monitor']:[];
+  const indexState=state.indexes&&typeof state.indexes==='object'?state.indexes:{};
+  const savedIndexesComplete=['strength','independence','performance'].every(key=>{
+    const row=indexState[key]||state[key]||{};
+    return row.complete===true||Number(row.progress)===100;
+  });
+  const allComplete=state.allComplete===true||state.all_complete===true||savedIndexesComplete;
   return{
     plan,purchasedPlans,features:featuresForAccount(account,actor),previewFeatures,
     workflow:{
       reportReady:state.reportReady===true||state.report_ready===true,
       goalsComplete:state.goalsComplete===true||state.goals_complete===true,
-      allComplete:state.allComplete===true||state.all_complete===true,
-      count:Number(state.count||0)
+      allComplete,
+      count:Number(state.count||(allComplete?3:0))
     },
     actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},
     departments:DEPARTMENTS,isAdmin:actor.role==='admin'||Boolean(actor.isAdmin),readOnly:actor.role==='admin'||Boolean(actor.isAdmin)
