@@ -54,6 +54,7 @@ test('admin account views use portfolio live data', () => {
   assert.match(admin, /all=true&portfolio=1/);
   assert.match(admin, /AOFI™ Score/);
   assert.match(admin, /Open Full Workspace/);
+  assert.match(admin, /adminWorkspaceUrl\('\/platform\/',account\)/);
   assert.match(admin, /Agency Goals/);
   assert.match(admin, /Monitor/);
 });
