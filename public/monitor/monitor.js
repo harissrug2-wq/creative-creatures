@@ -10,7 +10,7 @@
   const page = document.body.dataset.page || pageFromPath;
   const scorecardUnlocked = localStorage.getItem('ccDiagnosticReportReady') === 'true';
   const goalsUnlocked = scorecardUnlocked;
-  const scorecardHref = scorecardUnlocked ? '/agency-scorecard/' : '/diagnostic/?locked=scorecard';
+  const scorecardHref = '/agency-scorecard/';
 
   const iconPaths = {
     dashboard:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
@@ -71,12 +71,12 @@
              <a href="/accelerator/" class="top-link" data-workspace-feature="accelerator" hidden>${ico('diagnostic')} Accelerator</a>
              <a href="/diagnostic/" class="top-link" data-workspace-feature="diagnostic" hidden>${ico('diagnostic')} Diagnostic</a>
              <a href="${scorecardHref}" class="top-link ${scorecardUnlocked?'':'locked-link'}" data-workspace-feature="scorecard" hidden aria-disabled="${scorecardUnlocked?'false':'true'}">${ico('score')} Agency Scorecard</a>
-             <a href="${goalsUnlocked?'/agency-goals/':'#'}" class="top-link ${goalsUnlocked?'':'locked-link'}" data-workspace-feature="goals" hidden aria-disabled="${goalsUnlocked?'false':'true'}">${ico('goals')} Agency Goals</a>
+             <a href="/agency-goals/" class="top-link ${goalsUnlocked?'':'locked-link'}" data-workspace-feature="goals" hidden aria-disabled="${goalsUnlocked?'false':'true'}">${ico('goals')} Agency Goals</a>
              <a href="/integrations/" class="top-link" data-workspace-feature="integrations" hidden>${ico('plug')} Integrations</a>
              <a href="/portal/" class="top-link" data-workspace-feature="portal" hidden>${ico('dashboard')} Portal</a>
            </nav><a class="upgrade-button" href="/account/upgrade/" data-account-upgrade hidden>Upgrade</a><button class="ask-button" id="askButton" hidden><img src="/brand/creature-icon.png" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;"> Ask Creature</button><button class="top-menu-toggle" id="topMenuToggle" type="button" aria-label="Open main navigation" aria-expanded="false">${ico('menu')}</button></header>
            <nav class="top-menu-panel" id="topMenuPanel" aria-label="Main navigation">
-             <a href="/platform/" class="active" data-workspace-feature="monitor" hidden>Monitor</a><a href="/accelerator/" data-workspace-feature="accelerator" hidden>Accelerator</a><a href="/diagnostic/" data-workspace-feature="diagnostic" hidden>Diagnostic</a><a href="${scorecardHref}" data-workspace-feature="scorecard" hidden class="${scorecardUnlocked?'':'locked-link'}">Agency Scorecard</a><a href="${goalsUnlocked?'/agency-goals/':'#'}" data-workspace-feature="goals" hidden class="${goalsUnlocked?'':'locked-link'}">Agency Goals</a><a href="/integrations/" data-workspace-feature="integrations" hidden>Integrations</a><a href="/portal/" data-workspace-feature="portal" hidden>Portal</a><a href="/account/upgrade/" data-account-upgrade hidden>Upgrade account</a><button id="mobileAskButton" type="button" hidden><img src="/brand/creature-icon.png" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;"> Ask Creature</button>
+             <a href="/platform/" class="active" data-workspace-feature="monitor" hidden>Monitor</a><a href="/accelerator/" data-workspace-feature="accelerator" hidden>Accelerator</a><a href="/diagnostic/" data-workspace-feature="diagnostic" hidden>Diagnostic</a><a href="${scorecardHref}" data-workspace-feature="scorecard" hidden class="${scorecardUnlocked?'':'locked-link'}">Agency Scorecard</a><a href="/agency-goals/" data-workspace-feature="goals" hidden class="${goalsUnlocked?'':'locked-link'}">Agency Goals</a><a href="/integrations/" data-workspace-feature="integrations" hidden>Integrations</a><a href="/portal/" data-workspace-feature="portal" hidden>Portal</a><a href="/account/upgrade/" data-account-upgrade hidden>Upgrade account</a><button id="mobileAskButton" type="button" hidden><img src="/brand/creature-icon.png" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;"> Ask Creature</button>
            </nav>
           <main class="page-wrap">${content}</main>
         </div>
@@ -92,12 +92,39 @@
     profileButton?.addEventListener('click',e=>{e.stopPropagation();profileMenu.classList.toggle('open')});
     document.addEventListener('click',()=>profileMenu?.classList.remove('open'));
     const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
-    loadWorkspace().then(workspace=>workspace.getAccess()).then(access=>{
-      document.querySelectorAll('[data-workspace-feature]').forEach(link=>{link.hidden=!access.features.includes(link.dataset.workspaceFeature)});
+    loadWorkspace().then(async workspace=>{
+      const access=await workspace.getAccess();
+      const previews=Array.isArray(access.previewFeatures)?access.previewFeatures:[];
+      document.querySelectorAll('[data-workspace-feature]').forEach(link=>{
+        const feature=link.dataset.workspaceFeature;
+        const visible=access.features.includes(feature)||previews.includes(feature);
+        const gate=visible&&workspace.gateCopy?workspace.gateCopy(feature,access):null;
+        link.hidden=!visible;
+        link.classList.toggle('locked-link',Boolean(gate));
+        link.setAttribute('aria-disabled',gate?'true':'false');
+        if(gate){
+          link.dataset.workspaceGate='1';
+          link.dataset.workspaceGateTitle=gate.title||'Complete the required step to continue.';
+        }else{
+          delete link.dataset.workspaceGate;
+          delete link.dataset.workspaceGateTitle;
+        }
+      });
       document.querySelectorAll('#askButton,#mobileAskButton').forEach(button=>{button.hidden=!access.features.includes('ask')});
       const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo';
       document.querySelectorAll('[data-account-upgrade]').forEach(link=>{link.hidden=!canUpgrade});
     }).catch(()=>{});
+
+    document.addEventListener('click',event=>{
+      const link=event.target?.closest?.('[data-workspace-feature][data-workspace-gate="1"]');
+      if(!link)return;
+      event.preventDefault();
+      loadWorkspace().then(workspace=>workspace.getAccess().then(access=>{
+        const copy=workspace.gateCopy?.(link.dataset.workspaceFeature,access);
+        if(copy)workspace.showGateNotice(copy);
+        else showToast(link.dataset.workspaceGateTitle||'Complete the required step to continue.');
+      })).catch(()=>showToast(link.dataset.workspaceGateTitle||'Complete the required step to continue.'));
+    });
     document.querySelector('#askButton')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{showToast('Ask Creature is unavailable right now.')}});
     document.querySelector('#drawerClose')?.addEventListener('click',()=>document.querySelector('#askDrawer').classList.remove('open'));
     document.querySelector('#mobileToggle')?.addEventListener('click',()=>document.querySelector('#sidebar').classList.toggle('open'));
