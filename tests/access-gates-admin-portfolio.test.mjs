@@ -40,7 +40,9 @@ test('paid accounts do not render an empty plan pill', () => {
 
 test('scorecard unlock prerequisite is Diagnostic completion', () => {
   assert.match(access, /diagnosticComplete=workflow\.allComplete===true\|\|workflow\.reportReady===true/);
+  assert.match(access, /localState\.allComplete===true/);
   assert.match(shell, /const scorecardReady = Boolean\(state\.allComplete \|\| state\.reportReady\)/);
+  assert.match(auth, /savedIndexesComplete/);
 });
 
 test('monitor unlock prerequisite is scorecard generation', () => {
