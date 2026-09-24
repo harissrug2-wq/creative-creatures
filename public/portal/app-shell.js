@@ -50,7 +50,7 @@
     const profile = identity ? `<button class="top-account" type="button" aria-expanded="false"><span>${esc(initials(identity))}</span><b>${esc(agencyName || displayName)}</b></button>` : '';
 
     const goalsReady = Boolean(state.reportReady);
-    const monitorReady = bool('agencyGoalsComplete');
+    const monitorReady = Boolean(state.reportReady);
     const item = (href,label,name,key,enabled=true) => {
       const activeClass = active === key ? 'active' : '';
       const flowLocked = !enabled;
