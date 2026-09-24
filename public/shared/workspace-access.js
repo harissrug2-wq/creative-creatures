@@ -108,16 +108,7 @@
     const workflow=access?.workflow||{},reportReady=workflow.reportReady===true,goalsComplete=workflow.goalsComplete===true;
     const labels={scorecard:'Agency Scorecard',goals:'Agency Goals',monitor:'Monitor',integrations:'Integrations'};
     const preview=Array.isArray(access?.previewFeatures)&&access.previewFeatures.includes(feature)&&!access.features.includes(feature);
-
-    // Plan restrictions take priority over workflow restrictions. This keeps
-    // Free AOFI and Diagnostic preview pages focused on the required upgrade.
-    if(preview)return{
-      kind:'upgrade',
-      title:`Upgrade your account to access ${labels[feature]||'this feature'}`,
-      message:`${labels[feature]||'This feature'} is visible in your workspace, but it is not included in your current account type.`,
-      cta:'/account/upgrade/',
-      ctaLabel:'View Upgrade Options'
-    };
+    if(preview)return null;
 
     if(feature==='scorecard'&&!reportReady)return{
       kind:'flow',
@@ -149,6 +140,37 @@
     };
     return null;
   }
+  function previewCopy(feature,access){
+    const labels={monitor:'Monitor',goals:'Agency Goals',integrations:'Integrations'};
+    const preview=Array.isArray(access?.previewFeatures)&&access.previewFeatures.includes(feature)&&!access.features.includes(feature);
+    if(!preview)return null;
+    return{
+      title:`Previewing ${labels[feature]||'this feature'}`,
+      message:`You can explore this entire page to see what is included after you upgrade. Your current account is in preview mode, so paid actions remain unavailable.`,
+      cta:'/account/upgrade/',
+      ctaLabel:'Upgrade Account'
+    };
+  }
+  function showPreviewBanner(copy){
+    if(!copy||document.querySelector('[data-cc-preview-banner]'))return;
+    if(!document.querySelector('#cc-preview-banner-style')){
+      const style=document.createElement('style');style.id='cc-preview-banner-style';style.textContent=`
+        .cc-preview-banner{position:relative;z-index:75;background:linear-gradient(90deg,#f4f3ff,#fafaff);border-bottom:1px solid #d9d7ff;padding:12px 20px;font-family:Inter,Arial,sans-serif;color:#292d50}
+        .cc-preview-banner-inner{width:min(1180px,100%);margin:0 auto;display:flex;align-items:center;gap:16px;justify-content:space-between}
+        .cc-preview-banner-copy{display:flex;align-items:flex-start;gap:10px;min-width:0}
+        .cc-preview-banner-icon{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:0 0 auto;background:#3033eb;color:#fff;font-weight:900}
+        .cc-preview-banner strong{display:block;font-size:13px;line-height:1.35;margin-bottom:2px}
+        .cc-preview-banner span{display:block;font-size:12px;line-height:1.45;color:#626987}
+        .cc-preview-banner a{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border-radius:9px;background:#3033eb;color:#fff;text-decoration:none;font-size:12px;font-weight:800}
+        @media(max-width:720px){.cc-preview-banner{padding:11px 14px}.cc-preview-banner-inner{align-items:stretch;flex-direction:column;gap:10px}.cc-preview-banner a{width:100%}}
+      `;document.head.appendChild(style);
+    }
+    const banner=document.createElement('aside');banner.dataset.ccPreviewBanner='1';banner.className='cc-preview-banner';
+    banner.innerHTML=`<div class="cc-preview-banner-inner"><div class="cc-preview-banner-copy"><span class="cc-preview-banner-icon">↑</span><div><strong>${esc(copy.title)}</strong><span>${esc(copy.message)}</span></div></div><a href="${copy.cta}">${esc(copy.ctaLabel)}</a></div>`;
+    const chrome=document.querySelector('[data-app-header],[data-cc-topbar]');
+    if(chrome)chrome.insertAdjacentElement('afterend',banner);else document.body.prepend(banner);
+    document.documentElement.dataset.ccPreviewMode='1';
+  }
   function showGateNotice(copy){
     if(!copy||document.querySelector('[data-cc-access-gate]'))return;
     if(!document.querySelector('#cc-access-gate-style')){
@@ -179,11 +201,13 @@
       const visible=!f||access.features.includes(f)||previews.includes(f);
       if(!visible||(access.actor.role==='member'&&departments.includes(department)&&!access.actor.departments.includes(department))){link.hidden=true;link.style.display='none'}
     }catch{}});
+    const preview=feature?previewCopy(feature,access):null;
+    if(preview){showPreviewBanner(preview);return}
     const copy=feature?gateCopy(feature,access):null;
     if(copy){showGateNotice(copy);return}
     if(feature&&!access.features.includes(feature)){location.replace(access.features.includes('accelerator')?'/accelerator/':access.features.includes('monitor')?'/platform/':'/diagnostic/');return}
     if(access.actor.role==='member'){const department=location.pathname.split('/').filter(Boolean)[0],first=access.actor.departments[0];if(location.pathname.startsWith('/platform')&&first){location.replace(`/${first}/`);return}if((departments.includes(department)&&!access.actor.departments.includes(department))||location.pathname.startsWith('/users'))location.replace(first?`/${first}/`:'/login/')}
   }catch{}}
-  window.CCWorkspace={request,getAccess,openAsk,guard,showGateNotice,gateCopy};guard();getAccess().then(access=>{applyAdminReadOnly(access);mountChrome(access)}).catch(()=>{});
+  window.CCWorkspace={request,getAccess,openAsk,guard,showGateNotice,showPreviewBanner,gateCopy,previewCopy};guard();getAccess().then(access=>{applyAdminReadOnly(access);mountChrome(access)}).catch(()=>{});
 })();
 
