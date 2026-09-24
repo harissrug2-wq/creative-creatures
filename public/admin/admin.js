@@ -316,7 +316,7 @@
           ${workspaceLinks(account)}
           <div class="card-foot">
             <span class="since">since ${escapeHtml(formatDate(account.createdAt))}</span>
-            <a class="mini-btn primary" href="${adminWorkspaceUrl('/diagnostic/',account)}" data-admin-view>Open Full Workspace →</a>
+            <a class="mini-btn primary" href="${adminWorkspaceUrl('/platform/',account)}" data-admin-view>Open Full Workspace →</a>
             <button type="button" class="mini-btn danger" data-delete-id="${escapeHtml(account.id)}">Delete</button>
           </div>
         </article>`;
