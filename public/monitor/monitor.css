@@ -175,3 +175,6 @@ html[data-cc-preview-mode="1"] body[data-page="platform"] .monitor-dept-toggle{t
   html[data-cc-preview-mode="1"] body[data-page="platform"] .sidebar{top:166px}
   body[data-page="platform"] .page-wrap{padding-top:58px}
 }
+
+body[data-page="platform"] .sidebar>.brand{display:none}
+body[data-page="platform"] .side-scroll{padding-top:14px}
