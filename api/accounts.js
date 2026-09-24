@@ -463,6 +463,14 @@ export default async function handler(req, res) {
         return json(res, 200, { accounts });
       }
 
+      const adminTargetId = clean(req.query?.id || req.query?.tenant || req.query?.accountId || req.query?.account_id);
+      if (adminTargetId && requireAdmin(req)) {
+        const params = new URLSearchParams({ select: SELECT, id: `eq.${adminTargetId}`, limit: '1' });
+        const rows = await supabaseRequest(config, `accounts?${params.toString()}`);
+        if (!Array.isArray(rows) || !rows[0]) return json(res, 404, { error: 'No matching account was found.' });
+        return json(res, 200, { account: publicAccount(rows[0]), admin: true });
+      }
+
       const email = lower(req.query?.email);
       const normalizedUrl = normalizeAgencyUrl(req.query?.agencyUrl || req.query?.agency_url);
       if (!email && !normalizedUrl) return json(res, 422, { error: 'Enter an email address or agency URL.' });
