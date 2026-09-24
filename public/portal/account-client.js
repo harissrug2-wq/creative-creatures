@@ -355,6 +355,23 @@
     }
   }
 
+  async function hydrateAdminTenant() {
+    const params = new URLSearchParams(location.search);
+    const tenant = params.get('tenant') || params.get('accountId') || sessionStorage.getItem('cc_admin_tenant') || '';
+    const adminMode = params.get('admin') === '1' || sessionStorage.getItem('cc_admin_mode') === '1';
+    if (!adminMode || !tenant) return null;
+    sessionStorage.setItem('cc_admin_mode','1');
+    sessionStorage.setItem('cc_admin_tenant',tenant);
+    const result = await request(`${ACCOUNT_API_BASE}?id=${encodeURIComponent(tenant)}&admin=1`);
+    if (!result?.account) throw new Error('The selected agency could not be loaded.');
+    return saveAccount({ ...result.account, backend_saved: true, admin_view: true }, { forceReset: true, replaceDiagnostic: true });
+  }
+
+  const ready = hydrateAdminTenant().catch(error => {
+    console.error('Admin tenant hydration failed.', error);
+    throw error;
+  });
+
   const pending = safeJson(localStorage.getItem('ccPendingDiagnosticState'), null);
   if (pending && window.CCDiagnostic?.restore) {
     const pendingState = pending?.state ?? pending;
@@ -383,6 +400,7 @@
     destinationPath,
     accountApiBase: ACCOUNT_API_BASE,
     diagnosticApiBase: DIAGNOSTIC_API_BASE,
-    ownerLeadApiBase: OWNER_LEAD_API_BASE
+    ownerLeadApiBase: OWNER_LEAD_API_BASE,
+    ready
   };
 })();

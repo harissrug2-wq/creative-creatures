@@ -40,7 +40,8 @@
     }).join('')}</section>`;
   }
 
-  document.querySelectorAll('[data-app-header]').forEach(el => {
+  document.querySelectorAll('[data-app-header]').forEach(async el => {
+    try{await window.CCAccount?.ready}catch{}
     const active = el.dataset.appHeader || '';
     const state = window.CCDiagnostic?.getState?.() || {reportReady:false, ownerComplete:false, strength:false, independence:false, performance:false};
     const account = readAccount();
