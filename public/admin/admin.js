@@ -143,6 +143,36 @@
     fractional_coo: 'Fractional COO'
   })[pagePlan()] || 'Agency';
 
+  function adminWorkspaceUrl(path, account) {
+    const params = new URLSearchParams({ admin:'1', tenant:String(account.id) });
+    return `${path}?${params.toString()}`;
+  }
+
+  function workspaceStage(account) {
+    const state = diagnosticState(account);
+    if (state.goalsComplete === true || state.goals_complete === true) return 'Goals complete · Monitor stage';
+    if (account.reportReady) return 'Scorecard ready · Goals stage';
+    if (account.allComplete) return 'Diagnostic complete · Scorecard ready to generate';
+    if (account.completeCount > 0 || account.averageProgress > 0) return 'Diagnostic in progress';
+    if (account.integrationsComplete) return 'Integrations complete · Diagnostic next';
+    return 'Account activated';
+  }
+
+  function workspaceLinks(account) {
+    const links = [
+      ['/diagnostic/','Diagnostic'],
+      ['/agency-scorecard/','Scorecard'],
+      ['/agency-goals/','Agency Goals'],
+      ['/platform/','Monitor'],
+      ['/integrations/','Integrations'],
+      ['/portal/','Portal']
+    ];
+    return `<div class="admin-workspace-access" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #eceeea">
+      <span style="width:100%;font-size:11px;color:#667085"><strong style="color:#303640">Current stage:</strong> ${escapeHtml(workspaceStage(account))}</span>
+      ${links.map(([path,label])=>`<a class="mini-btn" data-admin-view href="${adminWorkspaceUrl(path,account)}">${label}</a>`).join('')}
+    </div>`;
+  }
+
   async function fetchAccounts() {
     const needsOwnerHistory = Boolean(document.querySelector('#ownerArchetypeRows'));
     const needsDiagnostics = Boolean(
@@ -283,10 +313,10 @@
             <div class="health-track"><span style="width:${Math.max(account.averageProgress, account.reportReady ? 100 : 0)}%"></span></div>
           </div>
 
+          ${workspaceLinks(account)}
           <div class="card-foot">
             <span class="since">since ${escapeHtml(formatDate(account.createdAt))}</span>
-            <a class="mini-btn" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>◉ Live Data</a>
-            <a class="mini-btn primary" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>View →</a>
+            <a class="mini-btn primary" href="${adminWorkspaceUrl('/diagnostic/',account)}" data-admin-view>Open Full Workspace →</a>
             <button type="button" class="mini-btn danger" data-delete-id="${escapeHtml(account.id)}">Delete</button>
           </div>
         </article>`;
@@ -453,7 +483,7 @@
             <strong>${account.completeCount}/3</strong>
             <div class="progress-cell"><div class="bar"><span style="width:${account.averageProgress}%"></span></div><span>${account.averageProgress}%</span></div>
             <div><span class="status-pill ${status.className}">${escapeHtml(status.label)}</span></div>
-            <div class="action-icons"><a class="circle-btn" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" title="Open live read-only workspace">◉</a><a class="circle-btn primary" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" title="View live read-only workspace">→</a><button class="circle-btn" type="button" data-delete-id="${escapeHtml(account.id)}" title="Delete account">×</button></div>
+            <div class="action-icons"><a class="circle-btn" href="${adminWorkspaceUrl('/platform/',account)}" title="Open Monitor">M</a><a class="circle-btn primary" href="${adminWorkspaceUrl('/diagnostic/',account)}" title="Open full read-only workspace">→</a><button class="circle-btn" type="button" data-delete-id="${escapeHtml(account.id)}" title="Delete account">×</button></div>
           </div>`;
       }).join('')}`;
     container.querySelectorAll('[data-delete-id]').forEach(button => {
