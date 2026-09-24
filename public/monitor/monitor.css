@@ -161,3 +161,17 @@ html,body,.monitor-app{max-width:100%;overflow-x:clip}
   .top-menu-panel a.locked-link{color:#a7adb7}
 }
 @media(max-width:850px){.topbar{justify-content:space-between}.top-menu-toggle{margin-left:0}.top-menu-panel.open{top:58px;max-height:calc(100dvh - 58px);left:0;width:100%;border-left:0;border-right:0;border-radius:0}}
+
+/* Shared workspace header alignment for Monitor */
+body[data-page="platform"] .monitor-app{min-height:calc(100vh - 54px)}
+body[data-page="platform"] .sidebar{top:54px;bottom:0;height:auto}
+body[data-page="platform"] .main-shell{min-height:calc(100vh - 54px)}
+body[data-page="platform"] .monitor-dept-toggle{position:fixed;left:12px;top:66px;z-index:65;background:#fff;border:1px solid var(--line);border-radius:9px}
+html[data-cc-preview-mode="1"] body[data-page="platform"] .sidebar{top:128px}
+html[data-cc-preview-mode="1"] body[data-page="platform"] .monitor-dept-toggle{top:140px}
+@media(min-width:851px){body[data-page="platform"] .monitor-dept-toggle{display:none!important}}
+@media(max-width:850px){
+  body[data-page="platform"] .sidebar{top:58px}
+  html[data-cc-preview-mode="1"] body[data-page="platform"] .sidebar{top:166px}
+  body[data-page="platform"] .page-wrap{padding-top:58px}
+}
