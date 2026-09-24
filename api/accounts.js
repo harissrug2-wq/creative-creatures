@@ -583,7 +583,7 @@ export default async function handler(req, res) {
       } else {
         // A truly new account always begins with a clean diagnostic state,
         // regardless of any stale browser payload sent by the client.
-        record.diagnostic_state = EMPTY_DIAGNOSTIC_STATE;
+        record.diagnostic_state = isAdminRequest ? { ...EMPTY_DIAGNOSTIC_STATE, paymentComplete: true } : EMPTY_DIAGNOSTIC_STATE;
         const rows = await supabaseRequest(config, 'accounts', {
           method: 'POST',
           headers: { Prefer: 'return=representation' },
