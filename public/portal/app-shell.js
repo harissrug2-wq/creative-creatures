@@ -50,6 +50,7 @@
     const identity = displayName || agencyName;
     const profile = identity ? `<button class="top-account" type="button" aria-expanded="false"><span>${esc(initials(identity))}</span><b>${esc(agencyName || displayName)}</b></button>` : '';
 
+    const scorecardReady = Boolean(state.allComplete || state.reportReady);
     const goalsReady = Boolean(state.reportReady);
     const monitorReady = Boolean(state.reportReady);
     const item = (href,label,name,key,enabled=true) => {
@@ -63,7 +64,7 @@
       ['/platform/','Monitor','monitor','monitor',monitorReady],
       ['/accelerator/','Accelerator','diagnostic','accelerator',true],
       ['/diagnostic/','Diagnostic','diagnostic','diagnostic',true],
-      ['/agency-scorecard/','Agency Scorecard','score','scorecard',state.reportReady],
+      ['/agency-scorecard/','Agency Scorecard','score','scorecard',scorecardReady],
       ['/agency-goals/','Agency Goals','goals','goals',goalsReady],
       ['/integrations/','Integrations','plug','integrations',true],
       ['/portal/','Portal','portal','portal',true]

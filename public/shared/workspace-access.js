@@ -106,15 +106,15 @@
   function routeFeature(path){if(path.startsWith('/accelerator'))return'accelerator';if(path.startsWith('/integrations'))return'integrations';if(path.startsWith('/agency-scorecard'))return'scorecard';if(path.startsWith('/agency-goals'))return'goals';if(path.startsWith('/diagnostic'))return'diagnostic';if(path.startsWith('/portal'))return'portal';if(path.startsWith('/users'))return'users';if(path.startsWith('/leadership'))return'leadership';if(['/platform','/marketing','/sales','/billing','/onboarding','/service-delivery','/client-success','/talent-acquisition','/finance','/communication','/systems','/sops'].some(p=>path.startsWith(p)))return'monitor';return''}
   function gateCopy(feature,access){
     if(access?.isAdmin||access?.actor?.role==='admin')return null;
-    const workflow=access?.workflow||{},reportReady=workflow.reportReady===true,goalsComplete=workflow.goalsComplete===true;
+    const workflow=access?.workflow||{},diagnosticComplete=workflow.allComplete===true||workflow.reportReady===true,reportReady=workflow.reportReady===true,goalsComplete=workflow.goalsComplete===true;
     const labels={scorecard:'Agency Scorecard',goals:'Agency Goals',monitor:'Monitor',integrations:'Integrations'};
     const preview=Array.isArray(access?.previewFeatures)&&access.previewFeatures.includes(feature)&&!access.features.includes(feature);
     if(preview)return null;
 
-    if(feature==='scorecard'&&!reportReady)return{
+    if(feature==='scorecard'&&!diagnosticComplete)return{
       kind:'flow',
       title:'Complete your Diagnostic to view your Agency Scorecard',
-      message:'Your Agency Scorecard becomes available after the Diagnostic is completed and the scorecard has been generated.',
+      message:'Your Agency Scorecard becomes available as soon as all Diagnostic assessments are complete.',
       cta:'/diagnostic/',
       ctaLabel:'Complete Diagnostic'
     };
