@@ -98,8 +98,11 @@
     const link=event.target?.closest?.('.cc-nav-link[data-cc-gated="true"]');
     if(!link)return;
     event.preventDefault();
-    show(link.dataset.ccGateMessage||'Complete the required step to continue.');
-    setTimeout(()=>{location.href=link.href},650);
+    loadWorkspace().then(workspace=>workspace.getAccess().then(access=>{
+      const copy=workspace.gateCopy?.(link.dataset.ccFeature,access);
+      if(copy)workspace.showGateNotice(copy);
+      else show(link.dataset.ccGateMessage||'Complete the required step to continue.');
+    })).catch(()=>show(link.dataset.ccGateMessage||'Complete the required step to continue.'));
   });
   host.querySelector('[data-cc-ask]')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{show('Ask Creature is unavailable right now.')}});
 
