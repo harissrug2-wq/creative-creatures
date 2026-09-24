@@ -53,8 +53,8 @@
     const monitorReady = bool('agencyGoalsComplete');
     const item = (href,label,name,key,enabled=true) => {
       const activeClass = active === key ? 'active' : '';
-      const disabled = !enabled;
-      return `<a href="${disabled ? '#' : href}" class="${activeClass}${disabled ? ' nav-disabled' : ''}" data-workspace-feature="${key}" hidden ${disabled ? 'aria-disabled="true" onclick="return false"' : ''}>${icon(name)}${label}</a>`;
+      const flowLocked = !enabled;
+      return `<a href="${href}" class="${activeClass}${flowLocked ? ' nav-disabled' : ''}" data-workspace-feature="${key}" data-flow-locked="${flowLocked ? '1' : '0'}" hidden>${icon(name)}${label}</a>`;
     };
 
     let status = '';
@@ -74,12 +74,12 @@
 
     el.innerHTML = `
       <header class="app-topbar">
-        <a class="top-logo" href="/login/"><img class="cc-platform-logo" src="/brand/creature-logo.png" alt="Creative Creatures"></a>
+        <div class="top-brand-wrap"><a class="top-logo" href="/login/"><img class="cc-platform-logo" src="/brand/creature-logo.png" alt="Creative Creatures"></a><span class="account-plan-tag" data-account-plan-tag hidden></span></div>
         <nav class="app-nav">${desktopNav}</nav>
         <a class="shell-upgrade" href="/account/upgrade/" data-account-upgrade hidden>Upgrade</a><button class="ask-creature" hidden><img src="/brand/creature-icon.png" class="cc-ask-logo-icon" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;">Ask Creature</button>${profile}
         <button class="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false">☰</button>
       </header>
-      <nav class="mobile-nav-panel">${mobileNav.map(([label,href,enabled,key]) => `<a href="${enabled ? href : '#'}" data-workspace-feature="${key}" hidden class="${active===key?'active ':''}${enabled?'':'nav-disabled'}" ${enabled?'':'onclick="return false" aria-disabled="true"'}>${label}</a>`).join('')}<a href="/account/upgrade/" data-account-upgrade hidden>Upgrade account</a>${identity ? `<button class="mobile-signout" type="button">${icon('logout')}Sign out ${esc(displayName || agencyName)}</button>` : ''}<button class="mobile-ask-creature" type="button" hidden><img src="/brand/creature-icon.png" class="cc-ask-logo-icon" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;">Ask Creature</button></nav>
+      <nav class="mobile-nav-panel">${mobileNav.map(([label,href,enabled,key]) => `<a href="${href}" data-workspace-feature="${key}" data-flow-locked="${enabled?'0':'1'}" hidden class="${active===key?'active ':''}${enabled?'':'nav-disabled'}">${label}</a>`).join('')}<a href="/account/upgrade/" data-account-upgrade hidden>Upgrade account</a>${identity ? `<button class="mobile-signout" type="button">${icon('logout')}Sign out ${esc(displayName || agencyName)}</button>` : ''}<button class="mobile-ask-creature" type="button" hidden><img src="/brand/creature-icon.png" class="cc-ask-logo-icon" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;">Ask Creature</button></nav>
       ${status}
       ${identity ? `<div class="top-account-menu" hidden><strong>${esc(displayName || agencyName)}</strong><span>${esc(account?.email || '')}</span><a href="/account/upgrade/" data-account-upgrade hidden>Change account type</a><button type="button">${icon('logout')}Sign out</button></div>` : ''}`;
 
@@ -89,11 +89,18 @@
     panel?.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMobileNav));
     const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
     loadWorkspace().then(workspace=>workspace.getAccess()).then(access=>{
-      el.querySelectorAll('[data-workspace-feature]').forEach(link=>{link.hidden=!access.features.includes(link.dataset.workspaceFeature)});
+      const previews=Array.isArray(access.previewFeatures)?access.previewFeatures:[];
+      el.querySelectorAll('[data-workspace-feature]').forEach(link=>{
+        const feature=link.dataset.workspaceFeature;
+        const visible=access.features.includes(feature)||previews.includes(feature);
+        link.hidden=!visible;
+        link.dataset.planPreview=previews.includes(feature)&&!access.features.includes(feature)?'1':'0';
+      });
       el.querySelectorAll('.ask-creature,.mobile-ask-creature').forEach(button=>{button.hidden=!access.features.includes('ask')});
       if(access.plan==='aofi_free'){
         el.querySelectorAll('[data-workspace-feature="diagnostic"]').forEach(link=>{link.innerHTML=`${icon('diagnostic')}AOFI™ Diagnostic`});
         el.querySelectorAll('[data-workspace-feature="scorecard"]').forEach(link=>{link.innerHTML=`${icon('score')}AOFI™ Scorecard`});
+        el.querySelectorAll('[data-account-plan-tag]').forEach(tag=>{tag.hidden=false;tag.textContent='Free AOFI™'});
       }
       const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo';
       el.querySelectorAll('[data-account-upgrade]').forEach(link=>{link.hidden=!canUpgrade});
