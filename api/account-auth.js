@@ -256,7 +256,7 @@ function currentSession(req, secret){
 const DEPARTMENTS=['leadership','marketing','sales','billing','onboarding','service-delivery','client-success','talent-acquisition','finance','communication','systems','sops'];
 const PLAN_FEATURES={
   owner_archetype:['owner-archetype'],
-  aofi_free:['owner-archetype','bookkeeping','integrations','diagnostic','scorecard'],
+  aofi_free:['owner-archetype','bookkeeping','diagnostic','scorecard'],
   diagnostic:['owner-archetype','bookkeeping','diagnostic','scorecard','goals','ask'],
   accelerator:['owner-archetype','bookkeeping','accelerator','scorecard','goals','ask'],
   platform:['owner-archetype','bookkeeping','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask'],
@@ -296,7 +296,22 @@ function requireOwner(actor){if(actor?.role!=='owner'&&actor?.role!=='admin')thr
 function requireDepartment(actor,department){if(actor?.role==='member'){const norm=clean(department).toLowerCase().replace(/[^a-z0-9]+/g,'-');const memberDepts=(actor?.departments||[]).map(d=>clean(d).toLowerCase().replace(/[^a-z0-9]+/g,'-'));if(!memberDepts.includes(norm))throw Object.assign(new Error('Your account does not have access to this department.'),{status:403})}}
 function integrationFeature(action){return /^(quickbooks|freshbooks)_(connect|status|callback|sync|disconnect|dashboard|select_business)$/.test(action)?'bookkeeping':'integrations'}
 function requireFeature(account,feature,actor){if(!featuresForAccount(account,actor).includes(feature))throw Object.assign(new Error(`${feature.replace(/-/g,' ')} is not included in this agency plan.`),{status:403})}
-function publicAccess(account,actor){const plan=accessPlan(account),purchasedPlans=[...new Set([...(Array.isArray(account?.diagnostic_state?.purchasedPlans)?account.diagnostic_state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);return{plan,purchasedPlans,features:featuresForAccount(account,actor),actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},departments:DEPARTMENTS,isAdmin:actor.role==='admin'||Boolean(actor.isAdmin),readOnly:actor.role==='admin'||Boolean(actor.isAdmin)}}
+function publicAccess(account,actor){
+  const plan=accessPlan(account),state=account?.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
+  const purchasedPlans=[...new Set([...(Array.isArray(state.purchasedPlans)?state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);
+  const previewFeatures=plan==='aofi_free'?['monitor','goals','integrations']:plan==='diagnostic'?['monitor']:[];
+  return{
+    plan,purchasedPlans,features:featuresForAccount(account,actor),previewFeatures,
+    workflow:{
+      reportReady:state.reportReady===true||state.report_ready===true,
+      goalsComplete:state.goalsComplete===true||state.goals_complete===true,
+      allComplete:state.allComplete===true||state.all_complete===true,
+      count:Number(state.count||0)
+    },
+    actor:{role:actor.role,name:actor.name||account.name,email:actor.email||account.email,departments:actor.departments},
+    departments:DEPARTMENTS,isAdmin:actor.role==='admin'||Boolean(actor.isAdmin),readOnly:actor.role==='admin'||Boolean(actor.isAdmin)
+  }
+}
 async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
 function responseText(payload){if(clean(payload?.output_text))return clean(payload.output_text);if(clean(payload?.choices?.[0]?.message?.content))return clean(payload.choices[0].message.content);for(const item of payload?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&clean(part.text))return clean(part.text);return''}
 
