@@ -105,18 +105,91 @@
 
   function routeFeature(path){if(path.startsWith('/accelerator'))return'accelerator';if(path.startsWith('/integrations'))return'integrations';if(path.startsWith('/agency-scorecard'))return'scorecard';if(path.startsWith('/agency-goals'))return'goals';if(path.startsWith('/diagnostic'))return'diagnostic';if(path.startsWith('/portal'))return'portal';if(path.startsWith('/users'))return'users';if(path.startsWith('/leadership'))return'leadership';if(['/platform','/marketing','/sales','/billing','/onboarding','/service-delivery','/client-success','/talent-acquisition','/finance','/communication','/systems','/sops'].some(p=>path.startsWith(p)))return'monitor';return''}
   function gateCopy(feature,access){
-    const reportReady=access?.workflow?.reportReady===true;
+    const workflow=access?.workflow||{},reportReady=workflow.reportReady===true,goalsComplete=workflow.goalsComplete===true;
     const labels={scorecard:'Agency Scorecard',goals:'Agency Goals',monitor:'Monitor',integrations:'Integrations'};
-    if(feature==='scorecard'&&!reportReady)return{kind:'flow',title:'Complete your Agency Diagnostic first',message:'Your Agency Scorecard becomes available after all three diagnostic indexes are complete and the scorecard has been generated.',cta:'/diagnostic/',ctaLabel:'Continue My Diagnostic'};
-    if((feature==='goals'||feature==='monitor')&&!reportReady)return{kind:'flow',title:`Generate your Agency Scorecard to open ${labels[feature]}`,message:`${labels[feature]} unlocks after your Agency Diagnostic is complete and your Agency Scorecard has been generated.`,cta:'/diagnostic/',ctaLabel:'Complete Diagnostic'};
     const preview=Array.isArray(access?.previewFeatures)&&access.previewFeatures.includes(feature)&&!access.features.includes(feature);
-    if(preview)return{kind:'upgrade',title:`Upgrade to use ${labels[feature]||'this feature'}`,message:`${labels[feature]||'This feature'} is visible in your current workspace so you can see what is available, but it is not included in your current account type.`,cta:'/account/upgrade/',ctaLabel:'View Upgrade Options'};
+    if(preview)return null;
+
+    if(feature==='scorecard'&&!reportReady)return{
+      kind:'flow',
+      title:'Complete your Diagnostic to view your Agency Scorecard',
+      message:'Your Agency Scorecard becomes available after the Diagnostic is completed and the scorecard has been generated.',
+      cta:'/diagnostic/',
+      ctaLabel:'Complete Diagnostic'
+    };
+    if(feature==='goals'&&!reportReady)return{
+      kind:'flow',
+      title:'Complete your Agency Scorecard to view Agency Goals',
+      message:'Agency Goals unlocks after your Diagnostic is complete and your Agency Scorecard has been generated.',
+      cta:'/agency-scorecard/',
+      ctaLabel:'View Agency Scorecard'
+    };
+    if(feature==='monitor'&&!reportReady)return{
+      kind:'flow',
+      title:'Complete your Agency Scorecard to view Monitor',
+      message:'Monitor unlocks after your Diagnostic is complete and your Agency Scorecard has been generated.',
+      cta:'/agency-scorecard/',
+      ctaLabel:'View Agency Scorecard'
+    };
+    if(feature==='monitor'&&!goalsComplete)return{
+      kind:'flow',
+      title:'Complete Agency Goals to view Monitor',
+      message:'Finish your Agency Goals and 90 Day Priorities before Monitor becomes available.',
+      cta:'/agency-goals/',
+      ctaLabel:'Complete Agency Goals'
+    };
     return null;
+  }
+  function previewCopy(feature,access){
+    const labels={monitor:'Monitor',goals:'Agency Goals',integrations:'Integrations'};
+    const preview=Array.isArray(access?.previewFeatures)&&access.previewFeatures.includes(feature)&&!access.features.includes(feature);
+    if(!preview)return null;
+    return{
+      title:`Previewing ${labels[feature]||'this feature'}`,
+      message:`You can explore this entire page to see what is included after you upgrade. Your current account is in preview mode, so paid actions remain unavailable.`,
+      cta:'/account/upgrade/',
+      ctaLabel:'Upgrade Account'
+    };
+  }
+  function showPreviewBanner(copy){
+    if(!copy||document.querySelector('[data-cc-preview-banner]'))return;
+    if(!document.querySelector('#cc-preview-banner-style')){
+      const style=document.createElement('style');style.id='cc-preview-banner-style';style.textContent=`
+        .cc-preview-banner{position:relative;z-index:75;background:linear-gradient(90deg,#f4f3ff,#fafaff);border-bottom:1px solid #d9d7ff;padding:12px 20px;font-family:Inter,Arial,sans-serif;color:#292d50}
+        .cc-preview-banner-inner{width:min(1180px,100%);margin:0 auto;display:flex;align-items:center;gap:16px;justify-content:space-between}
+        .cc-preview-banner-copy{display:flex;align-items:flex-start;gap:10px;min-width:0}
+        .cc-preview-banner-icon{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;flex:0 0 auto;background:#3033eb;color:#fff;font-weight:900}
+        .cc-preview-banner strong{display:block;font-size:13px;line-height:1.35;margin-bottom:2px}
+        .cc-preview-banner span{display:block;font-size:12px;line-height:1.45;color:#626987}
+        .cc-preview-banner a{flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:0 14px;border-radius:9px;background:#3033eb;color:#fff;text-decoration:none;font-size:12px;font-weight:800}
+        @media(max-width:720px){.cc-preview-banner{padding:11px 14px}.cc-preview-banner-inner{align-items:stretch;flex-direction:column;gap:10px}.cc-preview-banner a{width:100%}}
+      `;document.head.appendChild(style);
+    }
+    const banner=document.createElement('aside');banner.dataset.ccPreviewBanner='1';banner.className='cc-preview-banner';
+    banner.innerHTML=`<div class="cc-preview-banner-inner"><div class="cc-preview-banner-copy"><span class="cc-preview-banner-icon">↑</span><div><strong>${esc(copy.title)}</strong><span>${esc(copy.message)}</span></div></div><a href="${copy.cta}">${esc(copy.ctaLabel)}</a></div>`;
+    const chrome=document.querySelector('[data-app-header],[data-cc-topbar]');
+    if(chrome)chrome.insertAdjacentElement('afterend',banner);else document.body.prepend(banner);
+    document.documentElement.dataset.ccPreviewMode='1';
   }
   function showGateNotice(copy){
     if(!copy||document.querySelector('[data-cc-access-gate]'))return;
+    if(!document.querySelector('#cc-access-gate-style')){
+      const style=document.createElement('style');style.id='cc-access-gate-style';style.textContent=`
+        .cc-access-gate{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;padding:28px;background:rgba(15,23,42,.46);backdrop-filter:blur(5px)}
+        .cc-access-gate-card{width:min(620px,100%);background:#fff;border:1px solid #e4e4df;border-radius:20px;padding:34px;box-shadow:0 24px 70px rgba(15,23,42,.2);font-family:Inter,Arial,sans-serif;color:#111318}
+        .cc-access-gate-icon{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;background:#eef0ff;color:#272cf3;font-size:22px;font-weight:800;margin-bottom:18px}
+        .cc-access-gate-kicker{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;color:#6b7280;margin-bottom:9px}
+        .cc-access-gate-card h1{font-size:28px;line-height:1.15;letter-spacing:-.035em;margin:0 0 11px}
+        .cc-access-gate-card p{font-size:14px;line-height:1.6;color:#667085;margin:0}
+        .cc-access-gate-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+        .cc-access-gate-actions a{min-height:43px;display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:0 17px;text-decoration:none;font-size:13px;font-weight:750}
+        .cc-access-gate-primary{background:#272cf3;color:#fff}
+        .cc-access-gate-secondary{border:1px solid #e4e4df;background:#fff;color:#4b5563}
+        @media(max-width:640px){.cc-access-gate{padding:16px}.cc-access-gate-card{padding:25px 20px}.cc-access-gate-card h1{font-size:23px}.cc-access-gate-actions{display:grid}.cc-access-gate-actions a{width:100%}}
+      `;document.head.appendChild(style);
+    }
     const wrap=document.createElement('div');wrap.dataset.ccAccessGate='1';wrap.className='cc-access-gate';
-    wrap.innerHTML=`<section class="cc-access-gate-card"><span class="cc-access-gate-icon">${copy.kind==='upgrade'?'↑':'✓'}</span><span class="cc-access-gate-kicker">${copy.kind==='upgrade'?'ACCOUNT UPGRADE':'NEXT STEP'}</span><h1>${esc(copy.title)}</h1><p>${esc(copy.message)}</p><div class="cc-access-gate-actions"><a class="cc-access-gate-primary" href="${copy.cta}">${esc(copy.ctaLabel)}</a><a class="cc-access-gate-secondary" href="/diagnostic/">Back to Diagnostic</a></div></section>`;
+    wrap.innerHTML=`<section class="cc-access-gate-card" role="dialog" aria-modal="true" aria-label="${esc(copy.title)}"><span class="cc-access-gate-icon">${copy.kind==='upgrade'?'↑':'✓'}</span><span class="cc-access-gate-kicker">${copy.kind==='upgrade'?'ACCOUNT UPGRADE':'NEXT STEP'}</span><h1>${esc(copy.title)}</h1><p>${esc(copy.message)}</p><div class="cc-access-gate-actions"><a class="cc-access-gate-primary" href="${copy.cta}">${esc(copy.ctaLabel)}</a><a class="cc-access-gate-secondary" href="/diagnostic/">Back to Diagnostic</a></div></section>`;
     document.body.appendChild(wrap);
   }
   async function guard(){try{
@@ -128,11 +201,13 @@
       const visible=!f||access.features.includes(f)||previews.includes(f);
       if(!visible||(access.actor.role==='member'&&departments.includes(department)&&!access.actor.departments.includes(department))){link.hidden=true;link.style.display='none'}
     }catch{}});
+    const preview=feature?previewCopy(feature,access):null;
+    if(preview){showPreviewBanner(preview);return}
     const copy=feature?gateCopy(feature,access):null;
     if(copy){showGateNotice(copy);return}
     if(feature&&!access.features.includes(feature)){location.replace(access.features.includes('accelerator')?'/accelerator/':access.features.includes('monitor')?'/platform/':'/diagnostic/');return}
     if(access.actor.role==='member'){const department=location.pathname.split('/').filter(Boolean)[0],first=access.actor.departments[0];if(location.pathname.startsWith('/platform')&&first){location.replace(`/${first}/`);return}if((departments.includes(department)&&!access.actor.departments.includes(department))||location.pathname.startsWith('/users'))location.replace(first?`/${first}/`:'/login/')}
   }catch{}}
-  window.CCWorkspace={request,getAccess,openAsk,guard,showGateNotice};guard();getAccess().then(access=>{applyAdminReadOnly(access);mountChrome(access)}).catch(()=>{});
+  window.CCWorkspace={request,getAccess,openAsk,guard,showGateNotice,showPreviewBanner,gateCopy,previewCopy};guard();getAccess().then(access=>{applyAdminReadOnly(access);mountChrome(access)}).catch(()=>{});
 })();
 

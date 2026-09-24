@@ -87,14 +87,36 @@
     const closeMobileNav=()=>{panel?.classList.remove('open');toggle?.setAttribute('aria-expanded','false');};
     toggle?.addEventListener('click',()=>{const open=!panel?.classList.contains('open');panel?.classList.toggle('open',open);toggle.setAttribute('aria-expanded',String(open));});
     panel?.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeMobileNav));
+    el.addEventListener('click',event=>{
+      const link=event.target?.closest?.('[data-workspace-feature][data-flow-locked="1"]');
+      if(!link)return;
+      event.preventDefault();
+      loadWorkspace().then(workspace=>workspace.getAccess().then(access=>{
+        const copy=workspace.gateCopy?.(link.dataset.workspaceFeature,access);
+        if(copy)workspace.showGateNotice(copy);
+      })).catch(()=>{});
+    });
     const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
-    loadWorkspace().then(workspace=>workspace.getAccess()).then(access=>{
+    loadWorkspace().then(async workspace=>{
+      const access=await workspace.getAccess();
       const previews=Array.isArray(access.previewFeatures)?access.previewFeatures:[];
       el.querySelectorAll('[data-workspace-feature]').forEach(link=>{
         const feature=link.dataset.workspaceFeature;
         const visible=access.features.includes(feature)||previews.includes(feature);
+        const gate=visible&&workspace.gateCopy?workspace.gateCopy(feature,access):null;
         link.hidden=!visible;
         link.dataset.planPreview=previews.includes(feature)&&!access.features.includes(feature)?'1':'0';
+        link.dataset.flowLocked=gate?'1':'0';
+        link.classList.toggle('nav-disabled',Boolean(gate));
+        if(gate){
+          link.dataset.gateMessage=gate.title;
+          link.dataset.gateKind=gate.kind;
+          link.setAttribute('aria-disabled','true');
+        }else{
+          delete link.dataset.gateMessage;
+          delete link.dataset.gateKind;
+          link.removeAttribute('aria-disabled');
+        }
       });
       el.querySelectorAll('.ask-creature,.mobile-ask-creature').forEach(button=>{button.hidden=!access.features.includes('ask')});
       if(access.plan==='aofi_free'){

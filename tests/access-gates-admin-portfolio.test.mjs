@@ -8,6 +8,8 @@ const auth = fs.readFileSync(new URL('../api/account-auth.js', import.meta.url),
 const accounts = fs.readFileSync(new URL('../api/accounts.js', import.meta.url), 'utf8');
 const admin = fs.readFileSync(new URL('../public/admin/admin.js', import.meta.url), 'utf8');
 const archetypeCss = fs.readFileSync(new URL('../public/archetype/archetype.css', import.meta.url), 'utf8');
+const baseCss = fs.readFileSync(new URL('../public/portal/base.css', import.meta.url), 'utf8');
+const goalsApi = fs.readFileSync(new URL('../api/goals.js', import.meta.url), 'utf8');
 
 test('free AOFI navigation exposes preview-only upgrade pages and plan tag', () => {
   assert.match(auth, /previewFeatures=plan==='aofi_free'\?\['monitor','goals','integrations'\]/);
@@ -16,9 +18,21 @@ test('free AOFI navigation exposes preview-only upgrade pages and plan tag', () 
 });
 
 test('workflow gates use dynamic prerequisite messages', () => {
-  assert.match(access, /Complete your Agency Diagnostic first/);
-  assert.match(access, /Generate your Agency Scorecard to open/);
-  assert.match(access, /Upgrade to use/);
+  assert.match(access, /Complete your Diagnostic to view your Agency Scorecard/);
+  assert.match(access, /Complete your Agency Scorecard to view Agency Goals/);
+  assert.match(access, /Complete Agency Goals to view Monitor/);
+});
+
+test('plan-restricted pages render as full upgrade previews', () => {
+  assert.match(access, /function previewCopy/);
+  assert.match(access, /showPreviewBanner/);
+  assert.match(access, /You can explore this entire page/);
+  assert.match(goalsApi, /previewGoalsModel/);
+  assert.match(goalsApi, /PLAN_UPGRADE_REQUIRED/);
+});
+
+test('paid accounts do not render an empty plan pill', () => {
+  assert.match(baseCss, /\.account-plan-tag\[hidden\]\{display:none!important\}/);
 });
 
 test('monitor unlock prerequisite is scorecard generation', () => {
@@ -41,5 +55,5 @@ test('admin account views use portfolio live data', () => {
 test('owner identity card sizing matches signup card scale', () => {
   assert.match(archetypeCss, /width:min\(1040px/);
   assert.match(archetypeCss, /min-height:78px!important/);
-  assert.match(archetypeCss, /font-size:24px!important/);
+  assert.match(archetypeCss, /height:78px!important/);
 });

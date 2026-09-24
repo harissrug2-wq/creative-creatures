@@ -687,6 +687,40 @@ async function loadModel(config, account, session = null) {
   };
 }
 
+function previewGoalsModel(account) {
+  const samples = {
+    ownerDelivery: [18, '18%'], ownerSales: [22, '22%'], revenue: [1250000, '$1,250,000'],
+    cogs: [42, '42%'], margin: [17, '17%'], sde: [285000, '$285,000'],
+    leadership: [3.4, '3.4 / 5'], aofi: [71, '71'], valuation: [2400000, '$2,400,000']
+  };
+  const metrics = METRICS.map(definition => {
+    const [actualValue, actualDisplay] = samples[definition.id] || [null, '—'];
+    return {...definition, actualValue, actualDisplay, available:true, evidenceAvailable:true, currentSourceType:'preview', source:'Preview sample data', actualUpdatedAt:null};
+  });
+  const previewGoals = [
+    'Weekly leadership scorecard reviewed without owner escalation',
+    'Create a repeatable qualified-lead engine',
+    'Increase proposal-to-close consistency',
+    'Reduce time from signed agreement to kickoff',
+    'Standardize billing and collections cadence',
+    'Improve delivery capacity and margin visibility',
+    'Build proactive client health and retention rhythm'
+  ];
+  const departments = DEPARTMENTS.map((name,index)=>({name,goal:previewGoals[index]||'',owner:'Agency Owner',status:index<2?'On Track':'Needs Definition',done:index<2?'A documented process is owned and reviewed weekly':'',completion:index<2?'This quarter':'',completionDate:'',suggestion:null}));
+  return {
+    preview:true,
+    account:{id:account.id,name:account.name,email:account.email,agencyName:account.agency_name,accessPlan:account.access_plan,journey:account.journey},
+    hasMonitorAccess:false,canManageTeam:false,memberCount:0,members:[],
+    diagnosticRun:{id:'preview',status:'preview'},scorecard:{id:'preview',aofiScore:71,generatedAt:null},
+    metrics,targets:{},progress:{},progressHistory:{},departments,
+    rocks:[
+      {id:'preview-1',scorecardId:'preview',sourceType:'preview',sourceKey:'preview-1',title:'Remove owner from routine delivery approvals',description:'Document decision rights and delegate recurring approvals.',owner:'Agency Owner',due:'This quarter',dueDate:'',status:'Not started'},
+      {id:'preview-2',scorecardId:'preview',sourceType:'preview',sourceKey:'preview-2',title:'Build a weekly leadership scorecard',description:'Track the few metrics that predict growth, delivery health, and owner freedom.',owner:'Agency Owner',due:'This quarter',dueDate:'',status:'Not started'}
+    ],
+    readiness:{targetCount:0,targetTotal:METRICS.length,definedDepartmentCount:2,departmentTotal:DEPARTMENTS.length,rockCount:2,evidenceGaps:[],partialDepartments:[],incompleteRocks:[],canComplete:false},
+    goalsComplete:false,goalsCompletedAt:null
+  };
+}
 function validateExactTarget(definition, value) {
   if (value === null) return 'Enter a valid target value.';
   if (value < 0) return 'Target value cannot be negative.';
@@ -956,11 +990,13 @@ export default async function handler(req, res) {
     const account = await authorizedAccount(req, body, session, config, supabaseRequest, 'id,name,email,agency_url,agency_name,diagnostic_state,access_plan,journey');
 
     if (req.method === 'GET') {
+      if (account.access_plan === 'aofi_free') return json(res, 200, { ok: true, goals: previewGoalsModel(account), preview: true });
       const model = await loadModel(config, account, session);
       return json(res, 200, { ok: true, goals: model });
     }
 
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed.' });
+    if (account.access_plan === 'aofi_free') return json(res, 403, { error: 'Upgrade your account to make changes in Agency Goals.', code: 'PLAN_UPGRADE_REQUIRED' });
 
     const action = clean(body.action);
     if (action === 'set_target') {

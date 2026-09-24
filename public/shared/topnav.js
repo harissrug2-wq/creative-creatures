@@ -36,18 +36,9 @@
     ['portal', '/portal/', 'Portal', icons.portal]
   ];
 
-  const isLocked = (key) => {
-    if (key === 'scorecard' || key === 'goals') return !scorecardGenerated && !integrationsReady && !performanceReady;
-    if (key === 'monitor') return !bool('agencyGoalsComplete') && active !== 'monitor';
-    if (key === 'portal') return false;
-    return false;
-  };
-
-  const lockMessage = (key) => {
-    if (key === 'scorecard' || key === 'goals') return 'Complete your integrations and financial data upload to view the Agency Scorecard.';
-    if (key === 'monitor') return 'Finish Agency Goals and 90 Day Priorities to unlock Monitor.';
-    return 'Portal is not active in this release.';
-  };
+  // Server-backed workspace access is the source of truth for both plan and
+  // workflow locks. Local storage remains only for the progress strip below.
+  const isLocked = () => false;
 
   const linkHtml = links.map(([key, href, label, svg]) => {
     const locked = isLocked(key);
@@ -57,7 +48,7 @@
 
   const host = document.querySelector('[data-cc-topbar]');
   if (!host) return;
-  host.innerHTML = `<header class="cc-topbar"><button class="cc-menu-toggle" aria-label="Open navigation">${icons.menu}</button><a class="cc-brand" href="/platform/"><img src="/brand/creature-logo.png" alt="Creative Creatures"></a><div class="cc-mobile-title">Creative Creatures</div><nav class="cc-topnav">${linkHtml}</nav><div class="cc-actions"><a class="cc-upgrade" href="/account/upgrade/" hidden>Upgrade</a><button class="cc-ask" type="button" data-cc-ask hidden><img src="/brand/creature-icon.png" class="cc-ask-logo-icon" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;"><span>Ask Creature</span></button></div></header><nav class="cc-mobile-panel">${linkHtml}<a class="cc-nav-link cc-mobile-upgrade" href="/account/upgrade/" hidden>Upgrade account</a></nav><div class="cc-lock-tip" role="status"></div>`;
+  host.innerHTML = `<header class="cc-topbar"><button class="cc-menu-toggle" aria-label="Open navigation">${icons.menu}</button><div class="cc-brand-wrap"><a class="cc-brand" href="/platform/"><img src="/brand/creature-logo.png" alt="Creative Creatures"></a><span class="cc-plan-badge" data-cc-plan-badge hidden>Free AOFI</span></div><div class="cc-mobile-title">Creative Creatures <span class="cc-plan-badge cc-plan-badge-mobile" data-cc-plan-badge hidden>Free AOFI</span></div><nav class="cc-topnav">${linkHtml}</nav><div class="cc-actions"><a class="cc-upgrade" href="/account/upgrade/" hidden>Upgrade</a><button class="cc-ask" type="button" data-cc-ask hidden><img src="/brand/creature-icon.png" class="cc-ask-logo-icon" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;"><span>Ask Creature</span></button></div></header><nav class="cc-mobile-panel">${linkHtml}<a class="cc-nav-link cc-mobile-upgrade" href="/account/upgrade/" hidden>Upgrade account</a></nav><div class="cc-lock-tip" role="status"></div>`;
 
   const panel = host.querySelector('.cc-mobile-panel');
   host.querySelector('.cc-menu-toggle')?.addEventListener('click', () => panel.classList.toggle('open'));
@@ -69,20 +60,31 @@
     window.__ccTip = setTimeout(() => tip.classList.remove('show'), 2800);
   };
 
-  host.querySelectorAll('[data-cc-locked]').forEach(a => a.addEventListener('click', e => {
-    e.preventDefault();
-    const key = a.dataset.ccLocked;
-    show(lockMessage(key));
-    if (key === 'scorecard' || key === 'goals') setTimeout(() => location.href = '/diagnostic/?locked=' + key, 650);
-  }));
-
   const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
-  loadWorkspace().then(workspace=>workspace.getAccess()).then(access=>{
+  loadWorkspace().then(async workspace=>{
+    const access=await workspace.getAccess();
     host.querySelectorAll('[data-cc-feature]').forEach(link=>{
-      const isAllowed=access.features.includes(link.dataset.ccFeature);
-      link.hidden=!isAllowed;
-      if(!isAllowed)link.style.display='none';
+      const feature=link.dataset.ccFeature;
+      const isAllowed=access.features.includes(feature);
+      const isPreview=Array.isArray(access.previewFeatures)&&access.previewFeatures.includes(feature);
+      const visible=isAllowed||isPreview;
+      link.hidden=!visible;
+      link.style.display=visible?'':'none';
+      const gate=visible&&workspace.gateCopy?workspace.gateCopy(feature,access):null;
+      link.classList.toggle('locked',Boolean(gate));
+      if(gate){
+        link.dataset.ccGated='true';
+        link.dataset.ccGateMessage=gate.title;
+        link.dataset.ccGateKind=gate.kind;
+        link.setAttribute('aria-disabled','true');
+      }else{
+        delete link.dataset.ccGated;
+        delete link.dataset.ccGateMessage;
+        delete link.dataset.ccGateKind;
+        link.removeAttribute('aria-disabled');
+      }
     });
+    host.querySelectorAll('[data-cc-plan-badge]').forEach(badge=>{badge.hidden=access.plan!=='aofi_free'});
     host.querySelectorAll('[data-cc-ask]').forEach(button=>{button.hidden=!access.features.includes('ask')});
     const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo';
     host.querySelectorAll('.cc-upgrade,.cc-mobile-upgrade').forEach(link=>{link.hidden=!canUpgrade});
@@ -91,6 +93,17 @@
       brand.href=access.features.includes('accelerator')?'/accelerator/':access.features.includes('monitor')?'/platform/':'/diagnostic/';
     }
   }).catch(()=>{});
+
+  host.addEventListener('click',event=>{
+    const link=event.target?.closest?.('.cc-nav-link[data-cc-gated="true"]');
+    if(!link)return;
+    event.preventDefault();
+    loadWorkspace().then(workspace=>workspace.getAccess().then(access=>{
+      const copy=workspace.gateCopy?.(link.dataset.ccFeature,access);
+      if(copy)workspace.showGateNotice(copy);
+      else show(link.dataset.ccGateMessage||'Complete the required step to continue.');
+    })).catch(()=>show(link.dataset.ccGateMessage||'Complete the required step to continue.'));
+  });
   host.querySelector('[data-cc-ask]')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{show('Ask Creature is unavailable right now.')}});
 
   // Phase 3 Horizontal Status Bar
