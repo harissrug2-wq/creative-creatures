@@ -564,6 +564,7 @@
         if (!response.ok) throw new Error(payload.error || `Unable to create ${pagePlanLabel()} account.`);
         modal?.classList.remove('open');
         form.reset();
+        if (select) select.value = ['aofi_free','diagnostic','accelerator','platform','fractional_coo'].includes(pagePlan()) ? pagePlan() : 'diagnostic';
         if (payload.welcomeEmailSent === false) alert('Account created. The setup email could not be sent; the user can use Forgot password on the sign-in page.');
         await refresh();
       } catch (error) {
