@@ -470,7 +470,7 @@
     const response = await fetch(`${ACCOUNT_API}?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
     if (!response.ok) {
       const payload = await response.json().catch(() => ({}));
-      alert(payload.error || 'The diagnostic could not be deleted.');
+      alert(payload.error || 'The account could not be deleted.');
       return;
     }
     await refresh();
