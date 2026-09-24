@@ -104,7 +104,35 @@
   }
 
   function routeFeature(path){if(path.startsWith('/accelerator'))return'accelerator';if(path.startsWith('/integrations'))return'integrations';if(path.startsWith('/agency-scorecard'))return'scorecard';if(path.startsWith('/agency-goals'))return'goals';if(path.startsWith('/diagnostic'))return'diagnostic';if(path.startsWith('/portal'))return'portal';if(path.startsWith('/users'))return'users';if(path.startsWith('/leadership'))return'leadership';if(['/platform','/marketing','/sales','/billing','/onboarding','/service-delivery','/client-success','/talent-acquisition','/finance','/communication','/systems','/sops'].some(p=>path.startsWith(p)))return'monitor';return''}
-  async function guard(){try{const access=await getAccess();preserveAllLinks();if(access?.isAdmin||access?.actor?.role==='admin'||location.search.includes('admin=1')||sessionStorage.getItem('cc_admin_mode')==='1')return;const feature=routeFeature(location.pathname),departments=['leadership','marketing','sales','billing','onboarding','service-delivery','client-success','talent-acquisition','finance','communication','systems','sops'];document.querySelectorAll('a[href]').forEach(link=>{try{const path=new URL(link.href,location.href).pathname,f=link.dataset.workspaceFeature||link.dataset.ccFeature||routeFeature(path),department=path.split('/').filter(Boolean)[0];if((f&&!access.features.includes(f))||(access.actor.role==='member'&&departments.includes(department)&&!access.actor.departments.includes(department))){link.hidden=true;link.style.display='none'}}catch{}});if(feature&&!access.features.includes(feature)){location.replace(access.features.includes('accelerator')?'/accelerator/':access.features.includes('monitor')?'/platform/':'/diagnostic/');return}if(access.actor.role==='member'){const department=location.pathname.split('/').filter(Boolean)[0],first=access.actor.departments[0];if(location.pathname.startsWith('/platform')&&first){location.replace(`/${first}/`);return}if((departments.includes(department)&&!access.actor.departments.includes(department))||location.pathname.startsWith('/users'))location.replace(first?`/${first}/`:'/login/')}}catch{}}
-  window.CCWorkspace={request,getAccess,openAsk,guard};guard();getAccess().then(access=>{applyAdminReadOnly(access);mountChrome(access)}).catch(()=>{});
+  function gateCopy(feature,access){
+    const reportReady=access?.workflow?.reportReady===true;
+    const labels={scorecard:'Agency Scorecard',goals:'Agency Goals',monitor:'Monitor',integrations:'Integrations'};
+    if(feature==='scorecard'&&!reportReady)return{kind:'flow',title:'Complete your Agency Diagnostic first',message:'Your Agency Scorecard becomes available after all three diagnostic indexes are complete and the scorecard has been generated.',cta:'/diagnostic/',ctaLabel:'Continue My Diagnostic'};
+    if((feature==='goals'||feature==='monitor')&&!reportReady)return{kind:'flow',title:`Generate your Agency Scorecard to open ${labels[feature]}`,message:`${labels[feature]} unlocks after your Agency Diagnostic is complete and your Agency Scorecard has been generated.`,cta:'/diagnostic/',ctaLabel:'Complete Diagnostic'};
+    const preview=Array.isArray(access?.previewFeatures)&&access.previewFeatures.includes(feature)&&!access.features.includes(feature);
+    if(preview)return{kind:'upgrade',title:`Upgrade to use ${labels[feature]||'this feature'}`,message:`${labels[feature]||'This feature'} is visible in your current workspace so you can see what is available, but it is not included in your current account type.`,cta:'/account/upgrade/',ctaLabel:'View Upgrade Options'};
+    return null;
+  }
+  function showGateNotice(copy){
+    if(!copy||document.querySelector('[data-cc-access-gate]'))return;
+    const wrap=document.createElement('div');wrap.dataset.ccAccessGate='1';wrap.className='cc-access-gate';
+    wrap.innerHTML=`<section class="cc-access-gate-card"><span class="cc-access-gate-icon">${copy.kind==='upgrade'?'↑':'✓'}</span><span class="cc-access-gate-kicker">${copy.kind==='upgrade'?'ACCOUNT UPGRADE':'NEXT STEP'}</span><h1>${esc(copy.title)}</h1><p>${esc(copy.message)}</p><div class="cc-access-gate-actions"><a class="cc-access-gate-primary" href="${copy.cta}">${esc(copy.ctaLabel)}</a><a class="cc-access-gate-secondary" href="/diagnostic/">Back to Diagnostic</a></div></section>`;
+    document.body.appendChild(wrap);
+  }
+  async function guard(){try{
+    const access=await getAccess();preserveAllLinks();
+    if(access?.isAdmin||access?.actor?.role==='admin'||location.search.includes('admin=1')||sessionStorage.getItem('cc_admin_mode')==='1')return;
+    const feature=routeFeature(location.pathname),previews=Array.isArray(access.previewFeatures)?access.previewFeatures:[],departments=['leadership','marketing','sales','billing','onboarding','service-delivery','client-success','talent-acquisition','finance','communication','systems','sops'];
+    document.querySelectorAll('a[href]').forEach(link=>{try{
+      const path=new URL(link.href,location.href).pathname,f=link.dataset.workspaceFeature||link.dataset.ccFeature||routeFeature(path),department=path.split('/').filter(Boolean)[0];
+      const visible=!f||access.features.includes(f)||previews.includes(f);
+      if(!visible||(access.actor.role==='member'&&departments.includes(department)&&!access.actor.departments.includes(department))){link.hidden=true;link.style.display='none'}
+    }catch{}});
+    const copy=feature?gateCopy(feature,access):null;
+    if(copy){showGateNotice(copy);return}
+    if(feature&&!access.features.includes(feature)){location.replace(access.features.includes('accelerator')?'/accelerator/':access.features.includes('monitor')?'/platform/':'/diagnostic/');return}
+    if(access.actor.role==='member'){const department=location.pathname.split('/').filter(Boolean)[0],first=access.actor.departments[0];if(location.pathname.startsWith('/platform')&&first){location.replace(`/${first}/`);return}if((departments.includes(department)&&!access.actor.departments.includes(department))||location.pathname.startsWith('/users'))location.replace(first?`/${first}/`:'/login/')}
+  }catch{}}
+  window.CCWorkspace={request,getAccess,openAsk,guard,showGateNotice};guard();getAccess().then(access=>{applyAdminReadOnly(access);mountChrome(access)}).catch(()=>{});
 })();
 
