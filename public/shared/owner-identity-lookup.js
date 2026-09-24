@@ -15,10 +15,10 @@
       .cc-identity-lookup h2{font-size:36px;line-height:1.16;letter-spacing:-.035em;margin:0 0 24px;color:#111827;font-weight:800}
       .cc-identity-lookup>p{margin:0 0 34px;color:#566072;line-height:1.5;font-size:18px;max-width:1180px}
       .cc-identity-lookup-options{display:grid;grid-template-columns:1fr 1fr;gap:22px}
-      .cc-identity-lookup-option{min-height:132px;border:1px solid #d9dce5;background:#fff;border-radius:20px;padding:28px 28px;text-align:left;cursor:pointer;color:#171b2a;transition:border-color .15s,box-shadow .15s,transform .15s}
+      .cc-identity-lookup-option{display:block!important;min-height:132px;border:1px solid #d9dce5;background:#fff;border-radius:20px;padding:28px 28px;text-align:left!important;cursor:pointer;color:#171b2a;transition:border-color .15s,box-shadow .15s,transform .15s}
       .cc-identity-lookup-option:hover{border-color:#bbbff8;transform:translateY(-1px)}
-      .cc-identity-lookup-option strong{display:block;font-size:24px;line-height:1.2;font-weight:800}
-      .cc-identity-lookup-option span{display:block;color:#70798a;font-size:18px;line-height:1.4;margin-top:14px}
+      .cc-identity-lookup-option strong{display:block!important;width:100%;font-size:24px;line-height:1.2;font-weight:800}
+      .cc-identity-lookup-option span{display:block!important;width:100%;color:#70798a;font-size:18px;line-height:1.4;margin-top:14px}
       .cc-identity-lookup-option.selected{border-color:#3739f0;box-shadow:0 0 0 3px rgba(55,57,240,.08)}
       .cc-identity-lookup-panel{margin-top:24px;padding-top:22px;border-top:1px solid #dedff1}
       .cc-identity-lookup-fields{display:grid;grid-template-columns:1fr 1fr;gap:14px}
