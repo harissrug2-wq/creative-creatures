@@ -13,10 +13,12 @@
 
   function identity() {
     const current = account() || {};
+    const params = new URLSearchParams(location.search);
+    const tenant = params.get('tenant') || params.get('accountId') || sessionStorage.getItem('cc_admin_tenant') || '';
     return {
-      accountId: current.id && !String(current.id).startsWith('local-') ? current.id : '',
-      email: current.email || localStorage.getItem('ccOwnerEmail') || '',
-      agencyUrl: current.agency_url || current.agencyUrl || localStorage.getItem('ccAgencyWebsite') || ''
+      accountId: tenant || (current.id && !String(current.id).startsWith('local-') ? current.id : ''),
+      email: tenant ? '' : (current.email || localStorage.getItem('ccOwnerEmail') || ''),
+      agencyUrl: tenant ? '' : (current.agency_url || current.agencyUrl || localStorage.getItem('ccAgencyWebsite') || '')
     };
   }
 
