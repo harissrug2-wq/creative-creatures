@@ -66,18 +66,7 @@
           </div>
         </aside>
         <div class="main-shell">
-          <header class="topbar"><button class="mobile-toggle" id="mobileToggle" aria-label="Open departments">${ico('menu')}</button><nav class="topnav">
-             <a href="/platform/" class="top-link active" data-workspace-feature="monitor" hidden>${ico('monitor')} Monitor</a>
-             <a href="/accelerator/" class="top-link" data-workspace-feature="accelerator" hidden>${ico('diagnostic')} Accelerator</a>
-             <a href="/diagnostic/" class="top-link" data-workspace-feature="diagnostic" hidden>${ico('diagnostic')} Diagnostic</a>
-             <a href="${scorecardHref}" class="top-link ${scorecardUnlocked?'':'locked-link'}" data-workspace-feature="scorecard" hidden aria-disabled="${scorecardUnlocked?'false':'true'}">${ico('score')} Agency Scorecard</a>
-             <a href="/agency-goals/" class="top-link ${goalsUnlocked?'':'locked-link'}" data-workspace-feature="goals" hidden aria-disabled="${goalsUnlocked?'false':'true'}">${ico('goals')} Agency Goals</a>
-             <a href="/integrations/" class="top-link" data-workspace-feature="integrations" hidden>${ico('plug')} Integrations</a>
-             <a href="/portal/" class="top-link" data-workspace-feature="portal" hidden>${ico('dashboard')} Portal</a>
-           </nav><a class="upgrade-button" href="/account/upgrade/" data-account-upgrade hidden>Upgrade</a><button class="ask-button" id="askButton" hidden><img src="/brand/creature-icon.png" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;"> Ask Creature</button><button class="top-menu-toggle" id="topMenuToggle" type="button" aria-label="Open main navigation" aria-expanded="false">${ico('menu')}</button></header>
-           <nav class="top-menu-panel" id="topMenuPanel" aria-label="Main navigation">
-             <a href="/platform/" class="active" data-workspace-feature="monitor" hidden>Monitor</a><a href="/accelerator/" data-workspace-feature="accelerator" hidden>Accelerator</a><a href="/diagnostic/" data-workspace-feature="diagnostic" hidden>Diagnostic</a><a href="${scorecardHref}" data-workspace-feature="scorecard" hidden class="${scorecardUnlocked?'':'locked-link'}">Agency Scorecard</a><a href="/agency-goals/" data-workspace-feature="goals" hidden class="${goalsUnlocked?'':'locked-link'}">Agency Goals</a><a href="/integrations/" data-workspace-feature="integrations" hidden>Integrations</a><a href="/portal/" data-workspace-feature="portal" hidden>Portal</a><a href="/account/upgrade/" data-account-upgrade hidden>Upgrade account</a><button id="mobileAskButton" type="button" hidden><img src="/brand/creature-icon.png" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;"> Ask Creature</button>
-           </nav>
+          <button class="mobile-toggle monitor-dept-toggle" id="mobileToggle" aria-label="Open departments">${ico('menu')}</button>
           <main class="page-wrap">${content}</main>
         </div>
         <aside class="ask-drawer" id="askDrawer"><div class="drawer-head"><h3>Ask Creature</h3><button class="drawer-close" id="drawerClose">×</button></div><div class="drawer-context"><strong>${title || 'Dashboard'} context</strong><p>How can I help with ${title || 'Dashboard'}? I can summarize what is on screen, surface what needs attention, or draft a quick update based on this tab's data.</p></div><div class="suggestions"><button>Summarize this tab</button><button>What needs my attention?</button><button>Draft a quick update</button></div><div class="chat-input"><input placeholder="Ask about this page…"><button>Send</button></div></aside>
@@ -128,12 +117,7 @@
     document.querySelector('#askButton')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{showToast('Ask Creature is unavailable right now.')}});
     document.querySelector('#drawerClose')?.addEventListener('click',()=>document.querySelector('#askDrawer').classList.remove('open'));
     document.querySelector('#mobileToggle')?.addEventListener('click',()=>document.querySelector('#sidebar').classList.toggle('open'));
-    const topMenuToggle=document.querySelector('#topMenuToggle'),topMenuPanel=document.querySelector('#topMenuPanel');
-    const closeTopMenu=()=>{topMenuPanel?.classList.remove('open');topMenuToggle?.setAttribute('aria-expanded','false');};
-    topMenuToggle?.addEventListener('click',()=>{const open=!topMenuPanel?.classList.contains('open');topMenuPanel?.classList.toggle('open',open);topMenuToggle.setAttribute('aria-expanded',String(open));});
-    topMenuPanel?.querySelectorAll('a').forEach(link=>link.addEventListener('click',closeTopMenu));
-    document.querySelector('#mobileAskButton')?.addEventListener('click',()=>{document.querySelector('#askButton')?.click();closeTopMenu();});
-    document.addEventListener('keydown',event=>{if(event.key==='Escape')closeTopMenu();});
+    document.addEventListener('keydown',event=>{if(event.key==='Escape')document.querySelector('#sidebar')?.classList.remove('open');});
     const signOut=()=>{['ccSignedIn','cc_account','ccUserAccount','ccOwnerEmail','ownerIdentityComplete'].forEach(k=>localStorage.removeItem(k));fetch('/api/account-auth',{method:'DELETE'}).finally(()=>{location.href='/login/'});};
     document.querySelectorAll('.signout').forEach(btn=>btn.addEventListener('click',signOut));
     document.querySelectorAll('[data-toast]').forEach(el=>el.addEventListener('click',e=>{e.preventDefault();showToast(el.dataset.toast)}));
