@@ -38,6 +38,11 @@ test('paid accounts do not render an empty plan pill', () => {
   assert.match(baseCss, /\.account-plan-tag\[hidden\]\{display:none!important\}/);
 });
 
+test('scorecard unlock prerequisite is Diagnostic completion', () => {
+  assert.match(access, /diagnosticComplete=workflow\.allComplete===true\|\|workflow\.reportReady===true/);
+  assert.match(shell, /const scorecardReady = Boolean\(state\.allComplete \|\| state\.reportReady\)/);
+});
+
 test('monitor unlock prerequisite is scorecard generation', () => {
   assert.match(shell, /const monitorReady = Boolean\(state\.reportReady\)/);
 });
