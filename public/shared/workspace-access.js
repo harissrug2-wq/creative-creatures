@@ -76,7 +76,16 @@
     return p;
   }
 
-  const getAccess=()=>accessPromise||(accessPromise=request('workspace_access').then(r=>r.access).catch(error=>{accessPromise=null;throw error}));
+  const getAccess=()=>accessPromise||(accessPromise=request('workspace_access').then(r=>{
+    const access=r.access;
+    const localState=window.CCDiagnostic?.getState?.();
+    if(access?.actor?.role!=='admin'&&localState&&access?.workflow){
+      if(localState.allComplete===true)access.workflow.allComplete=true;
+      if(localState.reportReady===true)access.workflow.reportReady=true;
+      if(Number(localState.count)>Number(access.workflow.count||0))access.workflow.count=Number(localState.count);
+    }
+    return access;
+  }).catch(error=>{accessPromise=null;throw error}));
   function applyAdminReadOnly(access){
     if(!access?.readOnly||document.querySelector('[data-admin-readonly-banner]'))return;
     const banner=document.createElement('div');
