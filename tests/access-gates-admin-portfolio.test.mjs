@@ -10,6 +10,9 @@ const admin = fs.readFileSync(new URL('../public/admin/admin.js', import.meta.ur
 const archetypeCss = fs.readFileSync(new URL('../public/archetype/archetype.css', import.meta.url), 'utf8');
 const baseCss = fs.readFileSync(new URL('../public/portal/base.css', import.meta.url), 'utf8');
 const goalsApi = fs.readFileSync(new URL('../api/goals.js', import.meta.url), 'utf8');
+const monitor = fs.readFileSync(new URL('../public/monitor/monitor.js', import.meta.url), 'utf8');
+const goalsClient = fs.readFileSync(new URL('../public/portal/goals-client.js', import.meta.url), 'utf8');
+const scorecardClient = fs.readFileSync(new URL('../public/portal/scorecard-client.js', import.meta.url), 'utf8');
 
 test('free AOFI navigation exposes preview-only upgrade pages and plan tag', () => {
   assert.match(auth, /previewFeatures=plan==='aofi_free'\?\['monitor','goals','integrations'\]/);
@@ -50,6 +53,20 @@ test('admin can create/delete any account type without checkout', () => {
 test('admin account views use portfolio live data', () => {
   assert.match(admin, /all=true&portfolio=1/);
   assert.match(admin, /AOFI™ Score/);
+  assert.match(admin, /Open Full Workspace/);
+  assert.match(admin, /Agency Goals/);
+  assert.match(admin, /Monitor/);
+});
+
+test('monitor navigation includes Free AOFI preview features', () => {
+  assert.match(monitor, /previewFeatures/);
+  assert.match(monitor, /access\.features\.includes\(feature\)\|\|previews\.includes\(feature\)/);
+});
+
+test('admin tenant follows Scorecard and Agency Goals pages', () => {
+  assert.match(access, /actor\?\.role==='admin'/);
+  assert.match(goalsClient, /cc_admin_tenant/);
+  assert.match(scorecardClient, /cc_admin_tenant/);
 });
 
 test('owner identity card sizing matches signup card scale', () => {
