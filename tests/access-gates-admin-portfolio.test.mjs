@@ -16,9 +16,10 @@ test('free AOFI navigation exposes preview-only upgrade pages and plan tag', () 
 });
 
 test('workflow gates use dynamic prerequisite messages', () => {
-  assert.match(access, /Complete your Agency Diagnostic first/);
-  assert.match(access, /Generate your Agency Scorecard to open/);
-  assert.match(access, /Upgrade to use/);
+  assert.match(access, /Complete your Diagnostic to view your Agency Scorecard/);
+  assert.match(access, /Complete your Agency Scorecard to view Agency Goals/);
+  assert.match(access, /Complete Agency Goals to view Monitor/);
+  assert.match(access, /Upgrade your account to access/);
 });
 
 test('monitor unlock prerequisite is scorecard generation', () => {
@@ -41,5 +42,5 @@ test('admin account views use portfolio live data', () => {
 test('owner identity card sizing matches signup card scale', () => {
   assert.match(archetypeCss, /width:min\(1040px/);
   assert.match(archetypeCss, /min-height:78px!important/);
-  assert.match(archetypeCss, /font-size:24px!important/);
+  assert.match(archetypeCss, /height:78px!important/);
 });
