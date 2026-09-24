@@ -229,6 +229,23 @@ async function workspaceIdentity(c,session,timing){
 }
 
 function currentSession(req, secret){
+  let body = {};
+  try { body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}); } catch {}
+  const explicitAdminView =
+    String(req.query?.admin || body?.admin || '').trim() === '1' ||
+    Boolean(req.query?.tenant || body?.tenant);
+  if (explicitAdminView) {
+    let admin = null;
+    try { admin = requireAdmin(req); } catch {}
+    if (admin) {
+      const targetAccountId = String(
+        req.query?.tenant || req.query?.accountId || req.query?.account_id ||
+        body?.tenant || body?.accountId || body?.account_id || ''
+      ).trim();
+      return { role: 'admin', accountId: targetAccountId, isAdmin: true, username: admin.username };
+    }
+  }
+
   let session = null;
   try {
     const token = parseCookies(req).cc_account_session;
@@ -241,8 +258,6 @@ function currentSession(req, secret){
   let admin = null;
   try { admin = requireAdmin(req); } catch {}
   if (admin) {
-    let body = {};
-    try { body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {}); } catch {}
     const targetAccountId = String(
       req.query?.tenant || req.query?.accountId || req.query?.account_id ||
       body?.tenant || body?.accountId || body?.account_id || ''
