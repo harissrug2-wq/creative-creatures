@@ -50,6 +50,38 @@ async function provisionAofiFreeAccess(req, config, account) {
   return { account: updated, emailSent };
 }
 
+async function provisionAdminCreatedAccess(req, config, account) {
+  const resetToken = crypto.randomBytes(32).toString('hex');
+  const updated = await updateById(config, account.id, {
+    password_hash: hashPassword(crypto.randomBytes(32).toString('hex')),
+    password_reset_token_hash: tokenHash(resetToken),
+    password_reset_expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+  });
+  const origin = requestOrigin(req);
+  const link = `${origin}/login/?reset=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(updated.email)}`;
+  const firstName = clean(updated.name).split(/\s+/)[0] || 'there';
+  const label = ({
+    aofi_free:'Free AOFI™',
+    diagnostic:'1:1 Diagnostic',
+    accelerator:'Breakthrough Accelerator',
+    platform:'Platform',
+    fractional_coo:'Fractional COO'
+  })[updated.access_plan] || 'Creative Creatures';
+  let emailSent = false;
+  try {
+    await sendEmail({
+      to: updated.email,
+      subject: `Your Creative Creatures ${label} account is ready`,
+      text: `Hi ${firstName},\n\nYour ${label} account has been created by the Creative Creatures team.\n\nChoose your password: ${link}\n\nSign in after setup: ${origin}/login/\n\nThis setup link expires in 24 hours.`,
+      html: `<div style="font-family:Arial,sans-serif;max-width:620px;margin:0 auto;color:#171820"><h2>Your Creative Creatures account is ready</h2><p>Hi ${escapeHtml(firstName)},</p><p>Your <strong>${escapeHtml(label)}</strong> account has been created by the Creative Creatures team.</p><p style="margin:24px 0"><a href="${escapeHtml(link)}" style="display:inline-block;background:#2929ed;color:#fff;text-decoration:none;padding:12px 20px;border-radius:9px;font-weight:700">Choose my password</a></p><p>After setting your password, sign in at <a href="${escapeHtml(origin)}/login/">${escapeHtml(origin)}/login/</a>.</p><p style="font-size:13px;color:#667085">The setup link expires in 24 hours.</p></div>`
+    });
+    emailSent = true;
+  } catch (error) {
+    console.error('Admin-created account setup email failed', error);
+  }
+  return { account: updated, emailSent };
+}
+
 async function sendAofiFreeWelcome(req, account, resetToken) {
   const origin = requestOrigin(req);
   const link = `${origin}/login/?reset=${encodeURIComponent(resetToken)}&email=${encodeURIComponent(account.email)}`;
@@ -503,6 +535,9 @@ export default async function handler(req, res) {
       let welcomeEmailSent = null;
       if (existing.length === 1) {
         const existingAccount = existing[0];
+        if (isAdminRequest && String(body.source || '').toLowerCase() === 'admin-console') {
+          return json(res, 409, { error: 'An account already exists with this email or agency URL. Open the existing account instead of creating a duplicate.' });
+        }
 
         // A public free-AOFI activation must never overwrite an existing paid
         // or already-activated account. Send the user to the normal sign-in
@@ -548,7 +583,7 @@ export default async function handler(req, res) {
       } else {
         // A truly new account always begins with a clean diagnostic state,
         // regardless of any stale browser payload sent by the client.
-        record.diagnostic_state = EMPTY_DIAGNOSTIC_STATE;
+        record.diagnostic_state = isAdminRequest ? { ...EMPTY_DIAGNOSTIC_STATE, paymentComplete: true } : EMPTY_DIAGNOSTIC_STATE;
         const rows = await supabaseRequest(config, 'accounts', {
           method: 'POST',
           headers: { Prefer: 'return=representation' },
@@ -562,7 +597,11 @@ export default async function handler(req, res) {
             body: JSON.stringify({ converted_account_id: account.id, converted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
           }).catch(error => console.error('Owner Identity lead conversion link failed', error));
         }
-        if (accessPlan === 'aofi_free' && account?.id) {
+        if (account?.id && isAdminRequest) {
+          const provisioned = await provisionAdminCreatedAccess(req, config, account);
+          account = provisioned.account;
+          welcomeEmailSent = provisioned.emailSent;
+        } else if (accessPlan === 'aofi_free' && account?.id) {
           const provisioned = await provisionAofiFreeAccess(req, config, account);
           account = provisioned.account;
           welcomeEmailSent = provisioned.emailSent;

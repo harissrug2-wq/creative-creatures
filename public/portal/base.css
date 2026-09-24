@@ -266,3 +266,19 @@ html,body{max-width:100%;overflow-x:clip}
 .shell-upgrade{min-height:36px;padding:0 12px;border-radius:9px;background:var(--cc-blue);color:#fff;display:flex;align-items:center;text-decoration:none;font-size:12px;font-weight:700;white-space:nowrap}
 [data-workspace-feature][hidden],.ask-creature[hidden],.mobile-ask-creature[hidden],[data-account-upgrade][hidden]{display:none!important}
 .top-account-menu a{display:block;padding:10px 12px;color:#3438d7;text-decoration:none;font-size:12px;font-weight:700;border-top:1px solid var(--cc-line)}
+
+
+/* Account plan badge + gated feature notices */
+.top-brand-wrap{display:flex;align-items:center;gap:10px;min-width:0}
+.account-plan-tag{display:inline-flex;align-items:center;white-space:nowrap;border:1px solid #c9c7ff;background:#f2f1ff;color:#3434d6;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:800;letter-spacing:.04em}
+.cc-access-gate{position:fixed;inset:0;z-index:9000;background:rgba(248,248,250,.94);backdrop-filter:blur(5px);display:grid;place-items:center;padding:96px 20px 30px}
+.cc-access-gate-card{width:min(650px,100%);background:#fff;border:1px solid #e3e5ec;border-radius:20px;padding:38px;box-shadow:0 24px 70px rgba(17,24,39,.12);text-align:left}
+.cc-access-gate-icon{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;background:#eef0ff;color:#3033eb;font-size:22px;font-weight:900;margin-bottom:18px}
+.cc-access-gate-kicker{display:block;color:#6f76a8;font-size:10px;font-weight:800;letter-spacing:.1em;margin-bottom:8px}
+.cc-access-gate-card h1{margin:0 0 12px;font-size:32px;line-height:1.16;letter-spacing:-.035em;color:#111827}
+.cc-access-gate-card p{margin:0;color:#667085;font-size:15px;line-height:1.65}
+.cc-access-gate-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:24px}
+.cc-access-gate-actions a{display:inline-flex;align-items:center;justify-content:center;border-radius:10px;padding:12px 18px;text-decoration:none;font-weight:800;font-size:14px}
+.cc-access-gate-primary{background:#3033eb;color:#fff}
+.cc-access-gate-secondary{background:#f4f5f8;color:#25283b}
+@media(max-width:720px){.account-plan-tag{font-size:9px;padding:4px 7px}.cc-access-gate{padding-top:78px}.cc-access-gate-card{padding:28px 22px}.cc-access-gate-card h1{font-size:27px}.cc-access-gate-actions a{width:100%}}
