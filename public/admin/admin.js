@@ -152,7 +152,7 @@
     );
 
     const accountPromise = needsDiagnostics
-      ? fetch(`${ACCOUNT_API}?all=true`, { cache: 'no-store' })
+      ? fetch(`${ACCOUNT_API}?all=true&portfolio=1`, { cache: 'no-store' })
       : Promise.resolve(null);
     const leadPromise = needsOwnerHistory
       ? fetch(`${OWNER_LEAD_API}?all=true`, { cache: 'no-store' })
@@ -266,6 +266,10 @@
               <strong>${account.averageProgress}%</strong>
             </div>
             <div class="agency-stat">
+              <label>AOFI™ Score</label>
+              <strong>${account.portfolio?.scorecard?.aofi ?? '—'}</strong>
+            </div>
+            <div class="agency-stat">
               <label>Integrations</label>
               <strong>${account.integrationsComplete ? 'Done' : 'Pending'}</strong>
             </div>
@@ -281,14 +285,22 @@
 
           <div class="card-foot">
             <span class="since">since ${escapeHtml(formatDate(account.createdAt))}</span>
-            <a class="mini-btn" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>◉ Dashboard</a>
+            <a class="mini-btn" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>◉ Live Data</a>
             <a class="mini-btn primary" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" data-admin-view>View →</a>
+            <button type="button" class="mini-btn danger" data-delete-id="${escapeHtml(account.id)}">Delete</button>
           </div>
         </article>`;
     }).join('');
 
-    // Account workspaces are intentionally read-only from the admin portfolio.
-    // Provisioning remains available through the dedicated account setup flows.
+    grid.querySelectorAll('[data-delete-id]').forEach(button => {
+      button.addEventListener('click', async () => {
+        const account = diagnostics.find(item => item.id === button.dataset.deleteId) || allAccounts.find(item => item.id === button.dataset.deleteId);
+        const label = account?.agencyName || 'this account';
+        if (!confirm(`Delete ${label}? This permanently removes the account and cannot be undone.`)) return;
+        button.disabled = true;
+        await deleteAccount(button.dataset.deleteId);
+      });
+    });
   }
 
   function renderOwnerArchetypeTable(items) {
@@ -441,9 +453,17 @@
             <strong>${account.completeCount}/3</strong>
             <div class="progress-cell"><div class="bar"><span style="width:${account.averageProgress}%"></span></div><span>${account.averageProgress}%</span></div>
             <div><span class="status-pill ${status.className}">${escapeHtml(status.label)}</span></div>
-            <div class="action-icons"><a class="circle-btn" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" title="Open read-only workspace">◉</a><a class="circle-btn primary" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" title="View read-only workspace">→</a></div>
+            <div class="action-icons"><a class="circle-btn" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" title="Open live read-only workspace">◉</a><a class="circle-btn primary" href="/diagnostic/?admin=1&tenant=${encodeURIComponent(account.id)}" title="View live read-only workspace">→</a><button class="circle-btn" type="button" data-delete-id="${escapeHtml(account.id)}" title="Delete account">×</button></div>
           </div>`;
       }).join('')}`;
+    container.querySelectorAll('[data-delete-id]').forEach(button => {
+      button.addEventListener('click', async () => {
+        const account = allAccounts.find(item => item.id === button.dataset.deleteId);
+        if (!confirm(`Delete ${account?.agencyName || 'this account'}? This permanently removes the account.`)) return;
+        button.disabled = true;
+        await deleteAccount(button.dataset.deleteId);
+      });
+    });
   }
 
   async function deleteAccount(id) {
@@ -470,9 +490,47 @@
     });
   }
 
+  function ensureAccountManager() {
+    let modal = document.querySelector('#newAgencyModal');
+    let form = document.querySelector('#newAgencyForm');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.className = 'admin-modal';
+      modal.id = 'newAgencyModal';
+      modal.innerHTML = `<div class="admin-dialog"><h2>Create Account</h2><form id="newAgencyForm"><select id="newAgencyPlan" required></select><input type="text" id="newAgencyName" placeholder="Agency / Owner Name" required><input type="email" id="newAgencyEmail" placeholder="Owner Email" required><input type="text" id="newAgencyWebsite" placeholder="Agency Website" required><div class="dialog-actions"><button type="button" class="mini-btn" data-close-modal>Cancel</button><button type="submit" class="mini-btn primary">Create Account</button></div></form></div>`;
+      document.body.appendChild(modal);
+      form = modal.querySelector('#newAgencyForm');
+    }
+    let select = modal.querySelector('#newAgencyPlan');
+    if (!select) {
+      select = document.createElement('select');
+      select.id = 'newAgencyPlan';
+      select.required = true;
+      form.prepend(select);
+    }
+    select.innerHTML = `
+      <option value="aofi_free">Free AOFI™</option>
+      <option value="diagnostic">1:1 Diagnostic</option>
+      <option value="accelerator">Accelerator</option>
+      <option value="platform">Platform</option>
+      <option value="fractional_coo">Fractional COO</option>`;
+    select.value = ['aofi_free','diagnostic','accelerator','platform','fractional_coo'].includes(pagePlan()) ? pagePlan() : 'diagnostic';
+
+    if (!document.querySelector('[data-new-agency]')) {
+      const actions = document.querySelector('.admin-head-actions');
+      if (actions) {
+        const button = document.createElement('button');
+        button.className = 'admin-primary';
+        button.dataset.newAgency = '1';
+        button.textContent = '＋ New Account';
+        actions.appendChild(button);
+      }
+    }
+    return { modal, form, select };
+  }
+
   function wireNewDiagnostic() {
-    const modal = document.querySelector('#newAgencyModal');
-    const form = document.querySelector('#newAgencyForm');
+    const { modal, form, select } = ensureAccountManager();
     document.querySelectorAll('[data-new-agency]').forEach(button => button.addEventListener('click', () => modal?.classList.add('open')));
     document.querySelectorAll('[data-close-modal]').forEach(button => button.addEventListener('click', () => modal?.classList.remove('open')));
 
@@ -482,7 +540,7 @@
       const email = document.querySelector('#newAgencyEmail')?.value.trim();
       const website = document.querySelector('#newAgencyWebsite')?.value.trim();
       if (!name || !email || !website) return;
-      const accessPlan = pagePlan() || 'diagnostic';
+      const accessPlan = select?.value || pagePlan() || 'diagnostic';
 
       const submit = form.querySelector('button[type="submit"]');
       submit.disabled = true;
@@ -506,6 +564,7 @@
         if (!response.ok) throw new Error(payload.error || `Unable to create ${pagePlanLabel()} account.`);
         modal?.classList.remove('open');
         form.reset();
+        if (payload.welcomeEmailSent === false) alert('Account created. The setup email could not be sent; the user can use Forgot password on the sign-in page.');
         await refresh();
       } catch (error) {
         alert(error.message || `Unable to create ${pagePlanLabel()} account.`);
