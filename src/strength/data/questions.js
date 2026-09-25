@@ -52,7 +52,7 @@ export const QUESTIONS = [
       { label: 'Meetings happen occasionally', value: 1 },
       { label: 'Monthly leadership meetings', value: 2 },
       { label: 'Weekly leadership meetings with agendas and follow-up', value: 3 },
-      { label: 'Weekly L10s, Quarterly Planning, Annual Planning and regular scorecard reviews', value: 4 },
+      { label: 'Weekly leadership meetings, quarterly planning, annual planning and regular scorecard reviews', value: 4 },
     ],
   },
   {
@@ -236,7 +236,7 @@ export const QUESTIONS = [
       { label: 'Occasionally', value: 1 },
       { label: 'Quarterly', value: 2 },
       { label: 'Monthly', value: 3 },
-      { label: 'Monthly with rolling forecasts', value: 4 },
+      { label: 'Weekly with rolling forecasts', value: 4 },
     ],
   },
   {
@@ -266,7 +266,7 @@ export const QUESTIONS = [
       { label: 'Owner reviews finances', value: 1 },
       { label: 'Leadership reviews quarterly', value: 2 },
       { label: 'Leadership reviews monthly', value: 3 },
-      { label: 'Monthly reviews with board/advisors and strategic planning', value: 4 },
+      { label: 'Leadership reviews weekly with scorecard and strategic follow-up', value: 4 },
     ],
   },
   {
