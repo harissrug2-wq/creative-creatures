@@ -63,7 +63,7 @@
         <div class="score-ring" style="--score:${report.score};--ring:${colors[id]}"><strong>${report.score}</strong></div>
         <div class="index-heading"><small>Generated report</small><h3>${esc(report.title)}</h3><p>${esc(report.executiveQuestion)}</p></div>
       </div>
-      <div class="index-chips"><span class="index-chip">${report.confidence}% confidence</span><span class="index-chip">${esc(report.validation)}</span><span class="index-chip">${report.categories.length} capabilities</span></div>
+      <div class="index-chips"><span class="index-chip">${report.confidence}% confidence</span><span class="index-chip">${esc(report.validation)} <button type="button" data-validation-help="${id}" aria-label="Explain validation" title="Why was this validation assigned?" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer;padding:0 0 0 4px">?</button></span><span class="index-chip">${report.categories.length} capabilities</span></div>
       <p class="index-summary">${esc(report.narrative)}</p>
       <div class="constraint"><span>Primary constraint</span><p>${esc(report.primaryConstraint)}</p><a class="card-link" href="/agency-scorecard/${id}/">Open full report →</a></div>
       <div class="card-actions"><button type="button" data-download="${id}">${actionIcon('download')} Download report</button><button type="button" data-email="${id}">${actionIcon('email')} Email report</button></div>
@@ -99,7 +99,7 @@
       sourceKey: `issue:${key}`
     };
     const exists = existingRockKeys.has(`issue:${key}`) || existingRockKeys.has(`opportunity:${key}`);
-    return `<label class="insight-row selectable-insight paired-insight${exists ? ' selected' : ''}"><input type="checkbox" data-rock-candidate="${id}" ${exists ? 'disabled' : ''}><span class="paired-insight-copy"><b>${esc(row.capability)} · ${esc(row.score)}/100</b><p>${esc(row.description || '')}</p><span class="paired-opportunity"><strong>Opportunity</strong><span>${esc(recommendation)}</span></span>${exists ? '<small>Already a 90-Day Rock</small>' : ''}</span></label>`;
+    return `<label class="insight-row selectable-insight paired-insight${exists ? ' selected' : ''}"><input type="checkbox" data-rock-candidate="${id}" ${exists ? 'disabled' : ''}><span class="paired-insight-copy"><b>${esc(row.capability)} · ${esc(row.score)}/100</b><p>${esc(row.description || '')}</p><span class="paired-opportunity"><strong>Opportunity</strong><span>${esc(recommendation)}</span></span>${exists ? '<small>Already a 90-Day Priority</small>' : ''}</span></label>`;
   }).join('');
   const perf = model.reports.performance;
   const valuation = model.valuation && typeof model.valuation === 'object' ? model.valuation : null;
@@ -252,8 +252,8 @@
     <header class="scorecard-header"><div><span class="eyebrow">✣ Owner briefing</span><h1>${isAofiFree?'Agency Owner Freedom Index™ Scorecard':'Agency Scorecard'}</h1><p>Executive view of the Agency Owner Freedom Index™, three index reports, confidence, validation, and quarterly score progression over time.</p></div><div class="scorecard-meta">Archetype · <strong>${esc(model.archetype)}</strong><br>Generated · <strong>${model.generatedAt ? new Date(model.generatedAt).toLocaleDateString() : 'Today'}</strong></div></header>
     <div class="section-title"><div><div class="section-kicker">Section 01</div><h2>Executive Summary</h2></div><p>Headline score with VantageScore-style credit tracking and quarterly score movement analysis.</p></div>
     <section class="aofi-card">
-      <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance (40%), Strength (40%), and Owner Independence (20%). Confidence is weighted using the same formula.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)}</strong></div><div class="aofi-stat"><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong></div></div><div class="aofi-action-row"><p class="aofi-footer-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Scores tracked quarterly with Creative Creatures Clarify™</p><button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnSummary" ${hasComparison ? '' : 'hidden'}><span>What changed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
-      <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(weakestRows[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[weakestRows[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">${isAofiFree?'90-Day Priority · Upgrade':'Create 90 Day Rock'}</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
+      <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance (40%), Strength (40%), and Owner Independence (20%). Confidence is weighted using the same formula.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)} <button type="button" data-validation-help="overall" aria-label="Explain overall validation" title="Why was this validation assigned?" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer;padding:0 0 0 4px">?</button></strong></div><div class="aofi-stat"><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong></div></div><div class="aofi-action-row"><p class="aofi-footer-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Scores tracked quarterly with Creative Creatures Clarify™</p><button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnSummary" ${hasComparison ? '' : 'hidden'}><span>What changed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
+      <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(weakestRows[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[weakestRows[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">${isAofiFree?'90-Day Priority · Upgrade':'Create 90-Day Priority'}</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
     </section>
 
     <div class="section-title"><div><div class="section-kicker">Section 02</div><h2>Agency Valuation</h2></div><p>Calculated from the approved Agency Valuation™ methodology and current diagnostic evidence.</p></div>
@@ -261,7 +261,7 @@
     <div class="section-title"><div><div class="section-kicker">Section 03</div><h2>Three Index Reports</h2></div><p>Open or download the full Performance, Strength, and Owner Independence reports.</p></div>
     <section class="index-grid">${cards}</section>
     <div class="section-title"><div><div class="section-kicker">Section 04</div><h2>Issues &amp; Opportunities</h2></div><p>Prioritized from the lowest-scoring capabilities across all three indices.</p></div>
-    <section class="insight-grid paired-insights"><article class="insight-card"><h3>Issues &amp; their opportunities</h3><p class="paired-insights-help">${isAofiFree?'Your improvement priorities are visible here. Activating 90-Day Priorities is included with a paid platform account.':'Select an issue to create one 90-Day Rock. Its opportunity is included in the Rock.'}</p><div class="insight-list">${issueRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">${isAofiFree?'Upgrade to activate these priorities in Agency Goals.':'Select one or more issues.'}</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">${isAofiFree?'Activate 90-Day Priorities · Upgrade':'Create 90 Day Rock(s)'}</button></div>
+    <section class="insight-grid paired-insights"><article class="insight-card"><h3>Issues &amp; their opportunities</h3><p class="paired-insights-help">${isAofiFree?'Your improvement priorities are visible here. Activating 90-Day Priorities is included with a paid platform account.':'Select an issue to create one 90-Day Priority. Its opportunity is included in the Priority.'}</p><div class="insight-list">${issueRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">${isAofiFree?'Upgrade to activate these priorities in Agency Goals.':'Select one or more issues.'}</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">${isAofiFree?'Activate 90-Day Priorities · Upgrade':'Create 90-Day Priorities'}</button></div>
     <div class="define-goals-wrap"><a class="define-goals-cta" href="${isAofiFree?'#':'/agency-goals/'}" id="defineAgencyGoals">${isAofiFree?'Define Agency Goals · Upgrade':'Define Agency Goals →'}</a></div>`;
 
   const driver = momentum.primaryDriver;
@@ -498,6 +498,31 @@
   root.querySelector('#openWhatChangedBtnSummary')?.addEventListener('click', openWhatChangedModal);
   trendsView.querySelector('#openWhatChangedBtnTrends')?.addEventListener('click', openWhatChangedModal);
 
+  function openValidationHelp(reportId){
+    const report=reportId==='overall'?null:model.reports?.[reportId];
+    const validation=reportId==='overall'?model.validation:report?.validation;
+    const confidence=reportId==='overall'?model.confidence:report?.confidence;
+    const title=reportId==='overall'?'Overall Scorecard Validation':(report?.title||'Index Validation');
+    document.querySelector('#validationHelpModal')?.remove();
+    const modal=document.createElement('div');
+    modal.id='validationHelpModal';
+    modal.className='cc-modal-overlay open';
+    modal.innerHTML=`<div class="cc-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="validationHelpTitle" style="max-width:620px">
+      <button type="button" class="cc-modal-close" data-validation-close aria-label="Close dialog">×</button>
+      <header class="cc-modal-header"><span class="cc-modal-kicker">Validation &amp; Confidence</span><h2 id="validationHelpTitle">${esc(title)}</h2><p class="cc-modal-sub"><strong>${esc(validation||'Validation pending')}</strong> · ${Number(confidence||0)}% confidence</p></header>
+      <div style="display:grid;gap:14px;padding:4px 0 10px;color:#536078;line-height:1.6">
+        <p style="margin:0">Validation compares the answers provided in the Diagnostic with evidence currently available from connected systems, financial records, and verified assessment data.</p>
+        <p style="margin:0"><strong style="color:#111827">What a contradiction means:</strong> one or more self-reported answers do not fully align with the available evidence. It does not automatically mean the answer is wrong; it means the difference should be reviewed.</p>
+        <p style="margin:0"><strong style="color:#111827">What confidence means:</strong> confidence increases as relevant evidence becomes more complete, current, verified, and consistent with the Diagnostic. Missing or conflicting evidence lowers confidence.</p>
+        <p style="margin:0">As integrations collect more agency data, the Scorecard can be revalidated and confidence can improve.</p>
+      </div>
+      <div class="modal-footer-takeaway" style="margin-top:8px"><div class="takeaway-text"><strong>Current result</strong><p>${esc(validation||'Validation pending')}</p></div><button type="button" class="cc-modal-btn primary" data-validation-close>Got it</button></div>
+    </div>`;
+    document.body.appendChild(modal);
+    const close=()=>{modal.classList.remove('open');setTimeout(()=>modal.remove(),150)};
+    modal.querySelectorAll('[data-validation-close]').forEach(button=>button.addEventListener('click',close));
+    modal.addEventListener('click',event=>{if(event.target===modal)close()});
+  }
   function showAofiUpgrade(feature='this feature'){
     const existing=document.getElementById('aofiFreeUpgradeModal');if(existing)existing.remove();
     const modal=document.createElement('div');modal.id='aofiFreeUpgradeModal';
@@ -532,7 +557,7 @@
     try {
       const result=await saveRocks(chosen);
       const added=Number(result?.added||0);
-      note.textContent=added?`${added} 90 Day Rock${added===1?'':'s'} added to Agency Goals.`:'Those items are already in Agency Goals.';
+      note.textContent=added?`${added} 90-Day Priority${added===1?'':'s'} added to Agency Goals.`:'Those items are already in Agency Goals.';
       button.textContent='Created ✓';
       root.querySelectorAll('[data-rock-candidate]:checked').forEach(input=>{
         const candidate=rockCandidates[input.dataset.rockCandidate];
@@ -542,12 +567,12 @@
         const row=input.closest('.selectable-insight');
         row?.classList.add('selected');
         const holder=row?.querySelector('span,div');
-        if(holder && !holder.querySelector('small')) holder.insertAdjacentHTML('beforeend','<small>Already a 90-Day Rock</small>');
+        if(holder && !holder.querySelector('small')) holder.insertAdjacentHTML('beforeend','<small>Already a 90-Day Priority</small>');
       });
     } catch(error) {
-      note.textContent=error.message||'The 90 Day Rocks could not be saved.';
+      note.textContent=error.message||'The 90-Day Priorities could not be saved.';
     } finally {
-      setTimeout(()=>{button.textContent='Create 90 Day Rock(s)';button.disabled=false;},1500);
+      setTimeout(()=>{button.textContent='Create 90-Day Priorities';button.disabled=false;},1500);
     }
   });
   root.querySelector('#createSingleRock')?.addEventListener('click',async event=>{
@@ -558,14 +583,15 @@
     try {
       const key=String(first?.name||'validate-evidence').toLowerCase().replace(/[^a-z0-9]+/g,'-');
       const result=await saveRocks([{title:first?.name||'Validate the evidence',description:report.recommendation,sourceType:'priority',sourceKey:`priority:${first?.index||'strength'}:${key}`}]);
-      button.textContent=Number(result?.added||0)?'90 Day Rock Created ✓':'Already Added';
+      button.textContent=Number(result?.added||0)?'90-Day Priority Created ✓':'Already Added';
     } catch(error) {
       button.textContent='Could not save';
     } finally {
-      setTimeout(()=>{button.textContent='Create 90 Day Rock';button.disabled=false;},1600);
+      setTimeout(()=>{button.textContent='Create 90-Day Priority';button.disabled=false;},1600);
     }
   });
 
+  root.querySelectorAll('[data-validation-help]').forEach(button=>button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openValidationHelp(button.dataset.validationHelp);}));
   root.querySelectorAll('[data-download]').forEach(button => button.addEventListener('click', () => window.CCReports.downloadReport(button.dataset.download)));
   root.querySelectorAll('[data-email]').forEach(button => button.addEventListener('click', () => window.CCReports.openEmailDialog(button.dataset.email)));
   requestAnimationFrame(()=>requestAnimationFrame(releasePageLoader));
