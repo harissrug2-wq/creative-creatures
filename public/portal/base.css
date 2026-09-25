@@ -283,3 +283,11 @@ html,body{max-width:100%;overflow-x:clip}
 .cc-access-gate-primary{background:#3033eb;color:#fff}
 .cc-access-gate-secondary{background:#f4f5f8;color:#25283b}
 @media(max-width:720px){.account-plan-tag{font-size:9px;padding:4px 7px}.cc-access-gate{padding-top:78px}.cc-access-gate-card{padding:28px 22px}.cc-access-gate-card h1{font-size:27px}.cc-access-gate-actions a{width:100%}}
+
+/* Universal immediate interaction feedback */
+button,.button,.btn,[role="button"],a.cc-btn{transition:transform .1s ease,opacity .15s ease,box-shadow .15s ease}
+button:not(:disabled):active,.button:active,.btn:not(:disabled):active,[role="button"]:active,a.cc-btn:active{transform:translateY(1px) scale(.99)}
+.cc-click-feedback{filter:brightness(.98);box-shadow:0 0 0 3px rgba(39,44,243,.10)!important}
+.cc-action-busy{cursor:progress!important;opacity:.8}
+.cc-inline-spinner{width:14px;height:14px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;display:inline-block;vertical-align:-2px;margin-right:7px;animation:cc-inline-spin .65s linear infinite}
+@keyframes cc-inline-spin{to{transform:rotate(360deg)}}
