@@ -196,3 +196,11 @@ button:not(:disabled):active,.btn:not(:disabled):active,.primary-btn:not(:disabl
 .department-preview-row>div{display:grid;gap:4px}
 .department-preview-row strong,.department-preview-row b{color:#98a2b3}
 .department-preview-row span{color:#98a2b3;font-size:12px}
+
+.lead-preview .lead-preview-summary strong{color:#98a2b3}
+.lead-preview .lead-preview-panel{opacity:.88}
+.lead-preview .lead-preview-panel input:disabled,
+.lead-preview .lead-preview-panel select:disabled,
+.lead-preview .lead-preview-panel textarea:disabled,
+.lead-preview .lead-preview-panel button:disabled{cursor:not-allowed;opacity:.62}
+.lead-integration-preview-callout{margin:18px 0 22px;border:1px solid #f0c76b;background:#fff9ec}
