@@ -321,11 +321,7 @@ function publicAccess(account,actor){
     return row.complete===true||Number(row.progress)===100;
   });
   const allComplete=state.allComplete===true||state.all_complete===true||savedIndexesComplete;
-  const integrationSelections=state.integrationSelections&&typeof state.integrationSelections==='object'
-    ? state.integrationSelections
-    : state.integration_selections&&typeof state.integration_selections==='object'
-      ? state.integration_selections
-      : {};
+  const integrationSelections=monitorIntegrationSelections(account);
   return{
     plan,purchasedPlans,features:featuresForAccount(account,actor),previewFeatures,integrationSelections,
     workflow:{
