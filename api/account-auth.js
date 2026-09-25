@@ -864,13 +864,13 @@ async function monitorConnection(c,accountId,getter,presenter){
   }
 }
 
-async function monitorProjectSource(c,accountId,warnings){
+async function monitorProjectSource(c,accountId,warnings,allowedTools=[]){
   const candidates=[
-    {name:'ClickUp',get:getClickUpConnection,public:publicClickUpConnection,load:loadClickUpDashboard},
-    {name:'Teamwork',get:getTeamworkConnection,public:publicTeamworkConnection,load:loadTeamworkDashboard},
-    {name:'monday.com',get:getMondayConnection,public:publicMondayConnection,load:loadMondayDashboard},
-    {name:'Jira',get:getJiraConnection,public:publicJiraConnection,load:loadJiraDashboard}
-  ];
+    {name:'ClickUp',selectionName:'ClickUp',get:getClickUpConnection,public:publicClickUpConnection,load:loadClickUpDashboard},
+    {name:'Teamwork',selectionName:'Teamwork',get:getTeamworkConnection,public:publicTeamworkConnection,load:loadTeamworkDashboard},
+    {name:'monday.com',selectionName:'Monday.com',get:getMondayConnection,public:publicMondayConnection,load:loadMondayDashboard},
+    {name:'Jira',selectionName:'Jira',get:getJiraConnection,public:publicJiraConnection,load:loadJiraDashboard}
+  ].filter(candidate=>!allowedTools.length||allowedTools.includes(candidate.selectionName));
   for(const candidate of candidates){
     const connection=await monitorConnection(c,accountId,candidate.get,candidate.public);
     if(!connection.connected)continue;
@@ -885,12 +885,12 @@ async function monitorProjectSource(c,accountId,warnings){
   return{kind:'project_management',name:'Project management',connected:false,connection:null,data:{}};
 }
 
-async function monitorCrmSource(c,accountId,warnings){
+async function monitorCrmSource(c,accountId,warnings,allowedTools=[]){
   const candidates=[
     {name:'HubSpot',get:getHubSpotConnection,public:publicHubSpotConnection,load:loadHubSpotDashboard},
     {name:'Zoho CRM',get:getZohoConnection,public:publicZohoConnection,load:loadZohoDashboard},
     {name:'GHL CRM',get:getGhlConnection,public:publicGhlConnection,load:loadGhlDashboard}
-  ];
+  ].filter(candidate=>!allowedTools.length||allowedTools.includes(candidate.name));
   for(const candidate of candidates){
     const connection=await monitorConnection(c,accountId,candidate.get,candidate.public);if(!connection.connected)continue;
     try{const data=await candidate.load(c,accountId);return{kind:'crm',name:candidate.name,connected:true,connection:data.connection,data,warnings:data.warnings||[]}}
@@ -899,11 +899,11 @@ async function monitorCrmSource(c,accountId,warnings){
   return{kind:'crm',name:'CRM',connected:false,connection:null,data:{}};
 }
 
-async function monitorCommunicationsSource(c,accountId,warnings){
+async function monitorCommunicationsSource(c,accountId,warnings,allowedTools=[]){
   const candidates=[
     {name:'Slack',get:getSlackConnection,public:publicSlackConnection,load:loadSlackDashboard},
     {name:'Google Chat',get:getGoogleChatConnection,public:publicGoogleChatConnection,load:loadGoogleChatDashboard}
-  ];
+  ].filter(candidate=>!allowedTools.length||allowedTools.includes(candidate.name));
   const available=(await Promise.all(candidates.map(async candidate=>({...candidate,connection:await monitorConnection(c,accountId,candidate.get,candidate.public)}))))
     .filter(candidate=>candidate.connection.connected)
     .sort((a,b)=>Date.parse(b.connection.lastSyncedAt||b.connection.updatedAt||0)-Date.parse(a.connection.lastSyncedAt||a.connection.updatedAt||0));
@@ -1033,20 +1033,28 @@ async function loadMonitorDepartment(c,accountId,department){
   }
 
   let source={kind:'none',name:'No connected source',connected:false,connection:null,data:{}};
-  if(department==='marketing'||department==='sales')source=await monitorCrmSource(c,accountId,warnings);
-  else if(department==='onboarding'||department==='service-delivery')source=await monitorProjectSource(c,accountId,warnings);
+  if(department==='marketing'||department==='sales')source=await monitorCrmSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  else if(department==='onboarding'||department==='service-delivery')source=await monitorProjectSource(c,accountId,warnings,integrationRequirement.selectedTools);
   else if(department==='client-success'){
     const clientEvidence=evidenceRows.some(row=>row.evidence_type==='client_revenue');
-    source=clientEvidence?{kind:'financial_evidence',name:'Client Revenue evidence',connected:true,connection:null,data:{}}:await monitorCrmSource(c,accountId,warnings);
+    source=clientEvidence&&integrationRequirement.selectedTools.some(tool=>['QuickBooks Online','FreshBooks'].includes(tool))
+      ?{kind:'financial_evidence',name:'Client Revenue evidence',connected:true,connection:null,data:{}}
+      :await monitorCrmSource(c,accountId,warnings,integrationRequirement.selectedTools);
   }
   else if(department==='billing'||department==='finance'){
-    const accountingEvidence=evidenceRows.find(row=>row.extraction_model==='freshbooks-api'||row.extraction_model==='quickbooks-online-api');
-    source={kind:'financial_evidence',name:accountingEvidence?.extraction_model==='freshbooks-api'?'FreshBooks':accountingEvidence?.extraction_model==='quickbooks-online-api'?'QuickBooks Online':'Financial evidence',connected:evidenceRows.length>0,connection:null,data:{}};
+    const allowQuickBooks=integrationRequirement.selectedTools.includes('QuickBooks Online');
+    const allowFreshBooks=integrationRequirement.selectedTools.includes('FreshBooks');
+    const accountingEvidence=evidenceRows.find(row=>
+      (allowFreshBooks&&row.extraction_model==='freshbooks-api')||
+      (allowQuickBooks&&row.extraction_model==='quickbooks-online-api')
+    );
+    source={kind:'financial_evidence',name:accountingEvidence?.extraction_model==='freshbooks-api'?'FreshBooks':accountingEvidence?.extraction_model==='quickbooks-online-api'?'QuickBooks Online':'Financial evidence',connected:Boolean(accountingEvidence),connection:null,data:{}};
   }
-  else if(department==='communication')source=await monitorCommunicationsSource(c,accountId,warnings);
+  else if(department==='communication')source=await monitorCommunicationsSource(c,accountId,warnings,integrationRequirement.selectedTools);
   else if(department==='systems')source=await monitorSystemsSource(c,accountId);
   else if(department==='sops'){
-    const connection=await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection);
+    const allowsDrive=integrationRequirement.selectedTools.includes('Google Drive');
+    const connection=allowsDrive?await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection):{connected:false};
     source={kind:'drive',name:'Google Drive',connected:connection.connected,connection,data:{items:connection.selectedItems||[]}};
   }
 
