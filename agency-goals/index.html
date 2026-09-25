@@ -192,11 +192,12 @@
       window.__t = setTimeout(() => t.classList.remove('show'), 3000);
     };
 
-    app.innerHTML = '';
+    app.innerHTML = '<section class="wrap" style="padding-top:34px"><div class="head"><div><h1>Agency Goals</h1><p>Loading your saved targets, department goals, and 90-day priorities…</p></div></div></section>';
+    const loaderReleaseTimer=setTimeout(releasePageLoader,450);
 
     let model;
     try {
-      model = await window.CCGoals.load({ fresh: true });
+      model = await window.CCGoals.load({ fresh: false });
     } catch (error) {
       const lockCopy = error.code === 'SCORECARD_REQUIRED' || error.code === 'DIAGNOSTIC_REQUIRED'
         ? error.message
@@ -209,9 +210,13 @@
             <a class="button primary" href="/diagnostic/?locked=goals">Return to Diagnostic</a>
           </div>
         </section>`;
+      clearTimeout(loaderReleaseTimer);
       releasePageLoader();
       return;
     }
+
+    clearTimeout(loaderReleaseTimer);
+    releasePageLoader();
 
     const goals = Array.isArray(model.metrics) ? model.metrics : [];
     const targets = model.targets || {};
@@ -509,6 +514,8 @@
         showToast(error.message || 'Progress update could not be saved.');
       } finally {
         button.disabled = false;
+        button.classList.remove('cc-action-busy');
+        button.innerHTML=originalButtonHtml;
       }
     });
 
@@ -754,7 +761,11 @@
         return;
       }
       const button = document.querySelector('#finishGoals');
+      const originalButtonHtml=button.innerHTML;
       button.disabled = true;
+      button.classList.add('cc-action-busy');
+      button.innerHTML='<span class="cc-inline-spinner" aria-hidden="true"></span><span>Saving completion…</span>';
+      showToast('Saving Agency Goals completion…');
       try {
         const payload = await window.CCGoals.complete();
         const completedAt = payload.completedAt || new Date().toISOString();
@@ -769,6 +780,8 @@
         showToast(error.message || 'Goals completion could not be saved.');
       } finally {
         button.disabled = false;
+        button.classList.remove('cc-action-busy');
+        button.innerHTML=originalButtonHtml;
       }
     });
 

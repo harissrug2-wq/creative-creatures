@@ -328,7 +328,7 @@
       categoryModalTitle.textContent=`Add ${category}`;
       categoryModalCopy.textContent='Choose a live connection, track an upcoming option, or request another system for this category.';
       categoryModalBody.innerHTML=`<section class="catalog-section"><h3>Available integrations</h3><p>These integrations can be connected now.</p><div class="catalog-list">${available.map(tool=>catalogToolHtml(tool,true)).join('')||'<p>No live integrations are available in this category yet.</p>'}</div></section><section class="catalog-section"><h3>Listed integrations coming soon</h3><p>Add these to your agency stack while the connection is being provisioned.</p><div class="catalog-list">${upcoming.map(tool=>catalogToolHtml(tool,false)).join('')||'<p>Every listed option in this category is available.</p>'}</div></section><section class="catalog-section"><h3>Request another integration</h3><p>Request a system that is not already listed for ${esc(category)}.</p><div class="request-grid"><div class="field"><label>Integration name</label><input id="categoryRequestName" maxlength="100" placeholder="Vendor or product name"></div><div class="field"><label>What should it support?</label><input id="categoryRequestNote" maxlength="240" placeholder="Optional use case"></div><button class="btn primary" id="categoryRequestSave">Send request</button></div><div id="categoryRequestResult" class="request-success"></div></section>`;
-      categoryModalBody.querySelectorAll('[data-catalog-tool]').forEach(button=>button.onclick=()=>toggleCatalogTool(button.dataset.catalogTool));
+      categoryModalBody.querySelectorAll('[data-catalog-tool]').forEach(button=>button.onclick=()=>toggleCatalogTool(button.dataset.catalogTool,button));
       categoryModalBody.querySelector('#categoryRequestSave').onclick=saveCategoryRequest;
       show('#categoryModal');
     }
@@ -339,13 +339,27 @@
       localStorage.setItem('agencyIntegrationsComplete','true');
       try{await window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.()||{})}catch{}
     }
-    async function toggleCatalogTool(tool){
+    async function toggleCatalogTool(tool,button){
       const current=selectionFor(activeCategory);
-      categorySelections[activeCategory]=current.includes(tool)
-        ? current.filter(item=>item!==tool)
-        : [...current,tool];
-      await persistIntegrationState();render();openCategoryModal(activeCategory);
-      if(selectionFor(activeCategory).includes(tool)&&meta[tool]?.status)loadToolStatus(tool);
+      const removing=current.includes(tool);
+      const originalText=button?.textContent||'';
+      if(button){
+        button.disabled=true;
+        button.classList.add('cc-action-busy');
+        button.innerHTML=`<span class="cc-inline-spinner" aria-hidden="true"></span>${removing?'Removing…':'Adding…'}`;
+      }
+      try{
+        categorySelections[activeCategory]=removing
+          ? current.filter(item=>item!==tool)
+          : [...current,tool];
+        await persistIntegrationState();
+        render();
+        openCategoryModal(activeCategory);
+        if(selectionFor(activeCategory).includes(tool)&&meta[tool]?.status)loadToolStatus(tool);
+      }catch(error){
+        if(button){button.disabled=false;button.classList.remove('cc-action-busy');button.textContent=originalText}
+        alert(error.message||'Integration selection could not be saved.');
+      }
     }
     async function saveCategoryRequest(){
       const name=categoryModalBody.querySelector('#categoryRequestName').value.trim();

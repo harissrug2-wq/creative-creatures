@@ -178,3 +178,8 @@ html[data-cc-preview-mode="1"] body[data-page="platform"] .monitor-dept-toggle{t
 
 body[data-page="platform"] .sidebar>.brand{display:none}
 body[data-page="platform"] .side-scroll{padding-top:14px}
+
+/* Immediate interaction feedback for Monitor controls */
+button,.btn,.primary-btn,.secondary-btn,.danger-btn,.side-link{transition:transform .1s ease,opacity .15s ease,box-shadow .15s ease}
+button:not(:disabled):active,.btn:not(:disabled):active,.primary-btn:not(:disabled):active,.secondary-btn:not(:disabled):active,.danger-btn:not(:disabled):active,.side-link:active{transform:translateY(1px) scale(.99)}
+.cc-click-feedback{filter:brightness(.98);box-shadow:0 0 0 3px rgba(39,44,243,.10)!important}

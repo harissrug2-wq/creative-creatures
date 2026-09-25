@@ -40,6 +40,17 @@
     }).join('')}</section>`;
   }
 
+  if(!window.__ccInteractionFeedbackBound){
+    window.__ccInteractionFeedbackBound=true;
+    document.addEventListener('click',event=>{
+      const control=event.target?.closest?.('button,.button,.btn,[role="button"],a.cc-btn');
+      if(!control||control.disabled||control.getAttribute('aria-disabled')==='true')return;
+      control.classList.add('cc-click-feedback');
+      clearTimeout(control.__ccFeedbackTimer);
+      control.__ccFeedbackTimer=setTimeout(()=>control.classList.remove('cc-click-feedback'),360);
+    },true);
+  }
+
   document.querySelectorAll('[data-app-header]').forEach(async el => {
     try{await window.CCAccount?.ready}catch{}
     const active = el.dataset.appHeader || '';
