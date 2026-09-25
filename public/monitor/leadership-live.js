@@ -459,16 +459,16 @@
     const agenda = agendaFor(item);
     const meetingDate = item?.meeting_date || today;
     return `<input type="hidden" name="id" value="${esc(item?.id || '')}"><input type="hidden" name="transcriptUrl" value="${esc(item?.transcript_url || '')}">
-      <div class="lead-l10-title"><input name="title" required maxlength="220" value="${esc(item?.title || `Weekly Leadership L10 — ${meetingDate}`)}"><input type="date" name="meetingDate" required value="${esc(meetingDate)}"></div>
+      <div class="lead-l10-title"><input name="title" required maxlength="220" value="${esc(item?.title || `Weekly Leadership Meeting — ${meetingDate}`)}"><input type="date" name="meetingDate" required value="${esc(meetingDate)}"></div>
       ${meetingNavigator(item)}
       <div class="lead-l10-source">✣ <span>${esc(meetingSource(item))}</span>${item?.calendar_html_url ? `<a href="${esc(item.calendar_html_url)}" target="_blank" rel="noopener">Open calendar ↗</a>` : ''}</div>
-      <section class="lead-l10-section" data-section-card="segue"><h4><small>5m</small> Segue — Good News</h4>${agendaInputs('goodNews', agenda.goodNews, 'Add a positive headline…')}</section>
+      <section class="lead-l10-section" data-section-card="segue"><h4><small>5m</small> Opening — Good News</h4>${agendaInputs('goodNews', agenda.goodNews, 'Add a positive headline…')}</section>
       <section class="lead-l10-section" data-section-card="headlines"><h4><small>5m</small> Customer / Employee Headlines</h4>${agendaInputs('headlines', agenda.headlines, 'Add a headline…')}</section>
       <section class="lead-l10-section" data-section-card="scorecard"><div class="lead-l10-section-head"><h4><small>5m</small> KPI Score Card</h4><button type="button" class="lead-l10-row-button" data-open-scorecard>Open scorecard</button></div>${meetingScorecard(item)}</section>
-      <section class="lead-l10-section" data-section-card="rocks"><h4><small>5m</small> Rock Review</h4>${rockReview(item)}</section>
+      <section class="lead-l10-section" data-section-card="rocks"><h4><small>5m</small> Priority Review</h4>${rockReview(item)}</section>
       <section class="lead-l10-section" data-section-card="todos"><h4><small>10m</small> To-Do List &amp; Review</h4>${todoReview(item)}</section>
-      <section class="lead-l10-section" data-section-card="ids"><h4><small>60m</small> IDS — Identify, Discuss, Solve</h4>${issueReview(item)}</section>
-      <section class="lead-l10-section" data-section-card="conclude"><h4><small>5m</small> Conclude — Cascading Messages &amp; Rating</h4>${appliedTranscriptOutcomes(item)}<label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>
+      <section class="lead-l10-section" data-section-card="ids"><h4><small>60m</small> Issues &amp; Decisions</h4>${issueReview(item)}</section>
+      <section class="lead-l10-section" data-section-card="conclude"><h4><small>5m</small> Wrap-Up — Cascading Messages &amp; Rating</h4>${appliedTranscriptOutcomes(item)}<label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>
       ${meetingTranscriptPanel(item)}`;
   }
 
@@ -502,7 +502,7 @@
         <div class="lead-modal-grid"><label><span>Status</span><select name="status"><option value="open" ${item?.status !== 'complete' ? 'selected':''}>Open</option><option value="complete" ${item?.status === 'complete' ? 'selected':''}>Complete</option></select></label><label><span>Meeting</span><select name="meetingId">${meetingsOptions(item?.meeting_id || '')}</select></label></div>`;
     } else {
       title = item ? 'Edit 90-Day Priority' : 'New 90-Day Priority';
-      fields = `<input type="hidden" name="id" value="${esc(item?.id || '')}"><label><span>Rock</span><input name="title" required maxlength="220" value="${esc(item?.title || '')}" placeholder="Measurable 90-day priority"></label>
+      fields = `<input type="hidden" name="id" value="${esc(item?.id || '')}"><label><span>Priority</span><input name="title" required maxlength="220" value="${esc(item?.title || '')}" placeholder="Measurable 90-day priority"></label>
         <label><span>Description</span><textarea name="description" rows="5" placeholder="Define the outcome and why it matters…">${esc(item?.description || '')}</textarea></label>
         <div class="lead-modal-grid"><label><span>Owner</span><input name="owner" maxlength="160" value="${esc(item?.owner || '')}" placeholder="Accountable person"></label><label><span>Due date</span><input type="date" name="dueDate" value="${esc(item?.dueDate || '')}"></label></div>
         <label><span>Status</span><select name="status">${['Not started','On track','Watch','Complete'].map(value => `<option value="${esc(value)}" ${item?.status === value ? 'selected':''}>${esc(value)}</option>`).join('')}</select></label>`;
