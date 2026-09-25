@@ -1,12 +1,12 @@
 (() => {
   const IS_RETAKE = new URLSearchParams(window.location.search).get('retake') === '1';
   const sections = [
-    {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Choose Upload PDF or Sync Now. Nothing is imported into this section until you explicitly choose one of those actions.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
-    {id:'balanceSheet',evidenceType:'balance_sheet',title:'Balance Sheet',short:'Balance Sheet',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm the balance-sheet and cash values used for scoring.',requirements:['PDF report','Current assets and liabilities','Cash / debt evidence']},
-    {id:'arAgingDoc',evidenceType:'ar_aging',title:'Accounts Receivable Aging Report',short:'A/R Aging',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm the collection-rate value below.',requirements:['Most recent A/R Aging Report','PDF format']},
+    {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Review the Profit & Loss values used to measure profitability and growth.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
+    {id:'balanceSheet',evidenceType:'balance_sheet',title:'Balance Sheet',short:'Balance Sheet',type:'upload',copy:'Review liquidity, cash, debt, and balance-sheet values used for scoring.',requirements:['PDF report','Current assets and liabilities','Cash / debt evidence']},
+    {id:'arAgingDoc',evidenceType:'ar_aging',title:'Accounts Receivable Aging Report',short:'A/R Aging',type:'upload',copy:'Review accounts receivable and collection performance used for scoring.',requirements:['Most recent A/R Aging Report','PDF format']},
     {id:'sde',evidenceType:'sde',title:'SDE & Capital Allocation',short:'SDE + Capital',type:'sde',copy:'Confirm owner benefits, Adjusted SDE, and how capital was reinvested during the last year.'},
-    {id:'clientRevenue',evidenceType:'client_revenue',title:'Client Revenue Report',short:'Client Revenue',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm concentration values.',requirements:['Complete client list','Revenue per client','Last 12 months','PDF format']},
-    {id:'serviceRevenue',evidenceType:'service_revenue_mix',title:'Service Revenue Mix',short:'Service Mix',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm recurring versus project-based revenue.',requirements:['Revenue by service','Recurring / project mix','PDF format']}
+    {id:'clientRevenue',evidenceType:'client_revenue',title:'Client Revenue Report',short:'Client Revenue',type:'upload',copy:'Review client concentration, diversification, and tenure values.',requirements:['Complete client list','Revenue per client','Last 12 months','PDF format']},
+    {id:'serviceRevenue',evidenceType:'service_revenue_mix',title:'Service Revenue Mix',short:'Service Mix',type:'upload',copy:'Review recurring versus project-based revenue used for revenue-quality scoring.',requirements:['Revenue by service','Recurring / project mix','PDF format']}
   ];
 
   const benefits = [
@@ -88,6 +88,7 @@
     remoteError:'',
     finishError:''
   };
+  if(!state.sourceMode)state.sectionIndex=-1;
 
   const app=document.querySelector('#performanceApp');
   if(!app)return;
