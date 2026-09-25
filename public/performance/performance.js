@@ -21,8 +21,7 @@
     revenueDiversificationLevel: ['Very concentrated','Limited diversification','Moderate','Well diversified','Highly diversified'],
     contractDurationLevel: ['Project only','Month-to-month','6-month average','12-month average','Multi-year relationships'],
     technologyInvestmentLevel: ['Reactive spending only','Occasional purchases','Annual technology plan','Strategic technology investment','Technology consistently improves productivity and margins'],
-    talentInvestmentLevel: ['No leadership development','Occasional training','Defined development plans','Leadership development program','Talent investments produce measurable capability'],
-    retainedEarningsGrowthLevel: ['Declining','Flat','Growing slowly','Growing consistently','Growing rapidly while maintaining profitability']
+    talentInvestmentLevel: ['No leadership development','Occasional training','Defined development plans','Leadership development program','Talent investments produce measurable capability']
   };
 
   const fieldGroups = {
@@ -57,8 +56,7 @@
       {key:'incrementalOperatingProfit',label:'Incremental Operating Profit',type:'money',help:'Used with Capital Invested to calculate ROIC-Lite.'},
       {key:'reinvestmentRatePercent',label:'Profit Reinvested',type:'percent',help:'Optional. Add this when you know what percentage of profit was intentionally reinvested; leaving it blank reduces scoring coverage rather than blocking completion.'},
       {key:'technologyInvestmentLevel',label:'Technology Investment',type:'level'},
-      {key:'talentInvestmentLevel',label:'Talent Investment',type:'level'},
-      {key:'retainedEarningsGrowthLevel',label:'Retained Earnings Growth',type:'level'}
+      {key:'talentInvestmentLevel',label:'Talent Investment',type:'level'}
     ],
     clientRevenue: [
       {key:'topClientPercent',label:'Largest Client % of Revenue',type:'percent',required:true},
