@@ -207,6 +207,7 @@
     const access=await getAccess();preserveAllLinks();
     if(access?.isAdmin||access?.actor?.role==='admin'||location.search.includes('admin=1')||sessionStorage.getItem('cc_admin_mode')==='1')return;
     const feature=routeFeature(location.pathname),previews=Array.isArray(access.previewFeatures)?access.previewFeatures:[],departments=['leadership','marketing','sales','billing','onboarding','service-delivery','client-success','talent-acquisition','finance','communication','systems','sops'];
+    const currentDepartment=location.pathname.split('/').filter(Boolean)[0],isDepartmentRoute=departments.includes(currentDepartment);
     document.querySelectorAll('a[href]').forEach(link=>{try{
       const path=new URL(link.href,location.href).pathname,f=link.dataset.workspaceFeature||link.dataset.ccFeature||routeFeature(path),department=path.split('/').filter(Boolean)[0];
       const visible=!f||access.features.includes(f)||previews.includes(f);
@@ -214,7 +215,10 @@
     }catch{}});
     const preview=feature?previewCopy(feature,access):null;
     if(preview){showPreviewBanner(preview);return}
-    const copy=feature?gateCopy(feature,access):null;
+    // Department pages should always open their own shell. They enforce
+    // source/integration requirements inside the page instead of showing the
+    // broad Monitor workflow modal over the department UI.
+    const copy=feature&&!isDepartmentRoute?gateCopy(feature,access):null;
     if(copy){showGateNotice(copy);return}
     if(feature&&!access.features.includes(feature)){location.replace(access.features.includes('accelerator')?'/accelerator/':access.features.includes('monitor')?'/platform/':'/diagnostic/');return}
     if(access.actor.role==='member'){const department=location.pathname.split('/').filter(Boolean)[0],first=access.actor.departments[0];if(location.pathname.startsWith('/platform')&&first){location.replace(`/${first}/`);return}if((departments.includes(department)&&!access.actor.departments.includes(department))||location.pathname.startsWith('/users'))location.replace(first?`/${first}/`:'/login/')}
