@@ -25,6 +25,7 @@ const diagnosticState = fs.readFileSync(new URL('../public/portal/diagnostic-sta
 const departmentLive = fs.readFileSync(new URL('../public/monitor/department-live.js', import.meta.url), 'utf8');
 const leadershipLive = fs.readFileSync(new URL('../public/monitor/leadership-live.js', import.meta.url), 'utf8');
 const workspaceAccess = fs.readFileSync(new URL('../public/shared/workspace-access.js', import.meta.url), 'utf8');
+const monitorUi = fs.readFileSync(new URL('../public/monitor/monitor.js', import.meta.url), 'utf8');
 
 test('free AOFI navigation exposes preview-only upgrade pages and plan tag', () => {
   assert.match(auth, /previewFeatures=plan==='aofi_free'\?\['monitor','goals','integrations'\]/);
@@ -146,4 +147,28 @@ test('Monitor departments hide data until a related integration category is sele
 test('completed Agency Goals do not relock Monitor during later diagnostic syncs', () => {
   assert.match(workspaceAccess, /agencyGoalsComplete/);
   assert.match(auth, /integrationSelections/);
+});
+
+
+test('Monitor department routes open their page before workflow gate messaging', () => {
+  assert.match(workspaceAccess, /isDepartmentRoute/);
+  assert.match(workspaceAccess, /feature&&!isDepartmentRoute\?gateCopy/);
+});
+
+test('Scorecard restores opportunity impact points', () => {
+  assert.match(scorecardUi, /estimatedLift/);
+  assert.match(scorecardUi, /paired-opportunity-lift/);
+  assert.match(scorecardUi, /pts/);
+});
+
+test('slow actions show immediate busy feedback', () => {
+  assert.match(goalsUi, /Saving completion…/);
+  assert.match(integrations, /Adding…/);
+  assert.match(integrations, /Removing…/);
+  assert.match(monitorUi, /cc-click-feedback/);
+});
+
+test('Scorecard and Goals release the blocking loader quickly', () => {
+  assert.match(scorecardUi, /setTimeout\(releasePageLoader,450\)/);
+  assert.match(goalsUi, /setTimeout\(releasePageLoader,450\)/);
 });
