@@ -128,6 +128,16 @@
     return `<div class="lead-empty"><strong>${esc(title)}</strong><span>${esc(copy)}</span>${action}</div>`;
   }
 
+  function previewSummaryCards() {
+    const items=[
+      ['Last leadership meeting','—','Saved meeting history'],
+      ['Active 90-Day Priorities','—','Agency Goals'],
+      ['Open issues','—','Leadership issue list'],
+      ['Average meeting rating','—','Completed meetings']
+    ];
+    return `<section class="lead-summary-grid lead-preview-summary">${items.map(item=>`<article><span>${esc(item[0])}</span><strong>${esc(item[1])}</strong><small>${esc(item[2])}</small></article>`).join('')}</section>`;
+  }
+
   function summaryCards() {
     const summary = state.leadership?.summary || {};
     const activeRocks = (state.leadership?.rocks || []).filter(rock => rock.status !== 'Complete').length;
@@ -292,7 +302,24 @@
       return;
     }
     if (state.integrationRequired) {
-      root.innerHTML = `<div class="leadership-live"><header class="lead-page-head"><div><span class="lead-eyebrow">Monitor · Agency Leadership</span><h1>Leadership</h1><p>Weekly operating cadence, priorities, issues, strategy, and vision.</p></div></header><section class="lead-card" style="padding:28px"><strong style="display:block;font-size:18px;margin-bottom:8px">Select a Calendar &amp; Meetings integration to activate Leadership</strong><p style="margin:0 0 18px;color:#667085;line-height:1.6">Leadership data stays hidden until you explicitly select an integration for Calendar &amp; Meetings. Connections selected for other categories do not feed this department.</p><a href="/integrations/" class="lead-primary" style="display:inline-flex;text-decoration:none">Choose Calendar &amp; Meetings integration →</a></section></div>`;
+      state.leadership=state.leadership||{
+        account:{},summary:{},meetings:[],todos:[],issues:[],rocks:[],metrics:[],metricEntries:[],
+        marketingPlan:{},visionPlan:{},sections:[],meetingItems:[]
+      };
+      root.innerHTML = `<div class="leadership-live lead-preview">
+        <header class="lead-page-head"><div><span class="lead-eyebrow">Monitor · Agency Leadership</span><h1>Leadership</h1><p>Weekly operating cadence, priorities, issues, strategy, and vision.</p></div><div class="lead-owner-card"><span>Workspace owner</span><strong>—</strong><small>Preview</small></div></header>
+        <section class="lead-card lead-integration-preview-callout" style="padding:24px 28px"><strong style="display:block;font-size:18px;margin-bottom:8px">Select a Calendar &amp; Meetings integration to activate Leadership</strong><p style="margin:0 0 18px;color:#667085;line-height:1.6">You can preview the full Leadership workspace below. Values and meeting data stay blank until you select and connect a Calendar &amp; Meetings integration.</p><a href="/integrations/" class="lead-primary" style="display:inline-flex;text-decoration:none">Choose Calendar &amp; Meetings integration →</a></section>
+        ${previewSummaryCards()}${tabs()}<div class="lead-preview-panel">${activePanel()}</div>
+        <div class="lead-toast" role="status" aria-live="polite"></div>
+      </div>`;
+      root.querySelectorAll('input,select,textarea,button:not([data-lead-tab])').forEach(control=>{
+        control.disabled=true;
+        control.setAttribute('aria-disabled','true');
+      });
+      root.querySelectorAll('[data-lead-tab]').forEach(button=>button.addEventListener('click',()=>{
+        state.tab=button.dataset.leadTab;
+        render();
+      }));
       return;
     }
 

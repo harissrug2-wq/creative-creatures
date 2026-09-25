@@ -26,6 +26,8 @@ const departmentLive = fs.readFileSync(new URL('../public/monitor/department-liv
 const leadershipLive = fs.readFileSync(new URL('../public/monitor/leadership-live.js', import.meta.url), 'utf8');
 const workspaceAccess = fs.readFileSync(new URL('../public/shared/workspace-access.js', import.meta.url), 'utf8');
 const monitorUi = fs.readFileSync(new URL('../public/monitor/monitor.js', import.meta.url), 'utf8');
+const departmentLivePreview = fs.readFileSync(new URL('../public/monitor/department-live.js', import.meta.url), 'utf8');
+const leadershipLivePreview = fs.readFileSync(new URL('../public/monitor/leadership-live.js', import.meta.url), 'utf8');
 
 test('free AOFI navigation exposes preview-only upgrade pages and plan tag', () => {
   assert.match(auth, /previewFeatures=plan==='aofi_free'\?\['monitor','goals','integrations'\]/);
@@ -171,4 +173,18 @@ test('slow actions show immediate busy feedback', () => {
 test('Scorecard and Goals release the blocking loader quickly', () => {
   assert.match(scorecardUi, /setTimeout\(releasePageLoader,450\)/);
   assert.match(goalsUi, /setTimeout\(releasePageLoader,450\)/);
+});
+
+
+test('Monitor departments show full blank preview below integration prompt', () => {
+  assert.match(departmentLivePreview, /department-preview/);
+  assert.match(departmentLivePreview, /You can preview the complete department workspace below/);
+  assert.match(departmentLivePreview, /Preview only · connect an integration to populate values/);
+  assert.match(departmentLivePreview, /value:null/);
+});
+
+test('Leadership shows a read-only full workspace preview before calendar integration', () => {
+  assert.match(leadershipLivePreview, /lead-preview/);
+  assert.match(leadershipLivePreview, /preview the full Leadership workspace below/);
+  assert.match(leadershipLivePreview, /button:not\(\[data-lead-tab\]\)/);
 });
