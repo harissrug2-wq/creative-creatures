@@ -143,6 +143,8 @@
     const safeJson=(v,f)=>{try{return JSON.parse(v)??f}catch{return f}};
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
     let selected=Array.from(new Set(safeJson(localStorage.getItem('agencySelectedTools'),[]).map(x=>x==='GoHighLevel'||x==='CRM Connector'?'GHL CRM':x))).filter(Boolean);
+    let categorySelections=safeJson(localStorage.getItem('agencyIntegrationSelections'),{});
+    if(!categorySelections||typeof categorySelections!=='object'||Array.isArray(categorySelections))categorySelections={};
 
     const meta={
       'QuickBooks Online':{group:'Bookkeeping',groups:['Bookkeeping','Billing','HR & People'],code:'QB',color:'#2ca01c',copy:'OAuth2 · P&L · A/R · expenses · billing · payroll',status:'quickbooks_status',connect:'quickbooks_connect',sync:'quickbooks_sync',disconnect:'quickbooks_disconnect'},
@@ -203,6 +205,24 @@
       'IT & Security':['Keeper','Bitwarden','1Password','Cloudflare','Okta']
     };
     const categoryOrder=Object.keys(catalog);
+    const normalizeTool=x=>x==='GoHighLevel'||x==='CRM Connector'?'GHL CRM':String(x||'').trim();
+    const selectionFor=category=>Array.from(new Set((Array.isArray(categorySelections[category])?categorySelections[category]:[]).map(normalizeTool).filter(Boolean)));
+    const rebuildSelected=()=>{selected=Array.from(new Set(categoryOrder.flatMap(selectionFor)));};
+    const hasCategorySelections=()=>categoryOrder.some(category=>selectionFor(category).length);
+    if(!hasCategorySelections()&&selected.length){
+      // One-time migration from the old global selection model: keep every
+      // integration in its primary category only. Users can explicitly add
+      // the same provider to another category when they want that department fed.
+      selected.forEach(tool=>{
+        const category=meta[tool]?.group;
+        if(!category||!catalog[category]?.includes(tool))return;
+        categorySelections[category]=Array.from(new Set([...(categorySelections[category]||[]),tool]));
+      });
+      rebuildSelected();
+      localStorage.setItem('agencyIntegrationSelections',JSON.stringify(categorySelections));
+      localStorage.setItem('agencySelectedTools',JSON.stringify(selected));
+    }else rebuildSelected();
+
     const groupFeeds={
       'CRM':'feeds: Marketing · Sales',
       'Bookkeeping':'feeds: Billing · Finance',
@@ -254,7 +274,7 @@
     function render(){
       empty.hidden=true;groupsEl.innerHTML='';
       categoryOrder.forEach(group=>{
-        const tools=selected.filter(tool=>(meta[tool]?.groups||[meta[tool]?.group]).includes(group));
+        const tools=selectionFor(group);
         const section=document.createElement('section');section.className='group';
         const served=catalog[group].some(tool=>Boolean(meta[tool]?.status));
         section.innerHTML=`<header class="group-head"><div class="group-title"><h2>${esc(group)}</h2><span class="group-tag">${served?'served':'provisioning'}</span></div><div class="group-head-actions"><span class="group-feed">${esc(groupFeeds[group])}</span><button class="btn group-add" data-add-category="${esc(group)}">＋ Add ${esc(group)}</button></div></header><div>${tools.length?tools.map(rowHtml).join(''):`<div class="group-empty">No ${esc(group)} integration selected.</div>`}</div>`;
@@ -276,7 +296,7 @@
       const supported=selected.filter(t=>meta[t]?.status);
       const connected=supported.filter(t=>stateMap.get(t)?.connected);
       const attention=supported.filter(t=>stateMap.get(t)?.error||stateMap.get(t)?.reconnectRequired);
-      const cats=new Set(selected.map(t=>(meta[t]||{}).group).filter(Boolean));
+      const cats=new Set(categoryOrder.filter(category=>selectionFor(category).length));
       document.querySelector('#connectedStat').textContent=`${connected.length} / ${selected.length}`;
       document.querySelector('#healthyStat').textContent=String(connected.filter(t=>!stateMap.get(t)?.error).length);
       document.querySelector('#attentionStat').textContent=String(attention.length);
@@ -297,7 +317,7 @@
     let activeCategory='';
 
     function catalogToolHtml(tool,available){
-      const m=meta[tool],isSelected=selected.includes(tool);
+      const m=meta[tool],isSelected=selectionFor(activeCategory).includes(tool);
       return `<article class="catalog-tool"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="catalog-copy"><strong>${esc(tool)}</strong><span>${esc(m.copy)}</span></div><button class="btn ${isSelected?'danger':available?'primary':''}" data-catalog-tool="${esc(tool)}">${isSelected?'Remove':available?'Add':'Add to list'}</button></article>`;
     }
     function openCategoryModal(category){
@@ -313,15 +333,19 @@
       show('#categoryModal');
     }
     async function persistIntegrationState(){
+      rebuildSelected();
       localStorage.setItem('agencySelectedTools',JSON.stringify(selected));
+      localStorage.setItem('agencyIntegrationSelections',JSON.stringify(categorySelections));
       localStorage.setItem('agencyIntegrationsComplete','true');
       try{await window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.()||{})}catch{}
     }
     async function toggleCatalogTool(tool){
-      if(selected.includes(tool))selected=selected.filter(item=>item!==tool);
-      else selected=[...selected,tool];
+      const current=selectionFor(activeCategory);
+      categorySelections[activeCategory]=current.includes(tool)
+        ? current.filter(item=>item!==tool)
+        : [...current,tool];
       await persistIntegrationState();render();openCategoryModal(activeCategory);
-      if(selected.includes(tool)&&meta[tool]?.status)loadToolStatus(tool);
+      if(selectionFor(activeCategory).includes(tool)&&meta[tool]?.status)loadToolStatus(tool);
     }
     async function saveCategoryRequest(){
       const name=categoryModalBody.querySelector('#categoryRequestName').value.trim();
@@ -359,7 +383,13 @@
       await Promise.all(tools.map(loadToolStatus));
       let changed=false;
       autoDetect.forEach(tool=>{
-        if(stateMap.get(tool)?.connected&&!selected.includes(tool)){selected=[...selected,tool];changed=true;}
+        // Detect an existing accounting connection without opting the same
+        // provider into Billing or HR & People automatically.
+        if(stateMap.get(tool)?.connected&&!categoryOrder.some(category=>selectionFor(category).includes(tool))){
+          const primary=meta[tool]?.group||'Bookkeeping';
+          categorySelections[primary]=[...selectionFor(primary),tool];
+          changed=true;
+        }
       });
       if(changed)await persistIntegrationState();
       render();
