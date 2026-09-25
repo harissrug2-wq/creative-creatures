@@ -915,7 +915,7 @@ async function monitorCommunicationsSource(c,accountId,warnings,allowedTools=[])
   return{kind:'communications',name:'Communications',connected:false,connection:null,data:{}};
 }
 
-async function monitorSystemsSource(c,accountId){
+async function monitorSystemsSource(c,accountId,allowedTools=[]){
   const definitions=[
     ['HubSpot',getHubSpotConnection,publicHubSpotConnection],
     ['Zoho CRM',getZohoConnection,publicZohoConnection],
@@ -932,8 +932,10 @@ async function monitorSystemsSource(c,accountId){
     ['Google Drive',getGoogleDriveConnection,publicGoogleDriveConnection],
     ['Google Calendar',getGoogleCalendarConnection,publicGoogleCalendarConnection]
   ];
-  const connections=await Promise.all(definitions.map(async([name,getter,presenter])=>({name,...await monitorConnection(c,accountId,getter,presenter)})));
-  return{kind:'systems',name:'Creative Creatures integration registry',connected:true,connection:null,data:{connections}};
+  const aliases={QuickBooks:'QuickBooks Online'};
+  const filtered=definitions.filter(([name])=>!allowedTools.length||allowedTools.includes(aliases[name]||name));
+  const connections=await Promise.all(filtered.map(async([name,getter,presenter])=>({name,...await monitorConnection(c,accountId,getter,presenter)})));
+  return{kind:'systems',name:'Creative Creatures integration registry',connected:connections.some(item=>item.connected),connection:null,data:{connections}};
 }
 
 const MONITOR_INTEGRATION_CATEGORIES={
@@ -1051,7 +1053,7 @@ async function loadMonitorDepartment(c,accountId,department){
     source={kind:'financial_evidence',name:accountingEvidence?.extraction_model==='freshbooks-api'?'FreshBooks':accountingEvidence?.extraction_model==='quickbooks-online-api'?'QuickBooks Online':'Financial evidence',connected:Boolean(accountingEvidence),connection:null,data:{}};
   }
   else if(department==='communication')source=await monitorCommunicationsSource(c,accountId,warnings,integrationRequirement.selectedTools);
-  else if(department==='systems')source=await monitorSystemsSource(c,accountId);
+  else if(department==='systems')source=await monitorSystemsSource(c,accountId,integrationRequirement.selectedTools);
   else if(department==='sops'){
     const allowsDrive=integrationRequirement.selectedTools.includes('Google Drive');
     const connection=allowsDrive?await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection):{connected:false};
