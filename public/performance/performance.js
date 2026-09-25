@@ -195,7 +195,11 @@
         :await fetch(`/api/account-auth?action=${provider}_connect`);
       const payload=await response.json();
       if(!response.ok)throw new Error(payload.error||'The bookkeeping provider could not be reached.');
-      if(operation==='sync'){location.reload();return;}
+      if(operation==='sync'){
+        sessionStorage.setItem('ccBookkeepingSyncNotice',provider);
+        location.reload();
+        return;
+      }
       if(!payload.authorizationUrl)throw new Error('The provider did not return an authorization URL.');
       sessionStorage.setItem(`cc_${provider}_return`,'/agency-performance-index/');
       location.assign(payload.authorizationUrl);
@@ -583,7 +587,21 @@
     state.documents[section.id]={name:row.file_name||'Financial evidence.pdf',size:Number(row.file_size_bytes)||0,type:row.mime_type||'application/pdf',receivedAt:row.updated_at||row.created_at||'',evidenceId:row.id,storagePath:row.storage_path,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:row.extraction_error||'',extractedAt:row.extracted_at||null};
   }
 
+  function showBookkeepingSyncNotice(){
+    const provider=sessionStorage.getItem('ccBookkeepingSyncNotice');
+    if(!provider)return;
+    sessionStorage.removeItem('ccBookkeepingSyncNotice');
+    const name=bookkeepingProviders.find(item=>item.id===provider)?.name||'Bookkeeping';
+    const notice=document.createElement('div');
+    notice.setAttribute('role','status');
+    notice.style.cssText='position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;background:#ecfdf3;border:1px solid #a7f3c4;color:#116b3a;border-radius:12px;padding:12px 18px;box-shadow:0 12px 36px rgba(16,24,40,.14);font:700 13px/1.4 Inter,Arial,sans-serif';
+    notice.textContent=`✓ ${name} synced successfully. Automated financial values have been refreshed.`;
+    document.body.appendChild(notice);
+    setTimeout(()=>notice.remove(),5000);
+  }
+
   async function hydrateRemoteEvidence(){
+    showBookkeepingSyncNotice();
     checkBookkeepingConnection().then(()=>render());
     if(!window.CCFinancialEvidence?.list){state.remoteLoaded=true;render();return;}
     try{const result=await window.CCFinancialEvidence.list();(result.evidence||[]).forEach(hydrateEvidenceRow);state.remoteError='';}
