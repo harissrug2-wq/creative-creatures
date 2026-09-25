@@ -222,6 +222,18 @@
   const host=document.querySelector('#sectionHost');
   document.querySelector('#backDiagnostic').addEventListener('click',()=>{persist();location.href='/diagnostic/';});
 
+  async function recordBookkeepingSelection(providerId){
+    const provider=bookkeepingProviders.find(item=>item.id===providerId);
+    if(!provider)return;
+    const selections=read('agencyIntegrationSelections',{});
+    const current=Array.isArray(selections.Bookkeeping)?selections.Bookkeeping:[];
+    selections.Bookkeeping=[...new Set([...current,provider.name])];
+    const union=[...new Set(Object.values(selections).flatMap(value=>Array.isArray(value)?value:[]))];
+    localStorage.setItem('agencyIntegrationSelections',JSON.stringify(selections));
+    localStorage.setItem('agencySelectedTools',JSON.stringify(union));
+    localStorage.setItem('agencyIntegrationsComplete','true');
+    try{await window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.()||{})}catch{}
+  }
   app.addEventListener('click',async event=>{
     const providerButton=event.target.closest('[data-bookkeeping-provider]');
     if(!providerButton)return;
@@ -237,6 +249,7 @@
     if(status)status.textContent='';
     try{
       persist();
+      await recordBookkeepingSelection(provider);
       const response=operation==='sync'
         ?await fetch('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:`${provider}_sync`})})
         :await fetch(`/api/account-auth?action=${provider}_connect`);
@@ -649,8 +662,13 @@
       if(row.storage_path||row.file_name)state.documents[section.id]={name:row.file_name||'SDE supporting evidence.pdf',size:Number(row.file_size_bytes)||0,type:row.mime_type||'application/pdf',receivedAt:row.updated_at||row.created_at||'',evidenceId:row.id,storagePath:row.storage_path,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:row.extraction_error||'',extractedAt:row.extracted_at||null};
       return;
     }
-    if(!row.storage_path&&!row.file_name)return;
-    state.documents[section.id]={name:row.file_name||'Financial evidence.pdf',size:Number(row.file_size_bytes)||0,type:row.mime_type||'application/pdf',receivedAt:row.updated_at||row.created_at||'',evidenceId:row.id,storagePath:row.storage_path,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:row.extraction_error||'',extractedAt:row.extracted_at||null};
+    const syncedModel=row.extraction_model==='quickbooks-online-api'
+      ? 'QuickBooks Online'
+      : row.extraction_model==='freshbooks-api'
+        ? 'FreshBooks'
+        : '';
+    if(!row.storage_path&&!row.file_name&&!syncedModel)return;
+    state.documents[section.id]={name:row.file_name||(syncedModel?`${syncedModel} sync`:'Financial evidence.pdf'),size:Number(row.file_size_bytes)||0,type:row.mime_type||'application/json',receivedAt:row.updated_at||row.created_at||'',evidenceId:row.id,storagePath:row.storage_path,extractionStatus:row.extraction_status||'processed',extractionModel:row.extraction_model||null,extractionError:row.extraction_error||'',extractedAt:row.extracted_at||null};
   }
 
   function showBookkeepingSyncNotice(){
