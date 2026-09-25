@@ -371,7 +371,7 @@
         <div class="readiness-bar">
           <div class="readiness-item"><span>Agency targets</span><strong>${Number(readiness.targetCount || 0)} / ${Number(readiness.targetTotal || goals.length)}</strong></div>
           <div class="readiness-item"><span>Department goals defined</span><strong>${Number(readiness.definedDepartmentCount || 0)} / ${Number(readiness.departmentTotal || departments.length)}</strong></div>
-          <div class="readiness-item"><span>90-Day Rocks</span><strong>${Number(readiness.rockCount || rocks.length)}</strong></div>
+          <div class="readiness-item"><span>90-Day Priorities</span><strong>${Number(readiness.rockCount || rocks.length)}</strong></div>
           <div class="readiness-item"><span>Current evidence gaps</span><strong>${Array.isArray(readiness.evidenceGaps) ? readiness.evidenceGaps.length : goals.filter(goal => !goal.available).length}</strong></div>
         </div>
 
@@ -405,8 +405,8 @@
         </section>
 
         <div class="section-head">
-          <div><h2>90-Day Priorities (Rocks)</h2><p>Specific focus areas for the upcoming 90 days to eliminate constraints.</p></div>
-          <span>${rocks.length} Priorities Locked</span>
+          <div><h2>90-Day Priorities</h2><p>Specific focus areas for the upcoming 90 days to eliminate constraints.</p></div>
+          <span>${rocks.length} Priorities Defined</span>
         </div>
 
         <section class="card rocks">
