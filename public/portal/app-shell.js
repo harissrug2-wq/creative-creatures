@@ -74,8 +74,8 @@
     const navigation = [
       ['/platform/','Monitor','monitor','monitor',monitorReady],
       ['/accelerator/','Accelerator','diagnostic','accelerator',true],
-      ['/diagnostic/','Diagnostic','diagnostic','diagnostic',true],
-      ['/agency-scorecard/','Agency Scorecard','score','scorecard',scorecardReady],
+      ['/diagnostic/','AOFI™ Diagnostic','diagnostic','diagnostic',true],
+      ['/agency-scorecard/','AOFI™ Scorecard','score','scorecard',scorecardReady],
       ['/agency-goals/','Agency Goals','goals','goals',goalsReady],
       ['/integrations/','Integrations','plug','integrations',true],
       ['/portal/','Portal','portal','portal',true]
@@ -134,8 +134,6 @@
       });
       el.querySelectorAll('.ask-creature,.mobile-ask-creature').forEach(button=>{button.hidden=!access.features.includes('ask')});
       if(access.plan==='aofi_free'){
-        el.querySelectorAll('[data-workspace-feature="diagnostic"]').forEach(link=>{link.innerHTML=`${icon('diagnostic')}AOFI™ Diagnostic`});
-        el.querySelectorAll('[data-workspace-feature="scorecard"]').forEach(link=>{link.innerHTML=`${icon('score')}AOFI™ Scorecard`});
         el.querySelectorAll('[data-account-plan-tag]').forEach(tag=>{tag.hidden=false;tag.textContent='Free AOFI™'});
       }
       const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo';
