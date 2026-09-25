@@ -60,9 +60,8 @@
       questions: [
         ['returnOnCapital', 'Return on Capital', 'Incremental Operating Profit ÷ Capital Invested.', 30, ['Negative', '0–9.9%', '10–19.9%', '20–29.9%', '30%+']],
         ['reinvestmentRate', 'Reinvestment Rate', 'Percentage of profits intentionally reinvested.', 20, ['Less than 10%', '10–24.9%', '25–39.9%', '40–59.9%', '60%+']],
-        ['technologyInvestment', 'Technology Investment', 'How intentionally technology investment improves productivity and margin.', 15, ['Reactive spending only', 'Occasional purchases', 'Annual technology plan', 'Strategic technology investment', 'Technology consistently improves productivity and margins']],
-        ['talentInvestment', 'Talent Investment', 'How intentionally talent investment creates capability.', 15, ['No leadership development', 'Occasional training', 'Defined development plans', 'Leadership development program', 'Talent investments consistently produce measurable organizational capability']],
-        ['retainedEarningsGrowth', 'Retained Earnings Growth', 'Whether equity compounds over time.', 20, ['Declining', 'Flat', 'Growing slowly', 'Growing consistently', 'Growing rapidly while maintaining profitability']]
+        ['technologyInvestment', 'Technology Investment', 'How intentionally technology investment improves productivity and margin.', 25, ['Reactive spending only', 'Occasional purchases', 'Annual technology plan', 'Strategic technology investment', 'Technology consistently improves productivity and margins']],
+        ['talentInvestment', 'Talent Investment', 'How intentionally talent investment creates capability.', 25, ['No leadership development', 'Occasional training', 'Defined development plans', 'Leadership development program', 'Talent investments consistently produce measurable organizational capability']]
       ]
     }
   ];
