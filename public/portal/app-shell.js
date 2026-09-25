@@ -96,6 +96,7 @@
       loadWorkspace().then(workspace=>workspace.getAccess().then(access=>{
         const copy=workspace.gateCopy?.(link.dataset.workspaceFeature,access);
         if(copy)workspace.showGateNotice(copy);
+        else location.href=link.href;
       })).catch(()=>{});
     });
     const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});

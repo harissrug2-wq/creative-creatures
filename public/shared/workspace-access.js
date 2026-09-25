@@ -82,6 +82,7 @@
     if(access?.actor?.role!=='admin'&&localState&&access?.workflow){
       if(localState.allComplete===true)access.workflow.allComplete=true;
       if(localState.reportReady===true)access.workflow.reportReady=true;
+      if(localStorage.getItem('agencyGoalsComplete')==='true')access.workflow.goalsComplete=true;
       if(Number(localState.count)>Number(access.workflow.count||0))access.workflow.count=Number(localState.count);
     }
     return access;

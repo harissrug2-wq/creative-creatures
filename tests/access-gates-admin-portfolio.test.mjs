@@ -20,6 +20,11 @@ const integrations = fs.readFileSync(new URL('../integrations/index.html', impor
 const goalsUi = fs.readFileSync(new URL('../agency-goals/index.html', import.meta.url), 'utf8');
 const strengthQuestions = fs.readFileSync(new URL('../src/strength/data/questions.js', import.meta.url), 'utf8');
 const independenceQuestions = fs.readFileSync(new URL('../src/independence/questionsData.js', import.meta.url), 'utf8');
+const performanceFlow = fs.readFileSync(new URL('../public/performance/performance.js', import.meta.url), 'utf8');
+const diagnosticState = fs.readFileSync(new URL('../public/portal/diagnostic-state.js', import.meta.url), 'utf8');
+const departmentLive = fs.readFileSync(new URL('../public/monitor/department-live.js', import.meta.url), 'utf8');
+const leadershipLive = fs.readFileSync(new URL('../public/monitor/leadership-live.js', import.meta.url), 'utf8');
+const workspaceAccess = fs.readFileSync(new URL('../public/shared/workspace-access.js', import.meta.url), 'utf8');
 
 test('free AOFI navigation exposes preview-only upgrade pages and plan tag', () => {
   assert.match(auth, /previewFeatures=plan==='aofi_free'\?\['monitor','goals','integrations'\]/);
@@ -111,4 +116,34 @@ test('connected QuickBooks is auto-detected and available to billing and people'
   assert.match(integrations, /autoDetect=\['QuickBooks Online'\]/);
   assert.match(integrations, /'HR & People':\['QuickBooks Online'/);
   assert.match(integrations, /'Billing':\['QuickBooks Online'/);
+});
+
+
+test('Performance Index has a dedicated Data Source setup with automatic and manual modes', () => {
+  assert.match(performanceFlow, /Data Source/);
+  assert.match(performanceFlow, /Automatic Sync/);
+  assert.match(performanceFlow, /Manual Upload/);
+  assert.match(performanceFlow, /Trouble syncing\? Upload PDF instead/);
+  assert.doesNotMatch(performanceFlow, /function uploadBody\(/);
+});
+
+test('integration selection is category scoped and persisted with diagnostic state', () => {
+  assert.match(integrations, /agencyIntegrationSelections/);
+  assert.match(integrations, /selectionFor\(activeCategory\)/);
+  assert.match(diagnosticState, /integrationSelections:/);
+});
+
+test('Monitor departments hide data until a related integration category is selected', () => {
+  assert.match(auth, /MONITOR_INTEGRATION_CATEGORIES/);
+  assert.match(auth, /billing:\['Billing'\]/);
+  assert.match(auth, /finance:\['Bookkeeping'\]/);
+  assert.match(auth, /'talent-acquisition':\['HR & People'\]/);
+  assert.match(departmentLive, /integrationRequired/);
+  assert.match(departmentLive, /does not automatically feed this department/);
+  assert.match(leadershipLive, /Calendar & Meetings/);
+});
+
+test('completed Agency Goals do not relock Monitor during later diagnostic syncs', () => {
+  assert.match(workspaceAccess, /agencyGoalsComplete/);
+  assert.match(auth, /integrationSelections/);
 });

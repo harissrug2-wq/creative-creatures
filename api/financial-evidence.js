@@ -729,7 +729,7 @@ async function requireContext(config, identity) {
 
 async function prepareUpload(config, body) {
   const evidenceType = clean(body.evidenceType);
-  if (!EVIDENCE_TYPES.has(evidenceType) || evidenceType === 'sde') {
+  if (!EVIDENCE_TYPES.has(evidenceType)) {
     const error = new Error('Unsupported financial evidence type.');
     error.status = 422;
     throw error;
@@ -788,10 +788,21 @@ async function extractEvidence(config, body) {
   } else if (body.evidenceType) {
     evidence = await findEvidence(config, run.id, clean(body.evidenceType));
   }
-  if (!evidence || evidence.evidence_type === 'sde' || !evidence.storage_path) {
+  if (!evidence || !evidence.storage_path) {
     const error = new Error('Uploaded financial evidence was not found.');
     error.status = 404;
     throw error;
+  }
+  if (evidence.evidence_type === 'sde') {
+    const updated = await saveEvidence(config, run.id, 'sde', {
+      extraction_status: 'uploaded',
+      extraction_model: evidence.extraction_model === 'manual_entry' ? 'manual_entry' : 'supporting_pdf',
+      extraction_error: null,
+      extracted_at: evidence.extracted_at || null,
+      extracted_data: evidence.extracted_data && typeof evidence.extracted_data === 'object' ? evidence.extracted_data : {},
+      validation_status: evidence.validation_status || 'unverified'
+    });
+    return { account, run, evidence: updated, supportingOnly: true };
   }
 
   await saveEvidence(config, run.id, evidence.evidence_type, {
@@ -864,10 +875,10 @@ async function saveSde(config, body) {
   });
 
   const evidence = await saveEvidence(config, run.id, 'sde', {
-    file_name: null,
-    file_size_bytes: null,
-    storage_path: null,
-    mime_type: 'application/json',
+    file_name: existing?.file_name || null,
+    file_size_bytes: existing?.file_size_bytes || null,
+    storage_path: existing?.storage_path || null,
+    mime_type: existing?.mime_type || 'application/json',
     extraction_status: 'processed',
     extraction_model: 'manual_entry',
     extraction_error: null,

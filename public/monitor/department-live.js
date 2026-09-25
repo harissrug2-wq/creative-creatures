@@ -325,15 +325,30 @@
     return`<section class="department-section"><div class="department-section-head"><div><span>Live Detail</span><h2>${esc(model.title)}</h2></div><span>${esc(`${state.year} · ${state.timeframe} · ${state.period}`)}</span></div><div class="department-list">${model.rows.length?model.rows.map(row=>`<article><div><strong>${esc(row.title)}</strong><span>${esc(row.meta||'')}</span></div><b>${esc(row.value||'')}</b></article>`).join(''):'<div class="department-list-empty">No records returned by the connected source.</div>'}</div></section>`;
   }
 
+  function renderIntegrationRequired() {
+    const target=root();if(!target)return;
+    const categories=array(state.payload?.requiredIntegrationCategories);
+    const label=categories.join(' or ')||config.source;
+    document.querySelector('.workspace-name')?.replaceChildren(document.createTextNode(state.payload?.account?.agencyName||'Agency Workspace'));
+    target.innerHTML=`<section class="department-live">
+      <header class="department-head"><div><span class="department-eyebrow">Monitor · Department</span><h1>${esc(config.title)}</h1><p>${esc(config.subtitle)}</p></div></header>
+      <section class="department-source-callout" style="margin-top:22px;padding:28px">
+        <div><strong>Select a ${esc(label)} integration to activate ${esc(config.title)}</strong><span>This department stays private and empty until you explicitly select an integration for its category. A connection used in another category does not automatically feed this department.</span></div>
+        <a href="/integrations/">Choose ${esc(label)} integration →</a>
+      </section>
+    </section>`;
+  }
+
   function render() {
     const target=root();if(!target)return;
+    if(state.payload?.integrationRequired===true){renderIntegrationRequired();return;}
     const model=pageModel();
     const source=state.payload?.source||{};
     document.querySelector('.workspace-name')?.replaceChildren(document.createTextNode(state.payload?.account?.agencyName||'Agency Workspace'));
     target.innerHTML=`<section class="department-live">
       <header class="department-head"><div><span class="department-eyebrow">Monitor · Department</span><h1>${esc(config.title)}</h1><p>${esc(config.subtitle)}</p></div><div class="department-source ${source.connected?'connected':''}"><span></span><div><small>Source</small><strong>${esc(source.connected?source.name:'No connected source')}</strong></div></div></header>
       <section class="department-timebar" aria-label="Department timeframe"><label>Year<select id="departmentYear">${Array.from({length:5},(_,index)=>new Date().getFullYear()-3+index).map(year=>`<option ${year===Number(state.year)?'selected':''}>${year}</option>`).join('')}</select></label><label>Timeframe<select id="departmentTimeframe">${['Annual','Quarterly','Monthly','Weekly'].map(value=>`<option ${value===state.timeframe?'selected':''}>${value}</option>`).join('')}</select></label><label>Period<select id="departmentPeriod">${periodOptions().map(value=>`<option ${value===state.period?'selected':''}>${esc(value)}</option>`).join('')}</select></label><div class="department-compare"><span>Compare</span><button class="${state.compare==='Period'?'active':''}" data-compare="Period">Period</button><button class="${state.compare==='YoY'?'active':''}" data-compare="YoY">YoY</button></div></section>
-      ${!source.connected?`<section class="department-source-callout"><div><strong>${esc(config.source)} source not connected</strong><span>Goals and Rocks remain available. Source-dependent metrics stay blank.</span></div><a href="/integrations/">Open Integrations →</a></section>`:''}
+      ${!source.connected?`<section class="department-source-callout"><div><strong>${esc(array(state.payload?.selectedIntegrationTools).length?'Selected integration has no synced data yet':config.source+' source not connected')}</strong><span>${esc(array(state.payload?.selectedIntegrationTools).length?'Sync or connect the selected integration for this category. Data from integrations assigned to other categories will not be shown here.':'Choose and connect an integration for this category. Source-dependent metrics stay blank until then.')}</span></div><a href="/integrations/">Open Integrations →</a></section>`:''}
       <div class="department-goal-grid">${goalSection()}${rocksSection()}</div>
       <section class="department-section"><div class="department-section-head"><div><span>Department Performance</span><h2>KPIs</h2></div><small>Missing data is never replaced with demo values.</small></div><div class="department-metric-grid">${metricCards(model.metrics)}</div></section>
       ${listSection(model)}

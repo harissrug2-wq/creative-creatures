@@ -321,8 +321,9 @@ function publicAccess(account,actor){
     return row.complete===true||Number(row.progress)===100;
   });
   const allComplete=state.allComplete===true||state.all_complete===true||savedIndexesComplete;
+  const integrationSelections=monitorIntegrationSelections(account);
   return{
-    plan,purchasedPlans,features:featuresForAccount(account,actor),previewFeatures,
+    plan,purchasedPlans,features:featuresForAccount(account,actor),previewFeatures,integrationSelections,
     workflow:{
       reportReady:state.reportReady===true||state.report_ready===true,
       goalsComplete:state.goalsComplete===true||state.goals_complete===true,
@@ -859,13 +860,13 @@ async function monitorConnection(c,accountId,getter,presenter){
   }
 }
 
-async function monitorProjectSource(c,accountId,warnings){
+async function monitorProjectSource(c,accountId,warnings,allowedTools=[]){
   const candidates=[
-    {name:'ClickUp',get:getClickUpConnection,public:publicClickUpConnection,load:loadClickUpDashboard},
-    {name:'Teamwork',get:getTeamworkConnection,public:publicTeamworkConnection,load:loadTeamworkDashboard},
-    {name:'monday.com',get:getMondayConnection,public:publicMondayConnection,load:loadMondayDashboard},
-    {name:'Jira',get:getJiraConnection,public:publicJiraConnection,load:loadJiraDashboard}
-  ];
+    {name:'ClickUp',selectionName:'ClickUp',get:getClickUpConnection,public:publicClickUpConnection,load:loadClickUpDashboard},
+    {name:'Teamwork',selectionName:'Teamwork',get:getTeamworkConnection,public:publicTeamworkConnection,load:loadTeamworkDashboard},
+    {name:'monday.com',selectionName:'Monday.com',get:getMondayConnection,public:publicMondayConnection,load:loadMondayDashboard},
+    {name:'Jira',selectionName:'Jira',get:getJiraConnection,public:publicJiraConnection,load:loadJiraDashboard}
+  ].filter(candidate=>!allowedTools.length||allowedTools.includes(candidate.selectionName));
   for(const candidate of candidates){
     const connection=await monitorConnection(c,accountId,candidate.get,candidate.public);
     if(!connection.connected)continue;
@@ -880,12 +881,12 @@ async function monitorProjectSource(c,accountId,warnings){
   return{kind:'project_management',name:'Project management',connected:false,connection:null,data:{}};
 }
 
-async function monitorCrmSource(c,accountId,warnings){
+async function monitorCrmSource(c,accountId,warnings,allowedTools=[]){
   const candidates=[
     {name:'HubSpot',get:getHubSpotConnection,public:publicHubSpotConnection,load:loadHubSpotDashboard},
     {name:'Zoho CRM',get:getZohoConnection,public:publicZohoConnection,load:loadZohoDashboard},
     {name:'GHL CRM',get:getGhlConnection,public:publicGhlConnection,load:loadGhlDashboard}
-  ];
+  ].filter(candidate=>!allowedTools.length||allowedTools.includes(candidate.name));
   for(const candidate of candidates){
     const connection=await monitorConnection(c,accountId,candidate.get,candidate.public);if(!connection.connected)continue;
     try{const data=await candidate.load(c,accountId);return{kind:'crm',name:candidate.name,connected:true,connection:data.connection,data,warnings:data.warnings||[]}}
@@ -894,11 +895,11 @@ async function monitorCrmSource(c,accountId,warnings){
   return{kind:'crm',name:'CRM',connected:false,connection:null,data:{}};
 }
 
-async function monitorCommunicationsSource(c,accountId,warnings){
+async function monitorCommunicationsSource(c,accountId,warnings,allowedTools=[]){
   const candidates=[
     {name:'Slack',get:getSlackConnection,public:publicSlackConnection,load:loadSlackDashboard},
     {name:'Google Chat',get:getGoogleChatConnection,public:publicGoogleChatConnection,load:loadGoogleChatDashboard}
-  ];
+  ].filter(candidate=>!allowedTools.length||allowedTools.includes(candidate.name));
   const available=(await Promise.all(candidates.map(async candidate=>({...candidate,connection:await monitorConnection(c,accountId,candidate.get,candidate.public)}))))
     .filter(candidate=>candidate.connection.connected)
     .sort((a,b)=>Date.parse(b.connection.lastSyncedAt||b.connection.updatedAt||0)-Date.parse(a.connection.lastSyncedAt||a.connection.updatedAt||0));
@@ -910,7 +911,7 @@ async function monitorCommunicationsSource(c,accountId,warnings){
   return{kind:'communications',name:'Communications',connected:false,connection:null,data:{}};
 }
 
-async function monitorSystemsSource(c,accountId){
+async function monitorSystemsSource(c,accountId,allowedTools=[]){
   const definitions=[
     ['HubSpot',getHubSpotConnection,publicHubSpotConnection],
     ['Zoho CRM',getZohoConnection,publicZohoConnection],
@@ -927,8 +928,65 @@ async function monitorSystemsSource(c,accountId){
     ['Google Drive',getGoogleDriveConnection,publicGoogleDriveConnection],
     ['Google Calendar',getGoogleCalendarConnection,publicGoogleCalendarConnection]
   ];
-  const connections=await Promise.all(definitions.map(async([name,getter,presenter])=>({name,...await monitorConnection(c,accountId,getter,presenter)})));
-  return{kind:'systems',name:'Creative Creatures integration registry',connected:true,connection:null,data:{connections}};
+  const aliases={QuickBooks:'QuickBooks Online'};
+  const filtered=definitions.filter(([name])=>!allowedTools.length||allowedTools.includes(aliases[name]||name));
+  const connections=await Promise.all(filtered.map(async([name,getter,presenter])=>({name,...await monitorConnection(c,accountId,getter,presenter)})));
+  return{kind:'systems',name:'Creative Creatures integration registry',connected:connections.some(item=>item.connected),connection:null,data:{connections}};
+}
+
+const MONITOR_INTEGRATION_CATEGORIES={
+  marketing:['CRM'],
+  sales:['CRM'],
+  billing:['Billing'],
+  onboarding:['Project Management'],
+  'service-delivery':['Project Management'],
+  'client-success':['CRM'],
+  'talent-acquisition':['HR & People'],
+  finance:['Bookkeeping'],
+  communication:['Communications'],
+  systems:['IT & Security'],
+  sops:['Central Drive']
+};
+const LEGACY_TOOL_PRIMARY_CATEGORY={
+  'QuickBooks Online':'Bookkeeping',FreshBooks:'Bookkeeping',Xero:'Bookkeeping',Sage:'Bookkeeping',NetSuite:'Bookkeeping',
+  Stripe:'Billing',Square:'Billing',PayPal:'Billing',Chargebee:'Billing','Bill.com':'Billing',
+  'GHL CRM':'CRM',GoHighLevel:'CRM',HubSpot:'CRM',Salesforce:'CRM',Pipedrive:'CRM',Keap:'CRM','Zoho CRM':'CRM',
+  ClickUp:'Project Management',Asana:'Project Management','Monday.com':'Project Management',Teamwork:'Project Management',Jira:'Project Management',Basecamp:'Project Management',
+  Slack:'Communications','Microsoft Teams':'Communications','Google Chat':'Communications',
+  'Google Calendar':'Calendar & Meetings','Google Meet':'Calendar & Meetings','Outlook Calendar':'Calendar & Meetings',Zoom:'Calendar & Meetings',Calendly:'Calendar & Meetings',
+  'Google Drive':'Central Drive',Dropbox:'Central Drive',OneDrive:'Central Drive',Box:'Central Drive',
+  Gusto:'HR & People',BambooHR:'HR & People',Rippling:'HR & People',ADP:'HR & People',Justworks:'HR & People',
+  Keeper:'IT & Security',Bitwarden:'IT & Security','1Password':'IT & Security',Cloudflare:'IT & Security',Okta:'IT & Security'
+};
+function monitorIntegrationSelections(account){
+  const state=account?.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
+  const raw=state.integrationSelections&&typeof state.integrationSelections==='object'
+    ? state.integrationSelections
+    : state.integration_selections&&typeof state.integration_selections==='object'
+      ? state.integration_selections
+      : null;
+  if(raw){
+    const normalized=Object.fromEntries(Object.entries(raw).map(([category,tools])=>[
+      clean(category),Array.isArray(tools)?[...new Set(tools.map(clean).filter(Boolean))]:[]
+    ]));
+    if(Object.values(normalized).some(tools=>Array.isArray(tools)&&tools.length))return normalized;
+  }
+  // Backward compatibility for accounts saved before category-scoped selection:
+  // a tool belongs only to its primary category, never every category it can feed.
+  const legacy=Array.isArray(state.selectedTools)?state.selectedTools:Array.isArray(state.selected_tools)?state.selected_tools:[];
+  const migrated={};
+  legacy.map(clean).filter(Boolean).forEach(tool=>{
+    const category=LEGACY_TOOL_PRIMARY_CATEGORY[tool];
+    if(!category)return;
+    migrated[category]=[...new Set([...(migrated[category]||[]),tool])];
+  });
+  return migrated;
+}
+function monitorIntegrationRequirement(account,department){
+  const categories=MONITOR_INTEGRATION_CATEGORIES[department]||[];
+  const selections=monitorIntegrationSelections(account);
+  const selectedTools=[...new Set(categories.flatMap(category=>Array.isArray(selections[category])?selections[category]:[]))];
+  return{categories,selectedTools,satisfied:categories.length===0||selectedTools.length>0};
 }
 
 async function loadMonitorDepartment(c,accountId,department){
@@ -936,6 +994,18 @@ async function loadMonitorDepartment(c,accountId,department){
   const warnings=[];
   const account=await findById(c,accountId);
   if(!account)throw Object.assign(new Error('Account not found.'),{status:404,code:'ACCOUNT_NOT_FOUND'});
+  const integrationRequirement=monitorIntegrationRequirement(account,department);
+  if(!integrationRequirement.satisfied){
+    return{
+      success:true,department,account:pub(account),generatedAt:new Date().toISOString(),
+      integrationRequired:true,
+      requiredIntegrationCategories:integrationRequirement.categories,
+      selectedIntegrationTools:[],
+      goal:null,rocks:[],evidence:[],
+      source:{kind:'none',name:'No selected source',connected:false,connection:null,data:{}},
+      warnings:[]
+    };
+  }
 
   const goalParams=new URLSearchParams({
     select:'id,department,goal,owner_name,status,done_looks_like,target_completion,target_completion_date,updated_at',
@@ -962,27 +1032,48 @@ async function loadMonitorDepartment(c,accountId,department){
   }
 
   let source={kind:'none',name:'No connected source',connected:false,connection:null,data:{}};
-  if(department==='marketing'||department==='sales')source=await monitorCrmSource(c,accountId,warnings);
-  else if(department==='onboarding'||department==='service-delivery')source=await monitorProjectSource(c,accountId,warnings);
+  if(department==='marketing'||department==='sales')source=await monitorCrmSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  else if(department==='onboarding'||department==='service-delivery')source=await monitorProjectSource(c,accountId,warnings,integrationRequirement.selectedTools);
   else if(department==='client-success'){
     const clientEvidence=evidenceRows.some(row=>row.evidence_type==='client_revenue');
-    source=clientEvidence?{kind:'financial_evidence',name:'Client Revenue evidence',connected:true,connection:null,data:{}}:await monitorCrmSource(c,accountId,warnings);
+    source=clientEvidence&&integrationRequirement.selectedTools.some(tool=>['QuickBooks Online','FreshBooks'].includes(tool))
+      ?{kind:'financial_evidence',name:'Client Revenue evidence',connected:true,connection:null,data:{}}
+      :await monitorCrmSource(c,accountId,warnings,integrationRequirement.selectedTools);
   }
   else if(department==='billing'||department==='finance'){
-    const accountingEvidence=evidenceRows.find(row=>row.extraction_model==='freshbooks-api'||row.extraction_model==='quickbooks-online-api');
-    source={kind:'financial_evidence',name:accountingEvidence?.extraction_model==='freshbooks-api'?'FreshBooks':accountingEvidence?.extraction_model==='quickbooks-online-api'?'QuickBooks Online':'Financial evidence',connected:evidenceRows.length>0,connection:null,data:{}};
+    const allowQuickBooks=integrationRequirement.selectedTools.includes('QuickBooks Online');
+    const allowFreshBooks=integrationRequirement.selectedTools.includes('FreshBooks');
+    const accountingEvidence=evidenceRows.find(row=>
+      (allowFreshBooks&&row.extraction_model==='freshbooks-api')||
+      (allowQuickBooks&&row.extraction_model==='quickbooks-online-api')
+    );
+    source={kind:'financial_evidence',name:accountingEvidence?.extraction_model==='freshbooks-api'?'FreshBooks':accountingEvidence?.extraction_model==='quickbooks-online-api'?'QuickBooks Online':'Financial evidence',connected:Boolean(accountingEvidence),connection:null,data:{}};
   }
-  else if(department==='communication')source=await monitorCommunicationsSource(c,accountId,warnings);
-  else if(department==='systems')source=await monitorSystemsSource(c,accountId);
+  else if(department==='communication')source=await monitorCommunicationsSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  else if(department==='systems')source=await monitorSystemsSource(c,accountId,integrationRequirement.selectedTools);
   else if(department==='sops'){
-    const connection=await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection);
+    const allowsDrive=integrationRequirement.selectedTools.includes('Google Drive');
+    const connection=allowsDrive?await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection):{connected:false};
     source={kind:'drive',name:'Google Drive',connected:connection.connected,connection,data:{items:connection.selectedItems||[]}};
+  }
+
+  let visibleEvidenceRows=evidenceRows;
+  if(department==='billing'||department==='finance'){
+    const allowedModels=[];
+    if(integrationRequirement.selectedTools.includes('QuickBooks Online'))allowedModels.push('quickbooks-online-api');
+    if(integrationRequirement.selectedTools.includes('FreshBooks'))allowedModels.push('freshbooks-api');
+    visibleEvidenceRows=evidenceRows.filter(row=>allowedModels.includes(row.extraction_model));
+  }else if(department==='client-success'){
+    visibleEvidenceRows=source.kind==='financial_evidence'?evidenceRows:[];
   }
 
   return{
     success:true,department,account:pub(account),generatedAt:new Date().toISOString(),
+    integrationRequired:false,
+    requiredIntegrationCategories:integrationRequirement.categories,
+    selectedIntegrationTools:integrationRequirement.selectedTools,
     goal:publicMonitorGoal(goalRows[0]||null),rocks:rockRows.map(publicMonitorRock),
-    evidence:evidenceRows.map(publicMonitorEvidence),source,warnings:[...new Set(warnings.concat(source.warnings||[]))].slice(0,20)
+    evidence:visibleEvidenceRows.map(publicMonitorEvidence),source,warnings:[...new Set(warnings.concat(source.warnings||[]))].slice(0,20)
   };
 }
 

@@ -1,12 +1,12 @@
 (() => {
   const IS_RETAKE = new URLSearchParams(window.location.search).get('retake') === '1';
   const sections = [
-    {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Choose Upload PDF or Sync Now. Nothing is imported into this section until you explicitly choose one of those actions.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
-    {id:'balanceSheet',evidenceType:'balance_sheet',title:'Balance Sheet',short:'Balance Sheet',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm the balance-sheet and cash values used for scoring.',requirements:['PDF report','Current assets and liabilities','Cash / debt evidence']},
-    {id:'arAgingDoc',evidenceType:'ar_aging',title:'Accounts Receivable Aging Report',short:'A/R Aging',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm the collection-rate value below.',requirements:['Most recent A/R Aging Report','PDF format']},
+    {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Review the Profit & Loss values used to measure profitability and growth.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
+    {id:'balanceSheet',evidenceType:'balance_sheet',title:'Balance Sheet',short:'Balance Sheet',type:'upload',copy:'Review liquidity, cash, debt, and balance-sheet values used for scoring.',requirements:['PDF report','Current assets and liabilities','Cash / debt evidence']},
+    {id:'arAgingDoc',evidenceType:'ar_aging',title:'Accounts Receivable Aging Report',short:'A/R Aging',type:'upload',copy:'Review accounts receivable and collection performance used for scoring.',requirements:['Most recent A/R Aging Report','PDF format']},
     {id:'sde',evidenceType:'sde',title:'SDE & Capital Allocation',short:'SDE + Capital',type:'sde',copy:'Confirm owner benefits, Adjusted SDE, and how capital was reinvested during the last year.'},
-    {id:'clientRevenue',evidenceType:'client_revenue',title:'Client Revenue Report',short:'Client Revenue',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm concentration values.',requirements:['Complete client list','Revenue per client','Last 12 months','PDF format']},
-    {id:'serviceRevenue',evidenceType:'service_revenue_mix',title:'Service Revenue Mix',short:'Service Mix',type:'upload',copy:'Choose Upload PDF or Sync Now, then confirm recurring versus project-based revenue.',requirements:['Revenue by service','Recurring / project mix','PDF format']}
+    {id:'clientRevenue',evidenceType:'client_revenue',title:'Client Revenue Report',short:'Client Revenue',type:'upload',copy:'Review client concentration, diversification, and tenure values.',requirements:['Complete client list','Revenue per client','Last 12 months','PDF format']},
+    {id:'serviceRevenue',evidenceType:'service_revenue_mix',title:'Service Revenue Mix',short:'Service Mix',type:'upload',copy:'Review recurring versus project-based revenue used for revenue-quality scoring.',requirements:['Revenue by service','Recurring / project mix','PDF format']}
   ];
 
   const benefits = [
@@ -71,10 +71,11 @@
   };
 
   const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}};
-  const saved=read('agencyPerformanceDraft',{sectionIndex:0,documents:{},addbacks:{},sdeReviewed:false,ownershipPercent:'',manual:{}});
+  const saved=read('agencyPerformanceDraft',{sectionIndex:-1,sourceMode:'',documents:{},addbacks:{},sdeReviewed:false,ownershipPercent:'',manual:{}});
   const state={
     ...saved,
-    sectionIndex:Number(saved.sectionIndex)||0,
+    sectionIndex:Number.isFinite(Number(saved.sectionIndex))?Number(saved.sectionIndex):-1,
+    sourceMode:['automatic','manual'].includes(saved.sourceMode)?saved.sourceMode:'',
     documents:saved.documents||{},
     addbacks:saved.addbacks||{},
     ownershipPercent:saved.ownershipPercent||'',
@@ -87,6 +88,7 @@
     remoteError:'',
     finishError:''
   };
+  if(!state.sourceMode)state.sectionIndex=-1;
 
   const app=document.querySelector('#performanceApp');
   if(!app)return;
@@ -119,6 +121,7 @@
   const persist=()=>{
     const persistable={
       sectionIndex:state.sectionIndex,
+      sourceMode:state.sourceMode,
       documents:state.documents,
       addbacks:state.addbacks,
       sdeReviewed:state.sdeReviewed,
@@ -151,8 +154,8 @@
     </div>`;
 
   const bookkeepingProviders = [
-    {id:'quickbooks',name:'QuickBooks Online'},
-    {id:'freshbooks',name:'FreshBooks'}
+    {id:'quickbooks',name:'QuickBooks Online',code:'QB',copy:'P&L, balance sheet, A/R, clients and service revenue',logo:'/performance/logos/quickbooks.svg'},
+    {id:'freshbooks',name:'FreshBooks',code:'FB',copy:'Accounting reports, clients, invoices and expenses',logo:'/performance/logos/freshbooks.svg'}
   ];
   let bookkeepingStatus = {};
   async function checkBookkeepingConnection(){
@@ -165,16 +168,73 @@
     }));
     bookkeepingStatus=Object.fromEntries(results);
   }
-  function bookkeepingButtons(){
-    return bookkeepingProviders.filter(provider=>bookkeepingStatus[provider.id]?.available).map(provider=>{
-      const connected=bookkeepingStatus[provider.id]?.connection?.connected;
-      return `<button type="button" class="upload-button bookkeeping-provider" data-bookkeeping-provider="${provider.id}" data-bookkeeping-operation="${connected?'sync':'connect'}"><img src="/performance/logos/${provider.id}.svg" alt="" width="24" height="24">${connected?'Sync':'Connect'} ${provider.name}</button>`;
-    }).join('');
+  function providerCard(provider){
+    const status=bookkeepingStatus[provider.id]||{};
+    const connected=status.connection?.connected===true;
+    const available=status.available!==false;
+    const detail=connected
+      ? (status.connection?.companyName||status.connection?.businessName||'Connected account')
+      : provider.copy;
+    return `<article class="performance-provider-card ${connected?'connected':''}">
+      <div class="performance-provider-logo"><img src="${provider.logo}" alt="" width="30" height="30"></div>
+      <div class="performance-provider-copy"><strong>${esc(provider.name)}</strong><span>${esc(detail)}</span></div>
+      <div class="performance-provider-actions">
+        <span class="performance-provider-status">${connected?'Connected':'Not connected'}</span>
+        <button type="button" class="performance-provider-button ${connected?'secondary':'primary'}" data-bookkeeping-provider="${provider.id}" data-bookkeeping-operation="${connected?'sync':'connect'}" ${available?'':'disabled'}>${connected?'Sync now':'Connect'}</button>
+      </div>
+    </article>`;
+  }
+
+  function dataSourceCard(){
+    const automatic=state.sourceMode==='automatic';
+    const manual=state.sourceMode==='manual';
+    return `<article class="q-card fade-in performance-source-card">
+      <header class="q-card-header"><div><div class="question-kicker">DATA SOURCE</div><h1>How should we collect your financial data?</h1><p>Choose automatic bookkeeping sync or upload financial reports manually. You can switch methods at any time without losing confirmed values.</p></div></header>
+      <div class="q-card-body">
+        <div class="performance-source-mode-grid">
+          <button type="button" class="performance-source-mode ${automatic?'selected':''}" data-source-mode="automatic"><span class="source-mode-icon">↻</span><strong>Automatic Sync</strong><small>Connect a supported bookkeeping platform and refresh financial evidence automatically.</small><b>${automatic?'Selected':'Choose automatic sync'}</b></button>
+          <button type="button" class="performance-source-mode ${manual?'selected':''}" data-source-mode="manual"><span class="source-mode-icon">↑</span><strong>Manual Upload</strong><small>Upload PDF reports inside each financial section and confirm the extracted values.</small><b>${manual?'Selected':'Choose manual upload'}</b></button>
+        </div>
+        ${automatic?`<section class="performance-provider-panel"><div class="performance-provider-head"><div><span>AUTOMATIC CONNECTIONS</span><h3>Available bookkeeping integrations</h3><p>Only integrations that can currently feed the Performance Index are shown here.</p></div><a href="/integrations/">Manage all integrations →</a></div><div class="performance-provider-list">${bookkeepingProviders.map(providerCard).join('')}</div><p data-bookkeeping-error role="status" class="bookkeeping-error"></p></section>`:''}
+        ${manual?`<section class="performance-manual-note"><strong>Manual upload selected</strong><span>Open Profit & Loss, Balance Sheet, A/R Aging, SDE + Capital, Client Revenue, or Service Mix and upload the matching PDF. Confirm the values before continuing.</span></section>`:''}
+      </div>
+      <footer class="q-card-footer"><span></span><span class="saved-note">Saved securely</span><button type="button" class="btn-next ${state.sourceMode?'active':'disabled'}" id="sourceContinue" ${state.sourceMode?'':'disabled'}>Continue to Profit &amp; Loss ${arrowIcon}</button></footer>
+    </article>`;
+  }
+
+  function compactEvidenceSource(section){
+    const meta=state.documents[section.id];
+    const status=meta?extractionLabel({...meta,sectionId:section.id}):null;
+    const automatic=state.sourceMode==='automatic';
+    const uploadLabel=meta?'Replace PDF':automatic?'Trouble syncing? Upload PDF instead':'Upload PDF';
+    const supportOnly=section.type==='sde';
+    return `<section class="performance-evidence-strip ${meta?'has-file':''}">
+      <div class="performance-evidence-strip-copy">
+        <strong>${meta?esc(meta.name):(automatic?'Automatic sync is your primary source':'Manual PDF upload')}</strong>
+        <span>${meta
+          ? (supportOnly?'Supporting PDF saved. Confirm the SDE + Capital values below.':esc(status?.text||'PDF saved securely.'))
+          : (supportOnly?'Upload a supporting PDF if useful; SDE + Capital values are confirmed manually below.':automatic?'Synced values appear below after you run a connection from Data Source.':'Upload the matching financial report, then confirm the values below.')}</span>
+      </div>
+      <label class="performance-compact-upload">${esc(uploadLabel)}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
+      ${meta?.evidenceId&&['failed','uploaded'].includes(meta.extractionStatus||meta.extraction_status||'')&&!supportOnly?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry extraction</button>`:''}
+    </section>`;
   }
 
   const host=document.querySelector('#sectionHost');
   document.querySelector('#backDiagnostic').addEventListener('click',()=>{persist();location.href='/diagnostic/';});
 
+  async function recordBookkeepingSelection(providerId){
+    const provider=bookkeepingProviders.find(item=>item.id===providerId);
+    if(!provider)return;
+    const selections=read('agencyIntegrationSelections',{});
+    const current=Array.isArray(selections.Bookkeeping)?selections.Bookkeeping:[];
+    selections.Bookkeeping=[...new Set([...current,provider.name])];
+    const union=[...new Set(Object.values(selections).flatMap(value=>Array.isArray(value)?value:[]))];
+    localStorage.setItem('agencyIntegrationSelections',JSON.stringify(selections));
+    localStorage.setItem('agencySelectedTools',JSON.stringify(union));
+    localStorage.setItem('agencyIntegrationsComplete','true');
+    try{await window.CCAccount?.syncDiagnosticState?.(window.CCDiagnostic?.serialize?.()||{})}catch{}
+  }
   app.addEventListener('click',async event=>{
     const providerButton=event.target.closest('[data-bookkeeping-provider]');
     if(!providerButton)return;
@@ -190,6 +250,7 @@
     if(status)status.textContent='';
     try{
       persist();
+      await recordBookkeepingSelection(provider);
       const response=operation==='sync'
         ?await fetch('/api/account-auth',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:`${provider}_sync`})})
         :await fetch(`/api/account-auth?action=${provider}_connect`);
@@ -212,11 +273,14 @@
 
   function renderNav(){
     const nav=document.querySelector('#sectionNav');
-    nav.innerHTML=[...sections,{id:'review',short:'Review'}].map((section,index)=>{
+    const sourceDone=Boolean(state.sourceMode);
+    const sourceButton=`<button type="button" class="sidebar-nav-button ${state.sectionIndex===-1?'active':''}" data-section="-1"><span class="sidebar-nav-name">Data Source</span><span class="sidebar-nav-status ${sourceDone?'done':''}">${sourceDone?checkIcon:'00'}</span></button>`;
+    const sectionButtons=[...sections,{id:'review',short:'Review'}].map((section,index)=>{
       const done=index<sections.length?isComplete(section):allComplete();
       const active=state.sectionIndex===index || (index===sections.length&&currentIsReview());
       return `<button type="button" class="sidebar-nav-button ${active?'active':''}" data-section="${index}"><span class="sidebar-nav-name">${esc(section.short)}</span><span class="sidebar-nav-status ${done?'done':''}">${done?checkIcon:String(index+1).padStart(2,'0')}</span></button>`;
     }).join('');
+    nav.innerHTML=sourceButton+sectionButtons;
     nav.querySelectorAll('[data-section]').forEach(btn=>btn.addEventListener('click',()=>{state.sectionIndex=Number(btn.dataset.section);persist();render();}));
   }
 
@@ -224,7 +288,7 @@
     const count=completeCount();
     document.querySelector('#progressText').textContent=`${count} / ${sections.length} complete`;
     document.querySelector('#progressFill').style.width=`${Math.round(count/sections.length*100)}%`;
-    document.querySelector('#sectionLabel').textContent=currentIsReview()?'Review':'Financial Evidence';
+    document.querySelector('#sectionLabel').textContent=state.sectionIndex===-1?'Data Source':currentIsReview()?'Review':'Financial Evidence';
   }
 
   function extractionLabel(meta){
@@ -240,27 +304,6 @@
     return {className:'pending',text:'PDF stored · confirm values below'};
   }
 
-  function uploadBody(section){
-    const meta=state.documents[section.id];
-    const status=meta?extractionLabel({...meta,sectionId:section.id}):null;
-    const canRetry=meta?.evidenceId && ['failed','uploaded'].includes(meta.extractionStatus||meta.extraction_status||'');
-    return `<div class="evidence-upload ${meta?'received':''}">
-      <div class="upload-mark">${meta?checkIcon:'<span>↑</span>'}</div>
-      <div class="upload-copy">
-        <h3>${meta?'Report received':'Upload PDF report'}</h3>
-        <p>${esc(section.copy)}</p>
-        ${meta?`<div class="uploaded-file"><strong>${esc(meta.name)}</strong>${meta.size?`<span>${formatSize(meta.size)}</span>`:''}</div>`:''}
-        ${status?`<div class="extraction-status ${status.className}">${esc(status.text)}</div>`:''}
-        <div class="upload-actions">
-          ${bookkeepingButtons()}
-          <label class="upload-button pdf-btn">${meta?'Replace PDF':'Upload PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
-          ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry automated extraction</button>`:''}
-        </div>
-        <p data-bookkeeping-error role="status" class="bookkeeping-error"></p>
-      </div>
-    </div>
-    <div class="evidence-requirements">${section.requirements.map(item=>`<div>${checkIcon}<span>${esc(item)}</span></div>`).join('')}</div>`;
-  }
 
   const rawNumber=value=>String(value??'').replace(/,/g,'').trim();
   const formatMoneyInput=value=>{
@@ -328,8 +371,8 @@
 
     return `<article class="q-card fade-in">
       <header class="q-card-header"><div><div class="question-kicker">SECTION ${state.sectionIndex+1} OF ${sections.length}</div><h1>${esc(section.title)}</h1><p>${esc(section.copy)}</p></div><span class="evidence-status ${done?'complete':''}">${done?`${checkIcon} Complete`:'Required'}</span></header>
-      <div class="q-card-body">${section.type==='sde'?sdeBody(section):`${uploadBody(section)}${manualBody(section)}`}</div>
-      <footer class="q-card-footer"><button type="button" class="btn-back" id="previous" ${state.sectionIndex===0||isBusy?'disabled':''}>← Back</button><span class="saved-note">Saved securely</span><button type="button" class="${btnClass}" id="next" ${disabledAttr}>${btnContent}</button></footer>
+      <div class="q-card-body">${compactEvidenceSource(section)}${section.type==='sde'?sdeBody(section):manualBody(section)}</div>
+      <footer class="q-card-footer"><button type="button" class="btn-back" id="previous" ${isBusy?'disabled':''}>← Back</button><span class="saved-note">Saved securely</span><button type="button" class="${btnClass}" id="next" ${disabledAttr}>${btnContent}</button></footer>
     </article>`;
   }
 
@@ -490,7 +533,7 @@
     document.querySelector('#previous')?.addEventListener('click',()=>{
       if (!state.remoteLoaded || state.uploadState[section.id] || Object.keys(state.uploadState).length > 0 || state.saveState[section.id] === 'saving') return;
       captureManualInputs(section);
-      state.sectionIndex=Math.max(0,state.sectionIndex-1);
+      state.sectionIndex=state.sectionIndex===0?-1:Math.max(0,state.sectionIndex-1);
       persist();
       render();
     });
@@ -525,7 +568,21 @@
     document.querySelector('#completePerformance')?.addEventListener('click',finish);
   }
 
+  function renderSource(){
+    host.innerHTML=dataSourceCard();
+    host.querySelectorAll('[data-source-mode]').forEach(button=>button.addEventListener('click',()=>{
+      state.sourceMode=button.dataset.sourceMode;
+      persist();
+      render();
+    }));
+    host.querySelector('#sourceContinue')?.addEventListener('click',()=>{
+      if(!state.sourceMode)return;
+      state.sectionIndex=0;persist();render();
+    });
+  }
+
   function renderSection(){
+    if(state.sectionIndex===-1){renderSource();return;}
     if(currentIsReview()){host.innerHTML=reviewCard();bindReview();return;}
     const section=sections[state.sectionIndex];host.innerHTML=sectionCard(section);bindSection(section);
   }
@@ -581,10 +638,17 @@
     state.manual[section.id]={...manualFor(section),...data};
     if(section.type==='sde'){
       const selected=new Set(Array.isArray(data.benefits)?data.benefits:[]);benefits.forEach(([id])=>{state.addbacks[id]=selected.has(id);});
-      state.ownershipPercent=data.ownershipPercent??state.ownershipPercent??'';state.sdeReviewed=Boolean(row.id);state.sdeEvidenceId=row.id;return;
+      state.ownershipPercent=data.ownershipPercent??state.ownershipPercent??'';state.sdeReviewed=Boolean(row.id);state.sdeEvidenceId=row.id;
+      if(row.storage_path||row.file_name)state.documents[section.id]={name:row.file_name||'SDE supporting evidence.pdf',size:Number(row.file_size_bytes)||0,type:row.mime_type||'application/pdf',receivedAt:row.updated_at||row.created_at||'',evidenceId:row.id,storagePath:row.storage_path,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:row.extraction_error||'',extractedAt:row.extracted_at||null};
+      return;
     }
-    if(!row.storage_path&&!row.file_name)return;
-    state.documents[section.id]={name:row.file_name||'Financial evidence.pdf',size:Number(row.file_size_bytes)||0,type:row.mime_type||'application/pdf',receivedAt:row.updated_at||row.created_at||'',evidenceId:row.id,storagePath:row.storage_path,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:row.extraction_error||'',extractedAt:row.extracted_at||null};
+    const syncedModel=row.extraction_model==='quickbooks-online-api'
+      ? 'QuickBooks Online'
+      : row.extraction_model==='freshbooks-api'
+        ? 'FreshBooks'
+        : '';
+    if(!row.storage_path&&!row.file_name&&!syncedModel)return;
+    state.documents[section.id]={name:row.file_name||(syncedModel?`${syncedModel} sync`:'Financial evidence.pdf'),size:Number(row.file_size_bytes)||0,type:row.mime_type||'application/json',receivedAt:row.updated_at||row.created_at||'',evidenceId:row.id,storagePath:row.storage_path,extractionStatus:row.extraction_status||'processed',extractionModel:row.extraction_model||null,extractionError:row.extraction_error||'',extractedAt:row.extracted_at||null};
   }
 
   function showBookkeepingSyncNotice(){
