@@ -1,6 +1,8 @@
 (async () => {
   const releasePageLoader = window.CCPageLoader?.hold?.('Loading Agency Scorecard…') || (()=>{});
   const root = document.getElementById('scorecardRoot');
+  root.innerHTML='<section class="scorecard-empty" style="margin-top:54px"><h1>Loading Agency Scorecard…</h1><p>Bringing in your saved scorecard and priorities.</p></section>';
+  const loaderReleaseTimer=setTimeout(releasePageLoader,450);
   const state = window.CCDiagnostic?.getState?.();
   const esc = window.CCReports.esc;
   let workspaceAccess = null;
@@ -72,7 +74,10 @@
   const rockCandidates = {};
   let existingRockKeys = new Set();
   try {
-    const goalsModel = await window.CCGoals?.load?.({ fresh: true });
+    const goalsModel = await Promise.race([
+      window.CCGoals?.load?.({ fresh: false }),
+      new Promise(resolve=>setTimeout(()=>resolve(null),350))
+    ]);
     existingRockKeys = new Set((goalsModel?.rocks || []).map(rock => rock.sourceKey).filter(Boolean));
   } catch (_) {
     // Scorecard remains usable if Goals cannot be loaded; create_rocks still
@@ -99,7 +104,9 @@
       sourceKey: `issue:${key}`
     };
     const exists = existingRockKeys.has(`issue:${key}`) || existingRockKeys.has(`opportunity:${key}`);
-    return `<label class="insight-row selectable-insight paired-insight${exists ? ' selected' : ''}"><input type="checkbox" data-rock-candidate="${id}" ${exists ? 'disabled' : ''}><span class="paired-insight-copy"><b>${esc(row.capability)} · ${esc(row.score)}/100</b><p>${esc(row.description || '')}</p><span class="paired-opportunity"><strong>Opportunity</strong><span>${esc(recommendation)}</span></span>${exists ? '<small>Already a 90-Day Priority</small>' : ''}</span></label>`;
+    const lift=Number(opportunity?.estimatedLift);
+    const liftCopy=Number.isFinite(lift)&&lift>0?`<em class="paired-opportunity-lift">+${Math.round(lift)} pts</em>`:'';
+    return `<label class="insight-row selectable-insight paired-insight${exists ? ' selected' : ''}"><input type="checkbox" data-rock-candidate="${id}" ${exists ? 'disabled' : ''}><span class="paired-insight-copy"><b>${esc(row.capability)} · ${esc(row.score)}/100</b><p>${esc(row.description || '')}</p><span class="paired-opportunity"><strong>Opportunity</strong><span>${esc(recommendation)}</span>${liftCopy}</span>${exists ? '<small>Already a 90-Day Priority</small>' : ''}</span></label>`;
   }).join('');
   const perf = model.reports.performance;
   const valuation = model.valuation && typeof model.valuation === 'object' ? model.valuation : null;
@@ -594,5 +601,6 @@
   root.querySelectorAll('[data-validation-help]').forEach(button=>button.addEventListener('click',event=>{event.preventDefault();event.stopPropagation();openValidationHelp(button.dataset.validationHelp);}));
   root.querySelectorAll('[data-download]').forEach(button => button.addEventListener('click', () => window.CCReports.downloadReport(button.dataset.download)));
   root.querySelectorAll('[data-email]').forEach(button => button.addEventListener('click', () => window.CCReports.openEmailDialog(button.dataset.email)));
+  clearTimeout(loaderReleaseTimer);
   requestAnimationFrame(()=>requestAnimationFrame(releasePageLoader));
 })();
