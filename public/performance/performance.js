@@ -21,8 +21,7 @@
     revenueDiversificationLevel: ['Very concentrated','Limited diversification','Moderate','Well diversified','Highly diversified'],
     contractDurationLevel: ['Project only','Month-to-month','6-month average','12-month average','Multi-year relationships'],
     technologyInvestmentLevel: ['Reactive spending only','Occasional purchases','Annual technology plan','Strategic technology investment','Technology consistently improves productivity and margins'],
-    talentInvestmentLevel: ['No leadership development','Occasional training','Defined development plans','Leadership development program','Talent investments produce measurable capability'],
-    retainedEarningsGrowthLevel: ['Declining','Flat','Growing slowly','Growing consistently','Growing rapidly while maintaining profitability']
+    talentInvestmentLevel: ['No leadership development','Occasional training','Defined development plans','Leadership development program','Talent investments produce measurable capability']
   };
 
   const fieldGroups = {
@@ -57,8 +56,7 @@
       {key:'incrementalOperatingProfit',label:'Incremental Operating Profit',type:'money',help:'Used with Capital Invested to calculate ROIC-Lite.'},
       {key:'reinvestmentRatePercent',label:'Profit Reinvested',type:'percent',help:'Optional. Add this when you know what percentage of profit was intentionally reinvested; leaving it blank reduces scoring coverage rather than blocking completion.'},
       {key:'technologyInvestmentLevel',label:'Technology Investment',type:'level'},
-      {key:'talentInvestmentLevel',label:'Talent Investment',type:'level'},
-      {key:'retainedEarningsGrowthLevel',label:'Retained Earnings Growth',type:'level'}
+      {key:'talentInvestmentLevel',label:'Talent Investment',type:'level'}
     ],
     clientRevenue: [
       {key:'topClientPercent',label:'Largest Client % of Revenue',type:'percent',required:true},
@@ -197,7 +195,11 @@
         :await fetch(`/api/account-auth?action=${provider}_connect`);
       const payload=await response.json();
       if(!response.ok)throw new Error(payload.error||'The bookkeeping provider could not be reached.');
-      if(operation==='sync'){location.reload();return;}
+      if(operation==='sync'){
+        sessionStorage.setItem('ccBookkeepingSyncNotice',provider);
+        location.reload();
+        return;
+      }
       if(!payload.authorizationUrl)throw new Error('The provider did not return an authorization URL.');
       sessionStorage.setItem(`cc_${provider}_return`,'/agency-performance-index/');
       location.assign(payload.authorizationUrl);
@@ -260,16 +262,27 @@
     <div class="evidence-requirements">${section.requirements.map(item=>`<div>${checkIcon}<span>${esc(item)}</span></div>`).join('')}</div>`;
   }
 
+  const rawNumber=value=>String(value??'').replace(/,/g,'').trim();
+  const formatMoneyInput=value=>{
+    const raw=rawNumber(value);
+    if(raw==='')return '';
+    const number=Number(raw);
+    return Number.isFinite(number)?number.toLocaleString('en-US',{maximumFractionDigits:2}):raw;
+  };
+
   function inputControl(section,field){
     const values=manualFor(section);
     const value=values[field.key]??'';
     if(field.type==='level'){
       const options=levelOptions[field.key]||[];
-      return `<select data-manual-key="${field.key}"><option value="">Select level</option>${options.map((label,index)=>`<option value="${index}" ${String(value)===String(index)?'selected':''}>${index} · ${esc(label)}</option>`).join('')}</select>`;
+      return `<select data-manual-key="${field.key}" data-field-type="${field.type}"><option value="">Select level</option>${options.map((label,index)=>`<option value="${index}" ${String(value)===String(index)?'selected':''}>${index} · ${esc(label)}</option>`).join('')}</select>`;
     }
     const suffix=field.type==='percent'?'%':field.type==='months'?'months':'';
     const prefix=field.type==='money'?'$':'';
-    return `<div class="manual-input-wrap">${prefix?`<span class="manual-prefix">${prefix}</span>`:''}<input data-manual-key="${field.key}" type="number" step="any" value="${esc(value)}" placeholder="0">${suffix?`<span class="manual-suffix">${suffix}</span>`:''}</div>`;
+    const inputType=field.type==='money'?'text':'number';
+    const inputMode=field.type==='money'?' inputmode="decimal"':'';
+    const displayValue=field.type==='money'?formatMoneyInput(value):value;
+    return `<div class="manual-input-wrap">${prefix?`<span class="manual-prefix">${prefix}</span>`:''}<input data-manual-key="${field.key}" data-field-type="${field.type}" type="${inputType}"${inputMode} step="any" value="${esc(displayValue)}" placeholder="0">${suffix?`<span class="manual-suffix">${suffix}</span>`:''}</div>`;
   }
 
   function manualBody(section){
@@ -348,7 +361,7 @@
 
   function captureManualInputs(section){
     document.querySelectorAll('[data-manual-key]').forEach(input=>{
-      manualFor(section)[input.dataset.manualKey]=input.value;
+      manualFor(section)[input.dataset.manualKey]=input.dataset.fieldType==='money'?rawNumber(input.value):input.value;
     });
     if(section.type==='sde'){
       const owner=document.querySelector('#ownershipPercent');
@@ -456,7 +469,7 @@
     document.querySelectorAll('[data-manual-key]').forEach(input=>{
       const update=()=>{
         const key=input.dataset.manualKey;
-        manualFor(section)[key]=input.value;
+        manualFor(section)[key]=input.dataset.fieldType==='money'?rawNumber(input.value):input.value;
         state.dirtyManual[section.id]=state.dirtyManual[section.id]||{};
         state.dirtyManual[section.id][key]=true;
         syncServiceMix(section,key);
@@ -465,6 +478,10 @@
       };
       input.addEventListener('input',update);
       input.addEventListener('change',update);
+      if(input.dataset.fieldType==='money'){
+        input.addEventListener('focus',()=>{input.value=rawNumber(input.value);});
+        input.addEventListener('blur',()=>{update();input.value=formatMoneyInput(input.value);});
+      }
     });
     document.querySelector('[data-save-manual]')?.addEventListener('click',()=>saveManualSection(section).catch(()=>null));
   }
@@ -570,7 +587,21 @@
     state.documents[section.id]={name:row.file_name||'Financial evidence.pdf',size:Number(row.file_size_bytes)||0,type:row.mime_type||'application/pdf',receivedAt:row.updated_at||row.created_at||'',evidenceId:row.id,storagePath:row.storage_path,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:row.extraction_error||'',extractedAt:row.extracted_at||null};
   }
 
+  function showBookkeepingSyncNotice(){
+    const provider=sessionStorage.getItem('ccBookkeepingSyncNotice');
+    if(!provider)return;
+    sessionStorage.removeItem('ccBookkeepingSyncNotice');
+    const name=bookkeepingProviders.find(item=>item.id===provider)?.name||'Bookkeeping';
+    const notice=document.createElement('div');
+    notice.setAttribute('role','status');
+    notice.style.cssText='position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;background:#ecfdf3;border:1px solid #a7f3c4;color:#116b3a;border-radius:12px;padding:12px 18px;box-shadow:0 12px 36px rgba(16,24,40,.14);font:700 13px/1.4 Inter,Arial,sans-serif';
+    notice.textContent=`✓ ${name} synced successfully. Automated financial values have been refreshed.`;
+    document.body.appendChild(notice);
+    setTimeout(()=>notice.remove(),5000);
+  }
+
   async function hydrateRemoteEvidence(){
+    showBookkeepingSyncNotice();
     checkBookkeepingConnection().then(()=>render());
     if(!window.CCFinancialEvidence?.list){state.remoteLoaded=true;render();return;}
     try{const result=await window.CCFinancialEvidence.list();(result.evidence||[]).forEach(hydrateEvidenceRow);state.remoteError='';}

@@ -285,7 +285,7 @@ export const QUESTIONS = [
       'Recruiting Executives',
     ],
     operationalItems: [
-      'Sales',
+      'Sales & Marketing',
       'Delivery',
       'Client Management',
       'Firefighting',
@@ -302,7 +302,7 @@ export const QUESTIONS = [
     categoryName: 'Strategic',
     text: 'What happens if you stop doing each activity?',
     type: 'activity-matrix',
-    activities: ['Sales', 'Client Delivery', 'Leadership', 'Marketing', 'Hiring', 'Finance'],
+    activities: ['Sales & Marketing', 'Client Delivery', 'Leadership', 'Hiring', 'Finance'],
     matrixOptions: [
       { label: 'Business continues', score: 100 },
       { label: 'Slows down', score: 50 },

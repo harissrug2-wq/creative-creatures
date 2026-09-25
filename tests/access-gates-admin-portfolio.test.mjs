@@ -13,6 +13,13 @@ const goalsApi = fs.readFileSync(new URL('../api/goals.js', import.meta.url), 'u
 const monitor = fs.readFileSync(new URL('../public/monitor/monitor.js', import.meta.url), 'utf8');
 const goalsClient = fs.readFileSync(new URL('../public/portal/goals-client.js', import.meta.url), 'utf8');
 const scorecardClient = fs.readFileSync(new URL('../public/portal/scorecard-client.js', import.meta.url), 'utf8');
+const scorecardUi = fs.readFileSync(new URL('../public/portal/scorecard.js', import.meta.url), 'utf8');
+const performanceUi = fs.readFileSync(new URL('../public/performance/performance.js', import.meta.url), 'utf8');
+const financialApi = fs.readFileSync(new URL('../api/financial-evidence.js', import.meta.url), 'utf8');
+const integrations = fs.readFileSync(new URL('../integrations/index.html', import.meta.url), 'utf8');
+const goalsUi = fs.readFileSync(new URL('../agency-goals/index.html', import.meta.url), 'utf8');
+const strengthQuestions = fs.readFileSync(new URL('../src/strength/data/questions.js', import.meta.url), 'utf8');
+const independenceQuestions = fs.readFileSync(new URL('../src/independence/questionsData.js', import.meta.url), 'utf8');
 
 test('free AOFI navigation exposes preview-only upgrade pages and plan tag', () => {
   assert.match(auth, /previewFeatures=plan==='aofi_free'\?\['monitor','goals','integrations'\]/);
@@ -81,4 +88,27 @@ test('owner identity card sizing matches signup card scale', () => {
   assert.match(archetypeCss, /width:min\(1040px/);
   assert.match(archetypeCss, /min-height:78px!important/);
   assert.match(archetypeCss, /height:78px!important/);
+});
+
+
+test('transcript UX feedback is reflected in diagnostics and performance', () => {
+  assert.match(strengthQuestions, /Weekly with rolling forecasts/);
+  assert.doesNotMatch(strengthQuestions, /Weekly L10s/);
+  assert.match(independenceQuestions, /Sales & Marketing/);
+  assert.doesNotMatch(performanceUi, /Retained Earnings Growth/);
+  assert.doesNotMatch(financialApi, /retainedEarningsGrowth/);
+  assert.match(performanceUi, /ccBookkeepingSyncNotice/);
+  assert.match(performanceUi, /toLocaleString\('en-US'/);
+});
+
+test('scorecard and goals use generic priority language and validation help', () => {
+  assert.match(scorecardUi, /data-validation-help/);
+  assert.match(scorecardUi, /What a contradiction means/);
+  assert.doesNotMatch(goalsUi, />90-Day Rocks</);
+});
+
+test('connected QuickBooks is auto-detected and available to billing and people', () => {
+  assert.match(integrations, /autoDetect=\['QuickBooks Online'\]/);
+  assert.match(integrations, /'HR & People':\['QuickBooks Online'/);
+  assert.match(integrations, /'Billing':\['QuickBooks Online'/);
 });

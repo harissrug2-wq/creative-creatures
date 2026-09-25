@@ -11,8 +11,8 @@
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[char]));
   const meetingSections = [
-    ['segue','Segue',5], ['headlines','Headlines',5], ['scorecard','Scorecard',5],
-    ['rocks','Rocks',5], ['todos','To-Dos',10], ['ids','IDS',60], ['conclude','Conclude',5]
+    ['segue','Opening',5], ['headlines','Headlines',5], ['scorecard','Scorecard',5],
+    ['rocks','Priorities',5], ['todos','To-Dos',10], ['ids','Issues & Decisions',60], ['conclude','Wrap-Up',5]
   ];
 
   const currentAccount = () => safeJson(localStorage.getItem('cc_account'), null)
@@ -132,7 +132,7 @@
     const activeRocks = (state.leadership?.rocks || []).filter(rock => rock.status !== 'Complete').length;
     const items = [
       ['Last leadership meeting', summary.lastMeetingAt ? dateLabel(summary.lastMeetingAt) : 'No Data', 'Saved meeting history'],
-      ['Active 90-Day Rocks', String(activeRocks), 'Agency Goals'],
+      ['Active 90-Day Priorities', String(activeRocks), 'Agency Goals'],
       ['Open issues', String(summary.openIssues || 0), 'Leadership issue list'],
       ['Average meeting rating', summary.averageRating == null ? 'No Data' : `${summary.averageRating}/10`, 'Completed meetings']
     ];
@@ -143,9 +143,9 @@
     const items = [
       ['meetings','Weekly Leadership Meetings'],
       ['scorecard','Scorecard'],
-      ['rocks','Rocks & Issues'],
+      ['rocks','Priorities & Issues'],
       ['marketing','Marketing Strategy'],
-      ['vision','Vision / Traction']
+      ['vision','Vision & Strategy']
     ];
     return `<nav class="lead-tabs" aria-label="Agency Leadership sections">${items.map(([id,label]) => `<button type="button" class="${state.tab === id ? 'active' : ''}" data-lead-tab="${id}">${esc(label)}</button>`).join('')}</nav>`;
   }
@@ -160,7 +160,7 @@
     return `<div class="lead-meeting-list">${meetings.map(meeting => `<button type="button" class="lead-meeting-row" data-edit-meeting="${esc(meeting.id)}">
       <span class="lead-meeting-date"><b>${esc(new Date(`${meeting.meeting_date}T12:00:00`).toLocaleDateString('en-US',{month:'short'}))}</b><strong>${esc(new Date(`${meeting.meeting_date}T12:00:00`).getDate())}</strong></span>
       <span class="lead-meeting-main"><strong>${esc(meeting.title)}</strong><small>${esc(dateLabel(meeting.meeting_date))}${meeting.facilitator_name ? ` · Facilitator ${esc(meeting.facilitator_name)}` : ''}</small></span>
-      <span class="lead-meeting-stats"><span>${esc(`${meeting.rocks_on_track || 0}/${meeting.rocks_total || 0}`)} rocks</span><span>${esc(`${meeting.open_todo_count || 0}`)} open to-dos</span><span>${esc(`${meeting.open_issue_count || 0}`)} open issues</span><span>${meeting.rating == null ? 'No rating' : `${esc(meeting.rating)}/10`}</span></span>
+      <span class="lead-meeting-stats"><span>${esc(`${meeting.rocks_on_track || 0}/${meeting.rocks_total || 0}`)} priorities</span><span>${esc(`${meeting.open_todo_count || 0}`)} open to-dos</span><span>${esc(`${meeting.open_issue_count || 0}`)} open issues</span><span>${meeting.rating == null ? 'No rating' : `${esc(meeting.rating)}/10`}</span></span>
       <span class="lead-meeting-action">${pill(meeting.status)}<b>${meeting.status === 'completed' ? 'View' : meeting.status === 'in_progress' ? 'Resume' : 'Open'}</b></span>
     </button>`).join('')}</div>`;
   }
@@ -177,7 +177,7 @@
 
   function meetingsTab() {
     return `<section class="lead-panel">
-      <div class="lead-source-notice"><span>L10</span><div><strong>Weekly leadership operating workspace</strong><p>${state.calendar.connected ? 'Matching Leadership, L10, and Level 10 events are scheduled automatically from this agency’s connected Google Calendar.' : 'Connect Google Calendar to schedule matching Leadership, L10, and Level 10 events automatically.'} Calendar events never create transcript content.</p></div></div>
+      <div class="lead-source-notice"><span>WEEKLY</span><div><strong>Weekly leadership operating workspace</strong><p>${state.calendar.connected ? 'Matching leadership meeting events are scheduled automatically from this agency’s connected Google Calendar.' : 'Connect Google Calendar to schedule matching leadership meeting events automatically.'} Calendar events never create transcript content.</p></div></div>
       <div class="lead-section-head"><div><span>Meeting cadence</span><h2>Weekly leadership meetings</h2></div><button type="button" class="lead-primary" data-new-meeting>＋ New meeting</button></div>
       <section class="lead-card">${meetingRows()}</section>
       <div class="lead-section-head"><div><span>Follow-through</span><h2>Leadership to-dos</h2></div><button type="button" class="lead-secondary" data-new-todo>＋ Add to-do</button></div>
@@ -207,7 +207,7 @@
 
   function scorecardTab() {
     return `<section class="lead-panel">
-      <div class="lead-source-notice"><span>KPI</span><div><strong>13-week operating scorecard</strong><p>Enter one value per metric each week. Targets determine whether each number is on track or off track for the L10.</p></div></div>
+      <div class="lead-source-notice"><span>KPI</span><div><strong>13-week operating scorecard</strong><p>Enter one value per metric each week. Targets determine whether each number is on track or off track for the weekly leadership meeting.</p></div></div>
       <div class="lead-section-head"><div><span>Weekly numbers</span><h2>Leadership scorecard</h2></div><button type="button" class="lead-primary" data-new-metric>＋ Add metric</button></div>
       <section class="lead-card">${scorecardRows()}</section>
     </section>`;
@@ -215,7 +215,7 @@
 
   function rockRows() {
     const rocks = state.leadership?.rocks || [];
-    if (!rocks.length) return emptyState('No 90-Day Rocks', 'Create a manual Rock or convert scorecard priorities from Agency Goals.');
+    if (!rocks.length) return emptyState('No 90-Day Priorities', 'Create a manual priority or convert scorecard priorities from Agency Goals.');
     return `<div class="lead-work-list">${rocks.map(rock => `<button type="button" data-edit-rock="${esc(rock.id)}">
       <span><strong>${esc(rock.title)}</strong><small>${esc(rock.owner || 'No owner')} · ${esc(dueLabel(rock.dueDate))}</small></span>
       ${pill(rock.status)}
@@ -233,7 +233,7 @@
 
   function rocksTab() {
     return `<section class="lead-panel lead-two-column">
-      <article><div class="lead-section-head"><div><span>90-day priorities</span><h2>Rocks</h2></div><button type="button" class="lead-primary" data-new-rock>＋ New Rock</button></div><section class="lead-card">${rockRows()}</section></article>
+      <article><div class="lead-section-head"><div><span>90-day priorities</span><h2>90-Day Priorities</h2></div><button type="button" class="lead-primary" data-new-rock>＋ New Priority</button></div><section class="lead-card">${rockRows()}</section></article>
       <article><div class="lead-section-head"><div><span>Identify · Discuss · Solve</span><h2>Issues</h2></div><button type="button" class="lead-secondary" data-new-issue>＋ Add issue</button></div><section class="lead-card">${issueRows()}</section></article>
     </section>`;
   }
@@ -425,7 +425,7 @@
       owner:row.outcome?.owner ?? row.snapshot?.owner_name ?? '',
       status:row.outcome?.status ?? row.snapshot?.status
     })) : state.leadership?.rocks || [];
-    return `<div class="lead-l10-rocks" data-l10-rocks>${rocks.map(rock => `<div class="lead-l10-rock" data-rock-id="${esc(rock.id)}" data-meeting-item-id="${esc(rock.meetingItemId || '')}"><div><input class="rock-title" value="${esc(rock.title)}" aria-label="Rock title"><select class="rock-status" aria-label="Rock status">${['Not started','On track','Watch','Complete'].map(value => `<option ${rock.status === value ? 'selected':''}>${value}</option>`).join('')}</select></div><div><input class="rock-owner" value="${esc(rock.owner || '')}" placeholder="Owner"><input class="rock-note" value="${esc(rock.note ?? agenda.rockNotes[rock.id]?.note ?? '')}" placeholder="Next step / note"></div></div>`).join('')}</div><button type="button" class="lead-l10-row-button" data-add-rock-row>＋ Add rock</button>`;
+    return `<div class="lead-l10-rocks" data-l10-rocks>${rocks.map(rock => `<div class="lead-l10-rock" data-rock-id="${esc(rock.id)}" data-meeting-item-id="${esc(rock.meetingItemId || '')}"><div><input class="rock-title" value="${esc(rock.title)}" aria-label="Priority title"><select class="rock-status" aria-label="Priority status">${['Not started','On track','Watch','Complete'].map(value => `<option ${rock.status === value ? 'selected':''}>${value}</option>`).join('')}</select></div><div><input class="rock-owner" value="${esc(rock.owner || '')}" placeholder="Owner"><input class="rock-note" value="${esc(rock.note ?? agenda.rockNotes[rock.id]?.note ?? '')}" placeholder="Next step / note"></div></div>`).join('')}</div><button type="button" class="lead-l10-row-button" data-add-rock-row>＋ Add priority</button>`;
   }
 
   function todoReview(item) {
@@ -459,16 +459,16 @@
     const agenda = agendaFor(item);
     const meetingDate = item?.meeting_date || today;
     return `<input type="hidden" name="id" value="${esc(item?.id || '')}"><input type="hidden" name="transcriptUrl" value="${esc(item?.transcript_url || '')}">
-      <div class="lead-l10-title"><input name="title" required maxlength="220" value="${esc(item?.title || `Weekly Leadership L10 — ${meetingDate}`)}"><input type="date" name="meetingDate" required value="${esc(meetingDate)}"></div>
+      <div class="lead-l10-title"><input name="title" required maxlength="220" value="${esc(item?.title || `Weekly Leadership Meeting — ${meetingDate}`)}"><input type="date" name="meetingDate" required value="${esc(meetingDate)}"></div>
       ${meetingNavigator(item)}
       <div class="lead-l10-source">✣ <span>${esc(meetingSource(item))}</span>${item?.calendar_html_url ? `<a href="${esc(item.calendar_html_url)}" target="_blank" rel="noopener">Open calendar ↗</a>` : ''}</div>
-      <section class="lead-l10-section" data-section-card="segue"><h4><small>5m</small> Segue — Good News</h4>${agendaInputs('goodNews', agenda.goodNews, 'Add a positive headline…')}</section>
+      <section class="lead-l10-section" data-section-card="segue"><h4><small>5m</small> Opening — Good News</h4>${agendaInputs('goodNews', agenda.goodNews, 'Add a positive headline…')}</section>
       <section class="lead-l10-section" data-section-card="headlines"><h4><small>5m</small> Customer / Employee Headlines</h4>${agendaInputs('headlines', agenda.headlines, 'Add a headline…')}</section>
       <section class="lead-l10-section" data-section-card="scorecard"><div class="lead-l10-section-head"><h4><small>5m</small> KPI Score Card</h4><button type="button" class="lead-l10-row-button" data-open-scorecard>Open scorecard</button></div>${meetingScorecard(item)}</section>
-      <section class="lead-l10-section" data-section-card="rocks"><h4><small>5m</small> Rock Review</h4>${rockReview(item)}</section>
+      <section class="lead-l10-section" data-section-card="rocks"><h4><small>5m</small> Priority Review</h4>${rockReview(item)}</section>
       <section class="lead-l10-section" data-section-card="todos"><h4><small>10m</small> To-Do List &amp; Review</h4>${todoReview(item)}</section>
-      <section class="lead-l10-section" data-section-card="ids"><h4><small>60m</small> IDS — Identify, Discuss, Solve</h4>${issueReview(item)}</section>
-      <section class="lead-l10-section" data-section-card="conclude"><h4><small>5m</small> Conclude — Cascading Messages &amp; Rating</h4>${appliedTranscriptOutcomes(item)}<label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>
+      <section class="lead-l10-section" data-section-card="ids"><h4><small>60m</small> Issues &amp; Decisions</h4>${issueReview(item)}</section>
+      <section class="lead-l10-section" data-section-card="conclude"><h4><small>5m</small> Wrap-Up — Cascading Messages &amp; Rating</h4>${appliedTranscriptOutcomes(item)}<label class="lead-l10-label">Cascading messages</label>${agendaInputs('cascadeMessages', agenda.cascadeMessages, 'Cascade to the team…')}<label class="lead-l10-label">Meeting rating (1–10, below 8 is not good)</label>${ratingsReview(item)}<label class="lead-l10-status"><span>Status</span><select name="status">${['planned','in_progress','completed'].map(value => `<option value="${value}" ${item?.status === value ? 'selected':''}>${value === 'planned' ? 'Scheduled' : statusLabel(value)}</option>`).join('')}</select></label></section>
       ${meetingTranscriptPanel(item)}`;
   }
 
@@ -501,8 +501,8 @@
         <div class="lead-modal-grid"><label><span>Owner</span><input name="ownerName" maxlength="160" value="${esc(item?.owner_name || '')}" placeholder="Accountable person"></label><label><span>Due date</span><input type="date" name="dueDate" value="${esc(item?.due_date || '')}"></label></div>
         <div class="lead-modal-grid"><label><span>Status</span><select name="status"><option value="open" ${item?.status !== 'complete' ? 'selected':''}>Open</option><option value="complete" ${item?.status === 'complete' ? 'selected':''}>Complete</option></select></label><label><span>Meeting</span><select name="meetingId">${meetingsOptions(item?.meeting_id || '')}</select></label></div>`;
     } else {
-      title = item ? 'Edit 90-Day Rock' : 'New 90-Day Rock';
-      fields = `<input type="hidden" name="id" value="${esc(item?.id || '')}"><label><span>Rock</span><input name="title" required maxlength="220" value="${esc(item?.title || '')}" placeholder="Measurable 90-day priority"></label>
+      title = item ? 'Edit 90-Day Priority' : 'New 90-Day Priority';
+      fields = `<input type="hidden" name="id" value="${esc(item?.id || '')}"><label><span>Priority</span><input name="title" required maxlength="220" value="${esc(item?.title || '')}" placeholder="Measurable 90-day priority"></label>
         <label><span>Description</span><textarea name="description" rows="5" placeholder="Define the outcome and why it matters…">${esc(item?.description || '')}</textarea></label>
         <div class="lead-modal-grid"><label><span>Owner</span><input name="owner" maxlength="160" value="${esc(item?.owner || '')}" placeholder="Accountable person"></label><label><span>Due date</span><input type="date" name="dueDate" value="${esc(item?.dueDate || '')}"></label></div>
         <label><span>Status</span><select name="status">${['Not started','On track','Watch','Complete'].map(value => `<option value="${esc(value)}" ${item?.status === value ? 'selected':''}>${esc(value)}</option>`).join('')}</select></label>`;
@@ -866,7 +866,7 @@
         if (name) name.value = ''; if (score) score.value = '8'; if (note) note.value = '';
       }
       if (button.matches('[data-add-rock-row]')) {
-        form.querySelector('[data-l10-rocks]')?.insertAdjacentHTML('beforeend', `<div class="lead-l10-rock" data-rock-id="new-${Date.now()}"><div><input class="rock-title" placeholder="Rock title" aria-label="Rock title"><select class="rock-status" aria-label="Rock status"><option>Not started</option><option>On track</option><option>Watch</option><option>Complete</option></select></div><div><input class="rock-owner" placeholder="Owner"><input class="rock-note" placeholder="Next step / note"></div></div>`);
+        form.querySelector('[data-l10-rocks]')?.insertAdjacentHTML('beforeend', `<div class="lead-l10-rock" data-rock-id="new-${Date.now()}"><div><input class="rock-title" placeholder="Rock title" aria-label="Priority title"><select class="rock-status" aria-label="Priority status"><option>Not started</option><option>On track</option><option>Watch</option><option>Complete</option></select></div><div><input class="rock-owner" placeholder="Owner"><input class="rock-note" placeholder="Next step / note"></div></div>`);
       }
     });
   }
