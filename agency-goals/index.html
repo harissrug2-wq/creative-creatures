@@ -123,7 +123,7 @@
   <div class="modal-backdrop" id="rockModal">
     <section class="modal">
       <h2>Add 90-Day Priority</h2>
-      <p>Create a manual Rock. Scorecard issues and opportunities can also be converted directly from the Agency Scorecard.</p>
+      <p>Create a manual 90-day priority. Scorecard issues and opportunities can also be converted directly from the Agency Scorecard.</p>
       <div class="form-grid">
         <div class="field full"><label>Priority title</label><input id="rockTitle" maxlength="160" placeholder="e.g. Delegate pricing authority"></div>
         <div class="field full"><label>Description / Done looks like</label><textarea id="rockDescription" placeholder="Describe the measurable outcome"></textarea></div>
@@ -350,8 +350,8 @@
           <span>${esc(rock.description || '90-Day priority')}</span>
           <small class="rock-source">${esc(rock.sourceType === 'manual' ? 'Manual' : 'Scorecard')}</small>
         </div>
-        <input data-rock-field="owner" value="${esc(resolvedOwner)}" aria-label="Rock owner" placeholder="Owner">
-        <input data-rock-field="dueDate" type="date" value="${esc(rock.dueDate || '')}" aria-label="Rock due date">
+        <input data-rock-field="owner" value="${esc(resolvedOwner)}" aria-label="Priority owner" placeholder="Owner">
+        <input data-rock-field="dueDate" type="date" value="${esc(rock.dueDate || '')}" aria-label="Priority due date">
         <select data-rock-field="status">
           ${['Not started','On track','Watch','Complete'].map(option => `<option ${rock.status === option ? 'selected' : ''}>${option}</option>`).join('')}
         </select>
