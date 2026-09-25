@@ -64,7 +64,8 @@
     error: null,
     openMeetingId: '',
     timerHandle: null,
-    calendar: { checked:false, connected:false, imported:0 }
+    calendar: { checked:false, connected:false, imported:0 },
+    integrationRequired:false
   };
 
   function dateLabel(value) {
@@ -288,6 +289,10 @@
     if (state.error) {
       root.innerHTML = `<div class="lead-load-error"><strong>Leadership could not load</strong><span>${esc(state.error)}</span><button type="button" data-retry-leadership>Retry</button></div>`;
       bind();
+      return;
+    }
+    if (state.integrationRequired) {
+      root.innerHTML = `<div class="leadership-live"><header class="lead-page-head"><div><span class="lead-eyebrow">Monitor · Agency Leadership</span><h1>Leadership</h1><p>Weekly operating cadence, priorities, issues, strategy, and vision.</p></div></header><section class="lead-card" style="padding:28px"><strong style="display:block;font-size:18px;margin-bottom:8px">Select a Calendar &amp; Meetings integration to activate Leadership</strong><p style="margin:0 0 18px;color:#667085;line-height:1.6">Leadership data stays hidden until you explicitly select an integration for Calendar &amp; Meetings. Connections selected for other categories do not feed this department.</p><a href="/integrations/" class="lead-primary" style="display:inline-flex;text-decoration:none">Choose Calendar &amp; Meetings integration →</a></section></div>`;
       return;
     }
 
@@ -1010,8 +1015,16 @@
   async function load() {
     state.loading = true;
     state.error = null;
+    state.integrationRequired = false;
     render();
     try {
+      const accessQuery=identityQuery();
+      const accessPayload=await request(`/api/account-auth?action=workspace_access${accessQuery?`&${accessQuery}`:''}`);
+      const selected=accessPayload?.access?.integrationSelections?.['Calendar & Meetings'];
+      if(!Array.isArray(selected)||!selected.length){
+        state.integrationRequired=true;
+        return;
+      }
       await refreshData();
       await syncCalendarMeetings();
     } catch (error) {
