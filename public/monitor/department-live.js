@@ -325,8 +325,23 @@
     return`<section class="department-section"><div class="department-section-head"><div><span>Live Detail</span><h2>${esc(model.title)}</h2></div><span>${esc(`${state.year} · ${state.timeframe} · ${state.period}`)}</span></div><div class="department-list">${model.rows.length?model.rows.map(row=>`<article><div><strong>${esc(row.title)}</strong><span>${esc(row.meta||'')}</span></div><b>${esc(row.value||'')}</b></article>`).join(''):'<div class="department-list-empty">No records returned by the connected source.</div>'}</div></section>`;
   }
 
+  function renderIntegrationRequired() {
+    const target=root();if(!target)return;
+    const categories=array(state.payload?.requiredIntegrationCategories);
+    const label=categories.join(' or ')||config.source;
+    document.querySelector('.workspace-name')?.replaceChildren(document.createTextNode(state.payload?.account?.agencyName||'Agency Workspace'));
+    target.innerHTML=`<section class="department-live">
+      <header class="department-head"><div><span class="department-eyebrow">Monitor · Department</span><h1>${esc(config.title)}</h1><p>${esc(config.subtitle)}</p></div></header>
+      <section class="department-source-callout" style="margin-top:22px;padding:28px">
+        <div><strong>Select a ${esc(label)} integration to activate ${esc(config.title)}</strong><span>This department stays private and empty until you explicitly select an integration for its category. A connection used in another category does not automatically feed this department.</span></div>
+        <a href="/integrations/">Choose ${esc(label)} integration →</a>
+      </section>
+    </section>`;
+  }
+
   function render() {
     const target=root();if(!target)return;
+    if(state.payload?.integrationRequired===true){renderIntegrationRequired();return;}
     const model=pageModel();
     const source=state.payload?.source||{};
     document.querySelector('.workspace-name')?.replaceChildren(document.createTextNode(state.payload?.account?.agencyName||'Agency Workspace'));
