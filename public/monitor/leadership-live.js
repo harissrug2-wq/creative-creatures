@@ -160,7 +160,7 @@
     return `<div class="lead-meeting-list">${meetings.map(meeting => `<button type="button" class="lead-meeting-row" data-edit-meeting="${esc(meeting.id)}">
       <span class="lead-meeting-date"><b>${esc(new Date(`${meeting.meeting_date}T12:00:00`).toLocaleDateString('en-US',{month:'short'}))}</b><strong>${esc(new Date(`${meeting.meeting_date}T12:00:00`).getDate())}</strong></span>
       <span class="lead-meeting-main"><strong>${esc(meeting.title)}</strong><small>${esc(dateLabel(meeting.meeting_date))}${meeting.facilitator_name ? ` · Facilitator ${esc(meeting.facilitator_name)}` : ''}</small></span>
-      <span class="lead-meeting-stats"><span>${esc(`${meeting.rocks_on_track || 0}/${meeting.rocks_total || 0}`)} rocks</span><span>${esc(`${meeting.open_todo_count || 0}`)} open to-dos</span><span>${esc(`${meeting.open_issue_count || 0}`)} open issues</span><span>${meeting.rating == null ? 'No rating' : `${esc(meeting.rating)}/10`}</span></span>
+      <span class="lead-meeting-stats"><span>${esc(`${meeting.rocks_on_track || 0}/${meeting.rocks_total || 0}`)} priorities</span><span>${esc(`${meeting.open_todo_count || 0}`)} open to-dos</span><span>${esc(`${meeting.open_issue_count || 0}`)} open issues</span><span>${meeting.rating == null ? 'No rating' : `${esc(meeting.rating)}/10`}</span></span>
       <span class="lead-meeting-action">${pill(meeting.status)}<b>${meeting.status === 'completed' ? 'View' : meeting.status === 'in_progress' ? 'Resume' : 'Open'}</b></span>
     </button>`).join('')}</div>`;
   }
@@ -177,7 +177,7 @@
 
   function meetingsTab() {
     return `<section class="lead-panel">
-      <div class="lead-source-notice"><span>L10</span><div><strong>Weekly leadership operating workspace</strong><p>${state.calendar.connected ? 'Matching Leadership, L10, and Level 10 events are scheduled automatically from this agency’s connected Google Calendar.' : 'Connect Google Calendar to schedule matching Leadership, L10, and Level 10 events automatically.'} Calendar events never create transcript content.</p></div></div>
+      <div class="lead-source-notice"><span>WEEKLY</span><div><strong>Weekly leadership operating workspace</strong><p>${state.calendar.connected ? 'Matching leadership meeting events are scheduled automatically from this agency’s connected Google Calendar.' : 'Connect Google Calendar to schedule matching leadership meeting events automatically.'} Calendar events never create transcript content.</p></div></div>
       <div class="lead-section-head"><div><span>Meeting cadence</span><h2>Weekly leadership meetings</h2></div><button type="button" class="lead-primary" data-new-meeting>＋ New meeting</button></div>
       <section class="lead-card">${meetingRows()}</section>
       <div class="lead-section-head"><div><span>Follow-through</span><h2>Leadership to-dos</h2></div><button type="button" class="lead-secondary" data-new-todo>＋ Add to-do</button></div>
@@ -207,7 +207,7 @@
 
   function scorecardTab() {
     return `<section class="lead-panel">
-      <div class="lead-source-notice"><span>KPI</span><div><strong>13-week operating scorecard</strong><p>Enter one value per metric each week. Targets determine whether each number is on track or off track for the L10.</p></div></div>
+      <div class="lead-source-notice"><span>KPI</span><div><strong>13-week operating scorecard</strong><p>Enter one value per metric each week. Targets determine whether each number is on track or off track for the weekly leadership meeting.</p></div></div>
       <div class="lead-section-head"><div><span>Weekly numbers</span><h2>Leadership scorecard</h2></div><button type="button" class="lead-primary" data-new-metric>＋ Add metric</button></div>
       <section class="lead-card">${scorecardRows()}</section>
     </section>`;
@@ -215,7 +215,7 @@
 
   function rockRows() {
     const rocks = state.leadership?.rocks || [];
-    if (!rocks.length) return emptyState('No 90-Day Prioritys', 'Create a manual Rock or convert scorecard priorities from Agency Goals.');
+    if (!rocks.length) return emptyState('No 90-Day Priorities', 'Create a manual priority or convert scorecard priorities from Agency Goals.');
     return `<div class="lead-work-list">${rocks.map(rock => `<button type="button" data-edit-rock="${esc(rock.id)}">
       <span><strong>${esc(rock.title)}</strong><small>${esc(rock.owner || 'No owner')} · ${esc(dueLabel(rock.dueDate))}</small></span>
       ${pill(rock.status)}
@@ -233,7 +233,7 @@
 
   function rocksTab() {
     return `<section class="lead-panel lead-two-column">
-      <article><div class="lead-section-head"><div><span>90-day priorities</span><h2>Rocks</h2></div><button type="button" class="lead-primary" data-new-rock>＋ New Rock</button></div><section class="lead-card">${rockRows()}</section></article>
+      <article><div class="lead-section-head"><div><span>90-day priorities</span><h2>90-Day Priorities</h2></div><button type="button" class="lead-primary" data-new-rock>＋ New Priority</button></div><section class="lead-card">${rockRows()}</section></article>
       <article><div class="lead-section-head"><div><span>Identify · Discuss · Solve</span><h2>Issues</h2></div><button type="button" class="lead-secondary" data-new-issue>＋ Add issue</button></div><section class="lead-card">${issueRows()}</section></article>
     </section>`;
   }
@@ -425,7 +425,7 @@
       owner:row.outcome?.owner ?? row.snapshot?.owner_name ?? '',
       status:row.outcome?.status ?? row.snapshot?.status
     })) : state.leadership?.rocks || [];
-    return `<div class="lead-l10-rocks" data-l10-rocks>${rocks.map(rock => `<div class="lead-l10-rock" data-rock-id="${esc(rock.id)}" data-meeting-item-id="${esc(rock.meetingItemId || '')}"><div><input class="rock-title" value="${esc(rock.title)}" aria-label="Rock title"><select class="rock-status" aria-label="Rock status">${['Not started','On track','Watch','Complete'].map(value => `<option ${rock.status === value ? 'selected':''}>${value}</option>`).join('')}</select></div><div><input class="rock-owner" value="${esc(rock.owner || '')}" placeholder="Owner"><input class="rock-note" value="${esc(rock.note ?? agenda.rockNotes[rock.id]?.note ?? '')}" placeholder="Next step / note"></div></div>`).join('')}</div><button type="button" class="lead-l10-row-button" data-add-rock-row>＋ Add rock</button>`;
+    return `<div class="lead-l10-rocks" data-l10-rocks>${rocks.map(rock => `<div class="lead-l10-rock" data-rock-id="${esc(rock.id)}" data-meeting-item-id="${esc(rock.meetingItemId || '')}"><div><input class="rock-title" value="${esc(rock.title)}" aria-label="Priority title"><select class="rock-status" aria-label="Priority status">${['Not started','On track','Watch','Complete'].map(value => `<option ${rock.status === value ? 'selected':''}>${value}</option>`).join('')}</select></div><div><input class="rock-owner" value="${esc(rock.owner || '')}" placeholder="Owner"><input class="rock-note" value="${esc(rock.note ?? agenda.rockNotes[rock.id]?.note ?? '')}" placeholder="Next step / note"></div></div>`).join('')}</div><button type="button" class="lead-l10-row-button" data-add-rock-row>＋ Add priority</button>`;
   }
 
   function todoReview(item) {
@@ -866,7 +866,7 @@
         if (name) name.value = ''; if (score) score.value = '8'; if (note) note.value = '';
       }
       if (button.matches('[data-add-rock-row]')) {
-        form.querySelector('[data-l10-rocks]')?.insertAdjacentHTML('beforeend', `<div class="lead-l10-rock" data-rock-id="new-${Date.now()}"><div><input class="rock-title" placeholder="Rock title" aria-label="Rock title"><select class="rock-status" aria-label="Rock status"><option>Not started</option><option>On track</option><option>Watch</option><option>Complete</option></select></div><div><input class="rock-owner" placeholder="Owner"><input class="rock-note" placeholder="Next step / note"></div></div>`);
+        form.querySelector('[data-l10-rocks]')?.insertAdjacentHTML('beforeend', `<div class="lead-l10-rock" data-rock-id="new-${Date.now()}"><div><input class="rock-title" placeholder="Rock title" aria-label="Priority title"><select class="rock-status" aria-label="Priority status"><option>Not started</option><option>On track</option><option>Watch</option><option>Complete</option></select></div><div><input class="rock-owner" placeholder="Owner"><input class="rock-note" placeholder="Next step / note"></div></div>`);
       }
     });
   }
