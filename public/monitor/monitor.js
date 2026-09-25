@@ -76,6 +76,17 @@
     bindShell();
   }
 
+  if(!window.__ccMonitorFeedbackBound){
+    window.__ccMonitorFeedbackBound=true;
+    document.addEventListener('click',event=>{
+      const control=event.target?.closest?.('button,.btn,.primary-btn,.secondary-btn,.danger-btn,.side-link');
+      if(!control||control.disabled||control.getAttribute('aria-disabled')==='true')return;
+      control.classList.add('cc-click-feedback');
+      clearTimeout(control.__ccFeedbackTimer);
+      control.__ccFeedbackTimer=setTimeout(()=>control.classList.remove('cc-click-feedback'),360);
+    },true);
+  }
+
   function bindShell(){
     const profileButton=document.querySelector('#profileButton'),profileMenu=document.querySelector('#profileMenu');
     profileButton?.addEventListener('click',e=>{e.stopPropagation();profileMenu.classList.toggle('open')});
