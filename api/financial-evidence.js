@@ -907,7 +907,7 @@ const MANUAL_FIELDS = {
   sde: {
     strings: [],
     numbers: ['adjustedSDE','capitalInvested','incrementalOperatingProfit','reinvestmentRatePercent'],
-    levels: ['technologyInvestmentLevel','talentInvestmentLevel','retainedEarningsGrowthLevel']
+    levels: ['technologyInvestmentLevel','talentInvestmentLevel']
   }
 };
 
@@ -1019,9 +1019,8 @@ const METRIC_WEIGHTS = {
   capital: {
     returnOnCapital: 30,
     reinvestmentRate: 20,
-    technologyInvestment: 15,
-    talentInvestment: 15,
-    retainedEarningsGrowth: 20
+    technologyInvestment: 25,
+    talentInvestment: 25
   }
 };
 
@@ -1246,9 +1245,8 @@ function buildPerformanceModel(rows) {
   const capital = categoryModel('capital', 'Capital Allocation', [
     metricRecord('returnOnCapital','Return on Capital / ROIC-Lite',roicLite,scoreReturnOnCapital(roicLite),30),
     metricRecord('reinvestmentRate','Reinvestment Rate',sde.reinvestmentRatePercent,scoreReinvestmentRate(sde.reinvestmentRatePercent),20),
-    metricRecord('technologyInvestment','Technology Investment',sde.technologyInvestmentLevel,clampLevel(sde.technologyInvestmentLevel),15),
-    metricRecord('talentInvestment','Talent Investment',sde.talentInvestmentLevel,clampLevel(sde.talentInvestmentLevel),15),
-    metricRecord('retainedEarningsGrowth','Retained Earnings Growth',sde.retainedEarningsGrowthLevel,clampLevel(sde.retainedEarningsGrowthLevel),20)
+    metricRecord('technologyInvestment','Technology Investment',sde.technologyInvestmentLevel,clampLevel(sde.technologyInvestmentLevel),25),
+    metricRecord('talentInvestment','Talent Investment',sde.talentInvestmentLevel,clampLevel(sde.talentInvestmentLevel),25)
   ]);
 
   const categories = { profitability, growth, revenueQuality, cash, capital };
