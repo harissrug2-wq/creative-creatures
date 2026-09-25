@@ -258,16 +258,27 @@
     <div class="evidence-requirements">${section.requirements.map(item=>`<div>${checkIcon}<span>${esc(item)}</span></div>`).join('')}</div>`;
   }
 
+  const rawNumber=value=>String(value??'').replace(/,/g,'').trim();
+  const formatMoneyInput=value=>{
+    const raw=rawNumber(value);
+    if(raw==='')return '';
+    const number=Number(raw);
+    return Number.isFinite(number)?number.toLocaleString('en-US',{maximumFractionDigits:2}):raw;
+  };
+
   function inputControl(section,field){
     const values=manualFor(section);
     const value=values[field.key]??'';
     if(field.type==='level'){
       const options=levelOptions[field.key]||[];
-      return `<select data-manual-key="${field.key}"><option value="">Select level</option>${options.map((label,index)=>`<option value="${index}" ${String(value)===String(index)?'selected':''}>${index} · ${esc(label)}</option>`).join('')}</select>`;
+      return `<select data-manual-key="${field.key}" data-field-type="${field.type}"><option value="">Select level</option>${options.map((label,index)=>`<option value="${index}" ${String(value)===String(index)?'selected':''}>${index} · ${esc(label)}</option>`).join('')}</select>`;
     }
     const suffix=field.type==='percent'?'%':field.type==='months'?'months':'';
     const prefix=field.type==='money'?'$':'';
-    return `<div class="manual-input-wrap">${prefix?`<span class="manual-prefix">${prefix}</span>`:''}<input data-manual-key="${field.key}" type="number" step="any" value="${esc(value)}" placeholder="0">${suffix?`<span class="manual-suffix">${suffix}</span>`:''}</div>`;
+    const inputType=field.type==='money'?'text':'number';
+    const inputMode=field.type==='money'?' inputmode="decimal"':'';
+    const displayValue=field.type==='money'?formatMoneyInput(value):value;
+    return `<div class="manual-input-wrap">${prefix?`<span class="manual-prefix">${prefix}</span>`:''}<input data-manual-key="${field.key}" data-field-type="${field.type}" type="${inputType}"${inputMode} step="any" value="${esc(displayValue)}" placeholder="0">${suffix?`<span class="manual-suffix">${suffix}</span>`:''}</div>`;
   }
 
   function manualBody(section){
@@ -346,7 +357,7 @@
 
   function captureManualInputs(section){
     document.querySelectorAll('[data-manual-key]').forEach(input=>{
-      manualFor(section)[input.dataset.manualKey]=input.value;
+      manualFor(section)[input.dataset.manualKey]=input.dataset.fieldType==='money'?rawNumber(input.value):input.value;
     });
     if(section.type==='sde'){
       const owner=document.querySelector('#ownershipPercent');
@@ -454,7 +465,7 @@
     document.querySelectorAll('[data-manual-key]').forEach(input=>{
       const update=()=>{
         const key=input.dataset.manualKey;
-        manualFor(section)[key]=input.value;
+        manualFor(section)[key]=input.dataset.fieldType==='money'?rawNumber(input.value):input.value;
         state.dirtyManual[section.id]=state.dirtyManual[section.id]||{};
         state.dirtyManual[section.id][key]=true;
         syncServiceMix(section,key);
@@ -463,6 +474,10 @@
       };
       input.addEventListener('input',update);
       input.addEventListener('change',update);
+      if(input.dataset.fieldType==='money'){
+        input.addEventListener('focus',()=>{input.value=rawNumber(input.value);});
+        input.addEventListener('blur',()=>{update();input.value=formatMoneyInput(input.value);});
+      }
     });
     document.querySelector('[data-save-manual]')?.addEventListener('click',()=>saveManualSection(section).catch(()=>null));
   }
