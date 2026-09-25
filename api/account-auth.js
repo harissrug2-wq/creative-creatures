@@ -966,9 +966,10 @@ function monitorIntegrationSelections(account){
       ? state.integration_selections
       : null;
   if(raw){
-    return Object.fromEntries(Object.entries(raw).map(([category,tools])=>[
+    const normalized=Object.fromEntries(Object.entries(raw).map(([category,tools])=>[
       clean(category),Array.isArray(tools)?[...new Set(tools.map(clean).filter(Boolean))]:[]
     ]));
+    if(Object.values(normalized).some(tools=>Array.isArray(tools)&&tools.length))return normalized;
   }
   // Backward compatibility for accounts saved before category-scoped selection:
   // a tool belongs only to its primary category, never every category it can feed.
