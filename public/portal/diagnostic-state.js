@@ -73,6 +73,7 @@
 
     'agencyIntegrationsComplete',
     'agencySelectedTools',
+    'agencyIntegrationSelections',
     'agencyIntegrationRequests',
     'agencyFinancialUploadComplete',
     'agencyUploadedFiles',
@@ -275,6 +276,22 @@
       localStorage.removeItem('agencySelectedTools');
     }
 
+    const integrationSelections = source.integrationSelections && typeof source.integrationSelections === 'object'
+      ? source.integrationSelections
+      : source.integration_selections && typeof source.integration_selections === 'object'
+        ? source.integration_selections
+        : null;
+    if (integrationSelections) {
+      const cleanedSelections = {};
+      Object.entries(integrationSelections).forEach(([category, tools]) => {
+        if (!Array.isArray(tools)) return;
+        cleanedSelections[String(category || '').trim()] = [...new Set(tools.map(value => String(value || '').trim()).filter(Boolean))];
+      });
+      localStorage.setItem('agencyIntegrationSelections', JSON.stringify(cleanedSelections));
+    } else if (options.replace === true) {
+      localStorage.removeItem('agencyIntegrationSelections');
+    }
+
     const integrationRequests = Array.isArray(source.integrationRequests)
       ? source.integrationRequests
       : Array.isArray(source.integration_requests) ? source.integration_requests : null;
@@ -298,6 +315,7 @@
       paymentComplete: localStorage.getItem('ccPaymentComplete') === 'true' || localStorage.getItem('agencyPaymentComplete') === 'true',
       integrationsComplete: localStorage.getItem('agencyIntegrationsComplete') === 'true',
       selectedTools: safeJson(localStorage.getItem('agencySelectedTools'), []),
+      integrationSelections: safeJson(localStorage.getItem('agencyIntegrationSelections'), {}),
       integrationRequests: safeJson(localStorage.getItem('agencyIntegrationRequests'), []),
       goalsComplete: localStorage.getItem('agencyGoalsComplete') === 'true',
       updatedAt: localStorage.getItem('ccDiagnosticUpdatedAt') || new Date().toISOString()
