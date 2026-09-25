@@ -1353,3 +1353,8 @@
 .paired-opportunity{display:block;margin-top:12px;padding-top:10px;border-top:1px solid var(--cc-line)}
 .paired-opportunity strong{display:block;font-size:12px;color:var(--cc-blue);margin-bottom:4px}
 .paired-opportunity>span{display:block;font-size:12px;line-height:1.5;color:var(--cc-muted);overflow-wrap:anywhere}
+
+.paired-opportunity{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;margin-top:7px}
+.paired-opportunity strong{font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:#7c8796}
+.paired-opportunity span{font-size:10px;line-height:1.4;color:var(--cc-muted)}
+.paired-opportunity-lift{font-size:10px;color:#169158;font-style:normal;font-weight:800;white-space:nowrap}
