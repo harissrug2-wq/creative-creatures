@@ -11,8 +11,8 @@
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
   }[char]));
   const meetingSections = [
-    ['segue','Segue',5], ['headlines','Headlines',5], ['scorecard','Scorecard',5],
-    ['rocks','Rocks',5], ['todos','To-Dos',10], ['ids','IDS',60], ['conclude','Conclude',5]
+    ['segue','Opening',5], ['headlines','Headlines',5], ['scorecard','Scorecard',5],
+    ['rocks','Priorities',5], ['todos','To-Dos',10], ['ids','Issues & Decisions',60], ['conclude','Wrap-Up',5]
   ];
 
   const currentAccount = () => safeJson(localStorage.getItem('cc_account'), null)
@@ -132,7 +132,7 @@
     const activeRocks = (state.leadership?.rocks || []).filter(rock => rock.status !== 'Complete').length;
     const items = [
       ['Last leadership meeting', summary.lastMeetingAt ? dateLabel(summary.lastMeetingAt) : 'No Data', 'Saved meeting history'],
-      ['Active 90-Day Rocks', String(activeRocks), 'Agency Goals'],
+      ['Active 90-Day Priorities', String(activeRocks), 'Agency Goals'],
       ['Open issues', String(summary.openIssues || 0), 'Leadership issue list'],
       ['Average meeting rating', summary.averageRating == null ? 'No Data' : `${summary.averageRating}/10`, 'Completed meetings']
     ];
@@ -143,9 +143,9 @@
     const items = [
       ['meetings','Weekly Leadership Meetings'],
       ['scorecard','Scorecard'],
-      ['rocks','Rocks & Issues'],
+      ['rocks','Priorities & Issues'],
       ['marketing','Marketing Strategy'],
-      ['vision','Vision / Traction']
+      ['vision','Vision & Strategy']
     ];
     return `<nav class="lead-tabs" aria-label="Agency Leadership sections">${items.map(([id,label]) => `<button type="button" class="${state.tab === id ? 'active' : ''}" data-lead-tab="${id}">${esc(label)}</button>`).join('')}</nav>`;
   }
@@ -215,7 +215,7 @@
 
   function rockRows() {
     const rocks = state.leadership?.rocks || [];
-    if (!rocks.length) return emptyState('No 90-Day Rocks', 'Create a manual Rock or convert scorecard priorities from Agency Goals.');
+    if (!rocks.length) return emptyState('No 90-Day Prioritys', 'Create a manual Rock or convert scorecard priorities from Agency Goals.');
     return `<div class="lead-work-list">${rocks.map(rock => `<button type="button" data-edit-rock="${esc(rock.id)}">
       <span><strong>${esc(rock.title)}</strong><small>${esc(rock.owner || 'No owner')} · ${esc(dueLabel(rock.dueDate))}</small></span>
       ${pill(rock.status)}
@@ -501,7 +501,7 @@
         <div class="lead-modal-grid"><label><span>Owner</span><input name="ownerName" maxlength="160" value="${esc(item?.owner_name || '')}" placeholder="Accountable person"></label><label><span>Due date</span><input type="date" name="dueDate" value="${esc(item?.due_date || '')}"></label></div>
         <div class="lead-modal-grid"><label><span>Status</span><select name="status"><option value="open" ${item?.status !== 'complete' ? 'selected':''}>Open</option><option value="complete" ${item?.status === 'complete' ? 'selected':''}>Complete</option></select></label><label><span>Meeting</span><select name="meetingId">${meetingsOptions(item?.meeting_id || '')}</select></label></div>`;
     } else {
-      title = item ? 'Edit 90-Day Rock' : 'New 90-Day Rock';
+      title = item ? 'Edit 90-Day Priority' : 'New 90-Day Priority';
       fields = `<input type="hidden" name="id" value="${esc(item?.id || '')}"><label><span>Rock</span><input name="title" required maxlength="220" value="${esc(item?.title || '')}" placeholder="Measurable 90-day priority"></label>
         <label><span>Description</span><textarea name="description" rows="5" placeholder="Define the outcome and why it matters…">${esc(item?.description || '')}</textarea></label>
         <div class="lead-modal-grid"><label><span>Owner</span><input name="owner" maxlength="160" value="${esc(item?.owner || '')}" placeholder="Accountable person"></label><label><span>Due date</span><input type="date" name="dueDate" value="${esc(item?.dueDate || '')}"></label></div>
