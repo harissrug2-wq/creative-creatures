@@ -304,27 +304,6 @@
     return {className:'pending',text:'PDF stored · confirm values below'};
   }
 
-  function uploadBody(section){
-    const meta=state.documents[section.id];
-    const status=meta?extractionLabel({...meta,sectionId:section.id}):null;
-    const canRetry=meta?.evidenceId && ['failed','uploaded'].includes(meta.extractionStatus||meta.extraction_status||'');
-    return `<div class="evidence-upload ${meta?'received':''}">
-      <div class="upload-mark">${meta?checkIcon:'<span>↑</span>'}</div>
-      <div class="upload-copy">
-        <h3>${meta?'Report received':'Upload PDF report'}</h3>
-        <p>${esc(section.copy)}</p>
-        ${meta?`<div class="uploaded-file"><strong>${esc(meta.name)}</strong>${meta.size?`<span>${formatSize(meta.size)}</span>`:''}</div>`:''}
-        ${status?`<div class="extraction-status ${status.className}">${esc(status.text)}</div>`:''}
-        <div class="upload-actions">
-          ${bookkeepingButtons()}
-          <label class="upload-button pdf-btn">${meta?'Replace PDF':'Upload PDF'}<input type="file" data-file="${section.id}" accept="application/pdf,.pdf"></label>
-          ${canRetry?`<button type="button" class="retry-analysis" data-retry="${section.id}">Retry automated extraction</button>`:''}
-        </div>
-        <p data-bookkeeping-error role="status" class="bookkeeping-error"></p>
-      </div>
-    </div>
-    <div class="evidence-requirements">${section.requirements.map(item=>`<div>${checkIcon}<span>${esc(item)}</span></div>`).join('')}</div>`;
-  }
 
   const rawNumber=value=>String(value??'').replace(/,/g,'').trim();
   const formatMoneyInput=value=>{
