@@ -1056,13 +1056,23 @@ async function loadMonitorDepartment(c,accountId,department){
     source={kind:'drive',name:'Google Drive',connected:connection.connected,connection,data:{items:connection.selectedItems||[]}};
   }
 
+  let visibleEvidenceRows=evidenceRows;
+  if(department==='billing'||department==='finance'){
+    const allowedModels=[];
+    if(integrationRequirement.selectedTools.includes('QuickBooks Online'))allowedModels.push('quickbooks-online-api');
+    if(integrationRequirement.selectedTools.includes('FreshBooks'))allowedModels.push('freshbooks-api');
+    visibleEvidenceRows=evidenceRows.filter(row=>allowedModels.includes(row.extraction_model));
+  }else if(department==='client-success'){
+    visibleEvidenceRows=source.kind==='financial_evidence'?evidenceRows:[];
+  }
+
   return{
     success:true,department,account:pub(account),generatedAt:new Date().toISOString(),
     integrationRequired:false,
     requiredIntegrationCategories:integrationRequirement.categories,
     selectedIntegrationTools:integrationRequirement.selectedTools,
     goal:publicMonitorGoal(goalRows[0]||null),rocks:rockRows.map(publicMonitorRock),
-    evidence:evidenceRows.map(publicMonitorEvidence),source,warnings:[...new Set(warnings.concat(source.warnings||[]))].slice(0,20)
+    evidence:visibleEvidenceRows.map(publicMonitorEvidence),source,warnings:[...new Set(warnings.concat(source.warnings||[]))].slice(0,20)
   };
 }
 
