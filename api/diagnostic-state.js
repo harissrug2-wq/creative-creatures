@@ -240,6 +240,16 @@ function sanitizeDiagnosticState(raw = {}) {
       : Array.isArray(source.selected_tools)
         ? [...new Set(source.selected_tools.map(value => clean(value)).filter(Boolean))].slice(0, 100)
         : [],
+    integrationSelections: Object.fromEntries(Object.entries(
+      source.integrationSelections && typeof source.integrationSelections === 'object'
+        ? source.integrationSelections
+        : source.integration_selections && typeof source.integration_selections === 'object'
+          ? source.integration_selections
+          : {}
+    ).map(([category, tools]) => [
+      clean(category),
+      Array.isArray(tools) ? [...new Set(tools.map(value => clean(value)).filter(Boolean))].slice(0, 50) : []
+    ]).filter(([category]) => Boolean(category))),
     goalsComplete: source.goalsComplete === true || source.goals_complete === true,
     updatedAt: source.updatedAt || source.updated_at || new Date().toISOString()
   };
@@ -357,11 +367,21 @@ export default async function handler(req, res) {
     // diagnostic UI saves its intentionally smaller compatibility payload.
     // Replacing this JSON wholesale would otherwise remove purchasedPlans and
     // make upgraded navigation disappear after the next assessment save.
+    const existingCompatibility = account.diagnostic_state && typeof account.diagnostic_state === 'object'
+      ? account.diagnostic_state
+      : {};
     const compatibilityState = {
-      ...(account.diagnostic_state && typeof account.diagnostic_state === 'object' ? account.diagnostic_state : {}),
+      ...existingCompatibility,
       ...diagnosticState,
-      indexes: diagnosticState.indexes || account.diagnostic_state?.indexes || {}
+      indexes: diagnosticState.indexes || existingCompatibility.indexes || {}
     };
+    // Workflow completion is authoritative once Agency Goals marks it complete.
+    // A later diagnostic/background sync must not accidentally relock Monitor
+    // because a browser did not yet hydrate the local goals flag.
+    if (existingCompatibility.goalsComplete === true || existingCompatibility.goals_complete === true) {
+      compatibilityState.goalsComplete = true;
+      compatibilityState.goalsCompletedAt = existingCompatibility.goalsCompletedAt || existingCompatibility.goals_completed_at || compatibilityState.goalsCompletedAt || null;
+    }
 
     // Keep the existing account JSON in sync during the migration period so
     // returning users and the current frontend continue to work unchanged.
