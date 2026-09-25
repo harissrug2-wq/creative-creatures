@@ -145,7 +145,7 @@
     let selected=Array.from(new Set(safeJson(localStorage.getItem('agencySelectedTools'),[]).map(x=>x==='GoHighLevel'||x==='CRM Connector'?'GHL CRM':x))).filter(Boolean);
 
     const meta={
-      'QuickBooks Online':{group:'Bookkeeping',code:'QB',color:'#2ca01c',copy:'OAuth2 · P&L · A/R · expenses',status:'quickbooks_status',connect:'quickbooks_connect',sync:'quickbooks_sync',disconnect:'quickbooks_disconnect'},
+      'QuickBooks Online':{group:'Bookkeeping',groups:['Bookkeeping','Billing','HR & People'],code:'QB',color:'#2ca01c',copy:'OAuth2 · P&L · A/R · expenses · billing · payroll',status:'quickbooks_status',connect:'quickbooks_connect',sync:'quickbooks_sync',disconnect:'quickbooks_disconnect'},
       'Xero':{group:'Bookkeeping',code:'Xe',color:'#13b5ea',copy:'Accounting · invoices · expenses'},
       'Sage':{group:'Bookkeeping',code:'Sg',color:'#00a376',copy:'Accounting · reporting'},
       'FreshBooks':{group:'Bookkeeping',code:'Fb',color:'#0075dd',copy:'OAuth2 · clients · invoices · payments · expenses · reports',status:'freshbooks_status',connect:'freshbooks_connect',sync:'freshbooks_sync',disconnect:'freshbooks_disconnect',manage:'freshbooks'},
@@ -198,8 +198,8 @@
       'Communications':['Slack','Microsoft Teams','Google Chat'],
       'Calendar & Meetings':['Google Calendar','Google Meet','Outlook Calendar','Zoom','Calendly'],
       'Central Drive':['Google Drive','Dropbox','OneDrive','Box'],
-      'HR & People':['Gusto','BambooHR','Rippling','ADP','Justworks'],
-      'Billing':['Stripe','Square','PayPal','Chargebee','Bill.com'],
+      'HR & People':['QuickBooks Online','Gusto','BambooHR','Rippling','ADP','Justworks'],
+      'Billing':['QuickBooks Online','Stripe','Square','PayPal','Chargebee','Bill.com'],
       'IT & Security':['Keeper','Bitwarden','1Password','Cloudflare','Okta']
     };
     const categoryOrder=Object.keys(catalog);
@@ -254,7 +254,7 @@
     function render(){
       empty.hidden=true;groupsEl.innerHTML='';
       categoryOrder.forEach(group=>{
-        const tools=selected.filter(tool=>meta[tool]?.group===group);
+        const tools=selected.filter(tool=>(meta[tool]?.groups||[meta[tool]?.group]).includes(group));
         const section=document.createElement('section');section.className='group';
         const served=catalog[group].some(tool=>Boolean(meta[tool]?.status));
         section.innerHTML=`<header class="group-head"><div class="group-title"><h2>${esc(group)}</h2><span class="group-tag">${served?'served':'provisioning'}</span></div><div class="group-head-actions"><span class="group-feed">${esc(groupFeeds[group])}</span><button class="btn group-add" data-add-category="${esc(group)}">＋ Add ${esc(group)}</button></div></header><div>${tools.length?tools.map(rowHtml).join(''):`<div class="group-empty">No ${esc(group)} integration selected.</div>`}</div>`;
@@ -354,7 +354,15 @@
     categoryModal.addEventListener('click',event=>{if(event.target===categoryModal)hide('#categoryModal')});
     document.addEventListener('keydown',event=>{if(event.key==='Escape')hide('#categoryModal')});
     async function loadStatuses(){
-      await Promise.all(selected.filter(t=>meta[t]?.status).map(loadToolStatus));
+      const autoDetect=['QuickBooks Online'];
+      const tools=[...new Set([...selected.filter(t=>meta[t]?.status),...autoDetect.filter(t=>meta[t]?.status)])];
+      await Promise.all(tools.map(loadToolStatus));
+      let changed=false;
+      autoDetect.forEach(tool=>{
+        if(stateMap.get(tool)?.connected&&!selected.includes(tool)){selected=[...selected,tool];changed=true;}
+      });
+      if(changed)await persistIntegrationState();
+      render();
       handleOauthReturn();
     }
     async function connectTool(tool,button){
