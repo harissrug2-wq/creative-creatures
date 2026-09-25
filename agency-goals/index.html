@@ -780,6 +780,8 @@
         showToast(error.message || 'Goals completion could not be saved.');
       } finally {
         button.disabled = false;
+        button.classList.remove('cc-action-busy');
+        button.innerHTML=originalButtonHtml;
       }
     });
 
