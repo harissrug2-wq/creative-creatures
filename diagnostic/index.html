@@ -6,6 +6,7 @@
   <section class="journey-head"><div class="journey-head-copy"><h1>Agency Diagnostic</h1><p>The framework we use for your diagnostic is built from found elements: owner identity, agency operational strength, owner independence and financial performance. Each combines to establish a valuation.</p></div>
     <aside class="progress-card"><div class="progress-top"><span>Analysis</span><span id="progressCount">1 / 4</span></div><div class="progress-line"><span id="progressBar" style="width:25%"></span></div><code id="progressMessage">Complete the following</code><a class="generate-diagnostic" id="generateDiagnostic" href="/diagnostic/processing/">Generate My Agency Scorecard <span>→</span></a></aside>
   </section>
+  <section class="cc-card ownership-diagnostic-notice" id="ownershipDiagnosticNotice" hidden></section>
   <section class="diagnostic-timeline" id="diagnosticTimeline">
     <article class="diag-step complete owner-identity-step" id="step-identity">
       <span class="step-dot" aria-label="Analysis 1 complete">✓</span>
@@ -22,6 +23,26 @@
 <script>(async()=>{
   try{await window.CCAccount?.ready}catch(error){console.error(error)}
   const state=window.CCDiagnostic.getState();
+  let ownership=null;
+  try{
+    const ownershipResponse=await fetch('/api/ownership',{headers:{Accept:'application/json'}});
+    if(ownershipResponse.ok)ownership=await ownershipResponse.json();
+  }catch(error){console.warn('Ownership status could not be loaded.',error)}
+  const ownershipNotice=document.getElementById('ownershipDiagnosticNotice');
+  const needsOwnershipConfirmation=ownership?.needsConfirmation===true;
+  const ownershipNeedsReview=ownership?.reassessment?.ownerIndependenceNeedsReview===true;
+  const scorecardNeedsRefresh=ownership?.reassessment?.scorecardNeedsRefresh===true;
+  if(ownershipNotice&&(needsOwnershipConfirmation||ownershipNeedsReview||scorecardNeedsRefresh)){
+    ownershipNotice.hidden=false;
+    if(needsOwnershipConfirmation){
+      ownershipNotice.innerHTML='<div><strong>Confirm your agency ownership structure</strong><p>Tell us whether this agency has one owner or multiple partners before Owner Independence is assessed. Ownership percentages must total 100%.</p></div><a class="small-blue" href="/ownership/">Set up owners & partners →</a>';
+    }else if(ownershipNeedsReview){
+      ownershipNotice.classList.add('warning');
+      ownershipNotice.innerHTML='<div><strong>Ownership changed — reassess Owner Independence</strong><p>Your Agency Strength and Performance results are preserved. Reassess only Owner Independence so the AOFI™ Scorecard reflects the current partners.</p></div><a class="small-blue" href="/independence-index/?retake=1&ownership=changed">Reassess Owner Independence →</a>';
+    }else if(scorecardNeedsRefresh){
+      ownershipNotice.innerHTML='<div><strong>Ownership reassessment complete</strong><p>Your owner-related assessment is updated. Refresh the AOFI™ Scorecard to attach the current ownership structure.</p></div><a class="small-blue" href="/diagnostic/processing/?refresh=1">Refresh AOFI™ Scorecard →</a>';
+    }
+  }
   if(!state.ownerComplete){location.replace('/signup/lookup/?destination=diagnostic');return;}
   const ownerReportUrl=window.CCDiagnostic.reportUrl();
   const viewArchetypeReport=document.getElementById('viewArchetypeReport');
@@ -50,6 +71,37 @@
     if(item.unlocked&&state.next===item.id){article.classList.add(item.data.progress>0?'in-progress':'active');dot.textContent=String(index+2).padStart(2,'0');action.className='small-blue step-action';action.href=item.href;action.textContent=item.data.progress>0?'→ Continue':'◉ Start';next.hidden=item.data.progress>0;progress.hidden=item.data.progress===0;value.textContent=`${item.data.progress}%`;bar.style.width=`${item.data.progress}%`;return;}
     article.classList.add('locked');dot.textContent=String(index+2).padStart(2,'0');action.className='small-outline step-action disabled-action';action.removeAttribute('href');action.textContent='▣ Locked';action.setAttribute('aria-disabled','true');next.hidden=true;progress.hidden=true;
   });
+  const independenceArticle=document.getElementById('step-independence');
+  if(needsOwnershipConfirmation&&independenceArticle){
+    const action=independenceArticle.querySelector('.step-action');
+    const next=independenceArticle.querySelector('.up-next');
+    independenceArticle.classList.remove('complete','in-progress','active');
+    independenceArticle.classList.add('ownership-required');
+    action.className='small-blue step-action';
+    action.href='/ownership/';
+    action.textContent='Set up owners first →';
+    action.removeAttribute('aria-disabled');
+    if(next)next.hidden=true;
+  }else if(ownershipNeedsReview&&independenceArticle){
+    const action=independenceArticle.querySelector('.step-action');
+    const dot=independenceArticle.querySelector('.step-dot');
+    const next=independenceArticle.querySelector('.up-next');
+    independenceArticle.classList.remove('complete','locked');
+    independenceArticle.classList.add('in-progress','ownership-review');
+    dot.textContent='↻';
+    action.className='small-blue step-action';
+    action.href='/independence-index/?retake=1&ownership=changed';
+    action.textContent='↻ Reassess';
+    action.removeAttribute('aria-disabled');
+    if(next)next.hidden=true;
+  }
+  if(scorecardNeedsRefresh&&!ownershipNeedsReview){
+    msg.hidden=true;
+    generate.classList.add('show');
+    generate.textContent='Refresh AOFI™ Scorecard →';
+    generate.href='/diagnostic/processing/?refresh=1';
+  }
+
   const nextTitle=document.getElementById('nextSectionTitle');
   const timeline=document.getElementById('diagnosticTimeline');
   if(state.allComplete){
