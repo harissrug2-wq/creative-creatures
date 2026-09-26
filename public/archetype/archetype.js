@@ -685,7 +685,7 @@
                 <section><h3>What We Do</h3><ul><li>✓ Owner Identity Assessment</li><li>✓ Leadership &amp; Team Accountability Review</li><li>✓ Back Office Performance Analysis<div class="offer-sublist">Marketing · Sales · Onboarding · Client Success · Services Delivery · Billing &amp; Finance</div></li><li>✓ Agency Strength Assessment</li><li>✓ Owner Dependency Assessment</li><li>✓ Agency Valuation Snapshot</li></ul></section>
                 <section><h3>What You Get</h3><ul><li>✓ Owner Freedom Report</li><li>✓ Custom 90 Day Priority Roadmap</li><li>✓ Custom 1 Year Goals &amp; Strategic Plan</li><li>✓ (Optional) Accountability Partner &amp; Platform</li></ul></section>
               </div>
-              <a href="/payment/?plan=${encodeURIComponent(selectedPlan)}" class="next-payment offer-cta" data-plan="${escapeHtml(selectedPlan)}">${escapeHtml(selectedOffer.cta)}</a>
+              <a href="/signup/ownership/?plan=${encodeURIComponent(selectedPlan)}" class="next-payment offer-cta" data-plan="${escapeHtml(selectedPlan)}">${escapeHtml(selectedOffer.cta)}</a>
             </article>`}
         </section>
       </main>`;
@@ -734,14 +734,20 @@
         if(!response.ok||!result.account)throw new Error(result.error||'Your free AOFI™ account could not be created.');
         window.CCAccount?.saveAccount?.({...result.account,backend_saved:true},{forceReset:true,replaceDiagnostic:true});
         localStorage.setItem('ccProgramPath','aofi_free');localStorage.setItem('ccSignedIn','true');
-        location.href='/diagnostic/';
+        location.href='/ownership/?setup=1';
       }catch(error){
         if(errorNode)errorNode.textContent=error.message||'Your free AOFI™ account could not be created.';
         button.disabled=false;button.textContent='Get My Free AOFI™ Score →';
       }
     });
     document.querySelector('.next-payment')?.addEventListener('click', event => {
-      localStorage.setItem('ccProgramPath', normalizePaidPlan(event.currentTarget.dataset.plan));
+      const selected=normalizePaidPlan(event.currentTarget.dataset.plan);
+      localStorage.setItem('ccProgramPath', selected);
+      localStorage.setItem('ccSignupPrimaryOwner', JSON.stringify({
+        name:[data.firstName,data.lastName].filter(Boolean).join(' ')||'Agency Owner',
+        email:String(data.email||localStorage.getItem('ccOwnerEmail')||'').trim().toLowerCase()
+      }));
+      localStorage.removeItem('ccSignupOwnership');
     });
   }
 
