@@ -204,3 +204,15 @@ button:not(:disabled):active,.btn:not(:disabled):active,.primary-btn:not(:disabl
 .lead-preview .lead-preview-panel textarea:disabled,
 .lead-preview .lead-preview-panel button:disabled{cursor:not-allowed;opacity:.62}
 .lead-integration-preview-callout{margin:18px 0 22px;border:1px solid #f0c76b;background:#fff9ec}
+
+.users-head-actions{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.users-head-actions .secondary-btn,.users-head-actions .primary-btn,.partner-management-card .primary-btn{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.users-subnav{display:flex;gap:8px;margin:0 0 16px;padding:5px;background:#f4f6fa;border:1px solid #e4e7ec;border-radius:12px;width:max-content;max-width:100%}
+.users-subnav a{padding:9px 14px;border-radius:8px;text-decoration:none;color:#667085;font-size:12px;font-weight:700}
+.users-subnav a.active{background:#fff;color:#2929ed;box-shadow:0 1px 3px rgba(16,24,40,.08)}
+.partner-management-card{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:20px 22px;margin-bottom:16px;border:1px solid #dfe3ff;background:linear-gradient(135deg,#fafaff,#f5f7ff)}
+.partner-management-card h2{margin:3px 0 6px;font-size:18px}
+.partner-management-card p{margin:0;max-width:700px;color:#667085;font-size:12px;line-height:1.55}
+.partner-management-kicker{font-size:10px;letter-spacing:.1em;font-weight:800;color:#4f46e5}
+.partner-user-row{background:#fafaff}
+@media(max-width:760px){.users-head-actions,.partner-management-card{align-items:stretch;flex-direction:column}.users-head-actions>* ,.partner-management-card .primary-btn{width:100%}.users-subnav{width:100%}.users-subnav a{flex:1;text-align:center}}
