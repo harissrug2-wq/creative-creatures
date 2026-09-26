@@ -29,7 +29,7 @@
       form.requestSubmit();
     }catch(e){showError(e.message);signOutButton.disabled=false;button.disabled=false;}
   });
-  form.addEventListener('submit' ,async event=>{event.preventDefault();signOutButton.hidden=true;signOutButton.disabled=false;button.disabled=true;error.textContent='';button.textContent='Opening Stripe…';try{const data=await request('checkout',{plan,email:email.value.trim()});const target=new URL(data.url);if(target.protocol!=='https:'||target.hostname!=='checkout.stripe.com')throw new Error('Unexpected checkout address.');location.assign(target.href);}catch(e){showError(e.message);signOutButton.hidden=e.code!=='MEMBER_CHECKOUT_SESSION';button.disabled=false;button.textContent='Continue to secure payment';}});
+  form.addEventListener('submit' ,async event=>{event.preventDefault();signOutButton.hidden=true;signOutButton.disabled=false;button.disabled=true;error.textContent='';button.textContent='Opening Stripe…';try{let ownership=null;try{ownership=JSON.parse(localStorage.getItem('ccPendingOwnership')||'null')}catch{}const data=await request('checkout',{plan,email:email.value.trim(),ownership});const target=new URL(data.url);if(target.protocol!=='https:'||target.hostname!=='checkout.stripe.com')throw new Error('Unexpected checkout address.');location.assign(target.href);}catch(e){showError(e.message);signOutButton.hidden=e.code!=='MEMBER_CHECKOUT_SESSION';button.disabled=false;button.textContent='Continue to secure payment';}});
   if(query.get('cancelled')==='1')showError('Checkout was cancelled. No access was activated.');
   async function confirmPayment(){
     button.disabled=true;button.textContent='Checking payment…';
