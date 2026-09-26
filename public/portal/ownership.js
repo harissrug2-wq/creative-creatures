@@ -43,10 +43,11 @@
     </section>
     ${model.needsConfirmation?`<section class="ownership-notice"><strong>Confirm your ownership structure before relying on owner-dependency scoring.</strong><span>If this agency has multiple owners, add every active partner now. If you are the only owner, simply confirm the 100% structure below.</span></section>`:''}
     ${model.reassessment?.ownerIndependenceNeedsReview?`<section class="ownership-notice warning"><strong>Ownership changed — Owner Independence needs reassessment.</strong><span>Your historical Scorecard is preserved. Reassess Owner Independence so the next AOFI™ Scorecard reflects the current partner structure.</span><a href="/diagnostic/">Go to AOFI™ Diagnostic →</a></section>`:''}
+    <nav class="ownership-subnav" aria-label="Account people"><a href="/users/">Team Users</a><a class="active" href="/ownership/">Ownership & Partners</a></nav>
     <section class="ownership-panel">
-      <div class="ownership-panel-head"><div><h2>Current owners</h2><p>Add active owners and make sure percentages total 100%.</p></div><button type="button" class="cc-btn cc-btn-secondary" id="addPartner">＋ Add Partner</button></div>
+      <div class="ownership-panel-head"><div><h2>Current owners</h2><p>Add active owners and make sure percentages total 100%.</p></div>${model.canEdit?'<button type="button" class="cc-btn cc-btn-secondary" id="addPartner">＋ Add Partner</button>':''}</div>
       <div id="ownerRows">${owners.map(row).join('')}</div>
-      <div class="ownership-actions"><div id="ownershipError" class="ownership-error"></div><button type="button" class="cc-btn cc-btn-primary" id="saveOwnership" ${valid?'':'disabled'}>Confirm Ownership Structure</button></div>
+      <div class="ownership-actions"><div id="ownershipError" class="ownership-error"></div>${model.canEdit?`<button type="button" class="cc-btn cc-btn-primary" id="saveOwnership" ${valid?'':'disabled'}>Confirm Ownership Structure</button>`:'<span class="ownership-readonly">Only the primary owner can change ownership.</span>'}</div>
     </section>
     <section class="ownership-panel"><div class="ownership-panel-head"><div><h2>Ownership history</h2><p>Historical structures remain tied to the period in which each AOFI™ Scorecard was generated.</p></div></div><div class="history-list">${history()}</div></section>`;
     bind();
@@ -90,5 +91,5 @@
       }catch(err){error.textContent=err.message;button.disabled=false;button.textContent='Confirm Ownership Structure'}
     });
   }
-  request().then(data=>{model=data;render()}).catch(error=>{root.innerHTML=`<section class="ownership-loading"><h1>Ownership & Partners</h1><p class="ownership-error">${esc(error.message)}</p></section>`});
+  request().then(data=>{model=data;if(model.canEdit&&new URLSearchParams(location.search).get("add")==="1"){model.owners=activeOwners();model.owners.push({id:null,name:"",email:"",title:"Partner",ownershipPercent:0,isPrimary:false,status:"active",ownerIdentityStatus:"not_started",invite:true});}render();if(new URLSearchParams(location.search).get("add")==="1")setTimeout(()=>root.querySelector("[data-owner-index]:last-of-type input[data-owner-field=\"name\"]")?.focus(),50);}).catch(error=>{root.innerHTML=`<section class="ownership-loading"><h1>Ownership & Partners</h1><p class="ownership-error">${esc(error.message)}</p></section>`});
 })();
