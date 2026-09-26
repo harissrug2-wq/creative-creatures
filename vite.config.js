@@ -54,6 +54,7 @@ export default defineConfig({
         systems: page('systems'),
         sops: page('sops'),
         users: page('users'),
+        ownership: page('ownership'),
         diagnostic: page('diagnostic'),
         diagnosticProcessing: resolve(__dirname, 'diagnostic', 'processing', 'index.html'),
         accelerator: page('accelerator'),

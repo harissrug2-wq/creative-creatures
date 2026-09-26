@@ -1,3 +1,4 @@
+import ownershipHandler from '../lib/ownership-api.js';
 import { withQuickBooksRecovery } from '../lib/quickbooks.js';
 import { readAgencyStripeContext } from '../lib/agency-stripe.js';
 import { readChat, sendChat } from '../lib/ask-creature-chat.js';
@@ -1286,6 +1287,7 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
 }
 
 export default async function handler(req,res){
+  if(String(req.query?.ownership||'')==='1')return ownershipHandler(req,res);
   res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,X-GHL-Signature');
   if(req.method==='OPTIONS')return json(res,204,{});
   const c=cfg();const secret=accountSessionSecret();if(!c||!secret)return json(res,503,{error:'Account authentication is not configured.'});
