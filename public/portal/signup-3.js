@@ -39,6 +39,12 @@
       });
     }
 
+    const stepPill=document.querySelector('.lookup-embedded-card .step-num-pill');
+    if(stepPill)stepPill.textContent='STEP 1 OF 4';
+    const nextGrid=document.querySelector('.next-steps-grid');
+    if(nextGrid){
+      nextGrid.innerHTML='<div class="next-step-card"><div class="next-step-circle">1</div><strong>Owner Identity</strong><span>Complete or find the primary owner identity report.</span></div><div class="next-step-card"><div class="next-step-circle">2</div><strong>Ownership & partners</strong><span>Confirm one owner or add every active agency partner and ownership percentage.</span></div><div class="next-step-card"><div class="next-step-circle">3</div><strong>Account & payment</strong><span>Secure checkout, then the agency workspace and partner access are provisioned.</span></div><div class="next-step-card"><div class="next-step-circle">4</div><strong>Systems & questionnaires</strong><span>Declare your tools while you work through the agency assessments.</span></div>';
+    }
     initEmbeddedLookup();
   };
 
@@ -107,10 +113,12 @@
     }
 
     function proceedToPayment(lead) {
-  selectLead(lead);
-  localStorage.setItem('ccProgramPath', destination);
-  location.href = '/payment/?plan=' + encodeURIComponent(destination);
-}
+      selectLead(lead);
+      localStorage.setItem('ccProgramPath', destination);
+      localStorage.setItem('ccSignupPrimaryOwner', JSON.stringify({name:String(lead?.name||'Agency Owner').trim(),email:String(lead?.email||'').trim().toLowerCase()}));
+      localStorage.removeItem('ccSignupOwnership');
+      location.href = '/signup/ownership/?plan=' + encodeURIComponent(destination);
+    }
 
     function loginToDiagnostic(lead) {
       const email = String(lead?.email || '').trim(), query = new URLSearchParams();
@@ -132,7 +140,7 @@
           <div class="lookup-result-actions">
             <button type="button" class="cc-btn cc-btn-secondary" data-view-lead="${index}">View Report</button>
             ${paid ? `<button type="button" class="cc-btn cc-btn-primary" data-login-lead="${index}">Login</button>`
-                   : `<button type="button" class="cc-btn cc-btn-primary" data-pay-lead="${index}">Proceed to Payment</button>`}
+                   : `<button type="button" class="cc-btn cc-btn-primary" data-pay-lead="${index}">Continue: Ownership Setup →</button>`}
           </div>
         </article>`;
       }).join('');
