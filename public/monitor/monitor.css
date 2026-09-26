@@ -204,3 +204,10 @@ button:not(:disabled):active,.btn:not(:disabled):active,.primary-btn:not(:disabl
 .lead-preview .lead-preview-panel textarea:disabled,
 .lead-preview .lead-preview-panel button:disabled{cursor:not-allowed;opacity:.62}
 .lead-integration-preview-callout{margin:18px 0 22px;border:1px solid #f0c76b;background:#fff9ec}
+
+.users-section-tabs{display:flex;gap:8px;margin-bottom:22px;border-bottom:1px solid #e6e9ee}
+.users-section-tabs a{display:inline-block;padding:11px 14px 12px;text-decoration:none;color:#667085;font-weight:700;font-size:13px;border-bottom:2px solid transparent}
+.users-section-tabs a.active{color:#272cf3;border-bottom-color:#272cf3}
+.users-head-actions{display:flex;gap:10px;align-items:center}
+.add-partner-link{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+@media(max-width:720px){.users-head-actions{width:100%;flex-direction:column}.users-head-actions .primary-btn,.users-head-actions .secondary-btn{width:100%}.users-section-tabs{overflow-x:auto}}
