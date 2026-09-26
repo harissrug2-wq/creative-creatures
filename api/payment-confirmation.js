@@ -8,6 +8,84 @@ const uuid=v=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.
 const tokenFor=id=>crypto.createHmac('sha256',accountSessionSecret()).update(`stripe-onboarding:${id}`).digest('hex');
 const hash=v=>crypto.createHash('sha256').update(v).digest('hex');
 async function orderById(id){if(!uuid(id))throw fail(400,'Invalid order.');const rows=await db(`cc_stripe_orders?id=eq.${id}&limit=1`);if(!rows?.[0])throw fail(404,'Order not found.');return rows[0];}
+
+const PARTNER_DEPARTMENTS=['leadership','marketing','sales','billing','onboarding','service-delivery','client-success','talent-acquisition','finance','communication','systems','sops'];
+function validateOwnershipPayload(raw, checkoutEmail){
+  if(raw===undefined||raw===null)return null;
+  if(!Array.isArray(raw)||raw.length<1||raw.length>10)throw fail(422,'Add between 1 and 10 owners.');
+  const owners=raw.map((row,index)=>({
+    name:clean(row?.name).slice(0,120),
+    email:clean(row?.email).toLowerCase(),
+    title:(clean(row?.title)|| (index===0?'Owner':'Partner')).slice(0,100),
+    ownershipPercent:Number(row?.ownershipPercent??row?.ownership_percent),
+    isPrimary:row?.isPrimary===true
+  }));
+  if(!owners.some(o=>o.isPrimary))owners[0].isPrimary=true;
+  if(owners.filter(o=>o.isPrimary).length!==1)throw fail(422,'Choose exactly one primary owner.');
+  for(const owner of owners){
+    if(!owner.name)throw fail(422,'Every owner needs a name.');
+    if(!/^\S+@\S+\.\S+$/.test(owner.email))throw fail(422,'Every owner needs a valid email address.');
+    if(!Number.isFinite(owner.ownershipPercent)||owner.ownershipPercent<0||owner.ownershipPercent>100)throw fail(422,'Ownership percentages must be between 0 and 100.');
+  }
+  if(Math.abs(owners.reduce((sum,o)=>sum+o.ownershipPercent,0)-100)>0.01)throw fail(422,'Ownership percentages must total 100%.');
+  if(new Set(owners.map(o=>o.email)).size!==owners.length)throw fail(422,'Each owner must use a unique email address.');
+  const primary=owners.find(o=>o.isPrimary);
+  if(primary.email!==String(checkoutEmail||'').toLowerCase())throw fail(422,'The primary owner email must match the assessment email used for checkout.');
+  return owners;
+}
+async function provisionSignupOwnership(order){
+  const owners=Array.isArray(order?.ownership_payload)?order.ownership_payload:null;
+  if(!owners?.length||!order?.account_id)return;
+  const existing=await db(`agency_owners?select=id&account_id=eq.${encodeURIComponent(order.account_id)}&limit=1`).catch(()=>[]);
+  if(existing?.length)return;
+  const today=new Date().toISOString().slice(0,10);
+  const rows=[];
+  const invites=[];
+  for(const owner of owners){
+    let memberId=null;
+    if(!owner.isPrimary){
+      const otherAccounts=await db(`accounts?select=id&email_normalized=eq.${encodeURIComponent(owner.email)}&limit=1`).catch(()=>[]);
+      if(otherAccounts?.[0]&&otherAccounts[0].id!==order.account_id)throw fail(409,`${owner.email} already owns another agency workspace.`);
+      const members=await db(`account_members?select=id,account_id,status&email_normalized=eq.${encodeURIComponent(owner.email)}&limit=1`).catch(()=>[]);
+      let member=members?.[0]||null;
+      if(member&&member.account_id!==order.account_id)throw fail(409,`${owner.email} already belongs to another agency workspace.`);
+      if(!member){
+        const password='CC-'+crypto.randomBytes(9).toString('base64url')+'!';
+        const created=await db('account_members?select=id,name,email,role,status','POST',{
+          account_id:order.account_id,name:owner.name,email:owner.email,email_normalized:owner.email,
+          password_hash:hashPassword(password),role:'partner',departments:PARTNER_DEPARTMENTS,status:'active'
+        });
+        member=created?.[0]||null;
+        invites.push({owner,password});
+      }
+      memberId=member?.id||null;
+    }
+    rows.push({
+      account_id:order.account_id,member_id:memberId,name:owner.name,email:owner.email,email_normalized:owner.email,
+      title:owner.title,ownership_percent:owner.ownershipPercent,is_primary:owner.isPrimary===true,status:'active',
+      effective_from:today,owner_identity_status:owner.isPrimary?'complete':'not_started'
+    });
+  }
+  await db('agency_owners','POST',rows);
+  const snapshots=await db('agency_ownership_snapshots?select=id,effective_at,structure','POST',{
+    account_id:order.account_id,reason:'signup_ownership',structure:owners,created_by:owners.find(o=>o.isPrimary)?.name||order.email
+  });
+  const snapshot=snapshots?.[0]||null;
+  const accounts=await db(`accounts?id=eq.${encodeURIComponent(order.account_id)}&select=diagnostic_state&limit=1`);
+  const state=accounts?.[0]?.diagnostic_state&&typeof accounts[0].diagnostic_state==='object'?accounts[0].diagnostic_state:{};
+  await db(`accounts?id=eq.${encodeURIComponent(order.account_id)}`,'PATCH',{diagnostic_state:{...state,ownershipConfirmedAt:new Date().toISOString(),ownerCount:owners.length,ownershipSnapshotId:snapshot?.id||null}});
+  for(const invite of invites){
+    try{
+      const {url}=settings();
+      await sendEmail({
+        to:invite.owner.email,
+        subject:'You have been added as an agency partner in Creative Creatures',
+        text:`Hi ${invite.owner.name},\n\nYou have been added as a partner in your agency's Creative Creatures workspace.\n\nSign in: ${url}/login/\nTemporary password: ${invite.password}\n\nYour ownership percentage is ${invite.owner.ownershipPercent}%.`,
+        html:`<div style="font-family:Inter,Arial,sans-serif;max-width:620px;margin:0 auto;color:#171820"><h2>Agency partner access</h2><p>Hi ${escapeHtml(invite.owner.name)},</p><p>You have been added as a partner in your agency's Creative Creatures workspace.</p><p><strong>Ownership:</strong> ${invite.owner.ownershipPercent}%</p><p><strong>Sign in:</strong> <a href="${url}/login/">${url}/login/</a><br><strong>Temporary password:</strong> ${escapeHtml(invite.password)}</p></div>`
+      });
+    }catch(error){console.error('Partner signup invite email failed',error?.message||error)}
+  }
+}
 async function notify(order){
   if(order.notification_sent_at)return;
   const {url}=settings();const setup=order.new_account&&new Date(order.reset_expires_at).getTime()>Date.now();
@@ -90,6 +168,7 @@ async function fulfill(session){
   const subId=typeof session.subscription==='string'?session.subscription:session.subscription?.id;
   const sub=subId?await stripe(`subscriptions/${encodeURIComponent(subId)}`):null;
   const result=await rpc('cc_stripe_fulfill',{p_order_id:order.id,p_session_id:session.id,p_customer_id:typeof session.customer==='string'?session.customer:session.customer?.id||null,p_subscription_id:subId||'',p_subscription_status:sub?.status||null,p_password_hash:hashPassword(crypto.randomBytes(32).toString('hex')),p_reset_hash:hash(tokenFor(order.id))});
+  await provisionSignupOwnership(result);
   await notify(result);
   return result;
 }
@@ -143,9 +222,11 @@ export default async function handler(req,res){
         }
       }
       if(!/^\S+@\S+\.\S+$/.test(email))throw fail(422,'Enter your assessment email.');
+      const ownership=validateOwnershipPayload(b.owners,email);
       const ids=await priceIds(plan);
       const order=await rpc('cc_stripe_begin',{p_email:email,p_plan:plan,p_account_id:accountId});
       if(order.error)throw fail(409,order.error);
+      if(ownership){await db(`cc_stripe_orders?id=eq.${order.id}`,'PATCH',{ownership_payload:ownership});order.ownership_payload=ownership;}
       let checkout;
       if(order.session_id){
         checkout=await stripe(`checkout/sessions/${encodeURIComponent(order.session_id)}`);
