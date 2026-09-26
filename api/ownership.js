@@ -59,6 +59,18 @@ async function latestSnapshot(c,accountId){
   const rows=await db(c,`agency_ownership_snapshots?select=*&account_id=eq.${encodeURIComponent(accountId)}&order=effective_at.desc&limit=1`);
   return Array.isArray(rows)?rows[0]||null:null;
 }
+async function attachLegacyScorecardToSnapshot(c,accountId,snapshot) {
+  if(!snapshot?.id)return;
+  try{
+    const runs=await db(c,`diagnostic_runs?select=id&account_id=eq.${encodeURIComponent(accountId)}&is_current=eq.true&limit=1`);
+    const run=Array.isArray(runs)?runs[0]:null;if(!run?.id)return;
+    const cards=await db(c,`scorecards?select=id,report_data,ownership_snapshot_id&diagnostic_run_id=eq.${encodeURIComponent(run.id)}&limit=1`);
+    const card=Array.isArray(cards)?cards[0]:null;if(!card?.id||card.ownership_snapshot_id)return;
+    const report={...(card.report_data||{}),ownership:{snapshotId:snapshot.id,asOf:snapshot.effective_at,owners:snapshot.structure||[]}};
+    await db(c,`scorecards?id=eq.${encodeURIComponent(card.id)}`,{method:'PATCH',body:JSON.stringify({ownership_snapshot_id:snapshot.id,report_data:report,updated_at:new Date().toISOString()})});
+  }catch(error){console.error('Legacy Scorecard ownership snapshot link skipped',error?.message||error)}
+}
+
 async function saveSnapshot(c,accountId,owners,reason,actor){
   const rows=await db(c,'agency_ownership_snapshots?select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({
     account_id:accountId,reason:clean(reason)||'ownership_update',structure:structureForSnapshot(owners),created_by:actor?.name||actor?.role||'owner'
@@ -67,8 +79,12 @@ async function saveSnapshot(c,accountId,owners,reason,actor){
 }
 async function ensurePartnerMember(c,req,account,owner){
   const email=lower(owner.email);if(!email||email===lower(account.email))return{memberId:null,emailSent:false};
-  const found=await db(c,`account_members?select=id,role,status&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);
+  const primaryAccounts=await db(c,`accounts?select=id,email&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);
+  const otherPrimary=Array.isArray(primaryAccounts)?primaryAccounts[0]:null;
+  if(otherPrimary&&otherPrimary.id!==account.id)throw Object.assign(new Error('This email already owns another Creative Creatures agency. Multi-agency memberships are not enabled yet.'),{status:409});
+  const found=await db(c,`account_members?select=id,account_id,role,status&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);
   let member=Array.isArray(found)?found[0]:null;
+  if(member&&member.account_id!==account.id)throw Object.assign(new Error('This email already belongs to another Creative Creatures agency workspace.'),{status:409});
   if(member&&member.id){
     if(member.role!=='partner'||member.status!=='active')await db(c,`account_members?id=eq.${encodeURIComponent(member.id)}`,{method:'PATCH',body:JSON.stringify({role:'partner',status:'active',departments:allDepartments,updated_at:new Date().toISOString()})});
     return{memberId:member.id,emailSent:false};
@@ -141,7 +157,11 @@ export default async function handler(req,res){
     const emails=normalized.map(row=>row.email).filter(Boolean);if(new Set(emails).size!==emails.length)return json(res,422,{error:'Each partner email must be unique.'});
 
     const previousActive=owners.filter(o=>o.status==='active');
-    const previousSnapshot=latest;
+    let previousSnapshot=latest;
+    if(!previousSnapshot&&account.diagnostic_state?.reportReady===true){
+      previousSnapshot=await saveSnapshot(c,account.id,previousActive,'legacy_baseline',actor);
+      await attachLegacyScorecardToSnapshot(c,account.id,previousSnapshot);
+    }
     const invites=[];
     const savedOwners=[];
     const submittedIds=new Set(normalized.map(row=>row.id).filter(Boolean));
