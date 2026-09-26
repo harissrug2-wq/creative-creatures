@@ -90,5 +90,5 @@
       }catch(err){error.textContent=err.message;button.disabled=false;button.textContent='Confirm Ownership Structure'}
     });
   }
-  request().then(data=>{model=data;render()}).catch(error=>{root.innerHTML=`<section class="ownership-loading"><h1>Ownership & Partners</h1><p class="ownership-error">${esc(error.message)}</p></section>`});
+  request().then(data=>{model=data;if(new URLSearchParams(location.search).get('add')==='1'){const active=(Array.isArray(model.owners)?model.owners:[]).filter(o=>o.status==='active');if(!active.some(o=>!o.id)){model.owners=active;model.owners.push({id:null,name:'',email:'',title:'Partner',ownershipPercent:0,isPrimary:false,status:'active',ownerIdentityStatus:'not_started',invite:true});}}render()}).catch(error=>{root.innerHTML=`<section class="ownership-loading"><h1>Ownership & Partners</h1><p class="ownership-error">${esc(error.message)}</p></section>`});
 })();
