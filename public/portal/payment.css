@@ -9,3 +9,6 @@
 .payment-page [hidden] {
   display: none !important;
 }
+.payment-ownership-summary{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:12px 0 4px;padding:13px 14px;border:1px solid #dfe3ff;border-radius:10px;background:#f7f8ff}
+.payment-ownership-summary div{display:grid;gap:3px}.payment-ownership-summary strong{font-size:12px}.payment-ownership-summary span{font-size:10px;color:#727d8e}.payment-ownership-summary a{font-size:10px;font-weight:700;color:#2929ed;text-decoration:none;white-space:nowrap}
+@media(max-width:560px){.payment-ownership-summary{align-items:flex-start;flex-direction:column}}
