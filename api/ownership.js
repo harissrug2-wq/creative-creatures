@@ -138,7 +138,7 @@ export default async function handler(req,res){
     const latest=await latestSnapshot(c,account.id);
     if(req.method==='GET'){
       const history=await db(c,`agency_ownership_snapshots?select=id,effective_at,reason,structure,created_by&account_id=eq.${encodeURIComponent(account.id)}&order=effective_at.desc&limit=20`);
-      return json(res,200,{ok:true,account:{id:account.id,agencyName:account.agency_name||'',primaryName:account.name,primaryEmail:account.email},owners,history:Array.isArray(history)?history:[],needsConfirmation:!latest,reassessment:{ownerIndependenceNeedsReview:account.diagnostic_state?.ownerIndependenceNeedsReview===true,scorecardNeedsRefresh:account.diagnostic_state?.scorecardNeedsRefresh===true,ownershipChangedAt:account.diagnostic_state?.ownershipChangedAt||null}});
+      return json(res,200,{ok:true,account:{id:account.id,agencyName:account.agency_name||'',primaryName:account.name,primaryEmail:account.email},actor:{role:actor.role,name:actor.name||''},canEdit:['owner','admin'].includes(actor.role),owners,history:Array.isArray(history)?history:[],needsConfirmation:!latest,reassessment:{ownerIndependenceNeedsReview:account.diagnostic_state?.ownerIndependenceNeedsReview===true,scorecardNeedsRefresh:account.diagnostic_state?.scorecardNeedsRefresh===true,ownershipChangedAt:account.diagnostic_state?.ownershipChangedAt||null}});
     }
     requirePrimary(actor);
     const body=typeof req.body==='string'?JSON.parse(req.body||'{}'):(req.body||{});
