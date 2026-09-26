@@ -12,6 +12,14 @@
   for(const feature of spec.features){const li=document.createElement('li');li.textContent=feature;features.appendChild(li);}
   const account=window.CCAccount?.getAccount?.(),email=document.getElementById('checkoutEmail');
   email.value=account?.email||localStorage.getItem('ccOwnerEmail')||'';
+  let signupOwnership=null;
+  try{signupOwnership=JSON.parse(localStorage.getItem('ccSignupOwnership')||'null')}catch{}
+  const ownershipSummary=document.getElementById('paymentOwnershipSummary');
+  if(ownershipSummary&&Array.isArray(signupOwnership?.owners)&&signupOwnership.owners.length){
+    const total=signupOwnership.owners.reduce((sum,o)=>sum+Number(o.ownershipPercent||0),0);
+    ownershipSummary.hidden=false;
+    ownershipSummary.innerHTML=`<div><strong>Ownership confirmed</strong><span>${signupOwnership.owners.length} owner${signupOwnership.owners.length===1?'':'s'} · ${total.toFixed(0)}% total</span></div><a href="/signup/ownership/?plan=${encodeURIComponent(plan)}">Edit owners & partners</a>`;
+  }
   const form=document.getElementById('paymentForm'),button=form.querySelector('button[type=submit]'),error=document.getElementById('paymentError');
   const showError=message=>{error.textContent=message;error.classList.add('show');};
   async function request(action,body){const r=await fetch(`/api/payment-confirmation?action=${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.error||'Unable to complete checkout.'),{code:data.code});return data;}
@@ -29,7 +37,7 @@
       form.requestSubmit();
     }catch(e){showError(e.message);signOutButton.disabled=false;button.disabled=false;}
   });
-  form.addEventListener('submit' ,async event=>{event.preventDefault();signOutButton.hidden=true;signOutButton.disabled=false;button.disabled=true;error.textContent='';button.textContent='Opening Stripe…';try{const data=await request('checkout',{plan,email:email.value.trim()});const target=new URL(data.url);if(target.protocol!=='https:'||target.hostname!=='checkout.stripe.com')throw new Error('Unexpected checkout address.');location.assign(target.href);}catch(e){showError(e.message);signOutButton.hidden=e.code!=='MEMBER_CHECKOUT_SESSION';button.disabled=false;button.textContent='Continue to secure payment';}});
+  form.addEventListener('submit' ,async event=>{event.preventDefault();signOutButton.hidden=true;signOutButton.disabled=false;button.disabled=true;error.textContent='';button.textContent='Opening Stripe…';try{const data=await request('checkout',{plan,email:email.value.trim(),owners:Array.isArray(signupOwnership?.owners)?signupOwnership.owners:undefined});const target=new URL(data.url);if(target.protocol!=='https:'||target.hostname!=='checkout.stripe.com')throw new Error('Unexpected checkout address.');location.assign(target.href);}catch(e){showError(e.message);signOutButton.hidden=e.code!=='MEMBER_CHECKOUT_SESSION';button.disabled=false;button.textContent='Continue to secure payment';}});
   if(query.get('cancelled')==='1')showError('Checkout was cancelled. No access was activated.');
   async function confirmPayment(){
     button.disabled=true;button.textContent='Checking payment…';
@@ -42,7 +50,7 @@
           document.getElementById('thanksName').textContent='';
           document.getElementById('paymentEmailStatus').textContent=data.emailSent?'Payment confirmed. Check your email to set your password, or sign in with your existing login.':'Payment confirmed. Your access is active. Sign in with your existing login, or use Forgot password to request a setup link.';
           const link=document.querySelector('.payment-continue');link.href='/login/';link.textContent='Sign in to your workspace';
-          history.replaceState(null,'',`/payment/?plan=${data.plan}`);return;
+          localStorage.removeItem('ccSignupOwnership');localStorage.removeItem('ccSignupPrimaryOwner');history.replaceState(null,'',`/payment/?plan=${data.plan}`);return;
         }
         if(data.state==='expired')throw new Error('This checkout expired without a completed payment.');
         await new Promise(resolve=>setTimeout(resolve,2000));
