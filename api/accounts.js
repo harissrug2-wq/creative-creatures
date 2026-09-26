@@ -246,6 +246,77 @@ async function findByIdentifiers(config, email, normalizedUrl) {
   return [...map.values()];
 }
 
+async function initializeOwnership(config, account, requestedOwners = []) {
+  if (!account?.id) return;
+  try {
+    const existing = await supabaseRequest(config, `agency_owners?select=id&account_id=eq.${encodeURIComponent(account.id)}&limit=1`);
+    if (Array.isArray(existing) && existing.length) return;
+
+    const submitted = Array.isArray(requestedOwners) ? requestedOwners : [];
+    let owners = submitted.map((row, index) => ({
+      name: clean(row?.name),
+      email: lower(row?.email),
+      title: clean(row?.title) || (index === 0 ? 'Owner' : 'Partner'),
+      ownershipPercent: Number(row?.ownershipPercent ?? row?.ownership_percent),
+      isPrimary: row?.isPrimary === true || index === 0
+    })).filter(row => row.name && Number.isFinite(row.ownershipPercent));
+
+    const total = owners.reduce((sum, row) => sum + row.ownershipPercent, 0);
+    const validSubmitted = owners.length > 0 && Math.abs(total - 100) <= 0.01;
+    if (!validSubmitted) {
+      owners = [{
+        name: account.name || 'Agency Owner',
+        email: lower(account.email),
+        title: 'Owner',
+        ownershipPercent: 100,
+        isPrimary: true
+      }];
+    }
+
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = owners.map(row => ({
+      account_id: account.id,
+      name: row.name,
+      email: row.email || null,
+      email_normalized: row.email || null,
+      title: row.title,
+      ownership_percent: row.ownershipPercent,
+      is_primary: row.isPrimary,
+      status: 'active',
+      effective_from: today,
+      owner_identity_status: row.email === lower(account.email) && Object.keys(account.archetype_result || {}).length ? 'complete' : 'not_started'
+    }));
+    await supabaseRequest(config, 'agency_owners', { method: 'POST', body: JSON.stringify(rows) });
+
+    if (validSubmitted) {
+      await supabaseRequest(config, 'agency_ownership_snapshots', {
+        method: 'POST',
+        body: JSON.stringify({
+          account_id: account.id,
+          reason: 'signup_ownership',
+          structure: owners.map(row => ({
+            name: row.name, email: row.email, title: row.title,
+            ownershipPercent: row.ownershipPercent, isPrimary: row.isPrimary
+          })),
+          created_by: account.name || account.email || 'signup'
+        })
+      });
+      const current = account.diagnostic_state && typeof account.diagnostic_state === 'object' ? account.diagnostic_state : {};
+      await updateById(config, account.id, {
+        diagnostic_state: {
+          ...current,
+          ownershipConfirmedAt: new Date().toISOString(),
+          ownerCount: owners.length
+        }
+      });
+    }
+  } catch (error) {
+    // Ownership migrations can deploy slightly after application code.
+    // Account creation must remain available while the schema catches up.
+    console.error('Ownership initialization skipped', error?.message || error);
+  }
+}
+
 async function updateById(config, id, patch) {
   const params = new URLSearchParams({ id: `eq.${id}`, select: SELECT });
   const rows = await supabaseRequest(config, `accounts?${params.toString()}`, {
@@ -598,6 +669,7 @@ export default async function handler(req, res) {
           body: JSON.stringify(record)
         });
         account = Array.isArray(rows) ? rows[0] : rows;
+        await initializeOwnership(config, account, body.owners || body.partners || []);
         const leadId = clean(body.leadId || body.lead_id);
         if (account?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leadId)) {
           await supabaseRequest(config, `owner_archetype_leads?id=eq.${encodeURIComponent(leadId)}`, {
