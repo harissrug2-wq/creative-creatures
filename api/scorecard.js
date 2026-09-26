@@ -83,7 +83,7 @@ async function getIndexRows(config, runId) {
 
 async function getSavedScorecard(config, runId) {
   const params = new URLSearchParams({
-    select: 'id,diagnostic_run_id,performance_score,strength_score,independence_score,aofi_score,confidence,validation_status,report_data,generated_at,updated_at',
+    select: 'id,diagnostic_run_id,performance_score,strength_score,independence_score,aofi_score,confidence,validation_status,report_data,ownership_snapshot_id,generated_at,updated_at',
     diagnostic_run_id: `eq.${runId}`,
     limit: '1'
   });
@@ -587,6 +587,34 @@ async function getLatestOwnershipSnapshot(config, accountId) {
   }
 }
 
+async function archiveScorecardForOwnershipChange(config, accountId, existing, nextOwnershipSnapshotId) {
+  if (!existing?.id || !existing.report_data || !Object.keys(existing.report_data).length) return;
+  const previousSnapshotId = existing.ownership_snapshot_id || existing.report_data?.ownership?.snapshotId || null;
+  if (!previousSnapshotId || previousSnapshotId === nextOwnershipSnapshotId) return;
+  try {
+    await supabaseRequest(config, 'agency_scorecard_history', {
+      method: 'POST',
+      body: JSON.stringify({
+        account_id: accountId,
+        scorecard_id: existing.id,
+        diagnostic_run_id: existing.diagnostic_run_id || null,
+        ownership_snapshot_id: previousSnapshotId,
+        performance_score: existing.performance_score,
+        strength_score: existing.strength_score,
+        independence_score: existing.independence_score,
+        aofi_score: existing.aofi_score,
+        confidence: existing.confidence,
+        validation_status: existing.validation_status,
+        report_data: existing.report_data || {},
+        source_generated_at: existing.generated_at || null,
+        archive_reason: 'ownership_change'
+      })
+    });
+  } catch (error) {
+    console.error('Historical ownership Scorecard archive skipped', error?.message || error);
+  }
+}
+
 async function saveScorecard(config, run, model) {
   const now = model.generatedAt || new Date().toISOString();
   const ownershipSnapshot = await getLatestOwnershipSnapshot(config, run.account_id);
@@ -597,6 +625,8 @@ async function saveScorecard(config, run, model) {
       owners: ownershipSnapshot.structure || []
     };
   }
+  const existingScorecard = await getSavedScorecard(config, run.id);
+  await archiveScorecardForOwnershipChange(config, run.account_id, existingScorecard, ownershipSnapshot?.id || null);
   const record = {
     diagnostic_run_id: run.id,
     performance_score: model.reports.performance.score,
