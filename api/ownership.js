@@ -13,7 +13,7 @@ async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${pat
 function origin(req){const proto=clean(req.headers?.['x-forwarded-proto'])||'https';const host=clean(req.headers?.['x-forwarded-host']||req.headers?.host)||'app.creativecreatures.org';return `${proto}://${host}`}
 
 async function accountForSession(c,session){
-  const rows=await db(c,`accounts?select=id,name,email,agency_name,diagnostic_state,created_at& id=eq.${encodeURIComponent(session.accountId)}&limit=1`.replace('& ', '&'));
+  const rows=await db(c,`accounts?select=id,name,email,agency_name,archetype_result,diagnostic_state,created_at&id=eq.${encodeURIComponent(session.accountId)}&limit=1`);
   return Array.isArray(rows)?rows[0]||null:null;
 }
 async function actorForSession(c,session,account){
@@ -43,7 +43,7 @@ async function bootstrapOwner(c,account){
   const rows=await db(c,'agency_owners?select=*',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({
     account_id:account.id,name:account.name||'Agency Owner',email:account.email||null,email_normalized:lower(account.email)||null,
     title:'Owner',ownership_percent:100,is_primary:true,status:'active',effective_from:now,
-    owner_identity_status:Object.keys(account.diagnostic_state?.ownerIdentity||{}).length?'complete':'not_started'
+    owner_identity_status:Object.keys(account.archetype_result||{}).length?'complete':'not_started'
   })});
   return(Array.isArray(rows)?rows:[]).map(publicOwner);
 }
