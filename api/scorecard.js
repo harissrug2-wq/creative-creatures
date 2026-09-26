@@ -572,8 +572,31 @@ function buildModel(account, rows, generatedAt, diagnosticRunId = null) {
   }, valuation);
 }
 
+async function getLatestOwnershipSnapshot(config, accountId) {
+  try {
+    const params = new URLSearchParams({
+      select: 'id,effective_at,structure',
+      account_id: `eq.${accountId}`,
+      order: 'effective_at.desc',
+      limit: '1'
+    });
+    const rows = await supabaseRequest(config, `agency_ownership_snapshots?${params.toString()}`);
+    return Array.isArray(rows) ? rows[0] || null : null;
+  } catch {
+    return null;
+  }
+}
+
 async function saveScorecard(config, run, model) {
   const now = model.generatedAt || new Date().toISOString();
+  const ownershipSnapshot = await getLatestOwnershipSnapshot(config, run.account_id);
+  if (ownershipSnapshot) {
+    model.ownership = {
+      snapshotId: ownershipSnapshot.id,
+      asOf: ownershipSnapshot.effective_at,
+      owners: ownershipSnapshot.structure || []
+    };
+  }
   const record = {
     diagnostic_run_id: run.id,
     performance_score: model.reports.performance.score,
@@ -583,6 +606,7 @@ async function saveScorecard(config, run, model) {
     confidence: model.confidence,
     validation_status: normalizeValidation(model.validation),
     report_data: model,
+    ownership_snapshot_id: ownershipSnapshot?.id || null,
     generated_at: now,
     updated_at: now
   };
@@ -625,6 +649,9 @@ async function markAccountGenerated(config, account, model) {
     allComplete: true,
     reportReady: true,
     generatedAt: model.generatedAt,
+    ownerIndependenceNeedsReview: false,
+    scorecardNeedsRefresh: false,
+    ownershipSnapshotId: model.ownership?.snapshotId || current.ownershipSnapshotId || null,
     updatedAt: model.generatedAt
   };
   const params = new URLSearchParams({ id: `eq.${account.id}` });
