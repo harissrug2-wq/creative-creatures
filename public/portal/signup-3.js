@@ -40,7 +40,78 @@
     }
 
     initEmbeddedLookup();
+    initOwnershipSignup();
   };
+
+  const OWNERSHIP_KEY='ccPendingOwnership';
+  const readPendingOwnership=()=>{try{return JSON.parse(localStorage.getItem(OWNERSHIP_KEY)||'null')}catch{return null}};
+  const primaryOwnerDefaults=()=>({
+    name:[localStorage.getItem('ccOwnerFirstName'),localStorage.getItem('ccOwnerLastName')].filter(Boolean).join(' ').trim(),
+    email:(localStorage.getItem('ccOwnerEmail')||'').trim(),
+    title:'Owner',ownershipPercent:100,isPrimary:true
+  });
+  const savePendingOwnership=owners=>localStorage.setItem(OWNERSHIP_KEY,JSON.stringify(owners));
+
+  function initOwnershipSignup(){
+    const lookupCard=document.querySelector('.lookup-embedded-card');
+    if(!lookupCard||document.getElementById('signupOwnershipCard'))return;
+    const current=readPendingOwnership();
+    const owners=Array.isArray(current)&&current.length?current:[primaryOwnerDefaults()];
+    const card=document.createElement('section');
+    card.id='signupOwnershipCard';
+    card.className='signup-ownership-card';
+    card.innerHTML=`
+      <div class="signup-ownership-head">
+        <div><span class="signup-ownership-kicker">AGENCY OWNERSHIP</span><h2>Does this agency have more than one owner?</h2><p>Add every active owner or partner now. Ownership must total 100%. This structure is used for Owner Independence and future AOFI™ Scorecards.</p></div>
+        <div class="signup-ownership-total"><span>Total</span><strong id="signupOwnershipTotal">100%</strong></div>
+      </div>
+      <div class="signup-ownership-choice">
+        <button type="button" data-owner-mode="single">One owner</button>
+        <button type="button" data-owner-mode="multiple">Multiple owners / partners</button>
+      </div>
+      <div id="signupOwnerRows"></div>
+      <div class="signup-ownership-actions"><button type="button" class="cc-btn cc-btn-secondary" id="signupAddPartner">＋ Add Partner</button><span id="signupOwnershipError"></span></div>`;
+    lookupCard.insertAdjacentElement('afterend',card);
+
+    let rows=owners.map((o,i)=>({...o,isPrimary:i===0}));
+    const rowsEl=card.querySelector('#signupOwnerRows'),totalEl=card.querySelector('#signupOwnershipTotal'),errorEl=card.querySelector('#signupOwnershipError'),addBtn=card.querySelector('#signupAddPartner');
+    const render=()=>{
+      const multi=rows.length>1;
+      card.querySelectorAll('[data-owner-mode]').forEach(b=>b.classList.toggle('selected',(b.dataset.ownerMode==='multiple')===multi));
+      addBtn.hidden=!multi;
+      rowsEl.innerHTML=rows.map((o,i)=>`<div class="signup-owner-row" data-index="${i}">
+        <div class="signup-owner-row-head"><strong>${i===0?'Primary owner':'Partner '+i}</strong>${i===0?'':'<button type="button" data-remove-owner>Remove</button>'}</div>
+        <label>Full name<input data-field="name" value="${String(o.name||'').replace(/"/g,'&quot;')}" placeholder="Full name"></label>
+        <label>Email<input data-field="email" type="email" value="${String(o.email||'').replace(/"/g,'&quot;')}" placeholder="owner@agency.com"></label>
+        <label>Role / title<input data-field="title" value="${String(o.title||'').replace(/"/g,'&quot;')}" placeholder="Managing Partner"></label>
+        <label>Ownership %<input data-field="ownershipPercent" type="number" min="0" max="100" step="0.01" value="${Number(o.ownershipPercent||0)}"></label>
+      </div>`).join('');
+      bindRows();sync();
+    };
+    const bindRows=()=>{
+      rowsEl.querySelectorAll('.signup-owner-row').forEach(el=>{
+        const i=Number(el.dataset.index);
+        el.querySelectorAll('[data-field]').forEach(input=>input.addEventListener('input',()=>{
+          rows[i][input.dataset.field]=input.dataset.field==='ownershipPercent'?Number(input.value||0):input.value.trim();
+          sync();
+        }));
+        el.querySelector('[data-remove-owner]')?.addEventListener('click',()=>{rows.splice(i,1);render()});
+      });
+    };
+    const sync=()=>{
+      rows[0].isPrimary=true;
+      const total=rows.reduce((s,o)=>s+Number(o.ownershipPercent||0),0);
+      totalEl.textContent=`${total.toFixed(2).replace('.00','')}%`;
+      const valid=Math.abs(total-100)<=0.01&&rows.every(o=>o.name&&(!o.email||/^\S+@\S+\.\S+$/.test(o.email)));
+      totalEl.classList.toggle('invalid',!valid);
+      errorEl.textContent=valid?'':'Ownership must total 100%, and each owner needs a name.';
+      savePendingOwnership(rows);
+    };
+    card.querySelector('[data-owner-mode="single"]').onclick=()=>{const p=rows[0]||primaryOwnerDefaults();rows=[{...p,ownershipPercent:100,isPrimary:true}];render()};
+    card.querySelector('[data-owner-mode="multiple"]').onclick=()=>{if(rows.length===1){rows[0].ownershipPercent=50;rows.push({name:'',email:'',title:'Partner',ownershipPercent:50,isPrimary:false})}render()};
+    addBtn.onclick=()=>{const used=rows.reduce((s,o)=>s+Number(o.ownershipPercent||0),0);rows.push({name:'',email:'',title:'Partner',ownershipPercent:Math.max(0,100-used),isPrimary:false});render()};
+    render();
+  }
 
   const initEmbeddedLookup = () => {
     const card = document.querySelector('.lookup-embedded-card');
@@ -107,10 +178,20 @@
     }
 
     function proceedToPayment(lead) {
-  selectLead(lead);
-  localStorage.setItem('ccProgramPath', destination);
-  location.href = '/payment/?plan=' + encodeURIComponent(destination);
-}
+      selectLead(lead);
+      const pending=readPendingOwnership();
+      if(!Array.isArray(pending)||!pending.length){
+        document.getElementById('signupOwnershipCard')?.scrollIntoView({behavior:'smooth',block:'center'});
+        throw new Error('Confirm the agency ownership structure before payment.');
+      }
+      const total=pending.reduce((sum,row)=>sum+Number(row.ownershipPercent||0),0);
+      if(Math.abs(total-100)>0.01||pending.some(row=>!String(row.name||'').trim())){
+        document.getElementById('signupOwnershipCard')?.scrollIntoView({behavior:'smooth',block:'center'});
+        throw new Error('Ownership must total 100% and every owner needs a name.');
+      }
+      localStorage.setItem('ccProgramPath', destination);
+      location.href = '/payment/?plan=' + encodeURIComponent(destination);
+    }
 
     function loginToDiagnostic(lead) {
       const email = String(lead?.email || '').trim(), query = new URLSearchParams();
