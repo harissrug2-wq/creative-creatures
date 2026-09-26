@@ -298,13 +298,13 @@ function featuresForAccount(account, actor){
   }
   return[...features];
 }
-function publicMember(row){return row?{id:row.id,name:row.name,email:row.email,role:'member',departments:Array.isArray(row.departments)?row.departments:[],status:row.status,invitedAt:row.invited_at,lastLoginAt:row.last_login_at}:null}
+function publicMember(row){return row?{id:row.id,name:row.name,email:row.email,role:row.role||'member',departments:Array.isArray(row.departments)?row.departments:[],status:row.status,invitedAt:row.invited_at,lastLoginAt:row.last_login_at}:null}
 async function sessionActor(c,session){
   if(!session)return null;
   if(session.role==='admin')return{role:'admin',accountId:session.accountId,memberId:null,name:session.username||'Admin',email:'admin@creativecreatures.ai',departments:DEPARTMENTS,isAdmin:true};
   if(!session.memberId)return{role:'owner',accountId:session.accountId,memberId:null,departments:DEPARTMENTS};
-  const rows=await db(c,`account_members?select=id,account_id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(session.accountId)}&id=eq.${encodeURIComponent(session.memberId)}&limit=1`),member=Array.isArray(rows)?rows[0]:null;
-  return member?.status==='active'?{role:'member',accountId:session.accountId,memberId:member.id,name:member.name,email:member.email,departments:Array.isArray(member.departments)?member.departments:[]}:null;
+  const rows=await db(c,`account_members?select=id,account_id,name,email,role,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(session.accountId)}&id=eq.${encodeURIComponent(session.memberId)}&limit=1`),member=Array.isArray(rows)?rows[0]:null;
+  return member?.status==='active'?{role:member.role||'member',accountId:session.accountId,memberId:member.id,name:member.name,email:member.email,departments:member.role==='partner'?DEPARTMENTS:(Array.isArray(member.departments)?member.departments:[])}:null;
 }
 function sanitizeDepartments(value){return [...new Set((Array.isArray(value)?value:[]).map(v=>clean(v).toLowerCase().replace(/[^a-z0-9]+/g,'-')).filter(v=>DEPARTMENTS.includes(v)))]}
 function requireOwner(actor){if(actor?.role!=='owner'&&actor?.role!=='admin')throw Object.assign(new Error('Only the agency owner or administrator can manage users or integrations.'),{status:403})}
@@ -334,7 +334,7 @@ function publicAccess(account,actor){
     departments:DEPARTMENTS,isAdmin:actor.role==='admin'||Boolean(actor.isAdmin),readOnly:actor.role==='admin'||Boolean(actor.isAdmin)
   }
 }
-async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
+async function listWorkspaceUsers(c,accountId){const rows=await db(c,`account_members?select=id,name,email,role,departments,status,invited_at,last_login_at&account_id=eq.${encodeURIComponent(accountId)}&order=created_at.asc`);return(Array.isArray(rows)?rows:[]).map(publicMember)}
 function responseText(payload){if(clean(payload?.output_text))return clean(payload.output_text);if(clean(payload?.choices?.[0]?.message?.content))return clean(payload.choices[0].message.content);for(const item of payload?.output||[])for(const part of item?.content||[])if(part?.type==='output_text'&&clean(part.text))return clean(part.text);return''}
 
 async function requestOpenAI(key,instructions,inputMessages,maxTokens=300){
@@ -1322,7 +1322,7 @@ export default async function handler(req,res){
         });
       }
 
-      if(session?.memberId&&action){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});return json(res,403,{error:'Only the agency owner can manage integrations and agency-wide programs.'})}
+      if(session?.memberId&&action){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});if(actor.role==='member')return json(res,403,{error:'Only agency owners and partners can access agency-wide programs.'})}
       if(session&&action){const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});requireFeature(account,action==='accelerator'?'accelerator':action==='partner_portal'?'portal':integrationFeature(action))}
 
       if(action==='callback'){
@@ -1530,7 +1530,7 @@ export default async function handler(req,res){
       if(bodyAction==='workspace_remove_user'){await db(c,`account_members?account_id=eq.${encodeURIComponent(account.id)}&id=eq.${encodeURIComponent(id)}`,{method:'DELETE'});return json(res,200,{success:true})}
       const patch={name:clean(b.name).slice(0,120),departments:sanitizeDepartments(b.departments),status:b.status==='disabled'?'disabled':'active',updated_at:new Date().toISOString()};if(!patch.name||!patch.departments.length)return json(res,422,{error:'Name and at least one department are required.'});if(clean(b.password)){if(clean(b.password).length<10)return json(res,422,{error:'New password must be at least 10 characters.'});patch.password_hash=hashPassword(clean(b.password))}const rows=await db(c,`account_members?account_id=eq.${encodeURIComponent(account.id)}&id=eq.${encodeURIComponent(id)}&select=id,name,email,departments,status,invited_at,last_login_at`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});return json(res,200,{success:true,user:publicMember(rows?.[0])});
     }
-    if(session?.memberId&&bodyAction&&!['monitor_department','google_calendar_events','forgot_password','reset_password'].includes(bodyAction)){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});return json(res,403,{error:'Your department account cannot manage agency-wide programs or integrations.'})}
+    if(session?.memberId&&bodyAction&&!['monitor_department','google_calendar_events','forgot_password','reset_password'].includes(bodyAction)){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});if(actor.role==='member')return json(res,403,{error:'Your department account cannot manage agency-wide programs or integrations.'})}
     if(session&&bodyAction&&!['forgot_password','reset_password'].includes(bodyAction)){
       const account=await findById(c,session.accountId);if(!account)return json(res,401,{error:'Your account access is no longer active.'});
       const feature=bodyAction.startsWith('accelerator_')?'accelerator':bodyAction==='partner_referral'?'portal':bodyAction==='monitor_department'?'monitor':bodyAction==='google_calendar_events'?'leadership':integrationFeature(bodyAction);requireFeature(account,feature);
@@ -1968,9 +1968,9 @@ export default async function handler(req,res){
     const email=lower(b.email),password=clean(b.password);
     if(!email||!password)return json(res,422,{error:'Email and password are required.'});
     const rows=await db(c,`accounts?select=${SELECT}&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);let account=Array.isArray(rows)?rows[0]:null,member=null;
-    if(!account){const members=await db(c,`account_members?select=id,account_id,name,email,password_hash,departments,status&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);member=Array.isArray(members)?members[0]:null;if(member?.status==='active')account=await findById(c,member.account_id)}
+    if(!account){const members=await db(c,`account_members?select=id,account_id,name,email,password_hash,role,departments,status&email_normalized=eq.${encodeURIComponent(email)}&limit=1`);member=Array.isArray(members)?members[0]:null;if(member?.status==='active')account=await findById(c,member.account_id)}
     const passwordHash=member?.password_hash||account?.password_hash;if(!account||!passwordHash||!verifyPassword(password,passwordHash))return json(res,401,{error:'Invalid email or password.'});
     if(member)await db(c,`account_members?id=eq.${encodeURIComponent(member.id)}`,{method:'PATCH',body:JSON.stringify({last_login_at:new Date().toISOString()})});const token=signSession({role:'account',accountId:account.id,memberId:member?.id||null,email:member?.email||account.email},secret,30*24*60*60);setSessionCookie(res,'cc_account_session',token,30*24*60*60);
-    const actor=member?{role:'member',memberId:member.id,name:member.name,email:member.email,departments:member.departments||[]}:await sessionActor(c,{accountId:account.id});return json(res,200,{authenticated:true,account:pub(account),access:publicAccess(account,actor)});
+    const actor=member?{role:member.role||'member',memberId:member.id,name:member.name,email:member.email,departments:member.role==='partner'?DEPARTMENTS:(member.departments||[])}:await sessionActor(c,{accountId:account.id});return json(res,200,{authenticated:true,account:pub(account),access:publicAccess(account,actor)});
   }catch(e){console.error('account auth error',e);const status=[400,401,403,404,409,422,429,502,503].includes(Number(e.status))?Number(e.status):500;return json(res,status,{error:e.message||'Unable to process the account request right now.',code:e.code||'ACCOUNT_AUTH_ERROR'})}
 }

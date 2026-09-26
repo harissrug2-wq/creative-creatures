@@ -62,7 +62,7 @@
           <nav class="side-scroll">${sidebar}</nav>
           <div class="profile">
             <button class="profile-button" id="profileButton"><span class="avatar">${initials}</span><span class="profile-copy"><span class="profile-name">${ownerName}</span><span class="profile-email">${ownerEmail}</span></span>${ico('chevron','profile-chevron')}</button>
-            <div class="profile-menu" id="profileMenu"><div class="profile-menu-head"><div class="profile-name">${ownerName}</div><div class="profile-email">${ownerEmail}</div></div><a href="/users/?invite=1" data-team-access hidden>${ico('person','nav-icon')}<span>Invite teammate</span></a><a href="/users/" data-team-access hidden>${ico('users','nav-icon')}<span>Manage users</span></a><a href="/account/upgrade/" data-account-upgrade hidden>${ico('plus','nav-icon')}<span>Change account type</span></a><button class="signout"><span class="signout-icon" aria-hidden="true">↪</span><span>Sign out</span></button></div>
+            <div class="profile-menu" id="profileMenu"><div class="profile-menu-head"><div class="profile-name">${ownerName}</div><div class="profile-email">${ownerEmail}</div></div><a href="/users/?invite=1" data-team-access hidden>${ico('person','nav-icon')}<span>Invite teammate</span></a><a href="/users/" data-team-access hidden>${ico('users','nav-icon')}<span>Manage users</span></a><a href="/ownership/">${ico('person','nav-icon')}<span>Ownership & Partners</span></a><a href="/account/upgrade/" data-account-upgrade hidden>${ico('plus','nav-icon')}<span>Change account type</span></a><button class="signout"><span class="signout-icon" aria-hidden="true">↪</span><span>Sign out</span></button></div>
           </div>
         </aside>
         <div class="main-shell">
