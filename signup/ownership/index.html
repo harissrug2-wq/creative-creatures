@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Agency Ownership · Creative Creatures</title>
+  <link rel="icon" href="/brand/creature-icon.png">
+  <link rel="stylesheet" href="/portal/base.css">
+  <link rel="stylesheet" href="/portal/signup-ownership.css">
+</head>
+<body class="signup-ownership-page">
+  <main class="signup-ownership-shell">
+    <a class="signup-ownership-logo" href="/signup/"><img src="/brand/creature-logo.png" alt="Creative Creatures"></a>
+    <section class="signup-ownership-progress" aria-label="Signup progress">
+      <div class="complete"><span>✓</span><b>Owner Identity</b></div><i></i>
+      <div class="current"><span>2</span><b>Ownership</b></div><i></i>
+      <div><span>3</span><b>Payment</b></div><i></i>
+      <div><span>4</span><b>Tool stack</b></div>
+    </section>
+    <section class="signup-ownership-head">
+      <span class="ownership-eyebrow">STEP 2 OF 4</span>
+      <h1>Who owns this agency?</h1>
+      <p>Confirm whether the agency has one owner or multiple partners. This structure is used for Owner Independence and is attached to your AOFI™ Scorecard.</p>
+    </section>
+    <section class="signup-ownership-card">
+      <div class="ownership-choice">
+        <button type="button" class="ownership-choice-btn selected" data-owner-mode="single"><strong>One owner</strong><span>I own 100% of the agency</span></button>
+        <button type="button" class="ownership-choice-btn" data-owner-mode="multiple"><strong>Multiple owners / partners</strong><span>Two or more people share ownership</span></button>
+      </div>
+      <div class="signup-owner-list" id="signupOwnerList"></div>
+      <div class="signup-ownership-footer">
+        <div class="signup-total" id="signupOwnershipTotal"><span>Total ownership</span><strong>100%</strong><small>Ready to continue</small></div>
+        <div class="signup-ownership-error" id="signupOwnershipError"></div>
+        <button type="button" class="cc-btn cc-btn-primary" id="continueToPayment">Confirm Ownership & Continue to Payment →</button>
+      </div>
+    </section>
+    <section class="signup-ownership-note">
+      <strong>What happens to partners?</strong>
+      <p>After payment activates the agency workspace, each partner you add will receive their own partner login. Team users and department permissions remain separate.</p>
+    </section>
+  </main>
+  <script src="/portal/account-client.js"></script>
+  <script src="/portal/signup-ownership.js"></script>
+</body>
+</html>
