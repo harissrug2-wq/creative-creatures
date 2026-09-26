@@ -178,3 +178,13 @@
 .diagnostic-main .diagnostic-timeline>.section-title-row{position:relative;z-index:2;background:#f8f8f6;margin:16px 0 2px;padding:3px 0}
 .diagnostic-main .diagnostic-timeline>.section-title-row[hidden]{display:none}
 @media(max-width:560px){.diagnostic-main .diagnostic-timeline>.section-title-row{margin-top:12px}}
+
+.ownership-diagnostic-notice{display:flex;align-items:center;justify-content:space-between;gap:24px;margin:0 0 26px;padding:18px 20px;border-color:#cbd5ff;background:#f7f8ff}
+.ownership-diagnostic-notice[hidden]{display:none!important}
+.ownership-diagnostic-notice.warning{border-color:#f2ce73;background:#fff9e9}
+.ownership-diagnostic-notice strong{display:block;margin-bottom:5px;font-size:15px;color:#18202d}
+.ownership-diagnostic-notice p{margin:0;color:#677386;line-height:1.5;font-size:12px}
+.ownership-diagnostic-notice .small-blue{white-space:nowrap}
+.diag-step.ownership-required .cc-card,.diag-step.ownership-review .cc-card{border-color:#cbd5ff;background:#fbfbff}
+.diag-step.ownership-review .step-dot{background:#f5a623;color:#fff}
+@media(max-width:720px){.ownership-diagnostic-notice{align-items:flex-start;flex-direction:column}.ownership-diagnostic-notice .small-blue{width:100%;text-align:center}}
