@@ -619,6 +619,79 @@
     return `<article class="admin-dashboard-metric ${tone}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></article>`;
   }
 
+  function agencyHealthSignals(account){
+    const health=account.portfolio?.health||{};
+    const state=diagnosticState(account);
+    const signals=[];
+    if(health.integrationErrorCount>0)signals.push({tone:'danger',label:`${health.integrationErrorCount} integration error${health.integrationErrorCount===1?'':'s'}`});
+    if(account.allComplete&&!account.reportReady)signals.push({tone:'warning',label:'Scorecard generation pending'});
+    if(account.reportReady&&!health.goalsComplete)signals.push({tone:'warning',label:'Agency Goals incomplete'});
+    if(['platform','fractional_coo'].includes(account.accessPlan)&&Number(health.monitorCoverage?.selectedCategoryCount||0)===0)signals.push({tone:'neutral',label:'No Monitor sources selected'});
+    if(state.ownerIndependenceNeedsReview===true)signals.push({tone:'warning',label:'Owner Independence review'});
+    if(state.scorecardNeedsRefresh===true)signals.push({tone:'warning',label:'Scorecard refresh required'});
+    const last=Date.parse(health.lastActivityAt||account.updatedAt||account.createdAt||'');
+    if(Number.isFinite(last)&&Date.now()-last>14*86400000)signals.push({tone:'neutral',label:'Low recent activity'});
+    return signals;
+  }
+  function healthStage(account){
+    const health=account.portfolio?.health||{};
+    if(health.goalsComplete)return'Monitor';
+    if(account.reportReady)return'Agency Goals';
+    if(account.allComplete)return'Scorecard';
+    if(account.averageProgress>0)return'Diagnostic';
+    if(account.integrationsComplete)return'Diagnostic ready';
+    return'Activated';
+  }
+  function renderAdminAgencyHealth(){
+    const root=document.querySelector('#adminAgencyHealth');
+    if(!root)return;
+    const search=String(document.querySelector('#adminHealthSearch')?.value||'').trim().toLowerCase();
+    const filter=document.querySelector('#adminHealthFilter')?.value||'all';
+    const rows=allAccounts.filter(account=>{
+      const health=account.portfolio?.health||{},signals=agencyHealthSignals(account);
+      const matches=!search||[account.agencyName,account.name,account.email,planLabel(account),...(health.connectedProviders||[])].join(' ').toLowerCase().includes(search);
+      if(!matches)return false;
+      if(filter==='attention')return signals.length>0;
+      if(filter==='healthy')return signals.length===0;
+      if(filter==='integration-error')return Number(health.integrationErrorCount||0)>0;
+      if(filter==='no-monitor')return Number(health.monitorCoverage?.selectedCategoryCount||0)===0;
+      return true;
+    }).sort((a,b)=>{
+      const as=agencyHealthSignals(a).length,bs=agencyHealthSignals(b).length;
+      if(as!==bs)return bs-as;
+      return new Date(b.portfolio?.health?.lastActivityAt||b.updatedAt||b.createdAt||0)-new Date(a.portfolio?.health?.lastActivityAt||a.updatedAt||a.createdAt||0);
+    });
+
+    if(!rows.length){root.innerHTML='<div class="dashboard-empty"><strong>No matching agencies</strong><span>Change the search or health filter.</span></div>';return}
+    root.innerHTML=`<div class="admin-health-table-wrap"><table class="admin-health-table"><thead><tr><th>Agency</th><th>Stage</th><th>Owners</th><th>Integrations</th><th>Monitor coverage</th><th>Last activity</th><th>Health</th><th></th></tr></thead><tbody>${rows.map(account=>{
+      const health=account.portfolio?.health||{},signals=agencyHealthSignals(account);
+      const connected=Number(health.connectedProviderCount||0),errors=Number(health.integrationErrorCount||0);
+      const monitor=health.monitorCoverage||{};
+      const ownerLabel=Number(health.ownerCount||1)===1?'1 owner':`${health.ownerCount} owners`;
+      const integrationLabel=errors?`${connected} connected · ${errors} error${errors===1?'':'s'}`:`${connected} connected`;
+      const monitorLabel=Number(monitor.selectedCategoryCount||0)?`${monitor.selectedCategoryCount} categories · ${monitor.selectedToolCount||0} tools`:'Not configured';
+      const signalHtml=signals.length?signals.slice(0,2).map(s=>`<span class="health-signal ${s.tone}">${escapeHtml(s.label)}</span>`).join(''):'<span class="health-signal success">Healthy</span>';
+      return `<tr>
+        <td data-label="Agency"><strong>${escapeHtml(account.agencyName)}</strong><span>${escapeHtml(planLabel(account))}</span></td>
+        <td data-label="Stage"><span class="stage-chip">${escapeHtml(healthStage(account))}</span></td>
+        <td data-label="Owners"><strong>${escapeHtml(ownerLabel)}</strong><span>${Number(health.partnerLoginCount||0)?`${health.partnerLoginCount} partner login${health.partnerLoginCount===1?'':'s'}`:''}</span></td>
+        <td data-label="Integrations"><strong>${escapeHtml(integrationLabel)}</strong><span>${escapeHtml((health.connectedProviders||[]).slice(0,3).join(', '))}${(health.connectedProviders||[]).length>3?'…':''}</span></td>
+        <td data-label="Monitor coverage"><strong>${escapeHtml(monitorLabel)}</strong><span>${escapeHtml((monitor.selectedCategories||[]).slice(0,3).join(', '))}</span></td>
+        <td data-label="Last activity"><strong>${escapeHtml(formatDate(health.lastActivityAt,true))}</strong></td>
+        <td data-label="Health"><div class="health-signal-stack">${signalHtml}</div></td>
+        <td data-label="Action"><a class="mini-btn primary" href="${adminWorkspaceUrl('/platform/',account)}">Open →</a></td>
+      </tr>`;
+    }).join('')}</tbody></table></div>`;
+  }
+  function wireAdminHealthFilters(){
+    ['adminHealthSearch','adminHealthFilter'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(!el||el.dataset.healthWired==='1')return;
+      el.dataset.healthWired='1';
+      el.addEventListener(id==='adminHealthSearch'?'input':'change',renderAdminAgencyHealth);
+    });
+  }
+
   function renderAdminDashboard(){
     if(!document.querySelector('#adminDashboard'))return;
     const accounts=allAccounts;
@@ -684,6 +757,8 @@
         <div class="admin-attention-meta"><span class="plan">${escapeHtml(planLabel(account))}</span><a class="mini-btn" href="${adminWorkspaceUrl('/platform/',account)}">Open workspace →</a></div>
       </div>`).join(''):'<div class="dashboard-empty"><strong>No urgent follow-up detected</strong><span>Current account workflow states do not show a clear admin action.</span></div>';
 
+    renderAdminAgencyHealth();
+
     const recent=document.querySelector('#adminRecentAgencies');
     if(recent){
       const rows=accounts.slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).slice(0,7);
@@ -727,6 +802,7 @@
     wireShell();
     wireNewDiagnostic();
     wirePerformanceFilters();
+    wireAdminHealthFilters();
     await refresh();
 
     document.addEventListener('visibilitychange', () => {
