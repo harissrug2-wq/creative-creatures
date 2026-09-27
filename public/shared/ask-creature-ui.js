@@ -79,7 +79,7 @@
    const card = el('section','cc-chat-welcome-card');
    card.append(
      el('h3','',`How can I help with ${topicName}?`),
-     el('p','',`Ask about Creative Creatures or data from your connected agency tools. I can look up supported calendar, CRM, project, communication and finance information you are allowed to access.`)
+     el('p','',`Ask anything about Creative Creatures or your agency. I can retrieve read-only data from the connected tools you are allowed to access and use it in the answer.`)
    );
 
    const suggestionsWrap = el('div','cc-chat-suggestions-wrap');
@@ -125,7 +125,7 @@
   form.onsubmit=async e=>{
    e.preventDefault();if(sending||loading||closed)return;const message=input.value.trim();if(!message)return;
    const requestId=retry?.message===message?retry.id:crypto.randomUUID(),ticket=epoch;retry={message,id:requestId};sending=true;clearError();busy();
-   if(!messages.length)content.replaceChildren();const user=bubble({role:'user',content:message}),pending=bubble({role:'assistant',content:'Thinking…'});pending.classList.add('is-pending');pending.setAttribute('role','status');content.append(user,pending);content.scrollTop=content.scrollHeight;input.value='';
+   if(!messages.length)content.replaceChildren();const user=bubble({role:'user',content:message}),pending=bubble({role:'assistant',content:'Checking your agency and connected sources…'});pending.classList.add('is-pending');pending.setAttribute('role','status');content.append(user,pending);content.scrollTop=content.scrollHeight;input.value='';
    try{const r=await api('ask_creature',{method:'POST',body:{message,currentPath:location.pathname,conversationId,requestId,messageCount}});if(closed||ticket!==epoch)return;messageCount=r.messageCount;messages.push({role:'user',content:message},{role:'assistant',content:r.answer});pending.querySelector('.cc-chat-text').textContent=r.answer;pending.classList.remove('is-pending');retry=null;}
    catch(e){if(!closed&&ticket===epoch){user.remove();pending.remove();input.value=message;showError(e);}}
    finally{sending=false;if(!closed&&ticket===epoch){busy();input.focus({preventScroll:true});content.scrollTop=content.scrollHeight;}}
