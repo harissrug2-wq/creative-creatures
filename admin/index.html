@@ -72,6 +72,14 @@
           <div id="adminAttentionList" class="admin-attention-list"></div>
         </section>
 
+        <section class="admin-dashboard-panel admin-agency-health-panel">
+          <div class="dashboard-panel-head">
+            <div><span class="section-label">AGENCY HEALTH</span><h2>All agency workspaces</h2><p>See ownership, workflow stage, integrations, Monitor coverage, recent activity, and health signals without opening each agency first.</p></div>
+            <div class="admin-health-tools"><input id="adminHealthSearch" class="searchbox" placeholder="Search agency..."><select id="adminHealthFilter" class="sortbox"><option value="all">All agencies</option><option value="attention">Needs attention</option><option value="healthy">Healthy</option><option value="integration-error">Integration errors</option><option value="no-monitor">No Monitor sources</option></select></div>
+          </div>
+          <div id="adminAgencyHealth" class="admin-agency-health"></div>
+        </section>
+
         <section class="admin-dashboard-row">
           <article class="admin-dashboard-panel">
             <div class="dashboard-panel-head">
