@@ -152,3 +152,23 @@ html.cc-modal-open,html.cc-modal-open body{overflow:hidden}
 @media(max-width:1260px){.admin-dashboard-metrics{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:900px){.admin-dashboard-row,.admin-dashboard-row-wide{grid-template-columns:1fr}.admin-attention-item{align-items:flex-start;flex-direction:column}.admin-attention-meta{width:100%;justify-content:space-between}}
 @media(max-width:620px){.admin-dashboard-metrics{grid-template-columns:1fr 1fr}.admin-plan-row{grid-template-columns:130px 1fr 36px}.admin-quick-grid{grid-template-columns:1fr}}
+
+.admin-agency-health-panel{overflow:hidden}
+.admin-health-tools{display:flex;gap:9px;align-items:center}
+.admin-health-tools .searchbox{min-width:220px}
+.admin-health-table-wrap{overflow:auto;border:1px solid #eceef2;border-radius:14px}
+.admin-health-table{width:100%;border-collapse:collapse;min-width:1180px;background:#fff}
+.admin-health-table th{padding:11px 13px;text-align:left;background:#fafbfc;border-bottom:1px solid #e9ebef;color:#7b8596;font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.admin-health-table td{padding:13px;border-bottom:1px solid #eef0f3;vertical-align:top;color:#303642;font-size:12px}
+.admin-health-table tbody tr:last-child td{border-bottom:0}
+.admin-health-table td>strong{display:block;color:#1f2430;font-size:12px}
+.admin-health-table td>span{display:block;margin-top:4px;color:#8a94a4;font-size:10px;line-height:1.4}
+.admin-health-table td:first-child strong{font-size:13px}
+.stage-chip{display:inline-flex!important;margin:0!important;padding:6px 8px;border-radius:999px;background:#f3f4ff;color:#3438e8!important;font-weight:800;font-size:10px!important}
+.health-signal-stack{display:flex;flex-wrap:wrap;gap:5px;max-width:250px}
+.health-signal{display:inline-flex!important;margin:0!important;padding:5px 7px;border-radius:999px;font-size:9px!important;font-weight:800;line-height:1.2}
+.health-signal.success{background:#edf8f1;color:#18824d!important}
+.health-signal.warning{background:#fff5df;color:#9a6400!important}
+.health-signal.danger{background:#fff0ee;color:#b13b31!important}
+.health-signal.neutral{background:#f2f4f7;color:#667085!important}
+@media(max-width:900px){.admin-health-tools{width:100%;align-items:stretch;flex-direction:column}.admin-health-tools .searchbox,.admin-health-tools .sortbox{width:100%;min-width:0}.admin-agency-health-panel .dashboard-panel-head{flex-direction:column}}
