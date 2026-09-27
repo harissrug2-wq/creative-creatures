@@ -33,6 +33,7 @@ export default defineConfig({
         signIn: page('sign-in'),
         admin: page('admin'),
         adminLogin: resolve(__dirname, 'admin', 'login', 'index.html'),
+        adminDiagnostics: resolve(__dirname, 'admin', 'diagnostics', 'index.html'),
         adminOwnerArchetypes: resolve(__dirname, 'admin', 'owner-archetypes', 'index.html'),
         adminAofi: resolve(__dirname, 'admin', 'aofi', 'index.html'),
         adminAccelerator: resolve(__dirname, 'admin', 'accelerator', 'index.html'),
