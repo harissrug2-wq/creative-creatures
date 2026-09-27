@@ -1203,6 +1203,7 @@ async function creatureTrySource(sources,name,enabled,loader){
   catch(error){sources[name]={available:false,error:clean(error?.message)||'This connected source is unavailable.'}}
 }
 async function creatureWorkspaceContext(c,account,actor){
+  if(actor?.role==='member')return{agencyName:account.agency_name||account.name||'',departments:actor.departments||[]};
   const accountRows=await db(c,`accounts?select=diagnostic_state,report_data,archetype_result&id=eq.${encodeURIComponent(account.id)}&limit=1`).catch(()=>[]);
   const detail=Array.isArray(accountRows)?accountRows[0]||{}:{};
   const base={
@@ -1210,7 +1211,6 @@ async function creatureWorkspaceContext(c,account,actor){
     diagnostic:compactCreatureData(detail.diagnostic_state||{},9000),
     scorecard:compactCreatureData(detail.report_data||{},9000)
   };
-  if(actor?.role==='member')return base;
   const settled=await Promise.allSettled([
     db(c,`agency_owners?select=name,email,title,ownership_percent,is_primary,status,owner_identity_status,effective_from&account_id=eq.${encodeURIComponent(account.id)}&status=eq.active&order=is_primary.desc,created_at.asc`),
     db(c,`agency_goals?select=metric_id,target_type,target_value,resolved_target_value,target_notes,updated_at&account_id=eq.${encodeURIComponent(account.id)}&order=metric_id.asc`),
