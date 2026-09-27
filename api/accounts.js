@@ -374,11 +374,74 @@ function supportedMrr(serviceEvidence) {
   return annualPeriod ? Math.round((recurring / 12) * 100) / 100 : null;
 }
 
+async function adminOptionalRows(config,path){
+  try{
+    const rows=await supabaseRequest(config,path);
+    return Array.isArray(rows)?rows:[];
+  }catch(error){
+    console.error('Admin portfolio optional source unavailable:',path,error?.message||error);
+    return[];
+  }
+}
+function accountIntegrationSelections(account){
+  const state=account?.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
+  const raw=state.integrationSelections&&typeof state.integrationSelections==='object'
+    ?state.integrationSelections
+    :state.integration_selections&&typeof state.integration_selections==='object'
+      ?state.integration_selections:null;
+  if(raw){
+    const normalized=Object.fromEntries(Object.entries(raw).map(([category,tools])=>[
+      String(category||'').trim(),
+      Array.isArray(tools)?[...new Set(tools.map(v=>String(v||'').trim()).filter(Boolean))]:[]
+    ]));
+    if(Object.values(normalized).some(tools=>tools.length))return normalized;
+  }
+  const primary={
+    'QuickBooks Online':'Bookkeeping',FreshBooks:'Bookkeeping',Xero:'Bookkeeping',Sage:'Bookkeeping',NetSuite:'Bookkeeping',
+    Stripe:'Billing',Square:'Billing',PayPal:'Billing',Chargebee:'Billing','Bill.com':'Billing',
+    'GHL CRM':'CRM',GoHighLevel:'CRM',HubSpot:'CRM',Salesforce:'CRM',Pipedrive:'CRM',Keap:'CRM','Zoho CRM':'CRM',
+    ClickUp:'Project Management',Asana:'Project Management','Monday.com':'Project Management',Teamwork:'Project Management',Jira:'Project Management',Basecamp:'Project Management',
+    Slack:'Communications','Microsoft Teams':'Communications','Google Chat':'Communications',
+    'Google Calendar':'Calendar & Meetings','Google Meet':'Calendar & Meetings','Outlook Calendar':'Calendar & Meetings',Zoom:'Calendar & Meetings',Calendly:'Calendar & Meetings',
+    'Google Drive':'Central Drive',Dropbox:'Central Drive',OneDrive:'Central Drive',Box:'Central Drive',
+    Gusto:'HR & People',BambooHR:'HR & People',Rippling:'HR & People',ADP:'HR & People',Justworks:'HR & People',
+    Keeper:'IT & Security',Bitwarden:'IT & Security','1Password':'IT & Security',Cloudflare:'IT & Security',Okta:'IT & Security'
+  };
+  const legacy=Array.isArray(state.selectedTools)?state.selectedTools:Array.isArray(state.selected_tools)?state.selected_tools:[];
+  const migrated={};
+  legacy.map(v=>String(v||'').trim()).filter(Boolean).forEach(tool=>{
+    const category=primary[tool];if(!category)return;
+    migrated[category]=[...new Set([...(migrated[category]||[]),tool])];
+  });
+  return migrated;
+}
+function latestIso(values){
+  const dates=values.filter(Boolean).map(value=>new Date(value)).filter(date=>Number.isFinite(date.getTime()));
+  if(!dates.length)return null;
+  return new Date(Math.max(...dates.map(date=>date.getTime()))).toISOString();
+}
+
 async function buildAdminPortfolio(config, accountRows) {
-  const [runsRaw, cardsRaw, evidenceRaw] = await Promise.all([
+  const [runsRaw, cardsRaw, evidenceRaw, ownersRaw, membersRaw, ...connectionGroups] = await Promise.all([
     supabaseRequest(config, 'diagnostic_runs?select=id,account_id,status,is_current,started_at,generated_at,completed_at&order=started_at.asc'),
     supabaseRequest(config, 'scorecards?select=id,diagnostic_run_id,performance_score,strength_score,independence_score,aofi_score,confidence,validation_status,report_data,generated_at,updated_at&order=generated_at.asc'),
-    supabaseRequest(config, 'financial_evidence?select=diagnostic_run_id,evidence_type,extraction_status,extracted_data,validation_status,created_at,updated_at&order=updated_at.asc')
+    supabaseRequest(config, 'financial_evidence?select=diagnostic_run_id,evidence_type,extraction_status,extracted_data,validation_status,created_at,updated_at&order=updated_at.asc'),
+    adminOptionalRows(config, 'agency_owners?select=account_id,name,title,ownership_percent,is_primary,status,updated_at&status=eq.active'),
+    adminOptionalRows(config, 'account_members?select=account_id,role,status,last_login_at,updated_at'),
+    adminOptionalRows(config, 'quickbooks_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'freshbooks_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'google_calendar_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'google_drive_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'hubspot_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'zoho_crm_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'ghl_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'slack_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'google_chat_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'clickup_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'teamwork_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'monday_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'jira_connections?select=account_id,status,updated_at'),
+    adminOptionalRows(config, 'zoom_connections?select=account_id,status,updated_at')
   ]);
 
   const accountIds = new Set(accountRows.map(row => String(row.id)));
@@ -407,6 +470,28 @@ async function buildAdminPortfolio(config, accountRows) {
     const key = String(row.diagnostic_run_id);
     if (!evidenceByRun.has(key)) evidenceByRun.set(key, []);
     evidenceByRun.get(key).push(row);
+  });
+
+  const ownersByAccount=new Map();
+  (Array.isArray(ownersRaw)?ownersRaw:[]).forEach(row=>{
+    const key=String(row.account_id);if(!accountIds.has(key))return;
+    if(!ownersByAccount.has(key))ownersByAccount.set(key,[]);
+    ownersByAccount.get(key).push(row);
+  });
+  const membersByAccount=new Map();
+  (Array.isArray(membersRaw)?membersRaw:[]).forEach(row=>{
+    const key=String(row.account_id);if(!accountIds.has(key))return;
+    if(!membersByAccount.has(key))membersByAccount.set(key,[]);
+    membersByAccount.get(key).push(row);
+  });
+  const connectionNames=['QuickBooks Online','FreshBooks','Google Calendar','Google Drive','HubSpot','Zoho CRM','GoHighLevel','Slack','Google Chat','ClickUp','Teamwork','Monday.com','Jira','Zoom'];
+  const connectionsByAccount=new Map();
+  connectionGroups.forEach((rows,index)=>{
+    (Array.isArray(rows)?rows:[]).forEach(row=>{
+      const key=String(row.account_id);if(!accountIds.has(key))return;
+      if(!connectionsByAccount.has(key))connectionsByAccount.set(key,[]);
+      connectionsByAccount.get(key).push({provider:connectionNames[index],status:row.status||'connected',updatedAt:row.updated_at||null});
+    });
   });
 
   const enriched = accountRows.map(account => {
@@ -448,6 +533,30 @@ async function buildAdminPortfolio(config, accountRows) {
       evidence.has('balance_sheet') ? 'balance_sheet' : null,
       evidence.has('service_revenue_mix') ? 'service_revenue_mix' : null
     ].filter(Boolean);
+    const owners=(ownersByAccount.get(key)||[]).filter(row=>row.status==='active');
+    const members=(membersByAccount.get(key)||[]).filter(row=>row.status==='active');
+    const connections=connectionsByAccount.get(key)||[];
+    const connected=connections.filter(row=>row.status==='connected');
+    const integrationErrors=connections.filter(row=>row.status==='error');
+    const selections=accountIntegrationSelections(account);
+    const selectedCategories=Object.entries(selections).filter(([,tools])=>Array.isArray(tools)&&tools.length);
+    const selectedTools=[...new Set(selectedCategories.flatMap(([,tools])=>tools))];
+    const currentState=account?.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
+    const lastMemberLogin=latestIso(members.map(row=>row.last_login_at));
+    const lastConnectionUpdate=latestIso(connections.map(row=>row.updatedAt));
+    const lastActivityAt=latestIso([
+      account.updated_at||account.updatedAt,
+      currentRun?.completed_at,currentRun?.generated_at,currentRun?.started_at,
+      latestCard?.updated_at,latestCard?.generated_at,lastMemberLogin,lastConnectionUpdate
+    ]);
+    const goalsComplete=currentState.goalsComplete===true||currentState.goals_complete===true;
+    const monitorCoverage={
+      selectedCategoryCount:selectedCategories.length,
+      selectedToolCount:selectedTools.length,
+      selectedCategories:selectedCategories.map(([category])=>category),
+      selectedTools,
+      connectedProviderCount:connected.length
+    };
 
     return {
       ...account,
@@ -472,6 +581,21 @@ async function buildAdminPortfolio(config, accountRows) {
           recurringRevenue: finite(service?.extracted_data?.recurringRevenue),
           mrr: supportedMrr(service),
           coverage
+        },
+        health: {
+          lastActivityAt,
+          ownerCount: owners.length || 1,
+          owners: owners.map(row=>({name:row.name||'',title:row.title||'',ownershipPercent:finite(row.ownership_percent),isPrimary:row.is_primary===true})),
+          teamMemberCount: members.filter(row=>row.role==='member').length,
+          partnerLoginCount: members.filter(row=>row.role==='partner').length,
+          connectedProviderCount: connected.length,
+          connectedProviders: connected.map(row=>row.provider),
+          integrationErrorCount: integrationErrors.length,
+          integrationErrors: integrationErrors.map(row=>row.provider),
+          monitorCoverage,
+          goalsComplete,
+          scorecardReady: latestHistory.aofi!==null&&latestHistory.aofi!==undefined,
+          diagnosticRunStatus: currentRun?.status||null
         }
       }
     };
