@@ -38,3 +38,24 @@ test('admin home can create any account type',()=>{
   assert.match(adminJs,/Platform/);
   assert.match(adminJs,/Fractional COO/);
 });
+
+
+test('admin portfolio exposes ownership, integration and Monitor health per agency',()=>{
+  const accountsApi=fs.readFileSync(new URL('../api/accounts.js',import.meta.url),'utf8');
+  assert.match(accountsApi,/agency_owners/);
+  assert.match(accountsApi,/connectedProviderCount/);
+  assert.match(accountsApi,/monitorCoverage/);
+  assert.match(accountsApi,/lastActivityAt/);
+  assert.match(accountsApi,/integrationErrorCount/);
+});
+
+test('admin overview renders searchable per-agency health visibility',()=>{
+  assert.match(dashboard,/adminAgencyHealth/);
+  assert.match(dashboard,/adminHealthSearch/);
+  assert.match(dashboard,/adminHealthFilter/);
+  assert.match(adminJs,/renderAdminAgencyHealth/);
+  assert.match(adminJs,/ownerCount/);
+  assert.match(adminJs,/connectedProviders/);
+  assert.match(adminJs,/selectedCategoryCount/);
+  assert.match(adminJs,/health-signal/);
+});
