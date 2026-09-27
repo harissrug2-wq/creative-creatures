@@ -1202,15 +1202,80 @@ async function creatureTrySource(sources,name,enabled,loader){
   try{sources[name]=compactCreatureData(await loader(),10000)}
   catch(error){sources[name]={available:false,error:clean(error?.message)||'This connected source is unavailable.'}}
 }
+async function creatureWorkspaceContext(c,account,actor){
+  if(actor?.role==='member')return{agencyName:account.agency_name||account.name||'',departments:actor.departments||[]};
+  const base={agencyName:account.agency_name||account.name||''};
+  const settled=await Promise.allSettled([
+    db(c,`agency_owners?select=name,email,title,ownership_percent,is_primary,status,owner_identity_status,effective_from&account_id=eq.${encodeURIComponent(account.id)}&status=eq.active&order=is_primary.desc,created_at.asc`),
+    db(c,`agency_goals?select=metric_id,target_type,target_value,resolved_target_value,target_notes,updated_at&account_id=eq.${encodeURIComponent(account.id)}&order=metric_id.asc`),
+    db(c,`department_goals?select=department,goal,owner_name,status,done_looks_like,target_completion,target_completion_date,updated_at&account_id=eq.${encodeURIComponent(account.id)}&order=department.asc`),
+    db(c,`rocks?select=title,description,owner_name,due_date,status,source_type,updated_at&account_id=eq.${encodeURIComponent(account.id)}&order=created_at.asc`),
+    db(c,`account_members?select=name,email,role,departments,status,last_login_at&account_id=eq.${encodeURIComponent(account.id)}&order=created_at.asc`)
+  ]);
+  const value=index=>settled[index]?.status==='fulfilled'?(settled[index].value||[]):[];
+  return{...base,
+    ownership:compactCreatureData(value(0),5000),
+    agencyTargets:compactCreatureData(value(1),5000),
+    departmentGoals:compactCreatureData(value(2),5000),
+    priorities:compactCreatureData(value(3),6000),
+    workspaceUsers:compactCreatureData(value(4),5000)
+  };
+}
+async function creatureIntegrationInventory(c,account){
+  const checks=[
+    ['GoHighLevel',()=>getGhlConnection(c,account.id)],
+    ['HubSpot',()=>getHubSpotConnection(c,account.id)],
+    ['Zoho CRM',()=>getZohoConnection(c,account.id)],
+    ['Jira',()=>getJiraConnection(c,account.id)],
+    ['ClickUp',()=>getClickUpConnection(c,account.id)],
+    ['Monday.com',()=>getMondayConnection(c,account.id)],
+    ['Teamwork',()=>getTeamworkConnection(c,account.id)],
+    ['Slack',()=>getSlackConnection(c,account.id)],
+    ['Google Chat',()=>getGoogleChatConnection(c,account.id)],
+    ['Google Calendar / Meet',()=>getGoogleCalendarConnection(c,account.id)],
+    ['Zoom',()=>getZoomConnection(c,account.id)],
+    ['QuickBooks Online',()=>getQuickBooksConnection(c,account.id)],
+    ['FreshBooks',()=>getFreshBooksConnection(c,account.id)],
+    ['Google Drive',()=>getGoogleDriveConnection(c,account.id)]
+  ];
+  const rows=await Promise.all(checks.map(async([name,load])=>{
+    try{const row=await load();return{name,connected:row?.status==='connected',status:row?.status||'disconnected',updatedAt:row?.updated_at||row?.last_synced_at||null}}
+    catch{return{name,connected:false,status:'unavailable'}}
+  }));
+  return rows;
+}
+async function creatureQuickBooksContext(c,accountId,message){
+  const connection=await getQuickBooksConnection(c,accountId);
+  if(!connection||connection.status!=='connected')return{connected:false,message:'QuickBooks Online is not connected.'};
+  const {connection:current,accessToken}=await ensureQuickBooksAccess(c,connection);
+  const request={realmId:current.realm_id,accessToken};
+  const jobs=[];
+  if(/\b(revenue|profit|loss|income|margin|cogs|p&l|p and l|performance)\b/i.test(message))jobs.push(['profitLoss',()=>fetchProfitLossEvidence(request)]);
+  if(/\b(balance sheet|cash|asset|assets|liability|liabilities|debt)\b/i.test(message))jobs.push(['balanceSheet',()=>fetchBalanceSheetEvidence(request)]);
+  if(/\b(a\/r|ar aging|receivable|receivables|collection|collections|overdue invoice)\b/i.test(message))jobs.push(['arAging',()=>fetchArAgingEvidence(request)]);
+  if(/\b(client revenue|customer revenue|top client|top customer|concentration|client concentration)\b/i.test(message))jobs.push(['clientRevenue',()=>fetchClientRevenueEvidence(request)]);
+  if(/\b(service revenue|service mix|recurring revenue|project revenue|revenue mix)\b/i.test(message))jobs.push(['serviceRevenue',()=>fetchServiceRevenueEvidence(request)]);
+  if(!jobs.length)jobs.push(['profitLoss',()=>fetchProfitLossEvidence(request)]);
+  const settled=await Promise.allSettled(jobs.map(([,load])=>load()));
+  const data={connected:true,companyName:current.company_name||'',lastSyncedAt:current.last_synced_at||null};
+  jobs.forEach(([name],index)=>{const item=settled[index];data[name]=item.status==='fulfilled'?item.value:{available:false,error:clean(item.reason?.message)||'QuickBooks data could not be loaded.'}});
+  return data;
+}
+
 async function buildAskCreatureLiveContext(c,account,actor,message){
   const q=lower(message),sources={},now=new Date();
-  const wantsCalendar=/\b(calendar|meeting|meetings|schedule|scheduled|appointment|appointments|today|tomorrow|this week|next week|upcoming)\b/i.test(message);
-  const wantsCrm=/\b(crm|lead|leads|contact|contacts|opportunity|opportunities|pipeline|pipelines|deal|deals|sales)\b/i.test(message);
-  const wantsProjects=/\b(project|projects|task|tasks|issue|issues|ticket|tickets|board|boards|clickup|jira|monday|teamwork)\b/i.test(message);
-  const wantsComms=/\b(slack|google chat|chat space|chat spaces|channel|channels|communication|communications|workspace users)\b/i.test(message);
-  const wantsFinance=/\b(finance|financial|bookkeeping|revenue|profit|loss|balance sheet|accounts receivable|receivable|invoice|invoices|expense|expenses|freshbooks|quickbooks)\b/i.test(message);
-  const wantsDrive=/\b(google drive|drive file|drive files|document|documents|folder|folders|file|files)\b/i.test(message);
+  const wantsCalendar=/\b(calendar|meeting|meetings|meet|schedule|scheduled|appointment|appointments|availability|available|busy|free|today|tomorrow|this week|next week|upcoming|google meet)\b/i.test(message);
+  const wantsCrm=/\b(crm|lead|leads|prospect|prospects|contact|contacts|client|clients|customer|customers|opportunity|opportunities|pipeline|pipelines|deal|deals|sales|follow[- ]?up)\b/i.test(message);
+  const wantsProjects=/\b(project|projects|task|tasks|due|overdue|issue|issues|ticket|tickets|board|boards|workload|clickup|jira|monday|teamwork)\b/i.test(message);
+  const wantsComms=/\b(slack|google chat|chat space|chat spaces|channel|channels|message|messages|communication|communications|conversation|workspace users)\b/i.test(message);
+  const wantsFinance=/\b(finance|financial|money|cash|bookkeeping|revenue|profit|loss|income|margin|cogs|balance sheet|accounts receivable|receivable|invoice|invoices|payment|payments|expense|expenses|billing|freshbooks|quickbooks)\b/i.test(message);
+  const wantsDrive=/\b(google drive|drive file|drive files|document|documents|proposal|proposals|contract|contracts|sop|sops|folder|folders|file|files)\b/i.test(message);
   const wantsZoom=/\b(zoom|zoom meeting|zoom meetings)\b/i.test(message);
+  const wantsIntegrationInventory=/\b(integration|integrations|connected tool|connected tools|connection|connections|what.*connected|which.*connected|data source|data sources)\b/i.test(message);
+  const wantsAgency=/\b(my agency|our agency|agency status|agency overview|business status|ownership|owner|owners|partner|partners|goal|goals|priority|priorities|scorecard|diagnostic|aofi|team member|team members|user|users)\b/i.test(message);
+
+  sources.creativeCreaturesWorkspace=await creatureWorkspaceContext(c,account,actor);
+  if(wantsIntegrationInventory)sources.integrationInventory=await creatureIntegrationInventory(c,account);
 
   if(wantsCalendar&&creatureCanRead(actor,['leadership','communication','sales'])){
     await creatureTrySource(sources,'googleCalendar',true,async()=>{
@@ -1249,7 +1314,7 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
     ];
     let loaded=false;
     for(const [name,isExplicit,row,loader] of options){
-      const enabled=row?.status==='connected'&&(isExplicit||(!anyExplicit&&!loaded));
+      const enabled=row?.status==='connected'&&(isExplicit||!anyExplicit);
       if(enabled){await creatureTrySource(sources,name,true,loader);loaded=true}
     }
     if(!loaded)sources.projectTools={connected:false,message:'No supported project-management connection is available for this question.'};
@@ -1268,7 +1333,7 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
     const fb=await getFreshBooksConnection(c,account.id);
     if(fb?.status==='connected')await creatureTrySource(sources,'freshbooks',true,()=>loadFreshBooksDashboard(c,account.id));
     const qb=await getQuickBooksConnection(c,account.id);
-    if(qb?.status==='connected')sources.quickbooks={connected:true,companyName:qb.company_name||'',lastSyncedAt:qb.last_synced_at||null,note:'QuickBooks detailed financial evidence is available through the bookkeeping sync; Ask Creature does not trigger a new sync automatically.'};
+    if(qb?.status==='connected')await creatureTrySource(sources,'quickbooks',true,()=>creatureQuickBooksContext(c,account.id,message));
     if(fb?.status!=='connected'&&qb?.status!=='connected')sources.bookkeeping={connected:false,message:'No supported bookkeeping source is connected.'};
   }
 
@@ -1283,7 +1348,10 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
     else sources.zoom={connected:false,message:'Zoom is not connected.'};
   }
 
-  return Object.keys(sources).length?{retrievedAt:now.toISOString(),sources}:null;
+  if((wantsCalendar||wantsCrm||wantsProjects||wantsComms||wantsFinance||wantsDrive||wantsZoom)&&!sources.integrationInventory){
+    sources.integrationInventory=await creatureIntegrationInventory(c,account);
+  }
+  return Object.keys(sources).length?{retrievedAt:now.toISOString(),question:message,sources}:null;
 }
 
 export default async function handler(req,res){
