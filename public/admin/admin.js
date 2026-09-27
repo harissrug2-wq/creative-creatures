@@ -178,7 +178,8 @@
     const needsDiagnostics = Boolean(
       document.querySelector('#agencyGrid') ||
       document.querySelector('#platformMetrics') ||
-      document.querySelector('#agencyRollup')
+      document.querySelector('#agencyRollup') ||
+      document.querySelector('#adminDashboard')
     );
 
     const accountPromise = needsDiagnostics
@@ -614,7 +615,89 @@
     sort?.addEventListener('change', update);
   }
 
+  function dashboardMetric(label,value,detail,tone=''){
+    return `<article class="admin-dashboard-metric ${tone}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></article>`;
+  }
+
+  function renderAdminDashboard(){
+    if(!document.querySelector('#adminDashboard'))return;
+    const accounts=allAccounts;
+    const total=accounts.length;
+    const scorecards=accounts.filter(a=>a.portfolio?.scorecard?.aofi!==null&&a.portfolio?.scorecard?.aofi!==undefined);
+    const goalsComplete=accounts.filter(a=>{const s=diagnosticState(a);return s.goalsComplete===true||s.goals_complete===true}).length;
+    const integrationsReady=accounts.filter(a=>a.integrationsComplete).length;
+    const activeDiagnostics=accounts.filter(a=>a.averageProgress>0&&!a.reportReady).length;
+    const aofiValues=scorecards.map(a=>Number(a.portfolio?.scorecard?.aofi)).filter(Number.isFinite);
+    const avgAofi=aofiValues.length?Math.round(aofiValues.reduce((sum,v)=>sum+v,0)/aofiValues.length):null;
+
+    const metrics=document.querySelector('#adminDashboardMetrics');
+    if(metrics)metrics.innerHTML=[
+      dashboardMetric('Total agencies',String(total),'all account types','blue'),
+      dashboardMetric('Scorecards ready',String(scorecards.length),total?`${Math.round(scorecards.length/total*100)}% of agencies`:'no agencies','green'),
+      dashboardMetric('Average AOFI™',avgAofi===null?'—':String(avgAofi),aofiValues.length?`${aofiValues.length} generated scorecards`:'awaiting scorecards','purple'),
+      dashboardMetric('Goals completed',String(goalsComplete),'ready for Monitor'),
+      dashboardMetric('Integrations ready',String(integrationsReady),total?`${Math.round(integrationsReady/total*100)}% coverage`:'no agencies'),
+      dashboardMetric('Diagnostics in progress',String(activeDiagnostics),'currently between 1–99%','amber')
+    ].join('');
+
+    const planOrder=['aofi_free','diagnostic','accelerator','platform','fractional_coo'];
+    const planNames={aofi_free:'Free AOFI™',diagnostic:'1:1 Diagnostic',accelerator:'Accelerator',platform:'Platform',fractional_coo:'Fractional COO'};
+    const planLinks={aofi_free:'/admin/aofi/',diagnostic:'/admin/diagnostics/',accelerator:'/admin/accelerator/',platform:'/admin/platform/',fractional_coo:'/admin/fractional-coo/'};
+    const counts=Object.fromEntries(planOrder.map(plan=>[plan,accounts.filter(a=>a.accessPlan===plan).length]));
+    const mix=document.querySelector('#adminPlanMix');
+    if(mix)mix.innerHTML=planOrder.map(plan=>{
+      const count=counts[plan]||0,pct=total?Math.round(count/total*100):0;
+      return `<a class="admin-plan-row" href="${planLinks[plan]}"><div><strong>${escapeHtml(planNames[plan])}</strong><span>${count} account${count===1?'':'s'}</span></div><div class="admin-plan-bar"><i style="width:${pct}%"></i></div><b>${pct}%</b></a>`;
+    }).join('');
+
+    const readiness=[
+      ['Identity / account active',accounts.filter(a=>Boolean(a.id)).length],
+      ['Integrations complete',integrationsReady],
+      ['Diagnostic complete',accounts.filter(a=>a.allComplete).length],
+      ['Scorecard generated',scorecards.length],
+      ['Agency Goals complete',goalsComplete]
+    ];
+    const health=document.querySelector('#adminJourneyHealth');
+    if(health)health.innerHTML=readiness.map(([label,count])=>{
+      const pct=total?Math.round(count/total*100):0;
+      return `<div class="admin-health-row"><div><span>${escapeHtml(label)}</span><strong>${count}/${total}</strong></div><div class="admin-health-track"><i style="width:${pct}%"></i></div><small>${pct}%</small></div>`;
+    }).join('');
+
+    const now=Date.now();
+    const attention=accounts.map(account=>{
+      const s=diagnosticState(account),days=Math.floor((now-new Date(account.updatedAt||account.createdAt||now).getTime())/86400000);
+      let reason='',priority=0;
+      if(account.allComplete&&!account.reportReady){reason='Diagnostic complete — Scorecard still needs generation';priority=5}
+      else if(account.reportReady&&!(s.goalsComplete===true||s.goals_complete===true)){reason='Scorecard ready — Agency Goals not completed';priority=4}
+      else if(account.averageProgress>0&&account.averageProgress<100&&days>=7){reason=`Diagnostic ${account.averageProgress}% — no update for ${days} days`;priority=3}
+      else if(!account.integrationsComplete&&['platform','fractional_coo'].includes(account.accessPlan)&&days>=3){reason='Platform account still has incomplete integrations';priority=2}
+      else if(account.averageProgress===0&&days>=7&&account.accessPlan!=='aofi_free'){reason=`No diagnostic progress for ${days} days`;priority=1}
+      return reason?{account,reason,priority,days}:null;
+    }).filter(Boolean).sort((a,b)=>b.priority-a.priority||b.days-a.days).slice(0,8);
+
+    const attentionCount=document.querySelector('#adminAttentionCount');
+    if(attentionCount)attentionCount.textContent=String(attention.length);
+    const attentionRoot=document.querySelector('#adminAttentionList');
+    if(attentionRoot)attentionRoot.innerHTML=attention.length?attention.map(({account,reason})=>`
+      <div class="admin-attention-item">
+        <div class="admin-attention-main"><span class="attention-dot"></span><div><strong>${escapeHtml(account.agencyName)}</strong><span>${escapeHtml(reason)}</span></div></div>
+        <div class="admin-attention-meta"><span class="plan">${escapeHtml(planLabel(account))}</span><a class="mini-btn" href="${adminWorkspaceUrl('/platform/',account)}">Open workspace →</a></div>
+      </div>`).join(''):'<div class="dashboard-empty"><strong>No urgent follow-up detected</strong><span>Current account workflow states do not show a clear admin action.</span></div>';
+
+    const recent=document.querySelector('#adminRecentAgencies');
+    if(recent){
+      const rows=accounts.slice().sort((a,b)=>new Date(b.createdAt||0)-new Date(a.createdAt||0)).slice(0,7);
+      recent.innerHTML=rows.length?rows.map(account=>`
+        <a class="admin-recent-item" href="${adminWorkspaceUrl('/platform/',account)}">
+          <span class="admin-recent-avatar">${escapeHtml((account.agencyName||'A').slice(0,1).toUpperCase())}</span>
+          <div><strong>${escapeHtml(account.agencyName)}</strong><span>${escapeHtml(planLabel(account))} · ${escapeHtml(formatDate(account.createdAt))}</span></div>
+          <b>→</b>
+        </a>`).join(''):'<div class="dashboard-empty"><span>No agency accounts yet.</span></div>';
+    }
+  }
+
   function renderCurrentPage() {
+    renderAdminDashboard();
     renderDiagnosticsGrid(diagnostics);
     renderOwnerArchetypeTable(ownerArchetypes);
     renderPerformanceMetrics(diagnostics);
