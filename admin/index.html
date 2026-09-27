@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Agencies · Creative Creatures Admin</title>
+  <title>Admin Dashboard · Creative Creatures</title>
   <link rel="icon" href="/brand/creature-icon.png">
   <link rel="stylesheet" href="/admin/admin.css">
 </head>
-<body data-admin-plan="diagnostic">
+<body data-admin-dashboard="1">
   <div class="admin-app">
     <aside class="admin-side">
       <div class="admin-brand">
@@ -15,50 +15,87 @@
         <div class="admin-badge"><svg viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6z"/></svg>Admin Console</div>
       </div>
       <nav class="admin-nav">
-        <a class="admin-link" href="/admin/owner-archetypes/">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Owner Archetype
-        </a>
+        <a class="admin-link active" href="/admin/"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3zM13 3h8v5h-8zM13 10h8v11h-8zM3 13h8v8H3z"/></svg>Overview</a>
+        <a class="admin-link" href="/admin/owner-archetypes/"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/></svg>Owner Archetype</a>
         <a class="admin-link" href="/admin/aofi/"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Free AOFI™</a>
-        <a class="admin-link active" href="/admin/">
-          <svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg>Diagnostics
-        </a>
+        <a class="admin-link" href="/admin/diagnostics/"><svg viewBox="0 0 24 24"><rect x="5" y="7" width="14" height="14" rx="1"/><path d="M9 7V3h6v4M9 11v6M15 11v6M6 14h12"/></svg>Diagnostics</a>
         <a class="admin-link" href="/admin/accelerator/"><svg viewBox="0 0 24 24"><path d="M13 2L4 14h7l-1 8 9-12h-7z"/></svg>Accelerator</a>
         <a class="admin-link" href="/admin/platform/"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Platform</a>
         <a class="admin-link" href="/admin/fractional-coo/"><svg viewBox="0 0 24 24"><path d="M4 20V8l8-5 8 5v12M8 20v-7h8v7"/></svg>Fractional COO</a>
-        <a class="admin-link" href="/admin/scorecards/">
-          <svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Agency Scorecards
-        </a>
-        <a class="admin-link" href="/admin/performance/">
-          <svg viewBox="0 0 24 24"><path d="M3 18h18M5 15l4-4 3 2 6-7"/></svg>Platform Performance
-        </a>
+        <a class="admin-link" href="/admin/scorecards/"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19V2"/></svg>Agency Scorecards</a>
+        <a class="admin-link" href="/admin/performance/"><svg viewBox="0 0 24 24"><path d="M3 18h18M5 15l4-4 3 2 6-7"/></svg>Platform Performance</a>
       </nav>
       <div class="admin-profile"><span class="admin-avatar">PA</span><div><strong data-admin-username>Platform Admin</strong><span>admin@creativecreatures.org</span></div><i>⌃</i></div>
     </aside>
     <div class="admin-overlay"></div>
     <div class="admin-main">
-      <header class="admin-top"><button class="admin-mobile">☰</button><span>Creative Creatures</span>&nbsp;/&nbsp;Admin&nbsp;/&nbsp;Diagnostics</header>
-      <main class="admin-content">
-        <header class="admin-head">
-          <div><h1>Diagnostics</h1><p>1:1 Analysis &amp; Planning Diagnostic accounts.</p></div>
-          <div class="admin-head-actions"><span class="admin-updated" data-admin-updated></span><button class="admin-primary" data-new-agency>＋ New Diagnostic</button></div>
+      <header class="admin-top"><button class="admin-mobile">☰</button><span>Creative Creatures</span>&nbsp;/&nbsp;Admin&nbsp;/&nbsp;Overview</header>
+      <main class="admin-content admin-dashboard" id="adminDashboard">
+        <header class="admin-head dashboard-head">
+          <div>
+            <span class="section-label">ADMIN COMMAND CENTER</span>
+            <h1>Creative Creatures Overview</h1>
+            <p>Live portfolio view across every agency, plan, diagnostic stage, scorecard, goal flow, and workspace.</p>
+          </div>
+          <div class="admin-head-actions">
+            <span class="admin-updated" data-admin-updated></span>
+            <button class="admin-primary" data-new-agency>＋ New Account</button>
+          </div>
         </header>
+
         <p class="admin-inline-error" data-admin-error hidden></p>
-        <section class="admin-grid" id="agencyGrid"></section>
+
+        <section class="admin-dashboard-metrics" id="adminDashboardMetrics"></section>
+
+        <section class="admin-dashboard-row admin-dashboard-row-wide">
+          <article class="admin-dashboard-panel">
+            <div class="dashboard-panel-head">
+              <div><span class="section-label">PORTFOLIO</span><h2>Account mix</h2></div>
+              <a href="/admin/performance/">View performance →</a>
+            </div>
+            <div id="adminPlanMix" class="admin-plan-mix"></div>
+          </article>
+
+          <article class="admin-dashboard-panel">
+            <div class="dashboard-panel-head">
+              <div><span class="section-label">WORKFLOW</span><h2>Journey readiness</h2></div>
+            </div>
+            <div id="adminJourneyHealth" class="admin-journey-health"></div>
+          </article>
+        </section>
+
+        <section class="admin-dashboard-panel">
+          <div class="dashboard-panel-head">
+            <div><span class="section-label">NEEDS ATTENTION</span><h2>Agencies requiring follow-up</h2><p>Accounts with stalled diagnostics, incomplete integrations, or unfinished post-scorecard steps.</p></div>
+            <span class="dashboard-count" id="adminAttentionCount">0</span>
+          </div>
+          <div id="adminAttentionList" class="admin-attention-list"></div>
+        </section>
+
+        <section class="admin-dashboard-row">
+          <article class="admin-dashboard-panel">
+            <div class="dashboard-panel-head">
+              <div><span class="section-label">RECENT ACTIVITY</span><h2>Newest agencies</h2></div>
+            </div>
+            <div id="adminRecentAgencies" class="admin-recent-list"></div>
+          </article>
+
+          <article class="admin-dashboard-panel">
+            <div class="dashboard-panel-head">
+              <div><span class="section-label">QUICK ACCESS</span><h2>Admin tools</h2></div>
+            </div>
+            <div class="admin-quick-grid">
+              <a href="/admin/diagnostics/"><strong>Diagnostics</strong><span>Review diagnostic accounts and progress</span></a>
+              <a href="/admin/scorecards/"><strong>Agency Scorecards</strong><span>Compare AOFI™ results and confidence</span></a>
+              <a href="/admin/performance/"><strong>Platform Performance</strong><span>Portfolio financial and operating rollup</span></a>
+              <a href="/admin/platform/"><strong>Platform Accounts</strong><span>Open full customer workspaces read-only</span></a>
+            </div>
+          </article>
+        </section>
       </main>
     </div>
   </div>
 
-  <div class="admin-modal" id="newAgencyModal">
-    <div class="admin-dialog">
-      <h2>Add New Diagnostic</h2>
-      <form id="newAgencyForm">
-        <input type="text" id="newAgencyName" placeholder="Agency Name" required>
-        <input type="email" id="newAgencyEmail" placeholder="Owner Email" required>
-        <input type="text" id="newAgencyWebsite" placeholder="Agency Website" required>
-        <div class="dialog-actions"><button type="button" class="mini-btn" data-close-modal>Cancel</button><button type="submit" class="mini-btn primary">Create Diagnostic</button></div>
-      </form>
-    </div>
-  </div>
   <script src="/admin/admin-auth.js"></script>
   <script src="/admin/admin.js"></script>
 </body>
