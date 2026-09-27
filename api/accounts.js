@@ -388,11 +388,32 @@ function accountIntegrationSelections(account){
   const raw=state.integrationSelections&&typeof state.integrationSelections==='object'
     ?state.integrationSelections
     :state.integration_selections&&typeof state.integration_selections==='object'
-      ?state.integration_selections:{};
-  return Object.fromEntries(Object.entries(raw).map(([category,tools])=>[
-    String(category||'').trim(),
-    Array.isArray(tools)?[...new Set(tools.map(v=>String(v||'').trim()).filter(Boolean))]:[]
-  ]));
+      ?state.integration_selections:null;
+  if(raw){
+    const normalized=Object.fromEntries(Object.entries(raw).map(([category,tools])=>[
+      String(category||'').trim(),
+      Array.isArray(tools)?[...new Set(tools.map(v=>String(v||'').trim()).filter(Boolean))]:[]
+    ]));
+    if(Object.values(normalized).some(tools=>tools.length))return normalized;
+  }
+  const primary={
+    'QuickBooks Online':'Bookkeeping',FreshBooks:'Bookkeeping',Xero:'Bookkeeping',Sage:'Bookkeeping',NetSuite:'Bookkeeping',
+    Stripe:'Billing',Square:'Billing',PayPal:'Billing',Chargebee:'Billing','Bill.com':'Billing',
+    'GHL CRM':'CRM',GoHighLevel:'CRM',HubSpot:'CRM',Salesforce:'CRM',Pipedrive:'CRM',Keap:'CRM','Zoho CRM':'CRM',
+    ClickUp:'Project Management',Asana:'Project Management','Monday.com':'Project Management',Teamwork:'Project Management',Jira:'Project Management',Basecamp:'Project Management',
+    Slack:'Communications','Microsoft Teams':'Communications','Google Chat':'Communications',
+    'Google Calendar':'Calendar & Meetings','Google Meet':'Calendar & Meetings','Outlook Calendar':'Calendar & Meetings',Zoom:'Calendar & Meetings',Calendly:'Calendar & Meetings',
+    'Google Drive':'Central Drive',Dropbox:'Central Drive',OneDrive:'Central Drive',Box:'Central Drive',
+    Gusto:'HR & People',BambooHR:'HR & People',Rippling:'HR & People',ADP:'HR & People',Justworks:'HR & People',
+    Keeper:'IT & Security',Bitwarden:'IT & Security','1Password':'IT & Security',Cloudflare:'IT & Security',Okta:'IT & Security'
+  };
+  const legacy=Array.isArray(state.selectedTools)?state.selectedTools:Array.isArray(state.selected_tools)?state.selected_tools:[];
+  const migrated={};
+  legacy.map(v=>String(v||'').trim()).filter(Boolean).forEach(tool=>{
+    const category=primary[tool];if(!category)return;
+    migrated[category]=[...new Set([...(migrated[category]||[]),tool])];
+  });
+  return migrated;
 }
 function latestIso(values){
   const dates=values.filter(Boolean).map(value=>new Date(value)).filter(date=>Number.isFinite(date.getTime()));
