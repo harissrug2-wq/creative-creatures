@@ -1,6 +1,7 @@
 (() => {
   const API_BASE = '/api/goals';
   let cached = null;
+  let loadPromise = null;
 
   const safeJson = (value, fallback = null) => {
     try { return JSON.parse(value); } catch { return fallback; }
@@ -48,14 +49,17 @@
 
   async function load(options = {}) {
     if (cached && options.fresh !== true) return cached;
+    if (loadPromise && options.fresh !== true) return loadPromise;
     const current = requireIdentity();
     const params = new URLSearchParams();
     if (current.accountId) params.set('accountId', current.accountId);
     if (current.email) params.set('email', current.email);
     if (current.agencyUrl) params.set('agencyUrl', current.agencyUrl);
-    const payload = await request(`${API_BASE}?${params.toString()}`);
-    cached = payload.goals || null;
-    return cached;
+    loadPromise = request(`${API_BASE}?${params.toString()}`).then(payload => {
+      cached = payload.goals || null;
+      return cached;
+    }).finally(() => { loadPromise = null; });
+    return loadPromise;
   }
 
   async function action(actionName, fields = {}) {
@@ -77,7 +81,7 @@
   const createRocks = rocks => action('create_rocks', { rocks });
   const updateRock = rock => action('update_rock', rock);
   const complete = () => action('complete');
-  const clear = () => { cached = null; };
+  const clear = () => { cached = null; loadPromise = null; };
 
   window.CCGoals = { load, saveTarget, saveTargets, saveProgress, saveDepartment, createRocks, updateRock, complete, clear };
 })();
