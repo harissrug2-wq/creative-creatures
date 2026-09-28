@@ -394,7 +394,18 @@
     async function loadStatuses(){
       const autoDetect=['QuickBooks Online'];
       const tools=[...new Set([...selected.filter(t=>meta[t]?.status),...autoDetect.filter(t=>meta[t]?.status)])];
-      await Promise.all(tools.map(loadToolStatus));
+      tools.forEach(tool=>stateMap.set(tool,{loading:true}));
+      render();
+      try{
+        const result=await apiGet('integration_statuses');
+        const statuses=result?.statuses||{};
+        tools.forEach(tool=>{
+          const connection=statuses[tool]||{connected:false};
+          stateMap.set(tool,{...connection,loading:false,error:connection.lastError||connection.lastSyncError||connection.error||''});
+        });
+      }catch(error){
+        await Promise.all(tools.map(loadToolStatus));
+      }
       let changed=false;
       autoDetect.forEach(tool=>{
         // Detect an existing accounting connection without opting the same
