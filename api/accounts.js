@@ -50,6 +50,34 @@ async function provisionAofiFreeAccess(req, config, account) {
   return { account: updated, emailSent };
 }
 
+async function persistAdminPlanEntitlement(config, account, accessPlan) {
+  if (!account?.id || !accessPlan) return;
+  try {
+    await supabaseRequest(config, 'cc_stripe_legacy_access?on_conflict=account_id', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify({ account_id: account.id, plans: [accessPlan] })
+    });
+  } catch (error) {
+    // Keep admin account creation available during staged database deploys.
+    // The migration backfills existing admin-created accounts once present.
+    console.error('Admin plan entitlement persistence skipped', error?.message || error);
+  }
+}
+
+function adminProvisioningState(accessPlan) {
+  const now = new Date().toISOString();
+  const paid = accessPlan !== 'aofi_free';
+  return {
+    ...EMPTY_DIAGNOSTIC_STATE,
+    purchasedPlans: [accessPlan],
+    paymentComplete: paid,
+    ...(paid ? { paymentCompletedAt: now } : {}),
+    adminProvisioned: true,
+    updatedAt: now
+  };
+}
+
 async function provisionAdminCreatedAccess(req, config, account) {
   const resetToken = crypto.randomBytes(32).toString('hex');
   const updated = await updateById(config, account.id, {
@@ -824,7 +852,7 @@ export default async function handler(req, res) {
       } else {
         // A truly new account always begins with a clean diagnostic state,
         // regardless of any stale browser payload sent by the client.
-        record.diagnostic_state = isAdminRequest ? { ...EMPTY_DIAGNOSTIC_STATE, paymentComplete: true } : EMPTY_DIAGNOSTIC_STATE;
+        record.diagnostic_state = isAdminRequest ? adminProvisioningState(accessPlan) : EMPTY_DIAGNOSTIC_STATE;
         const rows = await supabaseRequest(config, 'accounts', {
           method: 'POST',
           headers: { Prefer: 'return=representation' },
@@ -832,6 +860,9 @@ export default async function handler(req, res) {
         });
         account = Array.isArray(rows) ? rows[0] : rows;
         await initializeOwnership(config, account, body.owners || body.partners || []);
+        if (account?.id && isAdminRequest) {
+          await persistAdminPlanEntitlement(config, account, accessPlan);
+        }
         const leadId = clean(body.leadId || body.lead_id);
         if (account?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(leadId)) {
           await supabaseRequest(config, `owner_archetype_leads?id=eq.${encodeURIComponent(leadId)}`, {

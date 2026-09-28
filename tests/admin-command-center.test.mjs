@@ -59,3 +59,15 @@ test('admin overview renders searchable per-agency health visibility',()=>{
   assert.match(adminJs,/selectedCategoryCount/);
   assert.match(adminJs,/health-signal/);
 });
+
+
+test('admin-created accounts receive the same durable plan entitlement shape as paid accounts',()=>{
+  const accountsApi=fs.readFileSync(new URL('../api/accounts.js',import.meta.url),'utf8');
+  const migration=fs.readFileSync(new URL('../supabase/migrations/20260928174500_admin_account_entitlement_parity.sql',import.meta.url),'utf8');
+  assert.match(accountsApi,/purchasedPlans:\s*\[accessPlan\]/);
+  assert.match(accountsApi,/persistAdminPlanEntitlement/);
+  assert.match(accountsApi,/cc_stripe_legacy_access\?on_conflict=account_id/);
+  assert.match(migration,/source = 'admin-console'/);
+  assert.match(migration,/insert into public\.cc_stripe_legacy_access/);
+  assert.match(migration,/paymentComplete/);
+});
