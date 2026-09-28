@@ -1612,8 +1612,13 @@ export default async function handler(req,res){
         const conversationId=clean(b.conversationId)||crypto.randomUUID();
         const requestId=clean(b.requestId)||crypto.randomUUID();
         const messageCount=Number.isInteger(Number(b.messageCount))?Number(b.messageCount):0;
-        const liveContext=await timing.run('connected_data',()=>buildAskCreatureLiveContext(c,account,actor,clean(b.message)));
-        return{success:true,...await sendChat((path,options)=>db(c,path,options),account,actor,{...b,conversationId,requestId,messageCount},{liveContext})};
+        return{success:true,...await sendChat(
+          (path,options)=>db(c,path,options),
+          account,
+          actor,
+          {...b,conversationId,requestId,messageCount},
+          {loadLiveContext:()=>timing.run('connected_data',()=>buildAskCreatureLiveContext(c,account,actor,clean(b.message)))}
+        )};
       });
     }
     if(['workspace_invite_user','workspace_update_user','workspace_remove_user'].includes(bodyAction)){
