@@ -422,26 +422,14 @@ function latestIso(values){
 }
 
 async function buildAdminPortfolio(config, accountRows) {
-  const [runsRaw, cardsRaw, evidenceRaw, ownersRaw, membersRaw, ...connectionGroups] = await Promise.all([
+  const [runsRaw, cardsRaw, evidenceRaw, healthRaw] = await Promise.all([
     supabaseRequest(config, 'diagnostic_runs?select=id,account_id,status,is_current,started_at,generated_at,completed_at&order=started_at.asc'),
     supabaseRequest(config, 'scorecards?select=id,diagnostic_run_id,performance_score,strength_score,independence_score,aofi_score,confidence,validation_status,report_data,generated_at,updated_at&order=generated_at.asc'),
     supabaseRequest(config, 'financial_evidence?select=diagnostic_run_id,evidence_type,extraction_status,extracted_data,validation_status,created_at,updated_at&order=updated_at.asc'),
-    adminOptionalRows(config, 'agency_owners?select=account_id,name,title,ownership_percent,is_primary,status,updated_at&status=eq.active'),
-    adminOptionalRows(config, 'account_members?select=account_id,role,status,last_login_at,updated_at'),
-    adminOptionalRows(config, 'quickbooks_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'freshbooks_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'google_calendar_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'google_drive_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'hubspot_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'zoho_crm_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'ghl_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'slack_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'google_chat_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'clickup_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'teamwork_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'monday_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'jira_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config, 'zoom_connections?select=account_id,status,updated_at')
+    supabaseRequest(config, 'rpc/cc_admin_portfolio_health', {method:'POST',body:JSON.stringify({})}).catch(error=>{
+      console.error('Admin portfolio health RPC unavailable',error?.message||error);
+      return[];
+    })
   ]);
 
   const accountIds = new Set(accountRows.map(row => String(row.id)));
@@ -472,27 +460,11 @@ async function buildAdminPortfolio(config, accountRows) {
     evidenceByRun.get(key).push(row);
   });
 
-  const ownersByAccount=new Map();
-  (Array.isArray(ownersRaw)?ownersRaw:[]).forEach(row=>{
-    const key=String(row.account_id);if(!accountIds.has(key))return;
-    if(!ownersByAccount.has(key))ownersByAccount.set(key,[]);
-    ownersByAccount.get(key).push(row);
-  });
-  const membersByAccount=new Map();
-  (Array.isArray(membersRaw)?membersRaw:[]).forEach(row=>{
-    const key=String(row.account_id);if(!accountIds.has(key))return;
-    if(!membersByAccount.has(key))membersByAccount.set(key,[]);
-    membersByAccount.get(key).push(row);
-  });
-  const connectionNames=['QuickBooks Online','FreshBooks','Google Calendar','Google Drive','HubSpot','Zoho CRM','GoHighLevel','Slack','Google Chat','ClickUp','Teamwork','Monday.com','Jira','Zoom'];
-  const connectionsByAccount=new Map();
-  connectionGroups.forEach((rows,index)=>{
-    (Array.isArray(rows)?rows:[]).forEach(row=>{
-      const key=String(row.account_id);if(!accountIds.has(key))return;
-      if(!connectionsByAccount.has(key))connectionsByAccount.set(key,[]);
-      connectionsByAccount.get(key).push({provider:connectionNames[index],status:row.status||'connected',updatedAt:row.updated_at||null});
-    });
-  });
+  const healthByAccount=new Map(
+    (Array.isArray(healthRaw)?healthRaw:[])
+      .filter(row=>accountIds.has(String(row.account_id)))
+      .map(row=>[String(row.account_id),row])
+  );
 
   const enriched = accountRows.map(account => {
     const key = String(account.id);
@@ -533,17 +505,17 @@ async function buildAdminPortfolio(config, accountRows) {
       evidence.has('balance_sheet') ? 'balance_sheet' : null,
       evidence.has('service_revenue_mix') ? 'service_revenue_mix' : null
     ].filter(Boolean);
-    const owners=(ownersByAccount.get(key)||[]).filter(row=>row.status==='active');
-    const members=(membersByAccount.get(key)||[]).filter(row=>row.status==='active');
-    const connections=connectionsByAccount.get(key)||[];
+    const healthRow=healthByAccount.get(key)||{};
+    const owners=Array.isArray(healthRow.owners)?healthRow.owners:[];
+    const connections=Array.isArray(healthRow.connections)?healthRow.connections:[];
     const connected=connections.filter(row=>row.status==='connected');
     const integrationErrors=connections.filter(row=>row.status==='error');
     const selections=accountIntegrationSelections(account);
     const selectedCategories=Object.entries(selections).filter(([,tools])=>Array.isArray(tools)&&tools.length);
     const selectedTools=[...new Set(selectedCategories.flatMap(([,tools])=>tools))];
     const currentState=account?.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
-    const lastMemberLogin=latestIso(members.map(row=>row.last_login_at));
-    const lastConnectionUpdate=latestIso(connections.map(row=>row.updatedAt));
+    const lastMemberLogin=healthRow.last_member_login||null;
+    const lastConnectionUpdate=healthRow.last_connection_update||null;
     const lastActivityAt=latestIso([
       account.updated_at||account.updatedAt,
       currentRun?.completed_at,currentRun?.generated_at,currentRun?.started_at,
@@ -586,8 +558,8 @@ async function buildAdminPortfolio(config, accountRows) {
           lastActivityAt,
           ownerCount: owners.length || 1,
           owners: owners.map(row=>({name:row.name||'',title:row.title||'',ownershipPercent:finite(row.ownership_percent),isPrimary:row.is_primary===true})),
-          teamMemberCount: members.filter(row=>row.role==='member').length,
-          partnerLoginCount: members.filter(row=>row.role==='partner').length,
+          teamMemberCount: Number(healthRow.team_member_count||0),
+          partnerLoginCount: Number(healthRow.partner_login_count||0),
           connectedProviderCount: connected.length,
           connectedProviders: connected.map(row=>row.provider),
           integrationErrorCount: integrationErrors.length,
