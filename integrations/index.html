@@ -241,9 +241,10 @@
     const show=id=>document.querySelector(id)?.classList.add('show');
     const hide=id=>document.querySelector(id)?.classList.remove('show');
 
-    async function apiGet(action){
+    async function apiGet(action,params={}){
       if(action.startsWith('stripe_'))return stripeApi(action.slice(7),action!=='stripe_status');
-      const r=await fetch(`/api/account-auth?action=${encodeURIComponent(action)}`);
+      const query=new URLSearchParams({action,...params});
+      const r=await fetch(`/api/account-auth?${query.toString()}`);
       const p=await r.json().catch(()=>({}));
       if(!r.ok)throw new Error(p.error||'Integration request failed.');
       return p;
@@ -391,20 +392,56 @@
     document.querySelector('#categoryModalClose').onclick=()=>hide('#categoryModal');
     categoryModal.addEventListener('click',event=>{if(event.target===categoryModal)hide('#categoryModal')});
     document.addEventListener('keydown',event=>{if(event.key==='Escape')hide('#categoryModal')});
+    const STATUS_CACHE_TTL=15000;
+    function integrationStatusCacheKey(){
+      let accountId='';
+      try{
+        const account=JSON.parse(localStorage.getItem('cc_account')||localStorage.getItem('ccUserAccount')||'null');
+        accountId=String(account?.id||account?.email||'');
+      }catch{}
+      const qs=new URLSearchParams(location.search);
+      const tenant=qs.get('tenant')||qs.get('accountId')||sessionStorage.getItem('cc_admin_tenant')||'';
+      return `cc_integration_statuses:${tenant||accountId||'session'}`;
+    }
+    function readStatusCache(){
+      try{
+        const row=JSON.parse(sessionStorage.getItem(integrationStatusCacheKey())||'null');
+        if(!row||!row.statuses||Date.now()-Number(row.at||0)>STATUS_CACHE_TTL)return null;
+        return row.statuses;
+      }catch{return null}
+    }
+    function writeStatusCache(statuses){
+      try{sessionStorage.setItem(integrationStatusCacheKey(),JSON.stringify({at:Date.now(),statuses}))}catch{}
+    }
+    function clearStatusCache(){
+      try{sessionStorage.removeItem(integrationStatusCacheKey())}catch{}
+    }
     async function loadStatuses(){
       const autoDetect=['QuickBooks Online'];
       const tools=[...new Set([...selected.filter(t=>meta[t]?.status),...autoDetect.filter(t=>meta[t]?.status)])];
-      tools.forEach(tool=>stateMap.set(tool,{loading:true}));
-      render();
+      const oauthParams=new URLSearchParams(location.search);
+      const forceFresh=[...oauthParams.values()].some(value=>value==='connected');
+      const cached=forceFresh?null:readStatusCache();
+      if(cached){
+        tools.forEach(tool=>{
+          const connection=cached[tool]||{connected:false};
+          stateMap.set(tool,{...connection,loading:false,error:connection.lastError||connection.lastSyncError||connection.error||''});
+        });
+        render();
+      }else{
+        tools.forEach(tool=>stateMap.set(tool,{loading:true}));
+        render();
+      }
       try{
-        const result=await apiGet('integration_statuses');
+        const result=await apiGet('integration_statuses',forceFresh?{fresh:'1'}:{});
         const statuses=result?.statuses||{};
+        writeStatusCache(statuses);
         tools.forEach(tool=>{
           const connection=statuses[tool]||{connected:false};
           stateMap.set(tool,{...connection,loading:false,error:connection.lastError||connection.lastSyncError||connection.error||''});
         });
       }catch(error){
-        await Promise.all(tools.map(loadToolStatus));
+        if(!cached)await Promise.all(tools.map(loadToolStatus));
       }
       let changed=false;
       autoDetect.forEach(tool=>{
@@ -429,7 +466,7 @@
       }catch(error){alert(error.message);button.disabled=false}
     }
     async function syncTool(tool,button){
-      const m=meta[tool];button.disabled=true;const old=button.textContent;button.textContent='Syncing…';
+      const m=meta[tool];button.disabled=true;const old=button.textContent;button.textContent='Syncing…';clearStatusCache();
       try{
         const result=await apiPost(m.sync);
         const c=connectionFrom(result);
@@ -439,6 +476,7 @@
       finally{button.disabled=false;button.textContent=old}
     }
     async function disconnectTool(tool,button){
+      clearStatusCache();
       if(!confirm(tool==='Google Calendar'?'Disconnect Google Calendar and Google Meet from this agency?':`Disconnect ${tool} from this agency?`))return;
       button.disabled=true;
       try{
