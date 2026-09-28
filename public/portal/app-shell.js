@@ -21,6 +21,14 @@
   const initials = value => String(value || 'CC').trim().split(/\s+/).slice(0,2).map(part => part[0] || '').join('').toUpperCase() || 'CC';
   const signOut = () => { ['ccSignedIn','cc_account','ccUserAccount'].forEach(key => localStorage.removeItem(key)); location.href='/login/'; };
   const bool = key => localStorage.getItem(key) === 'true';
+  if(!window.CCWorkspace&&!document.querySelector('link[data-cc-workspace-preload]')){
+    const preload=document.createElement('link');
+    preload.rel='preload';preload.as='script';preload.href='/shared/workspace-access.js';preload.dataset.ccWorkspacePreload='1';
+    document.head.appendChild(preload);
+  }
+  const shellParams=new URLSearchParams(location.search);
+  const adminTenantView=(shellParams.get('admin')==='1'&&(shellParams.get('tenant')||shellParams.get('accountId')))||
+    (sessionStorage.getItem('cc_admin_mode')==='1'&&sessionStorage.getItem('cc_admin_tenant'));
 
   function diagnosticStatus(state) {
     const done = [
@@ -52,7 +60,8 @@
   }
 
   document.querySelectorAll('[data-app-header]').forEach(async el => {
-    try{await window.CCAccount?.ready}catch{}
+    if(adminTenantView){try{await window.CCAccount?.ready}catch{}}
+    else{Promise.resolve(window.CCAccount?.ready).catch(()=>{});}
     const active = el.dataset.appHeader || '';
     const state = window.CCDiagnostic?.getState?.() || {reportReady:false, ownerComplete:false, strength:false, independence:false, performance:false};
     const account = readAccount();
