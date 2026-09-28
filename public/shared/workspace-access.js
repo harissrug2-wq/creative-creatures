@@ -3,6 +3,23 @@
   if(!document.querySelector('link[href="/shared/responsive.css"]')){const css=document.createElement('link');css.rel='stylesheet';css.href='/shared/responsive.css';document.head.appendChild(css);}
   function mountChrome(access){const mount=()=>window.CCWorkspaceChrome?.mount(access);if(window.CCWorkspaceChrome)return mount();const script=document.createElement('script');script.src='/shared/workspace-chrome.js';script.onload=mount;document.head.appendChild(script);}
   const api='/api/account-auth';let accessPromise=null;
+  const ACCESS_CACHE_TTL=12000;
+  const accessScope=()=>adminParam==='1'&&tenantParam?`admin:${tenantParam}`:`account:${window.CCAccount?.getAccount?.()?.id||'session'}`;
+  const accessCacheKey=()=>`cc_workspace_access:${accessScope()}`;
+  function readAccessCache(){
+    try{
+      const cached=JSON.parse(sessionStorage.getItem(accessCacheKey())||'null');
+      if(!cached||!cached.access||Date.now()-Number(cached.at||0)>ACCESS_CACHE_TTL)return null;
+      return cached.access;
+    }catch{return null}
+  }
+  function writeAccessCache(access){
+    try{sessionStorage.setItem(accessCacheKey(),JSON.stringify({at:Date.now(),access}))}catch{}
+  }
+  function invalidateAccess(){
+    accessPromise=null;
+    try{sessionStorage.removeItem(accessCacheKey())}catch{}
+  }
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
   const urlParams = new URLSearchParams(location.search);
@@ -76,8 +93,7 @@
     return p;
   }
 
-  const getAccess=()=>accessPromise||(accessPromise=request('workspace_access').then(r=>{
-    const access=r.access;
+  function mergeLocalWorkflow(access){
     const localState=window.CCDiagnostic?.getState?.();
     if(access?.actor?.role!=='admin'&&localState&&access?.workflow){
       if(localState.allComplete===true)access.workflow.allComplete=true;
@@ -86,7 +102,19 @@
       if(Number(localState.count)>Number(access.workflow.count||0))access.workflow.count=Number(localState.count);
     }
     return access;
-  }).catch(error=>{accessPromise=null;throw error}));
+  }
+  const getAccess=(options={})=>{
+    if(options.fresh===true)invalidateAccess();
+    if(accessPromise)return accessPromise;
+    const cached=options.fresh===true?null:readAccessCache();
+    if(cached)return Promise.resolve(mergeLocalWorkflow(cached));
+    accessPromise=request('workspace_access').then(r=>{
+      const access=mergeLocalWorkflow(r.access);
+      writeAccessCache(access);
+      return access;
+    }).catch(error=>{accessPromise=null;throw error});
+    return accessPromise;
+  };
   function applyAdminReadOnly(access){
     if(!access?.readOnly||document.querySelector('[data-admin-readonly-banner]'))return;
     const banner=document.createElement('div');
@@ -223,6 +251,6 @@
     if(feature&&!access.features.includes(feature)){location.replace(access.features.includes('accelerator')?'/accelerator/':access.features.includes('monitor')?'/platform/':'/diagnostic/');return}
     if(access.actor.role==='member'){const department=location.pathname.split('/').filter(Boolean)[0],first=access.actor.departments[0];if(location.pathname.startsWith('/platform')&&first){location.replace(`/${first}/`);return}if((departments.includes(department)&&!access.actor.departments.includes(department))||location.pathname.startsWith('/users'))location.replace(first?`/${first}/`:'/login/')}
   }catch{}}
-  window.CCWorkspace={request,getAccess,openAsk,guard,showGateNotice,showPreviewBanner,gateCopy,previewCopy};guard();getAccess().then(access=>{applyAdminReadOnly(access);mountChrome(access)}).catch(()=>{});
+  window.CCWorkspace={request,getAccess,invalidateAccess,openAsk,guard,showGateNotice,showPreviewBanner,gateCopy,previewCopy};guard();getAccess().then(access=>{applyAdminReadOnly(access);mountChrome(access)}).catch(()=>{});
 })();
 
