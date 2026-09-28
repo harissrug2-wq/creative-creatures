@@ -424,11 +424,13 @@ function latestIso(values){
 let adminPortfolioCache={at:0,signature:'',result:null};
 const ADMIN_PORTFOLIO_CACHE_TTL=20000;
 async function loadAdminPortfolioHealth(config,accountRows){
-  try{
-    const rows=await supabaseRequest(config,'rpc/cc_admin_portfolio_health',{method:'POST',body:JSON.stringify({})});
-    if(Array.isArray(rows))return rows;
-  }catch(error){
-    console.warn('Admin portfolio health RPC unavailable; using compatibility fallback.',error?.message||error);
+  if(process.env.ADMIN_PORTFOLIO_HEALTH_RPC==='1'){
+    try{
+      const rows=await supabaseRequest(config,'rpc/cc_admin_portfolio_health',{method:'POST',body:JSON.stringify({})});
+      if(Array.isArray(rows))return rows;
+    }catch(error){
+      console.warn('Admin portfolio health RPC unavailable; using compatibility fallback.',error?.message||error);
+    }
   }
   const [owners,members,...groups]=await Promise.all([
     adminOptionalRows(config,'agency_owners?select=account_id,name,title,ownership_percent,is_primary,status,created_at&status=eq.active'),
