@@ -4,21 +4,27 @@
   function mountChrome(access){const mount=()=>window.CCWorkspaceChrome?.mount(access);if(window.CCWorkspaceChrome)return mount();const script=document.createElement('script');script.src='/shared/workspace-chrome.js';script.onload=mount;document.head.appendChild(script);}
   const api='/api/account-auth';let accessPromise=null;
   const ACCESS_CACHE_TTL=12000;
-  const accessScope=()=>adminParam==='1'&&tenantParam?`admin:${tenantParam}`:`account:${window.CCAccount?.getAccount?.()?.id||'session'}`;
-  const accessCacheKey=()=>`cc_workspace_access:${accessScope()}`;
+  const accessScope=()=>{
+    if(adminParam==='1'&&tenantParam)return`admin:${tenantParam}`;
+    const account=window.CCAccount?.getAccount?.();
+    const identity=account?.id||account?.email||'';
+    return identity?`account:${identity}`:'';
+  };
+  const accessCacheKey=()=>accessScope()?`cc_workspace_access:${accessScope()}`:'';
   function readAccessCache(){
     try{
-      const cached=JSON.parse(sessionStorage.getItem(accessCacheKey())||'null');
+      const key=accessCacheKey();if(!key)return null;
+      const cached=JSON.parse(sessionStorage.getItem(key)||'null');
       if(!cached||!cached.access||Date.now()-Number(cached.at||0)>ACCESS_CACHE_TTL)return null;
       return cached.access;
     }catch{return null}
   }
   function writeAccessCache(access){
-    try{sessionStorage.setItem(accessCacheKey(),JSON.stringify({at:Date.now(),access}))}catch{}
+    try{const key=accessCacheKey();if(key)sessionStorage.setItem(key,JSON.stringify({at:Date.now(),access}))}catch{}
   }
   function invalidateAccess(){
     accessPromise=null;
-    try{sessionStorage.removeItem(accessCacheKey())}catch{}
+    try{const key=accessCacheKey();if(key)sessionStorage.removeItem(key)}catch{}
   }
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
