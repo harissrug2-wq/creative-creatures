@@ -51,7 +51,7 @@
       holdCount=0;
       windowLoaded=true;
       actuallyHide();
-    },15000);
+    },8000);
   };
 
   const hide=()=>actuallyHide();
