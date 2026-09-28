@@ -424,6 +424,10 @@ function latestIso(values){
 let adminPortfolioCache={at:0,signature:'',result:null};
 const ADMIN_PORTFOLIO_CACHE_TTL=20000;
 async function loadAdminPortfolioHealth(config,accountRows){
+  const accountIdList=accountRows.map(row=>String(row.id||'')).filter(Boolean);
+  if(!accountIdList.length)return[];
+  const accountFilter=`account_id=in.(${accountIdList.join(',')})`;
+  const scoped=path=>path+`${path.includes('?')?'&':'?'}${accountFilter}`;
   if(process.env.ADMIN_PORTFOLIO_HEALTH_RPC==='1'){
     try{
       const rows=await supabaseRequest(config,'rpc/cc_admin_portfolio_health',{method:'POST',body:JSON.stringify({})});
@@ -433,22 +437,22 @@ async function loadAdminPortfolioHealth(config,accountRows){
     }
   }
   const [owners,members,...groups]=await Promise.all([
-    adminOptionalRows(config,'agency_owners?select=account_id,name,title,ownership_percent,is_primary,status,created_at&status=eq.active'),
-    adminOptionalRows(config,'account_members?select=account_id,role,status,last_login_at,updated_at'),
-    adminOptionalRows(config,'quickbooks_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'freshbooks_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'google_calendar_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'google_drive_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'hubspot_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'zoho_crm_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'ghl_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'slack_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'google_chat_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'clickup_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'teamwork_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'monday_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'jira_connections?select=account_id,status,updated_at'),
-    adminOptionalRows(config,'zoom_connections?select=account_id,status,updated_at')
+    adminOptionalRows(config,scoped('agency_owners?select=account_id,name,title,ownership_percent,is_primary,status,created_at&status=eq.active')),
+    adminOptionalRows(config,scoped('account_members?select=account_id,role,status,last_login_at,updated_at')),
+    adminOptionalRows(config,scoped('quickbooks_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('freshbooks_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('google_calendar_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('google_drive_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('hubspot_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('zoho_crm_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('ghl_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('slack_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('google_chat_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('clickup_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('teamwork_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('monday_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('jira_connections?select=account_id,status,updated_at')),
+    adminOptionalRows(config,scoped('zoom_connections?select=account_id,status,updated_at'))
   ]);
   const names=['QuickBooks Online','FreshBooks','Google Calendar','Google Drive','HubSpot','Zoho CRM','GoHighLevel','Slack','Google Chat','ClickUp','Teamwork','Monday.com','Jira','Zoom'];
   const byAccount=new Map(accountRows.map(row=>[String(row.id),{account_id:row.id,owners:[],team_member_count:0,partner_login_count:0,last_member_login:null,connections:[],last_connection_update:null}]));
@@ -474,15 +478,26 @@ async function loadAdminPortfolioHealth(config,accountRows){
 async function buildAdminPortfolio(config, accountRows) {
   const signature=accountRows.map(row=>`${row.id}:${row.updated_at||row.updatedAt||''}`).join('|');
   if(adminPortfolioCache.result&&adminPortfolioCache.signature===signature&&Date.now()-adminPortfolioCache.at<ADMIN_PORTFOLIO_CACHE_TTL)return adminPortfolioCache.result;
-  const [runsRaw, cardsRaw, evidenceRaw, healthRaw] = await Promise.all([
-    supabaseRequest(config, 'diagnostic_runs?select=id,account_id,status,is_current,started_at,generated_at,completed_at&order=started_at.asc'),
-    supabaseRequest(config, 'scorecards?select=id,diagnostic_run_id,performance_score,strength_score,independence_score,aofi_score,confidence,validation_status,report_data,generated_at,updated_at&order=generated_at.asc'),
-    supabaseRequest(config, 'financial_evidence?select=diagnostic_run_id,evidence_type,extraction_status,extracted_data,validation_status,created_at,updated_at&order=updated_at.asc'),
+  const accountIds = new Set(accountRows.map(row => String(row.id)));
+  const accountIdList=[...accountIds].filter(Boolean);
+  const accountFilter=accountIdList.length?`&account_id=in.(${accountIdList.join(',')})`:'';
+  const [runsRaw, healthRaw] = await Promise.all([
+    accountIdList.length
+      ? supabaseRequest(config, `diagnostic_runs?select=id,account_id,status,is_current,started_at,generated_at,completed_at&order=started_at.asc${accountFilter}`)
+      : Promise.resolve([]),
     loadAdminPortfolioHealth(config,accountRows)
   ]);
-
-  const accountIds = new Set(accountRows.map(row => String(row.id)));
-  const runs = (Array.isArray(runsRaw) ? runsRaw : []).filter(run => accountIds.has(String(run.account_id)));
+  const runs = Array.isArray(runsRaw) ? runsRaw : [];
+  const runIds=runs.map(run=>String(run.id||'')).filter(Boolean);
+  const runFilter=runIds.length?`&diagnostic_run_id=in.(${runIds.join(',')})`:'';
+  const [cardsRaw,evidenceRaw]=await Promise.all([
+    runIds.length
+      ? supabaseRequest(config,`scorecards?select=id,diagnostic_run_id,performance_score,strength_score,independence_score,aofi_score,confidence,validation_status,report_data,generated_at,updated_at&order=generated_at.asc${runFilter}`)
+      : Promise.resolve([]),
+    runIds.length
+      ? supabaseRequest(config,`financial_evidence?select=diagnostic_run_id,evidence_type,extraction_status,extracted_data,validation_status,created_at,updated_at&order=updated_at.asc${runFilter}`)
+      : Promise.resolve([])
+  ]);
   const runById = new Map(runs.map(run => [String(run.id), run]));
   const runsByAccount = new Map();
 
