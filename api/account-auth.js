@@ -1354,6 +1354,37 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
   return Object.keys(sources).length?{retrievedAt:now.toISOString(),question:message,sources}:null;
 }
 
+async function integrationStatusSnapshot(c,accountId){
+  const loaders=[
+    ['QuickBooks Online',async()=>publicQuickBooksConnection(await getQuickBooksConnection(c,accountId))],
+    ['FreshBooks',async()=>publicFreshBooksConnection(await getFreshBooksConnection(c,accountId))],
+    ['Google Drive',async()=>publicGoogleDriveConnection(await getGoogleDriveConnection(c,accountId))],
+    ['HubSpot',async()=>publicHubSpotConnection(await getHubSpotConnection(c,accountId))],
+    ['Zoho CRM',async()=>publicZohoConnection(await getZohoConnection(c,accountId))],
+    ['GHL CRM',async()=>publicGhlConnection(await getGhlConnection(c,accountId))],
+    ['Slack',async()=>publicSlackConnection(await getSlackConnection(c,accountId))],
+    ['Google Chat',async()=>publicGoogleChatConnection(await getGoogleChatConnection(c,accountId))],
+    ['ClickUp',async()=>publicClickUpConnection(await getClickUpConnection(c,accountId))],
+    ['Teamwork',async()=>publicTeamworkConnection(await getTeamworkConnection(c,accountId))],
+    ['Monday.com',async()=>publicMondayConnection(await getMondayConnection(c,accountId))],
+    ['Jira',async()=>publicJiraConnection(await getJiraConnection(c,accountId))],
+    ['Zoom',async()=>publicZoomConnection(await getZoomConnection(c,accountId))],
+    ['Stripe',async()=>{const row=await readAgencyStripeContext(accountId);return row?.connection||row||{connected:false}}]
+  ];
+  const calendarPromise=getGoogleCalendarConnection(c,accountId);
+  const settled=await Promise.allSettled([...loaders.map(([,load])=>load()),calendarPromise]);
+  const statuses={};
+  loaders.forEach(([name],index)=>{
+    const item=settled[index];
+    statuses[name]=item.status==='fulfilled'?(item.value||{connected:false}):{connected:false,error:clean(item.reason?.message)||'Status unavailable'};
+  });
+  const calendarResult=settled[loaders.length];
+  const calendar=calendarResult.status==='fulfilled'?calendarResult.value:null;
+  statuses['Google Calendar']=publicGoogleCalendarConnection(calendar);
+  statuses['Google Meet']=googleMeetConnectionStatus(calendar);
+  return statuses;
+}
+
 export default async function handler(req,res){
   if(String(req.query?.ownership||'')==='1')return ownershipHandler(req,res);
   res.setHeader('Access-Control-Allow-Methods','GET,POST,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,X-GHL-Signature');
@@ -1377,6 +1408,13 @@ export default async function handler(req,res){
       return json(res,200,{received:true});
     }
     if(req.method==='GET'){
+
+      if(action==='integration_statuses'){
+        if(!session)return json(res,401,{error:'Sign in before viewing integration status.'});
+        const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});
+        requireFeature(account,'integrations');
+        return json(res,200,{statuses:await integrationStatusSnapshot(c,account.id),generatedAt:new Date().toISOString()});
+      }
 
       if(action==='workspace_access'||action==='workspace_users'||action==='ask_creature_history'||action==='ask_creature_faqs'){
         return await workspaceResult(res,action,async timing=>{
