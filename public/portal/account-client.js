@@ -196,6 +196,30 @@
     return localAccount;
   }
 
+  async function updateOwnerIdentity(payload = {}) {
+    const account = getAccount();
+    const id = String(account?.id || '').trim();
+    if (!id || id.startsWith('local-') || id.startsWith('lead-')) {
+      throw new Error('Sign in to your Creative Creatures account before saving Owner Identity.');
+    }
+
+    const result = await request(ACCOUNT_API_BASE, {
+      method: 'PATCH',
+      body: JSON.stringify({
+        id,
+        reportData: payload.reportData || payload.report_data || {},
+        archetypeResult: payload.archetypeResult || payload.archetype_result || {},
+        archetypeAnswers: payload.archetypeAnswers || payload.archetype_answers || {}
+      })
+    });
+    if (!result?.account) throw new Error('Owner Identity could not be saved to your account.');
+
+    return saveAccount(
+      { ...result.account, backend_saved: true, lead_only: false },
+      { replaceDiagnostic: false }
+    );
+  }
+
   async function createAccount(payload) {
     const previous = getAccount();
     const candidate = provisionalAccount(payload);
@@ -390,6 +414,7 @@
     saveAccount,
     hydrateAccount,
     createAccount,
+    updateOwnerIdentity,
     createOwnerArchetypeLead,
     lookupAccount,
     lookupOwnerArchetypeLead,
