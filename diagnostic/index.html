@@ -43,7 +43,17 @@
       ownershipNotice.innerHTML='<div><strong>Ownership reassessment complete</strong><p>Your owner-related assessment is updated. Refresh the AOFI™ Scorecard to attach the current ownership structure.</p></div><a class="small-blue" href="/diagnostic/processing/?refresh=1">Refresh AOFI™ Scorecard →</a>';
     }
   }
-  if(!state.ownerComplete){location.replace('/signup/lookup/?destination=diagnostic');return;}
+  if(!state.ownerComplete){
+    const account=window.CCAccount?.getAccount?.();
+    const hasWorkspace=Boolean(account?.id)&&!String(account.id).startsWith('local-')&&!String(account.id).startsWith('lead-');
+    if(hasWorkspace){
+      const plan=String(account?.accessPlan||account?.access_plan||account?.journey||'diagnostic').replace(/_/g,'-');
+      location.replace(`/owner-archetype/assessment/?destination=${encodeURIComponent(plan)}`);
+    }else{
+      location.replace('/signup/lookup/?destination=diagnostic');
+    }
+    return;
+  }
   const ownerReportUrl=window.CCDiagnostic.reportUrl();
   const viewArchetypeReport=document.getElementById('viewArchetypeReport');
   viewArchetypeReport.href=ownerReportUrl;
