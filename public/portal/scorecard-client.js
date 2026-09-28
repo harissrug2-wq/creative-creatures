@@ -2,6 +2,8 @@
   const API_BASE = '/api/scorecard';
   let cached = null;
   let cachedHistory = [];
+  let loadPromise = null;
+  const SESSION_TTL = 120000;
 
   const safeJson = (value, fallback = null) => {
     try { return JSON.parse(value); } catch { return fallback; }
@@ -37,6 +39,24 @@
     return payload;
   }
 
+  function sessionKey(current=identity()){
+    const key=current.accountId||current.email||current.agencyUrl||'';
+    return key?`cc_scorecard_cache:${key}`:'';
+  }
+  function readSession(current){
+    try{
+      const key=sessionKey(current);if(!key)return null;
+      const row=safeJson(sessionStorage.getItem(key),null);
+      if(!row||Date.now()-Number(row.at||0)>SESSION_TTL)return null;
+      return row;
+    }catch{return null}
+  }
+  function writeSession(current){
+    try{
+      const key=sessionKey(current);if(key)sessionStorage.setItem(key,JSON.stringify({at:Date.now(),scorecard:cached,history:cachedHistory}));
+    }catch{}
+  }
+
   function requireIdentity() {
     const current = identity();
     if (!current.accountId && !current.email && !current.agencyUrl) {
@@ -57,14 +77,26 @@
   async function load(options = {}) {
     if (cached && options.fresh !== true) return cached;
     const current = requireIdentity();
+    if(options.fresh!==true){
+      const saved=readSession(current);
+      if(saved){
+        cached=normalizeScorecard(saved.scorecard);
+        cachedHistory=Array.isArray(saved.history)?saved.history:[];
+        return cached;
+      }
+      if(loadPromise)return loadPromise;
+    }
     const params = new URLSearchParams();
     if (current.accountId) params.set('accountId', current.accountId);
     if (current.email) params.set('email', current.email);
     if (current.agencyUrl) params.set('agencyUrl', current.agencyUrl);
-    const payload = await request(`${API_BASE}?${params.toString()}`);
-    cached = normalizeScorecard(payload.scorecard);
-    cachedHistory = Array.isArray(payload.history) ? payload.history : [];
-    return cached;
+    loadPromise=request(`${API_BASE}?${params.toString()}`).then(payload=>{
+      cached = normalizeScorecard(payload.scorecard);
+      cachedHistory = Array.isArray(payload.history) ? payload.history : [];
+      writeSession(current);
+      return cached;
+    }).finally(()=>{loadPromise=null;});
+    return loadPromise;
   }
 
   async function generate() {
@@ -75,12 +107,17 @@
     });
     cached = normalizeScorecard(payload.scorecard);
     cachedHistory = Array.isArray(payload.history) ? payload.history : [];
+    writeSession(current);
     return cached;
   }
 
   const getCached = () => cached;
   const getHistory = () => cachedHistory.slice();
-  const clear = () => { cached = null; cachedHistory = []; };
+  const clear = () => {
+    const current=identity();
+    cached = null; cachedHistory = []; loadPromise=null;
+    try{const key=sessionKey(current);if(key)sessionStorage.removeItem(key)}catch{}
+  };
 
   window.CCScorecard = { load, generate, getCached, getHistory, clear };
 })();

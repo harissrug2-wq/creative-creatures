@@ -20,7 +20,7 @@
   let databaseError = null;
 
   try {
-    model = await window.CCScorecard?.load?.({ fresh: true });
+    model = await window.CCScorecard?.load?.({ fresh: false });
   } catch (error) {
     databaseError = error;
     // Existing completed users may have generated the Scorecard before the

@@ -1,6 +1,8 @@
 (() => {
   const API_BASE = '/api/goals';
   let cached = null;
+  let loadPromise = null;
+  const SESSION_TTL = 20000;
 
   const safeJson = (value, fallback = null) => {
     try { return JSON.parse(value); } catch { return fallback; }
@@ -19,6 +21,25 @@
       email: tenant ? '' : (current.email || localStorage.getItem('ccOwnerEmail') || ''),
       agencyUrl: tenant ? '' : (current.agency_url || current.agencyUrl || localStorage.getItem('ccAgencyWebsite') || '')
     };
+  }
+
+  function sessionKey(current=identity()){
+    const key=current.accountId||current.email||current.agencyUrl||'';
+    return key?`cc_goals_cache:${key}`:'';
+  }
+  function readSession(current){
+    try{
+      const key=sessionKey(current);if(!key)return null;
+      const row=safeJson(sessionStorage.getItem(key),null);
+      if(!row||Date.now()-Number(row.at||0)>SESSION_TTL)return null;
+      return row.goals||null;
+    }catch{return null}
+  }
+  function writeSession(current,value){
+    try{const key=sessionKey(current);if(key)sessionStorage.setItem(key,JSON.stringify({at:Date.now(),goals:value}))}catch{}
+  }
+  function clearSession(){
+    try{const key=sessionKey();if(key)sessionStorage.removeItem(key)}catch{}
   }
 
   function requireIdentity() {
@@ -49,13 +70,21 @@
   async function load(options = {}) {
     if (cached && options.fresh !== true) return cached;
     const current = requireIdentity();
+    if(options.fresh!==true){
+      const saved=readSession(current);
+      if(saved){cached=saved;return cached}
+      if(loadPromise)return loadPromise;
+    }
     const params = new URLSearchParams();
     if (current.accountId) params.set('accountId', current.accountId);
     if (current.email) params.set('email', current.email);
     if (current.agencyUrl) params.set('agencyUrl', current.agencyUrl);
-    const payload = await request(`${API_BASE}?${params.toString()}`);
-    cached = payload.goals || null;
-    return cached;
+    loadPromise = request(`${API_BASE}?${params.toString()}`).then(payload => {
+      cached = payload.goals || null;
+      writeSession(current,cached);
+      return cached;
+    }).finally(() => { loadPromise = null; });
+    return loadPromise;
   }
 
   async function action(actionName, fields = {}) {
@@ -65,6 +94,8 @@
       body: JSON.stringify({ ...current, action: actionName, ...fields })
     });
     cached = null;
+    loadPromise = null;
+    clearSession();
     return payload;
   }
 
@@ -77,7 +108,7 @@
   const createRocks = rocks => action('create_rocks', { rocks });
   const updateRock = rock => action('update_rock', rock);
   const complete = () => action('complete');
-  const clear = () => { cached = null; };
+  const clear = () => { cached = null; loadPromise = null; clearSession(); };
 
   window.CCGoals = { load, saveTarget, saveTargets, saveProgress, saveDepartment, createRocks, updateRock, complete, clear };
 })();
