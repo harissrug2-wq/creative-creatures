@@ -1017,6 +1017,19 @@ async function loadMonitorDepartment(c,accountId,department){
     account_id:`eq.${accountId}`,order:'updated_at.desc',limit:'100'
   });
   const runParams=new URLSearchParams({select:'id',account_id:`eq.${accountId}`,is_current:'eq.true',limit:'1'});
+  let sourcePromise=null;
+  if(department==='marketing'||department==='sales')sourcePromise=monitorCrmSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  else if(department==='onboarding'||department==='service-delivery')sourcePromise=monitorProjectSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  else if(department==='communication')sourcePromise=monitorCommunicationsSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  else if(department==='systems')sourcePromise=monitorSystemsSource(c,accountId,integrationRequirement.selectedTools);
+  else if(department==='sops'){
+    const allowsDrive=integrationRequirement.selectedTools.includes('Google Drive');
+    sourcePromise=(async()=>{
+      const connection=allowsDrive?await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection):{connected:false};
+      return{kind:'drive',name:'Google Drive',connected:connection.connected,connection,data:{items:connection.selectedItems||[]}};
+    })();
+  }
+
   const [goalRows,rockRows,runRows]=await Promise.all([
     monitorRows(c,`department_goals?${goalParams.toString()}`,'department goal',warnings),
     monitorRows(c,`rocks?${rocksParams.toString()}`,'rocks',warnings),
@@ -1033,8 +1046,7 @@ async function loadMonitorDepartment(c,accountId,department){
   }
 
   let source={kind:'none',name:'No connected source',connected:false,connection:null,data:{}};
-  if(department==='marketing'||department==='sales')source=await monitorCrmSource(c,accountId,warnings,integrationRequirement.selectedTools);
-  else if(department==='onboarding'||department==='service-delivery')source=await monitorProjectSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  if(sourcePromise)source=await sourcePromise;
   else if(department==='client-success'){
     const clientEvidence=evidenceRows.some(row=>row.evidence_type==='client_revenue');
     source=clientEvidence&&integrationRequirement.selectedTools.some(tool=>['QuickBooks Online','FreshBooks'].includes(tool))
@@ -1049,13 +1061,6 @@ async function loadMonitorDepartment(c,accountId,department){
       (allowQuickBooks&&row.extraction_model==='quickbooks-online-api')
     );
     source={kind:'financial_evidence',name:accountingEvidence?.extraction_model==='freshbooks-api'?'FreshBooks':accountingEvidence?.extraction_model==='quickbooks-online-api'?'QuickBooks Online':'Financial evidence',connected:Boolean(accountingEvidence),connection:null,data:{}};
-  }
-  else if(department==='communication')source=await monitorCommunicationsSource(c,accountId,warnings,integrationRequirement.selectedTools);
-  else if(department==='systems')source=await monitorSystemsSource(c,accountId,integrationRequirement.selectedTools);
-  else if(department==='sops'){
-    const allowsDrive=integrationRequirement.selectedTools.includes('Google Drive');
-    const connection=allowsDrive?await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection):{connected:false};
-    source={kind:'drive',name:'Google Drive',connected:connection.connected,connection,data:{items:connection.selectedItems||[]}};
   }
 
   let visibleEvidenceRows=evidenceRows;
@@ -1202,24 +1207,27 @@ async function creatureTrySource(sources,name,enabled,loader){
   try{sources[name]=compactCreatureData(await loader(),10000)}
   catch(error){sources[name]={available:false,error:clean(error?.message)||'This connected source is unavailable.'}}
 }
-async function creatureWorkspaceContext(c,account,actor){
+async function creatureWorkspaceContext(c,account,actor,message=''){
   if(actor?.role==='member')return{agencyName:account.agency_name||account.name||'',departments:actor.departments||[]};
   const base={agencyName:account.agency_name||account.name||''};
-  const settled=await Promise.allSettled([
-    db(c,`agency_owners?select=name,email,title,ownership_percent,is_primary,status,owner_identity_status,effective_from&account_id=eq.${encodeURIComponent(account.id)}&status=eq.active&order=is_primary.desc,created_at.asc`),
-    db(c,`agency_goals?select=metric_id,target_type,target_value,resolved_target_value,target_notes,updated_at&account_id=eq.${encodeURIComponent(account.id)}&order=metric_id.asc`),
-    db(c,`department_goals?select=department,goal,owner_name,status,done_looks_like,target_completion,target_completion_date,updated_at&account_id=eq.${encodeURIComponent(account.id)}&order=department.asc`),
-    db(c,`rocks?select=title,description,owner_name,due_date,status,source_type,updated_at&account_id=eq.${encodeURIComponent(account.id)}&order=created_at.asc`),
-    db(c,`account_members?select=name,email,role,departments,status,last_login_at&account_id=eq.${encodeURIComponent(account.id)}&order=created_at.asc`)
-  ]);
-  const value=index=>settled[index]?.status==='fulfilled'?(settled[index].value||[]):[];
-  return{...base,
-    ownership:compactCreatureData(value(0),5000),
-    agencyTargets:compactCreatureData(value(1),5000),
-    departmentGoals:compactCreatureData(value(2),5000),
-    priorities:compactCreatureData(value(3),6000),
-    workspaceUsers:compactCreatureData(value(4),5000)
-  };
+  const broad=/\b(my agency|our agency|agency overview|agency status|business status|everything|overview)\b/i.test(message);
+  const wantsOwnership=broad||/\b(owner|owners|ownership|partner|partners|equity)\b/i.test(message);
+  const wantsGoals=broad||/\b(goal|goals|target|targets|priority|priorities|90[- ]day|rock|rocks)\b/i.test(message);
+  const wantsUsers=broad||/\b(user|users|team|team member|team members|staff|login|logins)\b/i.test(message);
+  const tasks=[];
+  const keys=[];
+  if(wantsOwnership){keys.push('ownership');tasks.push(db(c,`agency_owners?select=name,email,title,ownership_percent,is_primary,status,owner_identity_status,effective_from&account_id=eq.${encodeURIComponent(account.id)}&status=eq.active&order=is_primary.desc,created_at.asc`))}
+  if(wantsGoals){
+    keys.push('agencyTargets');tasks.push(db(c,`agency_goals?select=metric_id,target_type,target_value,resolved_target_value,target_notes,updated_at&account_id=eq.${encodeURIComponent(account.id)}&order=metric_id.asc`));
+    keys.push('departmentGoals');tasks.push(db(c,`department_goals?select=department,goal,owner_name,status,done_looks_like,target_completion,target_completion_date,updated_at&account_id=eq.${encodeURIComponent(account.id)}&order=department.asc`));
+    keys.push('priorities');tasks.push(db(c,`rocks?select=title,description,owner_name,due_date,status,source_type,updated_at&account_id=eq.${encodeURIComponent(account.id)}&order=created_at.asc`));
+  }
+  if(wantsUsers){keys.push('workspaceUsers');tasks.push(db(c,`account_members?select=name,email,role,departments,status,last_login_at&account_id=eq.${encodeURIComponent(account.id)}&order=created_at.asc`))}
+  if(!tasks.length)return base;
+  const settled=await Promise.allSettled(tasks);
+  const result={...base};
+  keys.forEach((key,index)=>{result[key]=compactCreatureData(settled[index]?.status==='fulfilled'?(settled[index].value||[]):[],key==='priorities'?6000:5000)});
+  return result;
 }
 async function creatureIntegrationInventory(c,account){
   const checks=[
@@ -1274,7 +1282,7 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
   const wantsIntegrationInventory=/\b(integration|integrations|connected tool|connected tools|connection|connections|what.*connected|which.*connected|data source|data sources)\b/i.test(message);
   const wantsAgency=/\b(my agency|our agency|agency status|agency overview|business status|ownership|owner|owners|partner|partners|goal|goals|priority|priorities|scorecard|diagnostic|aofi|team member|team members|user|users)\b/i.test(message);
 
-  sources.creativeCreaturesWorkspace=await creatureWorkspaceContext(c,account,actor);
+  sources.creativeCreaturesWorkspace=await creatureWorkspaceContext(c,account,actor,message);
   if(wantsIntegrationInventory)sources.integrationInventory=await creatureIntegrationInventory(c,account);
 
   if(wantsCalendar&&creatureCanRead(actor,['leadership','communication','sales'])){
@@ -1348,10 +1356,38 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
     else sources.zoom={connected:false,message:'Zoom is not connected.'};
   }
 
-  if((wantsCalendar||wantsCrm||wantsProjects||wantsComms||wantsFinance||wantsDrive||wantsZoom)&&!sources.integrationInventory){
-    sources.integrationInventory=await creatureIntegrationInventory(c,account);
-  }
   return Object.keys(sources).length?{retrievedAt:now.toISOString(),question:message,sources}:null;
+}
+
+async function integrationStatusSnapshot(c,accountId){
+  const loaders=[
+    ['QuickBooks Online',async()=>publicQuickBooksConnection(await getQuickBooksConnection(c,accountId))],
+    ['FreshBooks',async()=>publicFreshBooksConnection(await getFreshBooksConnection(c,accountId))],
+    ['Google Drive',async()=>publicGoogleDriveConnection(await getGoogleDriveConnection(c,accountId))],
+    ['HubSpot',async()=>publicHubSpotConnection(await getHubSpotConnection(c,accountId))],
+    ['Zoho CRM',async()=>publicZohoConnection(await getZohoConnection(c,accountId))],
+    ['GHL CRM',async()=>publicGhlConnection(await getGhlConnection(c,accountId))],
+    ['Slack',async()=>publicSlackConnection(await getSlackConnection(c,accountId))],
+    ['Google Chat',async()=>publicGoogleChatConnection(await getGoogleChatConnection(c,accountId))],
+    ['ClickUp',async()=>publicClickUpConnection(await getClickUpConnection(c,accountId))],
+    ['Teamwork',async()=>publicTeamworkConnection(await getTeamworkConnection(c,accountId))],
+    ['Monday.com',async()=>publicMondayConnection(await getMondayConnection(c,accountId))],
+    ['Jira',async()=>publicJiraConnection(await getJiraConnection(c,accountId))],
+    ['Zoom',async()=>publicZoomConnection(await getZoomConnection(c,accountId))],
+    ['Stripe',async()=>{const row=await readAgencyStripeContext(accountId);return row?.connection||row||{connected:false}}]
+  ];
+  const calendarPromise=getGoogleCalendarConnection(c,accountId);
+  const settled=await Promise.allSettled([...loaders.map(([,load])=>load()),calendarPromise]);
+  const statuses={};
+  loaders.forEach(([name],index)=>{
+    const item=settled[index];
+    statuses[name]=item.status==='fulfilled'?(item.value||{connected:false}):{connected:false,error:clean(item.reason?.message)||'Status unavailable'};
+  });
+  const calendarResult=settled[loaders.length];
+  const calendar=calendarResult.status==='fulfilled'?calendarResult.value:null;
+  statuses['Google Calendar']=publicGoogleCalendarConnection(calendar);
+  statuses['Google Meet']=googleMeetConnectionStatus(calendar);
+  return statuses;
 }
 
 export default async function handler(req,res){
@@ -1377,6 +1413,13 @@ export default async function handler(req,res){
       return json(res,200,{received:true});
     }
     if(req.method==='GET'){
+
+      if(action==='integration_statuses'){
+        if(!session)return json(res,401,{error:'Sign in before viewing integration status.'});
+        const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});
+        requireFeature(account,'integrations');
+        return json(res,200,{statuses:await integrationStatusSnapshot(c,account.id),generatedAt:new Date().toISOString()});
+      }
 
       if(action==='workspace_access'||action==='workspace_users'||action==='ask_creature_history'||action==='ask_creature_faqs'){
         return await workspaceResult(res,action,async timing=>{
@@ -1569,8 +1612,13 @@ export default async function handler(req,res){
         const conversationId=clean(b.conversationId)||crypto.randomUUID();
         const requestId=clean(b.requestId)||crypto.randomUUID();
         const messageCount=Number.isInteger(Number(b.messageCount))?Number(b.messageCount):0;
-        const liveContext=await timing.run('connected_data',()=>buildAskCreatureLiveContext(c,account,actor,clean(b.message)));
-        return{success:true,...await sendChat((path,options)=>db(c,path,options),account,actor,{...b,conversationId,requestId,messageCount},{liveContext})};
+        return{success:true,...await sendChat(
+          (path,options)=>db(c,path,options),
+          account,
+          actor,
+          {...b,conversationId,requestId,messageCount},
+          {loadLiveContext:()=>timing.run('connected_data',()=>buildAskCreatureLiveContext(c,account,actor,clean(b.message)))}
+        )};
       });
     }
     if(['workspace_invite_user','workspace_update_user','workspace_remove_user'].includes(bodyAction)){

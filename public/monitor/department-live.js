@@ -29,6 +29,23 @@
   const array = value => Array.isArray(value) ? value : [];
   const object = value => value && typeof value === 'object' ? value : {};
 
+  const MONITOR_CACHE_TTL=30000;
+  function monitorCacheKey(){
+    const qs=new URLSearchParams(location.search);
+    const tenant=clean(qs.get('tenant')||qs.get('accountId')||sessionStorage.getItem('cc_admin_tenant')||'self');
+    return `cc_monitor_department:${tenant}:${page}`;
+  }
+  function readMonitorCache(){
+    try{
+      const row=JSON.parse(sessionStorage.getItem(monitorCacheKey())||'null');
+      if(!row||!row.payload||Date.now()-Number(row.at||0)>MONITOR_CACHE_TTL)return null;
+      return row.payload;
+    }catch{return null}
+  }
+  function writeMonitorCache(payload){
+    try{sessionStorage.setItem(monitorCacheKey(),JSON.stringify({at:Date.now(),payload}))}catch{}
+  }
+
   const state = {
     payload:null,
     year:new Date().getFullYear(),
@@ -380,7 +397,11 @@
     document.querySelector('#departmentRetry')?.addEventListener('click',load);
   }
 
-  async function load() {
+  async function load(options={}) {
+    if(options.fresh!==true){
+      const cached=readMonitorCache();
+      if(cached){state.payload=cached;render();return}
+    }
     loading();
     try{
       const qs = new URLSearchParams(location.search);
@@ -392,7 +413,7 @@
       const response=await fetch('/api/account-auth',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(bodyPayload)});
       const payload=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(payload.error||'Department data could not be loaded.');
-      state.payload=payload;render();
+      state.payload=payload;writeMonitorCache(payload);render();
     }catch(error){failure(error)}
   }
 
