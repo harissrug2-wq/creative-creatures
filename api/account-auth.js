@@ -990,10 +990,10 @@ function monitorIntegrationRequirement(account,department){
   return{categories,selectedTools,satisfied:categories.length===0||selectedTools.length>0};
 }
 
-async function loadMonitorDepartment(c,accountId,department){
+async function loadMonitorDepartment(c,accountId,department,providedAccount=null){
   if(!MONITOR_DEPARTMENTS.has(department))throw Object.assign(new Error('Unknown Monitor department.'),{status:422,code:'INVALID_MONITOR_DEPARTMENT'});
   const warnings=[];
-  const account=await findById(c,accountId);
+  const account=providedAccount||await findById(c,accountId);
   if(!account)throw Object.assign(new Error('Account not found.'),{status:404,code:'ACCOUNT_NOT_FOUND'});
   const integrationRequirement=monitorIntegrationRequirement(account,department);
   if(!integrationRequirement.satisfied){
@@ -1252,8 +1252,8 @@ async function creatureIntegrationInventory(c,account){
   }));
   return rows;
 }
-async function creatureQuickBooksContext(c,accountId,message){
-  const connection=await getQuickBooksConnection(c,accountId);
+async function creatureQuickBooksContext(c,accountId,message,providedConnection=null){
+  const connection=providedConnection||await getQuickBooksConnection(c,accountId);
   if(!connection||connection.status!=='connected')return{connected:false,message:'QuickBooks Online is not connected.'};
   const {connection:current,accessToken}=await ensureQuickBooksAccess(c,connection);
   const request={realmId:current.realm_id,accessToken};
@@ -1282,8 +1282,8 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
   const wantsIntegrationInventory=/\b(integration|integrations|connected tool|connected tools|connection|connections|what.*connected|which.*connected|data source|data sources)\b/i.test(message);
   const wantsAgency=/\b(my agency|our agency|agency status|agency overview|business status|ownership|owner|owners|partner|partners|goal|goals|priority|priorities|scorecard|diagnostic|aofi|team member|team members|user|users)\b/i.test(message);
 
-  sources.creativeCreaturesWorkspace=await creatureWorkspaceContext(c,account,actor,message);
-  if(wantsIntegrationInventory)sources.integrationInventory=await creatureIntegrationInventory(c,account);
+  const workspaceContextPromise=creatureWorkspaceContext(c,account,actor,message);
+  const integrationInventoryPromise=wantsIntegrationInventory?creatureIntegrationInventory(c,account):Promise.resolve(null);
 
   if(wantsCalendar&&creatureCanRead(actor,['leadership','communication','sales'])){
     await creatureTrySource(sources,'googleCalendar',true,async()=>{
@@ -1304,9 +1304,11 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
     const explicitHubSpot=/\bhubspot\b/i.test(message);
     const explicitZoho=/\bzoho\b/i.test(message);
     const [ghlRow,hubRow,zohoRow]=await Promise.all([getGhlConnection(c,account.id),getHubSpotConnection(c,account.id),getZohoConnection(c,account.id)]);
-    await creatureTrySource(sources,'gohighlevel',(explicitGhl||(!explicitHubSpot&&!explicitZoho))&&ghlRow?.status==='connected',()=>loadGhlDashboard(c,account.id));
-    await creatureTrySource(sources,'hubspot',(explicitHubSpot||(!explicitGhl&&!explicitZoho))&&hubRow?.status==='connected',()=>loadHubSpotDashboard(c,account.id));
-    await creatureTrySource(sources,'zoho',(explicitZoho||(!explicitGhl&&!explicitHubSpot))&&zohoRow?.status==='connected',()=>loadZohoDashboard(c,account.id));
+    await Promise.all([
+      creatureTrySource(sources,'gohighlevel',(explicitGhl||(!explicitHubSpot&&!explicitZoho))&&ghlRow?.status==='connected',()=>loadGhlDashboard(c,account.id)),
+      creatureTrySource(sources,'hubspot',(explicitHubSpot||(!explicitGhl&&!explicitZoho))&&hubRow?.status==='connected',()=>loadHubSpotDashboard(c,account.id)),
+      creatureTrySource(sources,'zoho',(explicitZoho||(!explicitGhl&&!explicitHubSpot))&&zohoRow?.status==='connected',()=>loadZohoDashboard(c,account.id))
+    ]);
     if(!ghlRow?.status?.includes('connected')&&!hubRow?.status?.includes('connected')&&!zohoRow?.status?.includes('connected'))sources.crm={connected:false,message:'No supported CRM is connected.'};
   }
 
@@ -1320,28 +1322,28 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
       ['monday',explicit.monday,mondayRow,()=>loadMondayDashboard(c,account.id)],
       ['teamwork',explicit.teamwork,teamworkRow,()=>loadTeamworkDashboard(c,account.id)]
     ];
-    let loaded=false;
-    for(const [name,isExplicit,row,loader] of options){
-      const enabled=row?.status==='connected'&&(isExplicit||!anyExplicit);
-      if(enabled){await creatureTrySource(sources,name,true,loader);loaded=true}
-    }
-    if(!loaded)sources.projectTools={connected:false,message:'No supported project-management connection is available for this question.'};
+    const enabledOptions=options.filter(([,isExplicit,row])=>row?.status==='connected'&&(isExplicit||!anyExplicit));
+    await Promise.all(enabledOptions.map(([name,,,loader])=>creatureTrySource(sources,name,true,loader)));
+    if(!enabledOptions.length)sources.projectTools={connected:false,message:'No supported project-management connection is available for this question.'};
   }
 
   if(wantsComms&&creatureCanRead(actor,['communication','leadership','systems'])){
     const explicitSlack=/\bslack\b/i.test(message),explicitGoogle=/\bgoogle chat\b/i.test(message);
     const [slackRow,chatRow]=await Promise.all([getSlackConnection(c,account.id),getGoogleChatConnection(c,account.id)]);
-    await creatureTrySource(sources,'slack',(explicitSlack||!explicitGoogle)&&slackRow?.status==='connected',()=>loadSlackDashboard(c,account.id));
-    await creatureTrySource(sources,'googleChat',(explicitGoogle||!explicitSlack)&&chatRow?.status==='connected',()=>loadGoogleChatDashboard(c,account.id));
+    await Promise.all([
+      creatureTrySource(sources,'slack',(explicitSlack||!explicitGoogle)&&slackRow?.status==='connected',()=>loadSlackDashboard(c,account.id)),
+      creatureTrySource(sources,'googleChat',(explicitGoogle||!explicitSlack)&&chatRow?.status==='connected',()=>loadGoogleChatDashboard(c,account.id))
+    ]);
     if(slackRow?.status!=='connected'&&chatRow?.status!=='connected')sources.communications={connected:false,message:'No supported communication workspace is connected.'};
   }
 
   if(wantsFinance&&creatureCanRead(actor,['finance','billing'])){
-    await creatureTrySource(sources,'stripe',true,()=>readAgencyStripeContext(account.id));
-    const fb=await getFreshBooksConnection(c,account.id);
-    if(fb?.status==='connected')await creatureTrySource(sources,'freshbooks',true,()=>loadFreshBooksDashboard(c,account.id));
-    const qb=await getQuickBooksConnection(c,account.id);
-    if(qb?.status==='connected')await creatureTrySource(sources,'quickbooks',true,()=>creatureQuickBooksContext(c,account.id,message));
+    const [fb,qb]=await Promise.all([getFreshBooksConnection(c,account.id),getQuickBooksConnection(c,account.id)]);
+    await Promise.all([
+      creatureTrySource(sources,'stripe',true,()=>readAgencyStripeContext(account.id)),
+      creatureTrySource(sources,'freshbooks',fb?.status==='connected',()=>loadFreshBooksDashboard(c,account.id)),
+      creatureTrySource(sources,'quickbooks',qb?.status==='connected',()=>creatureQuickBooksContext(c,account.id,message,qb))
+    ]);
     if(fb?.status!=='connected'&&qb?.status!=='connected')sources.bookkeeping={connected:false,message:'No supported bookkeeping source is connected.'};
   }
 
@@ -1359,7 +1361,13 @@ async function buildAskCreatureLiveContext(c,account,actor,message){
   return Object.keys(sources).length?{retrievedAt:now.toISOString(),question:message,sources}:null;
 }
 
-async function integrationStatusSnapshot(c,accountId){
+const integrationStatusCache=new Map();
+const INTEGRATION_STATUS_CACHE_TTL=10000;
+function clearIntegrationStatusCache(accountId){integrationStatusCache.delete(String(accountId||''))}
+async function integrationStatusSnapshot(c,accountId,options={}){
+  const key=String(accountId||'');
+  const cached=integrationStatusCache.get(key);
+  if(options.fresh!==true&&cached&&Date.now()-cached.at<INTEGRATION_STATUS_CACHE_TTL)return cached.statuses;
   const loaders=[
     ['QuickBooks Online',async()=>publicQuickBooksConnection(await getQuickBooksConnection(c,accountId))],
     ['FreshBooks',async()=>publicFreshBooksConnection(await getFreshBooksConnection(c,accountId))],
@@ -1387,6 +1395,7 @@ async function integrationStatusSnapshot(c,accountId){
   const calendar=calendarResult.status==='fulfilled'?calendarResult.value:null;
   statuses['Google Calendar']=publicGoogleCalendarConnection(calendar);
   statuses['Google Meet']=googleMeetConnectionStatus(calendar);
+  integrationStatusCache.set(key,{at:Date.now(),statuses});
   return statuses;
 }
 
@@ -1418,7 +1427,7 @@ export default async function handler(req,res){
         if(!session)return json(res,401,{error:'Sign in before viewing integration status.'});
         const account=await findById(c,session.accountId);if(!account)return json(res,401,{authenticated:false});
         requireFeature(account,'integrations');
-        return json(res,200,{statuses:await integrationStatusSnapshot(c,account.id),generatedAt:new Date().toISOString()});
+        return json(res,200,{statuses:await integrationStatusSnapshot(c,account.id,{fresh:clean(req.query?.fresh)==='1'}),generatedAt:new Date().toISOString()});
       }
 
       if(action==='workspace_access'||action==='workspace_users'||action==='ask_creature_history'||action==='ask_creature_faqs'){
@@ -1649,9 +1658,9 @@ export default async function handler(req,res){
       const patch={name:clean(b.name).slice(0,120),departments:sanitizeDepartments(b.departments),status:b.status==='disabled'?'disabled':'active',updated_at:new Date().toISOString()};if(!patch.name||!patch.departments.length)return json(res,422,{error:'Name and at least one department are required.'});if(clean(b.password)){if(clean(b.password).length<10)return json(res,422,{error:'New password must be at least 10 characters.'});patch.password_hash=hashPassword(clean(b.password))}const rows=await db(c,`account_members?account_id=eq.${encodeURIComponent(account.id)}&id=eq.${encodeURIComponent(id)}&select=id,name,email,departments,status,invited_at,last_login_at`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});return json(res,200,{success:true,user:publicMember(rows?.[0])});
     }
     if(session?.memberId&&bodyAction&&!['monitor_department','google_calendar_events','forgot_password','reset_password'].includes(bodyAction)){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});if(actor.role==='member')return json(res,403,{error:'Your department account cannot manage agency-wide programs or integrations.'})}
-    if(session&&bodyAction&&!['forgot_password','reset_password'].includes(bodyAction)){
+    if(session&&bodyAction&&!['forgot_password','reset_password','monitor_department'].includes(bodyAction)){
       const account=await findById(c,session.accountId);if(!account)return json(res,401,{error:'Your account access is no longer active.'});
-      const feature=bodyAction.startsWith('accelerator_')?'accelerator':bodyAction==='partner_referral'?'portal':bodyAction==='monitor_department'?'monitor':bodyAction==='google_calendar_events'?'leadership':integrationFeature(bodyAction);requireFeature(account,feature);
+      const feature=bodyAction.startsWith('accelerator_')?'accelerator':bodyAction==='partner_referral'?'portal':bodyAction==='google_calendar_events'?'leadership':integrationFeature(bodyAction);requireFeature(account,feature);
       if(session.memberId&&bodyAction==='google_calendar_events'){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});requireDepartment(actor,'leadership')}
     }
     if(bodyAction==='accelerator_choose_plan'){if(!session)return json(res,401,{error:'Sign in before choosing an Accelerator payment plan.'});return json(res,200,{success:true,enrollment:await chooseAcceleratorPlan(c,session.accountId,clean(b.paymentPlan))})}
@@ -1663,7 +1672,10 @@ export default async function handler(req,res){
 
     if(bodyAction==='monitor_department'){
       if(!session)return json(res,401,{error:'Sign in before viewing Monitor department data.'});
-      const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});requireDepartment(actor,clean(b.department));const result=await loadMonitorDepartment(c,session.accountId,clean(b.department));
+      const [account,actor]=await Promise.all([findById(c,session.accountId),sessionActor(c,session)]);
+      if(!account||!actor)return json(res,401,{error:'Your account access is no longer active.'});
+      requireFeature(account,'monitor');requireDepartment(actor,clean(b.department));
+      const result=await loadMonitorDepartment(c,session.accountId,clean(b.department),account);
       return json(res,200,result);
     }
 
