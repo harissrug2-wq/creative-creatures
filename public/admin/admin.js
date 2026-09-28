@@ -1,7 +1,11 @@
 (() => {
   const ACCOUNT_API = '/api/accounts';
   const OWNER_LEAD_API = '/api/owner-archetype-leads';
-  const REFRESH_MS = 60000;
+  const REFRESH_MS = 90000;
+  const ADMIN_CACHE_KEY = 'cc_admin_portfolio_cache_v1';
+  const ADMIN_CACHE_TTL = 60000;
+  let refreshPromise = null;
+  let lastRefreshAt = 0;
 
   const safeJson = (value, fallback = null) => {
     try { return JSON.parse(value); } catch { return fallback; }
@@ -211,6 +215,7 @@
         diagnostics = pagePlan()
           ? allAccounts.filter(account => account.accessPlan === pagePlan())
           : allAccounts;
+        try{sessionStorage.setItem(ADMIN_CACHE_KEY,JSON.stringify({at:Date.now(),accounts:allAccounts}))}catch{}
       }
     }
 
@@ -771,6 +776,18 @@
     }
   }
 
+  function hydrateAdminCache(){
+    if(!document.querySelector('#adminDashboard')&&!document.querySelector('#agencyGrid')&&!document.querySelector('#platformMetrics')&&!document.querySelector('#agencyRollup'))return false;
+    try{
+      const cache=JSON.parse(sessionStorage.getItem(ADMIN_CACHE_KEY)||'null');
+      if(!cache||!Array.isArray(cache.accounts)||Date.now()-Number(cache.at||0)>ADMIN_CACHE_TTL)return false;
+      allAccounts=cache.accounts.map(normalizeAccount).filter(Boolean);
+      diagnostics=pagePlan()?allAccounts.filter(account=>account.accessPlan===pagePlan()):allAccounts;
+      lastRefreshAt=Number(cache.at||0);
+      return true;
+    }catch{return false}
+  }
+
   function renderCurrentPage() {
     renderAdminDashboard();
     renderDiagnosticsGrid(diagnostics);
@@ -781,21 +798,29 @@
     renderRollupTable(diagnostics, search?.value || '', sort?.value || 'progress-desc');
   }
 
-  async function refresh() {
-    try {
-      await fetchAccounts();
-      renderCurrentPage();
-      document.querySelectorAll('[data-admin-error]').forEach(node => { node.hidden = true; node.textContent = ''; });
-      document.querySelectorAll('[data-admin-updated]').forEach(node => {
-        node.textContent = `Updated ${new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date())}`;
-      });
-    } catch (error) {
-      console.error('Admin data refresh failed.', error);
-      document.querySelectorAll('[data-admin-error]').forEach(node => {
-        node.hidden = false;
-        node.textContent = error?.message || 'Live admin data could not be loaded. Refresh the page to try again.';
-      });
-    }
+  async function refresh(options={}) {
+    if(refreshPromise)return refreshPromise;
+    if(options.force!==true&&lastRefreshAt&&Date.now()-lastRefreshAt<15000)return;
+    refreshPromise=(async()=>{
+      try {
+        await fetchAccounts();
+        lastRefreshAt=Date.now();
+        renderCurrentPage();
+        document.querySelectorAll('[data-admin-error]').forEach(node => { node.hidden = true; node.textContent = ''; });
+        document.querySelectorAll('[data-admin-updated]').forEach(node => {
+          node.textContent = `Updated ${new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(new Date())}`;
+        });
+      } catch (error) {
+        console.error('Admin data refresh failed.', error);
+        document.querySelectorAll('[data-admin-error]').forEach(node => {
+          node.hidden = false;
+          node.textContent = error?.message || 'Live admin data could not be loaded. Refresh the page to try again.';
+        });
+      } finally {
+        refreshPromise=null;
+      }
+    })();
+    return refreshPromise;
   }
 
   async function init() {
@@ -803,10 +828,11 @@
     wireNewDiagnostic();
     wirePerformanceFilters();
     wireAdminHealthFilters();
-    await refresh();
+    if(hydrateAdminCache())renderCurrentPage();
+    await refresh({force:!lastRefreshAt});
 
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') refresh();
+      if (document.visibilityState === 'visible'&&Date.now()-lastRefreshAt>30000) refresh();
     });
     setInterval(() => {
       if (document.visibilityState === 'visible') refresh();
