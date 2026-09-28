@@ -420,6 +420,25 @@
 
   async function persistOwnerLead(payload, attempts = 3) {
     let lastError = null;
+    const currentAccount = window.CCAccount?.getAccount?.();
+    const currentId = String(currentAccount?.id || '').trim();
+    const currentEmail = String(currentAccount?.email || '').trim().toLowerCase();
+    const payloadEmail = String(payload?.email || '').trim().toLowerCase();
+
+    // Paid/admin-provisioned users already own a workspace. Saving their
+    // Owner Identity must enrich that existing account instead of creating a
+    // separate lead that would require another signup/payment lookup.
+    if (currentId && !currentId.startsWith('local-') && !currentId.startsWith('lead-') &&
+        currentEmail && currentEmail === payloadEmail && window.CCAccount?.updateOwnerIdentity) {
+      try {
+        const account = await window.CCAccount.updateOwnerIdentity(payload);
+        localStorage.setItem('ownerArchetypeLeadSaved', 'true');
+        localStorage.removeItem('ownerArchetypeLeadError');
+        return account;
+      } catch (error) {
+        lastError = error;
+      }
+    }
     for (let attempt = 1; attempt <= attempts; attempt += 1) {
       try {
         if (window.CCAccount?.createOwnerArchetypeLead) {
