@@ -1017,6 +1017,19 @@ async function loadMonitorDepartment(c,accountId,department){
     account_id:`eq.${accountId}`,order:'updated_at.desc',limit:'100'
   });
   const runParams=new URLSearchParams({select:'id',account_id:`eq.${accountId}`,is_current:'eq.true',limit:'1'});
+  let sourcePromise=null;
+  if(department==='marketing'||department==='sales')sourcePromise=monitorCrmSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  else if(department==='onboarding'||department==='service-delivery')sourcePromise=monitorProjectSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  else if(department==='communication')sourcePromise=monitorCommunicationsSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  else if(department==='systems')sourcePromise=monitorSystemsSource(c,accountId,integrationRequirement.selectedTools);
+  else if(department==='sops'){
+    const allowsDrive=integrationRequirement.selectedTools.includes('Google Drive');
+    sourcePromise=(async()=>{
+      const connection=allowsDrive?await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection):{connected:false};
+      return{kind:'drive',name:'Google Drive',connected:connection.connected,connection,data:{items:connection.selectedItems||[]}};
+    })();
+  }
+
   const [goalRows,rockRows,runRows]=await Promise.all([
     monitorRows(c,`department_goals?${goalParams.toString()}`,'department goal',warnings),
     monitorRows(c,`rocks?${rocksParams.toString()}`,'rocks',warnings),
@@ -1033,8 +1046,7 @@ async function loadMonitorDepartment(c,accountId,department){
   }
 
   let source={kind:'none',name:'No connected source',connected:false,connection:null,data:{}};
-  if(department==='marketing'||department==='sales')source=await monitorCrmSource(c,accountId,warnings,integrationRequirement.selectedTools);
-  else if(department==='onboarding'||department==='service-delivery')source=await monitorProjectSource(c,accountId,warnings,integrationRequirement.selectedTools);
+  if(sourcePromise)source=await sourcePromise;
   else if(department==='client-success'){
     const clientEvidence=evidenceRows.some(row=>row.evidence_type==='client_revenue');
     source=clientEvidence&&integrationRequirement.selectedTools.some(tool=>['QuickBooks Online','FreshBooks'].includes(tool))
@@ -1049,13 +1061,6 @@ async function loadMonitorDepartment(c,accountId,department){
       (allowQuickBooks&&row.extraction_model==='quickbooks-online-api')
     );
     source={kind:'financial_evidence',name:accountingEvidence?.extraction_model==='freshbooks-api'?'FreshBooks':accountingEvidence?.extraction_model==='quickbooks-online-api'?'QuickBooks Online':'Financial evidence',connected:Boolean(accountingEvidence),connection:null,data:{}};
-  }
-  else if(department==='communication')source=await monitorCommunicationsSource(c,accountId,warnings,integrationRequirement.selectedTools);
-  else if(department==='systems')source=await monitorSystemsSource(c,accountId,integrationRequirement.selectedTools);
-  else if(department==='sops'){
-    const allowsDrive=integrationRequirement.selectedTools.includes('Google Drive');
-    const connection=allowsDrive?await monitorConnection(c,accountId,getGoogleDriveConnection,publicGoogleDriveConnection):{connected:false};
-    source={kind:'drive',name:'Google Drive',connected:connection.connected,connection,data:{items:connection.selectedItems||[]}};
   }
 
   let visibleEvidenceRows=evidenceRows;
