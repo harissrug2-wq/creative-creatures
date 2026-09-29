@@ -75,6 +75,11 @@
   }
 
   async function load(options = {}) {
+    if (window.CCDemo?.enabled && window.CCDemo?.scorecard) {
+      cached = normalizeScorecard(window.CCDemo.scorecard);
+      cachedHistory = Array.isArray(window.CCDemo.scorecardHistory) ? window.CCDemo.scorecardHistory.slice() : [];
+      return cached;
+    }
     if (cached && options.fresh !== true) return cached;
     const current = requireIdentity();
     if(options.fresh!==true){
@@ -100,6 +105,11 @@
   }
 
   async function generate() {
+    if (window.CCDemo?.enabled && window.CCDemo?.scorecard) {
+      cached = normalizeScorecard(window.CCDemo.scorecard);
+      cachedHistory = Array.isArray(window.CCDemo.scorecardHistory) ? window.CCDemo.scorecardHistory.slice() : [];
+      return cached;
+    }
     const current = requireIdentity();
     const payload = await request(API_BASE, {
       method: 'POST',
