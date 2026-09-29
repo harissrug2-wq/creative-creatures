@@ -151,35 +151,44 @@
   function gateCopy(feature,access){
     if(access?.isAdmin||access?.actor?.role==='admin')return null;
     const workflow=access?.workflow||{},diagnosticComplete=workflow.allComplete===true||workflow.reportReady===true,reportReady=workflow.reportReady===true,goalsComplete=workflow.goalsComplete===true;
-    const labels={scorecard:'Agency Scorecard',goals:'Agency Goals',monitor:'Monitor',integrations:'Integrations'};
+    const labels={diagnostic:'Diagnostic',scorecard:'AOFI™ Score',goals:'Agency Goals',monitor:'Monitor',integrations:'Integrations',portal:'Portal',accelerator:'Accelerator'};
     const preview=Array.isArray(access?.previewFeatures)&&access.previewFeatures.includes(feature)&&!access.features.includes(feature);
     if(preview)return null;
 
+    const included=Array.isArray(access?.features)&&access.features.includes(feature);
+    if(!included)return{
+      kind:'upgrade',
+      title:`Upgrade account to access ${labels[feature]||'this page'}`,
+      message:`${labels[feature]||'This page'} is not included with your current account type.`,
+      cta:'/account/upgrade/',
+      ctaLabel:'Upgrade Account'
+    };
+
     if(feature==='scorecard'&&!diagnosticComplete)return{
       kind:'flow',
-      title:'Complete your Diagnostic to view your Agency Scorecard',
-      message:'Your Agency Scorecard becomes available as soon as all Diagnostic assessments are complete.',
+      title:'Complete Diagnostic to access AOFI™ Score',
+      message:'AOFI™ Score unlocks after all Diagnostic assessments are complete.',
       cta:'/diagnostic/',
       ctaLabel:'Complete Diagnostic'
     };
     if(feature==='goals'&&!reportReady)return{
       kind:'flow',
-      title:'Complete your Agency Scorecard to view Agency Goals',
-      message:'Agency Goals unlocks after your Diagnostic is complete and your Agency Scorecard has been generated.',
+      title:'Complete AOFI™ Score to access Agency Goals',
+      message:'Agency Goals unlock after your Diagnostic is complete and the AOFI™ Score has been generated.',
       cta:'/agency-scorecard/',
-      ctaLabel:'View Agency Scorecard'
+      ctaLabel:'Open AOFI™ Score'
     };
     if(feature==='monitor'&&!reportReady)return{
       kind:'flow',
-      title:'Complete your Agency Scorecard to view Monitor',
-      message:'Monitor unlocks after your Diagnostic is complete and your Agency Scorecard has been generated.',
+      title:'Complete AOFI™ Score to access Monitor',
+      message:'Monitor unlocks after your Diagnostic is complete and the AOFI™ Score has been generated.',
       cta:'/agency-scorecard/',
-      ctaLabel:'View Agency Scorecard'
+      ctaLabel:'Open AOFI™ Score'
     };
     if(feature==='monitor'&&!goalsComplete)return{
       kind:'flow',
-      title:'Complete Agency Goals to view Monitor',
-      message:'Finish your Agency Goals and 90 Day Priorities before Monitor becomes available.',
+      title:'Complete Agency Goals to access Monitor',
+      message:'Finish Agency Goals and 90 Day Priorities before Monitor becomes available.',
       cta:'/agency-goals/',
       ctaLabel:'Complete Agency Goals'
     };
@@ -245,7 +254,8 @@
     document.querySelectorAll('a[href]').forEach(link=>{try{
       const path=new URL(link.href,location.href).pathname,f=link.dataset.workspaceFeature||link.dataset.ccFeature||routeFeature(path),department=path.split('/').filter(Boolean)[0];
       const visible=!f||access.features.includes(f)||previews.includes(f);
-      if(!visible||(access.actor.role==='member'&&departments.includes(department)&&!access.actor.departments.includes(department))){link.hidden=true;link.style.display='none'}
+      const isWorkspaceMenuLink=Boolean(link.dataset.workspaceFeature);
+      if((!visible&&!isWorkspaceMenuLink)||(access.actor.role==='member'&&departments.includes(department)&&!access.actor.departments.includes(department))){link.hidden=true;link.style.display='none'}
     }catch{}});
     const preview=feature?previewCopy(feature,access):null;
     if(preview){showPreviewBanner(preview);return}
