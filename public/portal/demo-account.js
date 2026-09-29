@@ -70,6 +70,104 @@
     {evidence_type:'service_revenue_mix',extraction_status:'processed',validation_status:'verified',updated_at:'2026-09-25T12:00:00Z',extracted_data:{totalRevenue:2400000,recurringRevenue:1680000,projectRevenue:720000,recurringRevenuePercent:70,projectRevenuePercent:30}}
   ]});
 
+
+  function scorecard() {
+    const reports = {
+      performance:{
+        id:'performance',title:'Agency Performance Index',score:86,confidence:94,validation:'Verified',
+        executiveQuestion:'How effectively does agency management convert revenue into long-term financial value?',
+        narrative:'The agency has strong profitability and capital allocation with healthy revenue quality. Growth consistency remains the clearest financial opportunity.',
+        categories:[
+          {name:'Profitability',score:88,weight:25},{name:'Growth Performance',score:82,weight:20},{name:'Revenue Quality',score:85,weight:20},{name:'Cash Performance',score:84,weight:20},{name:'Capital Allocation',score:91,weight:15}
+        ],
+        primaryConstraint:'Growth Performance is the largest financial-value constraint.',
+        recommendation:'Build a more predictable new-business engine while protecting margin and recurring revenue.',
+        evidence:['Profit & Loss','Balance Sheet','A/R Aging','Client Revenue','Service Revenue Mix'],
+        missingEvidence:[],adjustedSDE:510000,roicLite:34.8,evidenceLevel:'Verified financial evidence'
+      },
+      strength:{
+        id:'strength',title:'Agency Strength Index',score:82,confidence:91,validation:'Verified',
+        executiveQuestion:'Can this business continue performing if it doubled in size over the next 24 months?',
+        narrative:'The agency has solid leadership, financial and revenue infrastructure. Operating-system consistency is the main scaling constraint.',
+        categories:[
+          {name:'Leadership System',score:84,weight:20},{name:'Operating System',score:76,weight:20},{name:'Financial Infrastructure',score:81,weight:20},{name:'Revenue Infrastructure',score:85,weight:20},{name:'People Infrastructure',score:84,weight:20}
+        ],
+        primaryConstraint:'Operating System is the current structural constraint.',
+        recommendation:'Document core delivery, install QA ownership, and make operating KPIs visible to department leaders.',
+        evidence:['31-step questionnaire','Operating cadence','Department KPI review'],missingEvidence:[]
+      },
+      independence:{
+        id:'independence',title:'Owner Independence Index',score:74,confidence:88,validation:'Verified',
+        executiveQuestion:'Can this business succeed without its founder?',
+        narrative:'Leadership and strategic activity continue without the owner, but revenue and delivery still require more founder independence.',
+        categories:[
+          {name:'Decision Independence',score:78,weight:20},{name:'Revenue Independence',score:69,weight:20},{name:'Delivery Independence',score:71,weight:20},{name:'Leadership Independence',score:76,weight:20},{name:'Strategic Independence',score:76,weight:20}
+        ],
+        primaryConstraint:'Revenue Independence creates the strongest founder-dependence signal.',
+        recommendation:'Move pipeline, referrals, and marketing ownership away from the founder and into a measurable revenue system.',
+        evidence:['Owner time allocation','Leadership ownership','Revenue ownership'],missingEvidence:[]
+      }
+    };
+    const weakest = [
+      {name:'Revenue Independence',capability:'Revenue Independence',index:'independence',indexTitle:'Owner Independence Index',score:69},
+      {name:'Delivery Independence',capability:'Delivery Independence',index:'independence',indexTitle:'Owner Independence Index',score:71},
+      {name:'Operating System',capability:'Operating System',index:'strength',indexTitle:'Agency Strength Index',score:76},
+      {name:'Leadership Independence',capability:'Leadership Independence',index:'independence',indexTitle:'Owner Independence Index',score:76},
+      {name:'Strategic Independence',capability:'Strategic Independence',index:'independence',indexTitle:'Owner Independence Index',score:76}
+    ];
+    const issues = weakest.map(row=>({...row,description:`${row.name} is below the other measured capabilities and should be improved in the next planning cycle.`}));
+    const rec = {
+      'Revenue Independence':'Move pipeline, referrals, and marketing ownership away from the founder and into a measurable revenue system.',
+      'Delivery Independence':'Shift day-to-day delivery approvals and client escalation ownership to the delivery leadership team.',
+      'Operating System':'Document core delivery workflows, install QA ownership, and track adherence to SOPs.',
+      'Leadership Independence':'Have department leaders own recurring operating meetings, decisions, and accountability.',
+      'Strategic Independence':'Protect owner time for strategy, capital allocation, and leadership coaching.'
+    };
+    const opportunities = weakest.map((row,i)=>({...row,recommendation:rec[row.name],estimatedLift:[6,5,4,4,4][i]}));
+    return {
+      title:'Agency Scorecard',
+      score:82,
+      confidence:92,
+      band:{label:'High Performing',meaning:'Strong agency with targeted opportunities.'},
+      validation:'Verified',
+      reports,
+      weakest,
+      issues,
+      opportunities,
+      archetype:'Strategic Builder',
+      generatedAt:'2026-09-28T12:00:00.000Z',
+      valuation:{
+        available:true,
+        status:'available',
+        adjustedSDE:510000,
+        baseMultiple:5.35,
+        adjustments:{strength:0.25,ownerIndependence:-0.10,roicLite:0.30,revenueQuality:0.18},
+        finalMultiple:5.98,
+        enterpriseValue:3049800,
+        evidenceGaps:[]
+      },
+      momentum:{
+        state:'up',delta:5,label:'▲ 5 pts',primaryDriver:{label:'Performance',change:6},
+        positiveElements:[
+          {title:'Profitability',category:'Performance',points:3,description:'Net margin and adjusted SDE improved while revenue continued to grow.'},
+          {title:'Operating System',category:'Strength',points:2,description:'Delivery QA and KPI ownership became more consistent.'}
+        ],
+        negativeElements:[
+          {title:'Revenue Independence',category:'Owner Independence',points:1,description:'Founder involvement in pipeline and referrals remains elevated.'}
+        ]
+      }
+    };
+  }
+
+  function scorecardHistory() {
+    return [
+      {quarter:'Q4 2025',generatedAt:'2025-12-20T12:00:00Z',score:68,confidence:78,performance:72,strength:69,independence:58,enterpriseValue:2260000,positiveElements:[],negativeElements:[]},
+      {quarter:'Q1 2026',generatedAt:'2026-03-25T12:00:00Z',score:72,confidence:83,performance:77,strength:73,independence:61,enterpriseValue:2480000,previousQuarter:'Q4 2025',positiveElements:[{title:'Margin discipline',category:'Performance',points:2,description:'Gross margin and cash discipline improved.'}],negativeElements:[]},
+      {quarter:'Q2 2026',generatedAt:'2026-06-25T12:00:00Z',score:77,confidence:88,performance:80,strength:78,independence:69,enterpriseValue:2740000,previousQuarter:'Q1 2026',positiveElements:[{title:'Leadership cadence',category:'Strength',points:3,description:'Department leaders assumed more operating ownership.'}],negativeElements:[{title:'Founder sales dependence',category:'Independence',points:1,description:'Founder still influenced too much of new business.'}]},
+      {quarter:'Q3 2026',generatedAt:'2026-09-28T12:00:00Z',score:82,confidence:92,performance:86,strength:82,independence:74,enterpriseValue:3049800,previousQuarter:'Q2 2026',positiveElements:[{title:'Profitability',category:'Performance',points:3,description:'Net margin and adjusted SDE improved while revenue continued to grow.'},{title:'Operating System',category:'Strength',points:2,description:'Delivery QA and KPI ownership became more consistent.'}],negativeElements:[{title:'Revenue Independence',category:'Owner Independence',points:1,description:'Founder involvement in pipeline and referrals remains elevated.'}]}
+    ];
+  }
+
   function apply(account) {
     if (!isDemo(account)) return account;
     const state = diagnosticState();
@@ -80,7 +178,7 @@
   function seed(account) {
     if (!isDemo(account)) return account;
     const resolved = apply(account);
-    window.CCDemo = {enabled:true,email:EMAIL,goals:goals(),evidence:evidence()};
+    window.CCDemo = {enabled:true,email:EMAIL,goals:goals(),evidence:evidence(),scorecard:scorecard(),scorecardHistory:scorecardHistory()};
     localStorage.setItem('cc_account', JSON.stringify(resolved));
     localStorage.setItem('ccUserAccount', JSON.stringify(resolved));
     localStorage.setItem('ccSignedIn','true');
