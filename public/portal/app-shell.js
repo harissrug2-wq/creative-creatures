@@ -145,7 +145,7 @@
       if(access.plan==='aofi_free'){
         el.querySelectorAll('[data-account-plan-tag]').forEach(tag=>{tag.hidden=false;tag.textContent='Free AOFI™'});
       }
-      const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo';
+      const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo'&&!window.CCDemo?.enabled;
       el.querySelectorAll('[data-account-upgrade]').forEach(link=>{link.hidden=!canUpgrade});
     }).catch(()=>{});
     el.querySelector('.ask-creature')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{}});
