@@ -23,7 +23,7 @@
   const bool = key => localStorage.getItem(key) === 'true';
   if(!window.CCWorkspace&&!document.querySelector('link[data-cc-workspace-preload]')){
     const preload=document.createElement('link');
-    preload.rel='preload';preload.as='script';preload.href='/shared/workspace-access.js';preload.dataset.ccWorkspacePreload='1';
+    preload.rel='preload';preload.as='script';preload.href='/shared/workspace-access.js?v=20260930nav1';preload.dataset.ccWorkspacePreload='1';
     document.head.appendChild(preload);
   }
   const shellParams=new URLSearchParams(location.search);
@@ -83,8 +83,8 @@
     const navigation = [
       ['/platform/','Monitor','monitor','monitor',monitorReady],
       ['/accelerator/','Accelerator','diagnostic','accelerator',true],
-      ['/diagnostic/','AOFI™ Diagnostic','diagnostic','diagnostic',true],
-      ['/agency-scorecard/','AOFI™ Scorecard','score','scorecard',scorecardReady],
+      ['/diagnostic/','Diagnostic','diagnostic','diagnostic',true],
+      ['/agency-scorecard/','AOFI™ Score','score','scorecard',scorecardReady],
       ['/agency-goals/','Agency Goals','goals','goals',goalsReady],
       ['/integrations/','Integrations','plug','integrations',true],
       ['/portal/','Portal','portal','portal',true]
@@ -119,15 +119,17 @@
         else location.href=link.href;
       })).catch(()=>{});
     });
-    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
+    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js?v=20260930nav1';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
     loadWorkspace().then(async workspace=>{
       const access=await workspace.getAccess();
       const previews=Array.isArray(access.previewFeatures)?access.previewFeatures:[];
       el.querySelectorAll('[data-workspace-feature]').forEach(link=>{
         const feature=link.dataset.workspaceFeature;
-        const visible=access.features.includes(feature)||previews.includes(feature);
+        const standardMenuFeature=['monitor','diagnostic','scorecard','goals','integrations','portal'].includes(feature);
+        const visible=standardMenuFeature||access.features.includes(feature)||previews.includes(feature);
         const gate=visible&&workspace.gateCopy?workspace.gateCopy(feature,access):null;
         link.hidden=!visible;
+        link.style.removeProperty('display');
         link.dataset.planPreview=previews.includes(feature)&&!access.features.includes(feature)?'1':'0';
         link.dataset.flowLocked=gate?'1':'0';
         link.classList.toggle('nav-disabled',Boolean(gate));
@@ -135,10 +137,14 @@
           link.dataset.gateMessage=gate.title;
           link.dataset.gateKind=gate.kind;
           link.setAttribute('aria-disabled','true');
+          link.setAttribute('title',gate.title);
+          link.setAttribute('aria-label',`${link.textContent.trim()}. ${gate.title}`);
         }else{
           delete link.dataset.gateMessage;
           delete link.dataset.gateKind;
           link.removeAttribute('aria-disabled');
+          link.removeAttribute('title');
+          link.removeAttribute('aria-label');
         }
       });
       el.querySelectorAll('.ask-creature,.mobile-ask-creature').forEach(button=>{button.hidden=!access.features.includes('ask')});
