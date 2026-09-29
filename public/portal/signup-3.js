@@ -40,7 +40,7 @@
     }
 
     initEmbeddedLookup();
-    initOwnershipSignup();
+    // Multiple-owner signup flow temporarily hidden for client demo.
   };
 
   const OWNERSHIP_KEY='ccPendingOwnership';
