@@ -137,8 +137,8 @@
 
   <script src="https://apis.google.com/js/api.js"></script>
   <script src="/portal/diagnostic-state.js"></script>
-  <script src="/portal/account-client.js"></script>
-  <script src="/portal/app-shell.js"></script>
+  <script src="/portal/account-client.js?v=20260929demo2"></script>
+  <script src="/portal/app-shell.js?v=20260929demo2"></script>
   <script>
     const safeJson=(v,f)=>{try{return JSON.parse(v)??f}catch{return f}};
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
