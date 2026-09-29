@@ -29,9 +29,12 @@
     if(ownershipResponse.ok)ownership=await ownershipResponse.json();
   }catch(error){console.warn('Ownership status could not be loaded.',error)}
   const ownershipNotice=document.getElementById('ownershipDiagnosticNotice');
-  const needsOwnershipConfirmation=ownership?.needsConfirmation===true;
-  const ownershipNeedsReview=ownership?.reassessment?.ownerIndependenceNeedsReview===true;
-  const scorecardNeedsRefresh=ownership?.reassessment?.scorecardNeedsRefresh===true;
+  // Multiple-owner flow is temporarily hidden for the client demo.
+  // Keep the backend ownership data intact, but do not surface ownership gates
+  // or block Owner Independence while this temporary demo flag is active.
+  const needsOwnershipConfirmation=false;
+  const ownershipNeedsReview=false;
+  const scorecardNeedsRefresh=false;
   if(ownershipNotice&&(needsOwnershipConfirmation||ownershipNeedsReview||scorecardNeedsRefresh)){
     ownershipNotice.hidden=false;
     if(needsOwnershipConfirmation){
