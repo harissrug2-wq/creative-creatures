@@ -197,7 +197,9 @@ const clean=v=>String(v??'').trim();const lower=v=>clean(v).toLowerCase();
 function cfg(){const url=clean(process.env.SUPABASE_URL).replace(/\/+$/,'');const key=clean(process.env.SUPABASE_SERVICE_ROLE_KEY);return url&&key?{url,key}:null}
 async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${path}`,{...options,headers:{apikey:c.key,'Content-Type':'application/json',...(options.headers||{})}});const t=await r.text();let p=null;try{p=t?JSON.parse(t):null}catch{p=t}if(!r.ok){const e=new Error(p?.message||p?.hint||'Database request failed.');e.status=r.status;e.payload=p;throw e}return p}
 const SELECT='id,name,email,agency_url,agency_name,journey,access_plan,source,archetype_result,report_data,diagnostic_state,password_hash,password_reset_token_hash,password_reset_expires_at,created_at,updated_at';
-function pub(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_url,agency_name:a.agency_name,journey:a.journey,accessPlan:a.access_plan||planFromJourney(a.journey),source:a.source,archetype_result:a.archetype_result||{},report_data:a.report_data||{},diagnostic_state:a.diagnostic_state||{},created_at:a.created_at,updated_at:a.updated_at}:null}
+const DEMO_ACCOUNT_EMAIL='immad@brandandbrains.co';
+function isDemoAccount(account){return lower(account?.email)===DEMO_ACCOUNT_EMAIL}
+function pub(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_url,agency_name:a.agency_name,journey:isDemoAccount(a)?'platform':a.journey,accessPlan:accessPlan(a),source:a.source,archetype_result:a.archetype_result||{},report_data:a.report_data||{},diagnostic_state:a.diagnostic_state||{},created_at:a.created_at,updated_at:a.updated_at}:null}
 async function findById(c,id){const rows=await db(c,`accounts?select=${SELECT}&id=eq.${encodeURIComponent(id)}&limit=1`);return Array.isArray(rows)?rows[0]:null}
 
 
@@ -279,7 +281,7 @@ const PLAN_FEATURES={
   fractional_coo:['owner-archetype','bookkeeping','accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask']
 };
 function planFromJourney(journey){return journey==='platform'?'platform':journey==='accelerator'?'accelerator':'diagnostic'}
-function accessPlan(account){return PLAN_FEATURES[account?.access_plan]?account.access_plan:planFromJourney(account?.journey)}
+function accessPlan(account){if(isDemoAccount(account))return'platform';return PLAN_FEATURES[account?.access_plan]?account.access_plan:planFromJourney(account?.journey)}
 function featuresForAccount(account, actor){
   if (actor?.role === 'admin' || actor?.isAdmin) {
     return ['owner-archetype','bookkeeping','accelerator','integrations','diagnostic','scorecard','goals','monitor','leadership','portal','users','ask'];
@@ -321,13 +323,14 @@ function publicAccess(account,actor){
     const row=indexState[key]||state[key]||{};
     return row.complete===true||Number(row.progress)===100;
   });
-  const allComplete=state.allComplete===true||state.all_complete===true||savedIndexesComplete;
+  const demo=isDemoAccount(account);
+  const allComplete=demo||state.allComplete===true||state.all_complete===true||savedIndexesComplete;
   const integrationSelections=monitorIntegrationSelections(account);
   return{
     plan,purchasedPlans,features:featuresForAccount(account,actor),previewFeatures,integrationSelections,
     workflow:{
-      reportReady:state.reportReady===true||state.report_ready===true,
-      goalsComplete:state.goalsComplete===true||state.goals_complete===true,
+      reportReady:demo||state.reportReady===true||state.report_ready===true,
+      goalsComplete:demo||state.goalsComplete===true||state.goals_complete===true,
       allComplete,
       count:Number(state.count||(allComplete?3:0))
     },
