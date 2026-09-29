@@ -68,6 +68,10 @@
   }
 
   async function load(options = {}) {
+    if (window.CCDemo?.enabled && window.CCDemo?.goals) {
+      cached = window.CCDemo.goals;
+      return cached;
+    }
     if (cached && options.fresh !== true) return cached;
     const current = requireIdentity();
     if(options.fresh!==true){
@@ -88,6 +92,26 @@
   }
 
   async function action(actionName, fields = {}) {
+    if (window.CCDemo?.enabled && window.CCDemo?.goals) {
+      const model = window.CCDemo.goals;
+      if(actionName==='set_target'){
+        model.targets[fields.metricId]={type:fields.targetType,value:Number(fields.targetValue),resolvedValue:Number(fields.targetValue),baselineValue:model.metrics.find(m=>m.id===fields.metricId)?.actualValue??null,notes:fields.targetNotes||''};
+      } else if(actionName==='bulk_set_targets'&&Array.isArray(fields.targets)){
+        fields.targets.forEach(t=>{model.targets[t.metricId]={type:t.targetType,value:Number(t.targetValue),resolvedValue:Number(t.targetValue),baselineValue:model.metrics.find(m=>m.id===t.metricId)?.actualValue??null,notes:t.targetNotes||''}});
+      } else if(actionName==='save_progress'){
+        const metric=model.metrics.find(m=>m.id===fields.metricId);if(metric){metric.actualValue=Number(fields.actualValue);metric.actualDisplay=String(fields.actualValue)}
+      } else if(actionName==='save_department'){
+        const row=model.departments.find(d=>d.name===fields.department);if(row)Object.assign(row,{goal:fields.goal||row.goal,owner:fields.owner||fields.ownerName||row.owner,status:fields.status||row.status,done:fields.done||fields.doneLooksLike||row.done,completionDate:fields.completionDate||row.completionDate});
+      } else if(actionName==='create_rocks'&&Array.isArray(fields.rocks)){
+        fields.rocks.forEach((r,i)=>model.rocks.push({id:`demo-rock-${Date.now()}-${i}`,title:r.title||'Priority',description:r.description||'',owner:r.owner||'Agency Owner',dueDate:r.dueDate||'',status:r.status||'Not started',sourceType:'manual'}));
+      } else if(actionName==='update_rock'){
+        const rock=model.rocks.find(r=>r.id===fields.id);if(rock)Object.assign(rock,fields);
+      } else if(actionName==='complete'){
+        model.goalsComplete=true;model.goalsCompletedAt=new Date().toISOString();
+      }
+      cached=model;
+      return {success:true,goals:model,demo:true};
+    }
     const current = requireIdentity();
     const payload = await request(API_BASE, {
       method: 'POST',
