@@ -1303,14 +1303,14 @@
     ready
   };
 })();
-,available:true,actualValue:2550000,actualDisplay:'$2,550,000',source:'Agency Valuation'}
+,available:true,actualValue:3050000,actualDisplay:'$3,050,000',source:'Agency Valuation'}
     ],
     targets:{
       revenue:{type:'number',value:3000000,resolvedValue:3000000,baselineValue:2400000},
       cogs:{type:'number',value:35,resolvedValue:35,baselineValue:41},
       margin:{type:'number',value:25,resolvedValue:25,baselineValue:21},
       aofi:{type:'number',value:90,resolvedValue:90,baselineValue:82},
-      valuation:{type:'number',value:3200000,resolvedValue:3200000,baselineValue:2550000},
+      valuation:{type:'number',value:3600000,resolvedValue:3600000,baselineValue:3050000},
       ownerDelivery:{type:'number',value:10,resolvedValue:10,baselineValue:18},
       ownerSales:{type:'number',value:12,resolvedValue:12,baselineValue:22},
       leadership:{type:'number',value:5,resolvedValue:5,baselineValue:4}
