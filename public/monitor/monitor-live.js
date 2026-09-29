@@ -487,10 +487,13 @@
         query = 'admin=1';
       }
       if (!query) throw new Error('Sign in to load Monitor.');
-      const [goalsPayload, evidencePayload] = await Promise.all([
-        jsonRequest(`/api/goals?${query}`),
-        jsonRequest(`/api/financial-evidence?${query}`).catch(error => ({ evidence: [], _error: error }))
-      ]);
+      const demo=window.CCDemo?.enabled;
+      const [goalsPayload, evidencePayload] = demo
+        ? [{goals:window.CCDemo.goals},{...window.CCDemo.evidence}]
+        : await Promise.all([
+            jsonRequest(`/api/goals?${query}`),
+            jsonRequest(`/api/financial-evidence?${query}`).catch(error => ({ evidence: [], _error: error }))
+          ]);
       state.goals = goalsPayload.goals || null;
       state.evidence = evidenceMap(evidencePayload);
       normalizePeriod();
