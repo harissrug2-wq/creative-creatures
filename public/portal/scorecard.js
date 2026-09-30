@@ -304,7 +304,7 @@
   root.insertAdjacentHTML('afterbegin', `
     <section class="client-hero" aria-label="AOFI Score overview">
       <div><h1>Your agency asset at a glance</h1><p>Primary Agency Owner Archetype: <strong>${esc(model.archetype || 'Not available')}</strong></p></div>
-      <div class="client-tools"><button type="button" data-email="scorecard" aria-label="Email scorecard" title="Email scorecard">↗ Share</button><button type="button" data-download="scorecard" aria-label="Download scorecard">↓ Download</button></div>
+      <div class="client-tools"><button type="button" data-email="scorecard" aria-label="Share scorecard" title="Share scorecard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="2.5"></circle><circle cx="6" cy="12" r="2.5"></circle><circle cx="18" cy="19" r="2.5"></circle><path d="m8.2 10.8 7.6-4.5M8.2 13.2l7.6 4.5"></path></svg></button><button type="button" data-download="scorecard" aria-label="Download scorecard" title="Download scorecard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="m7.5 10.5 4.5 4.5 4.5-4.5"></path><path d="M5 20h14"></path></svg></button></div>
     </section>
     <section class="client-top-grid">
       <article class="client-score-box">
@@ -348,7 +348,7 @@
       ${priorityItems.map((row,i)=>`
         <div class="client-priority-row">
           <div><strong>${esc(row.name)}</strong><p>${esc(row.description)}</p></div>
-          <button type="button" data-open-score-priorities="${i}" title="See issue and create a priority">${row.lift?`+${Math.round(row.lift)} pts`:'View' } ⌄</button>
+          <button type="button" data-open-score-priorities="${i}" title="See issue and create a priority"><span class="client-lift-pill">${row.lift?`+${Math.round(row.lift)} pts`:'View'}</span><span class="client-row-chevron" aria-hidden="true">⌄</span></button>
         </div>`).join('')}
       <div class="client-priority-controls"><button type="button" id="clientOpenRocks">Manage 90-day priorities →</button></div>
     </section>
