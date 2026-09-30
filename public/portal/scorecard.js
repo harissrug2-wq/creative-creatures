@@ -211,6 +211,12 @@
       { key: 'independence', name: 'Independence', color: '#e35252', strokeWidth: 2.5, dotRadius: 4.5, class: 'trend-line-ind' }
     ];
 
+    const area = visibleSeries.score && points.length > 1
+      ? `<defs><linearGradient id="ccScoreArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3039e9" stop-opacity=".14"/><stop offset="100%" stop-color="#3039e9" stop-opacity="0"/></linearGradient></defs><polygon points="${x(0)},${y(0)} ${points.map((point,index)=>`${x(index)},${y(point.score)}`).join(' ')} ${x(points.length-1)},${y(0)}" fill="url(#ccScoreArea)"></polygon>`
+      : '';
+    const scoreLabels = visibleSeries.score && points.length > 1
+      ? points.map((point,index)=>`<text x="${x(index)}" y="${y(point.score)-16}" text-anchor="middle" class="trend-value-label">${Math.round(point.score)}</text>`).join('')
+      : '';
     const polylines = seriesConfig.map(s => {
       if (!visibleSeries[s.key]) return '';
       const pts = points.map((point, index) => `${x(index)},${y(point[s.key] ?? point.score)}`).join(' ');
@@ -232,8 +238,10 @@
 
     return `<svg class="scorecard-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Quarterly Agency Scorecard index trends">
       ${grid}
+      ${area}
       ${polylines}
       ${dots}
+      ${scoreLabels}
       ${labels}
     </svg>`;
   }
@@ -291,7 +299,7 @@
     strength:'Agency Scalability',
     independence:'Owner Independence'
   };
-  const colorFor = {performance:'#159fc1',strength:'#189957',independence:'#189957'};
+  const colorFor = {performance:'#2737e9',strength:'#159a56',independence:'#fc6020'};
   const snapshotCount = persistedHistory.length;
   root.insertAdjacentHTML('afterbegin', `
     <section class="client-hero" aria-label="AOFI Score overview">
@@ -304,17 +312,22 @@
           <div class="client-donut-label">AOFI™ Score<strong>${Math.round(Number(model.score)||0)}</strong><small>/ 100</small></div>
         </div>
         <div class="client-score-copy"><span class="client-status">${esc(model.band?.label||'Current score')}</span><h2>Agency Owner Freedom Index™</h2><p>${esc(model.band?.meaning || 'Your current agency score is based on the completed Diagnostic.')}</p></div>
+        <details class="client-score-details"><summary>Score details</summary>
+          <div class="client-score-details-content"><span>Overall confidence: <strong>${Math.round(Number(model.confidence)||0)}%</strong></span>
+          <span>Validation: <strong>${esc(model.validation||'Pending')}</strong></span>
+          <span>Full methodology and evidence are available under How AOFI™ Scoring Works.</span></div>
+        </details>
       </article>
       <article class="client-value-box">
         <span>ESTIMATED ENTERPRISE VALUE</span>
         <strong>${readableValuation?money(valuation.enterpriseValue):'Not available'}</strong>
-        <p>${readableValuation?'Estimated from current agency evidence.':'Complete financial evidence to calculate valuation.'}</p>
-        <button type="button" class="client-methodology-link" id="clientViewMethodology">See calculation details →</button>
+        <p>${readableValuation?`${Number(valuation.finalMultiple||0).toFixed(1)}× current multiple`:'Complete financial evidence to calculate valuation.'}</p>
+        <button type="button" class="client-methodology-link" id="clientViewMethodology">See value-building plan →</button>
       </article>
     </section>
     <section class="client-trend-panel">
-      <h2>AOFI™ Score Trend</h2>
-      <p>${hasComparison?`${snapshotCount} recorded quarterly snapshots`:'Your first score establishes a baseline. A line will appear after the next quarterly assessment.'}</p>
+      <div class="client-trend-heading"><h2>AOFI™ Score Trend</h2>${hasComparison&&Number.isFinite(Number(momentum.delta))?`<span class="client-trend-lift">${momentum.delta>0?'+':''}${Math.round(momentum.delta)} pts</span>`:''}</div>
+      <p class="client-trend-meta">${hasComparison?`${snapshotCount} quarterly snapshots`:'Your first score is the baseline; future quarters will appear here.'}</p>
       <div class="client-score-graph">${hasComparison?renderScorecardTrendChart(persistedHistory,{score:true,performance:false,strength:false,independence:false}):`<div class="client-history-note">Current baseline: ${Number(model.score).toFixed(0)} / 100. Historical data will be added when available.</div>`}</div>
     </section>
     <section class="client-index-grid" aria-label="Individual index results">
@@ -328,7 +341,7 @@
         </article>`}).join('')}
     </section>
     <section class="client-priorities">
-      <h2>What to do to improve your score</h2>
+      <div class="client-priorities-heading"><h2>What to do to improve your score</h2><span>One 90-day priority</span></div>
       ${priorityItems.map((row,i)=>`
         <div class="client-priority-row">
           <div><strong>${esc(row.name)}</strong><p>${esc(row.description)}</p></div>
