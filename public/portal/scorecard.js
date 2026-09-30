@@ -295,7 +295,7 @@
   const snapshotCount = persistedHistory.length;
   root.insertAdjacentHTML('afterbegin', `
     <section class="client-hero" aria-label="AOFI Score overview">
-      <div><h1>Your agency asset at a glance</h1><p>Primary Agency Owner Archetype: <strong>${esc(model.archetype || 'Not available')}</strong></p>${window.CCDemo?.sampleData?'<span style="display:inline-block;margin-top:8px;color:#815a00;background:#fff6d9;border:1px solid #f0dfaa;border-radius:99px;padding:4px 9px;font-size:11px;font-weight:750">Sample demo data — not actual agency evidence</span>':''}</div>
+      <div><h1>Your agency asset at a glance</h1><p>Primary Agency Owner Archetype: <strong>${esc(model.archetype || 'Not available')}</strong></p></div>
       <div class="client-tools"><button type="button" data-email="scorecard" aria-label="Email scorecard" title="Email scorecard">↗ Share</button><button type="button" data-download="scorecard" aria-label="Download scorecard">↓ Download</button></div>
     </section>
     <section class="client-top-grid">
