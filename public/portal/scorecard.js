@@ -271,6 +271,104 @@
     <section class="insight-grid paired-insights"><article class="insight-card"><h3>Issues &amp; their opportunities</h3><p class="paired-insights-help">${isAofiFree?'Your improvement priorities are visible here. Activating 90-Day Priorities is included with a paid platform account.':'Select an issue to create one 90-Day Priority. Its opportunity is included in the Priority.'}</p><div class="insight-list">${issueRows}</div></article></section><div class="rock-actions"><span id="rockSelectionNote">${isAofiFree?'Upgrade to activate these priorities in Agency Goals.':'Select one or more issues.'}</span><button class="create-rocks-btn" id="createSelectedRocks" type="button">${isAofiFree?'Activate 90-Day Priorities · Upgrade':'Create 90-Day Priorities'}</button></div>
     <div class="define-goals-wrap"><a class="define-goals-cta" href="${isAofiFree?'#':'/agency-goals/'}" id="defineAgencyGoals">${isAofiFree?'Define Agency Goals · Upgrade':'Define Agency Goals →'}</a></div>`;
 
+
+  // Client-approved one-screen summary: show the current score, valuation, and
+  // the actual available quarterly trend together. Never fabricate history.
+  root.classList.add('client-scorecard');
+  const readableValuation = valuation?.available && Number.isFinite(Number(valuation.enterpriseValue));
+  const priorityItems = weakestRows.slice(0,3).map(row => {
+    const opportunity = opportunitiesByKey.get(capabilityKey({capability:row.name,index:row.index})) ||
+      opportunitySource.find(item=>item.capability===row.name || item.name===row.name);
+    return {name:row.name,description:opportunity?.recommendation || model.reports[row.index]?.recommendation || 'Improve this capability during the next planning cycle.',lift:Number(opportunity?.estimatedLift)||null};
+  });
+  const reportDescriptions = {
+    performance:'Turns revenue into value',
+    strength:'Can double in 24 months',
+    independence:'Runs without the founder'
+  };
+  const reportLabels = {
+    performance:'Financial Performance',
+    strength:'Agency Scalability',
+    independence:'Owner Independence'
+  };
+  const colorFor = {performance:'#159fc1',strength:'#189957',independence:'#189957'};
+  const snapshotCount = persistedHistory.length;
+  root.insertAdjacentHTML('afterbegin', `
+    <section class="client-hero" aria-label="AOFI Score overview">
+      <div><h1>Your agency asset at a glance</h1><p>Primary Agency Owner Archetype: <strong>${esc(model.archetype || 'Not available')}</strong></p></div>
+      <div class="client-tools"><button type="button" data-email="scorecard" aria-label="Email scorecard" title="Email scorecard">↗ Share</button><button type="button" data-download="scorecard" aria-label="Download scorecard">↓ Download</button></div>
+    </section>
+    <section class="client-top-grid">
+      <article class="client-score-box">
+        <div class="client-donut" style="--aofi-score:${Math.max(0,Math.min(100,Number(model.score)||0))}">
+          <div class="client-donut-label">AOFI™ Score<strong>${Math.round(Number(model.score)||0)}</strong><small>/ 100</small></div>
+        </div>
+        <div class="client-score-copy"><span class="client-status">${esc(model.band?.label||'Current score')}</span><h2>Agency Owner Freedom Index™</h2><p>${esc(model.band?.meaning || 'Your current agency score is based on the completed Diagnostic.')}</p></div>
+      </article>
+      <article class="client-value-box">
+        <span>ESTIMATED ENTERPRISE VALUE</span>
+        <strong>${readableValuation?money(valuation.enterpriseValue):'Not available'}</strong>
+        <p>${readableValuation?`${Number(valuation.finalMultiple||0).toFixed(2)}× multiple · Adjusted SDE ${money(valuation.adjustedSDE)}`:'Complete financial evidence to calculate valuation.'}</p>
+        <details><summary>See details</summary>
+          <div class="valuation-explain">${readableValuation?
+          `Estimated value uses adjusted SDE and the current evidence-backed multiple. Base: ${Number(valuation.baseMultiple||0).toFixed(2)}×. This is an estimate, not a verified sale price.`:
+          esc((valuation?.missingInputs||['Financial performance inputs are required']).join(', '))}</div>
+        </details>
+      </article>
+    </section>
+    <section class="client-trend-panel">
+      <h2>AOFI™ Score Trend</h2>
+      <p>${hasComparison?`${snapshotCount} recorded quarterly snapshots`:'Your first score establishes a baseline. A line will appear after the next quarterly assessment.'}</p>
+      <div class="client-score-graph">${hasComparison?renderScorecardTrendChart(persistedHistory,{score:true,performance:false,strength:false,independence:false}):`<div class="client-history-note">Current baseline: ${Number(model.score).toFixed(0)} / 100. Historical data will be added when available.</div>`}</div>
+    </section>
+    <section class="client-index-grid" aria-label="Individual index results">
+      ${reportOrder.map(id=>{const row=model.reports[id];return `
+        <article class="client-index-panel">
+          <div class="client-index-top">
+            <div class="client-small-donut" style="--score:${Math.max(0,Math.min(100,Number(row.score)||0))};--hue:${colorFor[id]}"><b>${Math.round(Number(row.score)||0)}</b></div>
+            <div><h3>${esc(reportLabels[id])}</h3><p>${esc(reportDescriptions[id])}</p></div>
+          </div>
+          <a href="/agency-scorecard/${id}/">Open report →</a>
+        </article>`}).join('')}
+    </section>
+    <section class="client-priorities">
+      <h2>What to do to improve your score</h2>
+      ${priorityItems.map((row,i)=>`
+        <div class="client-priority-row">
+          <div><strong>${esc(row.name)}</strong><p>${esc(row.description)}</p></div>
+          <button type="button" data-open-score-priorities="${i}" title="See issue and create a priority">${row.lift?`+${Math.round(row.lift)} pts`:'View' } ⌄</button>
+        </div>`).join('')}
+      <div class="client-priority-controls"><button type="button" id="clientOpenRocks">Manage 90-day priorities →</button></div>
+    </section>
+    <details class="client-scoring" id="clientScoringDetails">
+      <summary>How AOFI™ Scoring Works</summary>
+      <p style="color:#667085;font-size:12px;margin:0 0 15px">Performance × 40% + Strength × 40% + Independence × 20%. Open the detailed reports to review evidence, validation, and confidence.</p>
+      <h3 style="font-size:15px">Score calculation and evidence</h3>
+      <div id="clientOriginalScore"></div>
+      <h3 style="font-size:15px;margin-top:20px">Individual index reports</h3>
+      <div id="clientOriginalReports"></div>
+      <h3 style="font-size:15px;margin-top:20px">Issues, opportunities, and actions</h3>
+      <div id="clientOriginalPriorities"></div>
+    </details>
+  `);
+  const originalScore=root.querySelector('#clientOriginalScore');
+  const originalReports=root.querySelector('#clientOriginalReports');
+  const originalPriorities=root.querySelector('#clientOriginalPriorities');
+  const legacyMain=root.querySelector('.aofi-card');
+  const legacyValue=root.querySelector('.valuation-note');
+  const legacyReports=root.querySelector('.index-grid');
+  const legacyInsights=root.querySelector('.paired-insights');
+  const legacyRocks=root.querySelector('.rock-actions');
+  const legacyGoals=root.querySelector('.define-goals-wrap');
+  if(legacyMain)originalScore.append(legacyMain);
+  if(legacyValue)originalScore.append(legacyValue);
+  if(legacyReports)originalReports.append(legacyReports);
+  if(legacyInsights)originalPriorities.append(legacyInsights);
+  if(legacyRocks)originalPriorities.append(legacyRocks);
+  if(legacyGoals)originalPriorities.append(legacyGoals);
+  const openPriorities=()=>{const section=root.querySelector('#clientScoringDetails');section.open=true;section.querySelector('#clientOriginalPriorities')?.scrollIntoView({behavior:'smooth',block:'center'});};
+  root.querySelectorAll('[data-open-score-priorities],#clientOpenRocks').forEach(button=>button.addEventListener('click',openPriorities));
+
   const driver = momentum.primaryDriver;
   const driverCopy = driver
     ? `${driver.label} ${driver.change > 0 ? 'improved' : driver.change < 0 ? 'declined' : 'was unchanged'} by ${Math.abs(Number(driver.change)).toFixed(1)} points versus the previous quarter.`
@@ -367,7 +465,9 @@
       </div>
     </section>`;
 
-  root.insertBefore(trendsView, currentView);
+  // Keep the original comparison module available to its event handlers, but
+  // do not render a second Trends screen. The inline chart above is the only
+  // visible score trend, and only shows genuine available snapshots.
 
   const viewSwitcher = document.createElement('div');
   viewSwitcher.className = 'scorecard-view-switcher';
@@ -377,7 +477,7 @@
       <button type="button" class="active" data-scorecard-view="current" role="tab" aria-selected="true">Current</button>
       <button type="button" data-scorecard-view="trends" role="tab" aria-selected="false">Trends</button>
     </div>`;
-  root.insertBefore(viewSwitcher, trendsView);
+  // The Current/Trends switcher is removed in the client-approved one-screen layout.
 
   root.querySelectorAll('[data-scorecard-view]').forEach(button => {
     button.addEventListener('click', () => {

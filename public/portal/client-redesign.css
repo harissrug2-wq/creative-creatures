@@ -1,0 +1,135 @@
+
+/* Client-approved simplified Diagnostic and one-screen AOFI Score */
+.journey-page,.scorecard-shell{background:#fff}
+.diagnostic-main{width:min(1140px,calc(100% - 40px));padding:42px 0 80px}
+.diagnostic-main .journey-head{display:block;margin:0 0 30px}
+.diagnostic-main .journey-head h1{font-size:clamp(26px,3vw,34px);font-weight:800;letter-spacing:-.045em}
+.diagnostic-main .journey-head-copy{max-width:none}
+.diagnostic-main .journey-head-copy p{font-size:13px;color:#69707a;max-width:680px}
+.diagnostic-main .progress-card{display:none}
+.diagnostic-main .diagnostic-timeline{gap:14px}
+.diagnostic-main .diagnostic-timeline::before{left:12px;top:20px;bottom:22px;background:#e4e6ea}
+.diagnostic-main .diag-step{grid-template-columns:28px minmax(0,1fr);gap:17px}
+.diagnostic-main .step-dot{width:26px;height:26px;background:#fff;color:#737b87;font-size:12px;font-weight:700}
+.diagnostic-main .diag-step.complete .step-dot{background:#169857;border-color:#169857;color:#fff}
+.diagnostic-main .diag-step.active .step-dot{background:#fff;border:2px solid #3536e9;color:#3536e9;box-shadow:none}
+.diagnostic-main .cc-card{border:1px solid #e5e7ee;background:#fff;border-radius:22px;box-shadow:0 5px 17px rgba(17,24,39,.055)}
+.diagnostic-main .archetype-card{padding:20px 23px;margin-bottom:0;min-height:112px}
+.diagnostic-main .archetype-card::before,.diagnostic-main .diag-step.active .diag-step-card::before{display:none}
+.diagnostic-main .archetype-card .delivery-tags .delivered{display:none}
+.diagnostic-main .archetype-card .archetype-word{font-size:10px;letter-spacing:.09em;text-transform:uppercase;font-weight:800;color:#7f8591}
+.diagnostic-main .archetype-card h2{font-size:16px;letter-spacing:-.02em;margin-bottom:4px}
+.diagnostic-main .archetype-card p{font-size:12px}
+.diagnostic-main .owner-progress{margin-top:12px;max-width:202px}
+.diagnostic-main .owner-progress>div{display:none}
+.diagnostic-main .index-progress i{height:6px}
+.diagnostic-main .index-progress b{background:#189d57}
+.diagnostic-main .section-title-row{display:none}
+.diagnostic-main .diag-step-card{min-height:112px;padding:21px 23px}
+.diagnostic-main .diag-step-card h3{font-size:16px;margin-bottom:4px}
+.diagnostic-main .diag-step-card p{font-size:12px}
+.diagnostic-main .diag-meta{font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:800;color:#7d8490;gap:0;margin-bottom:8px}
+.diagnostic-main .diag-meta span:nth-child(2){margin-left:6px}
+.diagnostic-main .up-next{background:#e9f8fc;color:#18819e;letter-spacing:0;margin-left:0;margin-bottom:6px;display:inline-block}
+.diagnostic-main .diag-step.active .diag-step-card{background:#fafaff;border-color:#dedffe;box-shadow:0 4px 17px rgba(51,53,237,.04)}
+.diagnostic-main .diag-step.locked{opacity:1}
+.diagnostic-main .diag-step.locked .diag-step-card{opacity:.78}
+.diagnostic-main .diag-step.locked .step-action{pointer-events:none}
+.diagnostic-main .integration-strip{margin:22px 0 0 45px;padding:19px 22px;border-radius:22px;border:1px solid #e5e7ee;border-style:solid}
+.diagnostic-main .integration-strip h3{font-size:15px}
+.diagnostic-main .integration-strip p{font-size:12px}
+.diagnostic-main .integration-strip a{border:0;color:#3336d5}
+.diagnostic-main .small-blue{background:#3435e9;color:white;font-weight:750}
+.diagnostic-main .diag-step.complete .diag-step-card{border-color:#e5e7ee}
+.diagnostic-main .diagnostic-fraction{display:block;color:#737b86;margin-top:8px;font-size:13px}
+/* Compact scorecard, retaining existing reports and priority actions */
+.scorecard-shell.client-scorecard{width:min(1080px,calc(100% - 36px));padding-top:32px;background:#fff}
+.client-scorecard .client-hero{display:flex;justify-content:space-between;gap:14px;align-items:start;margin:0 0 21px}
+.client-scorecard .client-hero h1{font-size:clamp(25px,3vw,32px);font-weight:850;letter-spacing:-.045em;margin:0 0 7px}
+.client-scorecard .client-hero p{font-size:13px;margin:0;color:#667085}
+.client-scorecard .client-tools{display:flex;gap:8px;flex:0 0 auto}
+.client-scorecard .client-tools button{border:1px solid #e3e5eb;border-radius:9px;background:#fff;padding:9px 11px;cursor:pointer;color:#414956}
+.client-scorecard .client-top-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px;margin-bottom:16px}
+.client-scorecard .client-score-box,.client-scorecard .client-value-box,.client-scorecard .client-trend-panel,.client-scorecard .client-index-panel,.client-scorecard .client-priorities,.client-scorecard .client-scoring{background:#fff;border:1px solid #e4e7ed;border-radius:21px;box-shadow:0 5px 17px rgba(17,24,39,.04)}
+.client-scorecard .client-score-box{display:flex;align-items:center;gap:27px;padding:26px;min-height:202px}
+.client-scorecard .client-donut{width:156px;height:156px;flex:0 0 auto;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(#1ca5c6 calc(var(--aofi-score)*1%),#e8f3f7 0)}
+.client-scorecard .client-donut::before{content:'';position:absolute;inset:12px;border-radius:50%;background:#fff}
+.client-scorecard .client-donut-label{z-index:1;text-align:center;font-size:11px;font-weight:750;color:#313744}
+.client-scorecard .client-donut-label strong{display:block;color:#179fc3;font-weight:850;font-size:42px;line-height:1}
+.client-scorecard .client-donut-label small{display:block;color:#737c8a;font-size:11px}
+.client-scorecard .client-score-copy{min-width:0}
+.client-scorecard .client-score-copy h2{font-size:21px;margin:9px 0 5px;letter-spacing:-.03em}
+.client-scorecard .client-score-copy p{font-size:13px;line-height:1.5;color:#69727e;margin:0}
+.client-scorecard .client-status{font-size:11px;font-weight:750;background:#eaf8fd;border-radius:99px;padding:5px 9px;color:#147f99}
+.client-scorecard .client-value-box{padding:23px 25px;display:flex;flex-direction:column;align-items:flex-start}
+.client-scorecard .client-value-box>span{color:#747d89;letter-spacing:.08em;font-size:11px;font-weight:800}
+.client-scorecard .client-value-box strong{font-size:clamp(27px,3vw,37px);letter-spacing:-.055em;margin:6px 0 0}
+.client-scorecard .client-value-box p{font-size:13px;color:#687180;margin:1px 0 0}
+.client-scorecard .client-value-box details{margin-top:auto;padding-top:12px;width:100%}
+.client-scorecard .client-value-box summary{color:#3348b3;cursor:pointer;font-size:12px;font-weight:700}
+.client-scorecard .client-value-box .valuation-explain{font-size:12px;line-height:1.5;color:#65707d;padding-top:9px}
+.client-scorecard .client-trend-panel{padding:21px 22px;margin-bottom:15px}
+.client-scorecard .client-trend-panel h2{font-size:17px;margin:0 0 3px}
+.client-scorecard .client-trend-panel p{color:#6a7380;margin:0;font-size:12px}
+.client-scorecard .client-score-graph{padding-top:8px}
+.client-scorecard .client-score-graph svg{width:100%;height:auto;max-height:265px}
+.client-scorecard .client-score-graph .trend-line-score{stroke:#1ca6c9!important}
+.client-scorecard .client-score-graph .trend-dot-group circle{fill:#169fc3!important}
+.client-scorecard .client-history-note{font-size:12px;color:#818997;padding:12px}
+.client-scorecard .client-index-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:15px}
+.client-scorecard .client-index-panel{padding:15px 17px}
+.client-scorecard .client-index-top{display:flex;gap:13px;align-items:center}
+.client-scorecard .client-small-donut{--hue:#159fbe;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;position:relative;background:conic-gradient(var(--hue) calc(var(--score)*1%),#eaf1f4 0);flex:0 0 auto}
+.client-scorecard .client-small-donut::before{content:'';position:absolute;inset:5px;background:white;border-radius:50%}
+.client-scorecard .client-small-donut b{z-index:1;font-size:16px}
+.client-scorecard .client-index-top h3{font-size:13px;margin:0 0 5px}
+.client-scorecard .client-index-top p{margin:0;color:#717a87;font-size:11px;line-height:1.35}
+.client-scorecard .client-index-panel>a{display:block;border-top:1px solid #eceef2;padding-top:12px;margin-top:15px;color:#3536c9;font-size:12px;font-weight:750;text-decoration:none}
+.client-scorecard .client-priorities{padding:20px 22px;margin-bottom:15px}
+.client-scorecard .client-priorities h2{font-size:16px;margin:0 0 15px}
+.client-scorecard .client-priority-row{border-top:1px solid #eef0f3;padding:13px 4px;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.client-scorecard .client-priority-row:first-of-type{border-top:0}
+.client-scorecard .client-priority-row strong{font-size:12px}
+.client-scorecard .client-priority-row p{font-size:11px;margin:4px 0 0;color:#737b89}
+.client-scorecard .client-priority-row button{border:0;background:#eaf9f1;color:#178653;padding:7px 11px;border-radius:99px;white-space:nowrap;cursor:pointer;font-size:11px;font-weight:800}
+.client-scorecard .client-priority-controls{display:flex;justify-content:flex-end;margin-top:10px}
+.client-scorecard .client-priority-controls button{border:1px solid #d8dcea;background:#fff;padding:9px 13px;border-radius:10px;color:#3338c9;font-weight:750;cursor:pointer}
+.client-scorecard .client-scoring{padding:0 20px;margin-bottom:15px}
+.client-scorecard .client-scoring>summary{list-style:none;padding:19px 0;cursor:pointer;font-size:15px;font-weight:800}
+.client-scorecard .client-scoring>summary::after{content:'⌄';float:right;color:#777}
+.client-scorecard .client-scoring[open]>summary::after{content:'⌃'}
+.client-scorecard .client-scoring>.aofi-card{display:grid}
+.client-scorecard .client-scoring>.valuation-note{display:flex}
+.client-scorecard #scorecardCurrentView>.scorecard-header,
+.client-scorecard #scorecardCurrentView>.section-title,
+.client-scorecard #scorecardCurrentView>.aofi-card,
+.client-scorecard #scorecardCurrentView>.valuation-note,
+.client-scorecard #scorecardCurrentView>.index-grid,
+.client-scorecard #scorecardCurrentView>.paired-insights,
+.client-scorecard #scorecardCurrentView>.rock-actions,
+.client-scorecard #scorecardCurrentView>.define-goals-wrap{display:none}
+.client-scorecard .client-scoring .aofi-card{margin:0 0 15px}
+.client-scorecard .client-scoring .aofi-card .aofi-side{min-width:0}
+.client-scorecard .client-scoring .valuation-note{margin:0 0 18px}
+.client-scorecard .client-scoring .paired-insights{margin-top:10px}
+.client-scorecard .client-scoring .rock-actions{padding-bottom:14px}
+.client-scorecard .client-scoring .define-goals-wrap{padding-bottom:20px}
+.client-scorecard .client-scoring .index-grid{display:grid}
+@media(max-width:760px){
+ .diagnostic-main{width:calc(100% - 24px);padding-top:24px}
+ .diagnostic-main .archetype-card,.diagnostic-main .diag-step-card{padding:18px 14px;gap:12px}
+ .diagnostic-main .integration-strip{margin-left:0;flex-wrap:wrap}
+ .client-scorecard .client-top-grid{grid-template-columns:1fr}
+ .client-scorecard .client-index-grid{grid-template-columns:1fr}
+ .client-scorecard .client-score-box{padding:18px;gap:16px;min-height:0}
+ .client-scorecard .client-donut{width:110px;height:110px}
+ .client-scorecard .client-donut-label strong{font-size:34px}
+ .client-scorecard .client-score-copy h2{font-size:17px}
+ .client-scorecard .client-hero{flex-wrap:wrap}
+}
+
+.diagnostic-main .journey-head-copy>.generate-diagnostic.show{
+ width:auto;max-width:100%;display:inline-flex;min-height:42px;padding:0 18px;
+ margin:17px 0 0;background:#3538e9;border-radius:10px;font-size:12px;
+ box-shadow:0 5px 12px rgba(53,56,233,.15)
+}
