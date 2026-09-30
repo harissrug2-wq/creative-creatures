@@ -1,7 +1,11 @@
 (() => {
   const EMAIL = 'immad@brandandbrains.co';
   const lower = v => String(v || '').trim().toLowerCase();
-  const isDemo = account => lower(account?.email) === EMAIL;
+  const FREE_EMAIL = 'haris.srug@gmail.com';
+  const isPlatformDemo = account => lower(account?.email) === EMAIL;
+  const isFreeDemo = account => lower(account?.email) === FREE_EMAIL &&
+    ['aofi_free'].includes(account?.accessPlan || account?.access_plan || account?.journey);
+  const isDemo = account => isPlatformDemo(account) || isFreeDemo(account);
 
   const diagnosticState = () => ({
     purchasedPlans:['platform'],
@@ -168,34 +172,102 @@
     ];
   }
 
+  // Free demo deliberately remains Free AOFI; it does not unlock paid services.
+  function freeDiagnosticState() {
+    const state=diagnosticState();
+    state.purchasedPlans=['aofi_free'];
+    state.paymentComplete=false;
+    state.integrationsComplete=false;
+    state.goalsComplete=false;
+    state.indexes.strength.score=73;
+    state.indexes.strength.details.results.overallScore=73;
+    state.indexes.independence.score=69;
+    state.indexes.independence.details.scores.overallIndexScore=69;
+    state.indexes.performance.score=77;
+    state.indexes.performance.details.overallScore=77;
+    return state;
+  }
+  function freeScorecard() {
+    const result=scorecard();
+    result.score=73;
+    result.confidence=86;
+    result.band={label:'Building Strength',meaning:'A solid agency foundation with opportunities to improve operating systems and founder independence.'};
+    result.validation='Sample demo data';
+    result.archetype='Strategic Builder';
+    result.reports.performance.score=77;
+    result.reports.strength.score=73;
+    result.reports.independence.score=69;
+    result.reports.performance.confidence=88;
+    result.reports.strength.confidence=86;
+    result.reports.independence.confidence=84;
+    for(const report of Object.values(result.reports))report.validation='Sample demo data';
+    result.reports.performance.adjustedSDE=315000;
+    result.valuation={available:true,status:'available',adjustedSDE:315000,baseMultiple:4.4,
+      adjustments:{strength:0.08,ownerIndependence:-0.09,roicLite:0.04,revenueQuality:0.07},
+      finalMultiple:4.5,enterpriseValue:1417500,evidenceGaps:[]};
+    result.weakest=[
+      {name:'Revenue Independence',capability:'Revenue Independence',index:'independence',indexTitle:'Owner Independence Index',score:62},
+      {name:'Operating System',capability:'Operating System',index:'strength',indexTitle:'Agency Strength Index',score:67},
+      {name:'Delivery Independence',capability:'Delivery Independence',index:'independence',indexTitle:'Owner Independence Index',score:68}
+    ];
+    result.issues=result.weakest.map(row=>({...row,description:'Sample improvement area for the Free AOFI demo.'}));
+    result.opportunities=result.weakest.map((row,i)=>({...row,recommendation:[
+      'Delegate lead follow-up and pipeline ownership to a dedicated sales lead.',
+      'Define delivery SOPs and establish a weekly operating review.',
+      'Transfer day-to-day project approvals to the delivery lead.'
+    ][i],estimatedLift:[6,5,4][i]}));
+    return result;
+  }
+  function freeScorecardHistory(){
+    // Synthetic quarterly snapshots for demonstration only.
+    return [
+      {quarter:'Q4 2025',generatedAt:'2025-12-20T12:00:00Z',score:57,performance:61,strength:59,independence:46,enterpriseValue:970000},
+      {quarter:'Q1 2026',generatedAt:'2026-03-25T12:00:00Z',score:61,performance:66,strength:63,independence:50,enterpriseValue:1110000},
+      {quarter:'Q2 2026',generatedAt:'2026-06-25T12:00:00Z',score:67,performance:71,strength:68,independence:60,enterpriseValue:1280000},
+      {quarter:'Q3 2026',generatedAt:'2026-09-28T12:00:00Z',score:73,performance:77,strength:73,independence:69,enterpriseValue:1417500}
+    ];
+  }
+
   function apply(account) {
     if (!isDemo(account)) return account;
-    const state = diagnosticState();
+    const free=isFreeDemo(account);
+    const state = free?freeDiagnosticState():diagnosticState();
     const reportData = {...(account.report_data||account.reportData||{}),token:'demo-owner-report',title:'Strategic Builder',archetypeTitle:'Strategic Builder',summary:'A growth-oriented agency owner building systems, leadership capacity, and founder independence.'};
-    return {...account,journey:'platform',access_plan:'platform',accessPlan:'platform',agency_name:account.agency_name||account.agencyName||'Brand & Brains',agencyName:account.agency_name||account.agencyName||'Brand & Brains',archetype_result:{...(account.archetype_result||{}),title:'Strategic Builder'},report_data:reportData,reportData,diagnostic_state:state,diagnosticState:state};
+    const plan=free?'aofi_free':'platform';
+    const agencyName=account.agency_name||account.agencyName||(free?'Free AOFI Demo Agency':'Brand & Brains');
+    return {...account,journey:plan,access_plan:plan,accessPlan:plan,agency_name:agencyName,agencyName,
+      archetype_result:{...(account.archetype_result||{}),title:'Strategic Builder'},
+      report_data:reportData,reportData,diagnostic_state:state,diagnosticState:state};
   }
 
   function seed(account) {
     if (!isDemo(account)) return account;
     const resolved = apply(account);
-    window.CCDemo = {enabled:true,email:EMAIL,goals:goals(),evidence:evidence(),scorecard:scorecard(),scorecardHistory:scorecardHistory()};
+    const free=isFreeDemo(account);
+    window.CCDemo = free
+      ? {enabled:true,tier:'free',sampleData:true,email:FREE_EMAIL,
+        scorecard:freeScorecard(),scorecardHistory:freeScorecardHistory()}
+      : {enabled:true,tier:'platform',sampleData:true,email:EMAIL,
+        goals:goals(),evidence:evidence(),scorecard:scorecard(),scorecardHistory:scorecardHistory()};
     localStorage.setItem('cc_account', JSON.stringify(resolved));
     localStorage.setItem('ccUserAccount', JSON.stringify(resolved));
     localStorage.setItem('ccSignedIn','true');
-    localStorage.setItem('ccOwnerEmail',EMAIL);
-    localStorage.setItem('ccOwnerFirstName','Immad');
-    localStorage.setItem('ccOwnerLastName','Uddin');
+    localStorage.setItem('ccOwnerEmail',resolved.email);
+    const names=String(resolved.name||'Demo Account').trim().split(/\s+/);
+    localStorage.setItem('ccOwnerFirstName',names[0]||'Demo');
+    localStorage.setItem('ccOwnerLastName',names.slice(1).join(' '));
     localStorage.setItem('ccAgencyName',resolved.agency_name||'Brand & Brains');
-    localStorage.setItem('ccProgramPath','platform');
+    localStorage.setItem('ccProgramPath',free?'aofi_free':'platform');
     localStorage.setItem('ownerIdentityComplete','true');
     localStorage.setItem('ownerArchetypeReportData',JSON.stringify(resolved.report_data));
     localStorage.setItem('ownerArchetypeReportToken','demo-owner-report');
     if (window.CCDiagnostic?.restore) window.CCDiagnostic.restore(resolved.diagnostic_state,{replace:true});
     else localStorage.setItem('ccPendingDiagnosticState',JSON.stringify({state:resolved.diagnostic_state,replace:true}));
-    localStorage.setItem('ccPaymentComplete','true');
-    localStorage.setItem('agencyPaymentComplete','true');
-    localStorage.setItem('agencyIntegrationsComplete','true');
-    localStorage.setItem('agencyGoalsComplete','true');
+    // Never simulate a purchase or paid-feature entitlement in the Free demo.
+    for (const key of ['ccPaymentComplete','agencyPaymentComplete','agencyIntegrationsComplete','agencyGoalsComplete']) {
+      if (free)localStorage.removeItem(key);
+      else localStorage.setItem(key,'true');
+    }
     return resolved;
   }
 
@@ -208,5 +280,5 @@
     const existing = originalGet?.();
     if (existing) seed(existing);
   }
-  window.CCDemoAccount = { email: EMAIL, isDemo, apply, seed };
+  window.CCDemoAccount = { email: EMAIL, freeEmail:FREE_EMAIL, isDemo, isFreeDemo, apply, seed };
 })();
