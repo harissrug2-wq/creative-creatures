@@ -23,7 +23,7 @@
   const bool = key => localStorage.getItem(key) === 'true';
   if(!window.CCWorkspace&&!document.querySelector('link[data-cc-workspace-preload]')){
     const preload=document.createElement('link');
-    preload.rel='preload';preload.as='script';preload.href='/shared/workspace-access.js?v=20260930nav1';preload.dataset.ccWorkspacePreload='1';
+    preload.rel='preload';preload.as='script';preload.href='/shared/workspace-access.js?v=20260930free1';preload.dataset.ccWorkspacePreload='1';
     document.head.appendChild(preload);
   }
   const shellParams=new URLSearchParams(location.search);
@@ -113,13 +113,14 @@
       const link=event.target?.closest?.('[data-workspace-feature][data-flow-locked="1"]');
       if(!link)return;
       event.preventDefault();
+      if(link.dataset.gateKind==='upgrade'&&link.closest('.app-nav,.mobile-nav-panel'))return;
       loadWorkspace().then(workspace=>workspace.getAccess().then(access=>{
         const copy=workspace.gateCopy?.(link.dataset.workspaceFeature,access);
         if(copy)workspace.showGateNotice(copy);
         else location.href=link.href;
       })).catch(()=>{});
     });
-    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js?v=20260930nav1';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
+    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js?v=20260930free1';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
     loadWorkspace().then(async workspace=>{
       const access=await workspace.getAccess();
       const previews=Array.isArray(access.previewFeatures)?access.previewFeatures:[];
@@ -127,7 +128,11 @@
         const feature=link.dataset.workspaceFeature;
         const standardMenuFeature=['monitor','diagnostic','scorecard','goals','integrations','portal'].includes(feature);
         const visible=standardMenuFeature||access.features.includes(feature)||previews.includes(feature);
-        const gate=visible&&workspace.gateCopy?workspace.gateCopy(feature,access):null;
+        const freeLocked=access.plan==='aofi_free'&&['monitor','goals','integrations','portal'].includes(feature);
+        const gate=freeLocked?{
+          kind:'upgrade',title:'Upgrade account to access '+({monitor:'Monitor',goals:'Agency Goals',integrations:'Integrations',portal:'Portal'}[feature]),
+          message:'This feature is not available on Free AOFI.',cta:'/account/upgrade/',ctaLabel:'Upgrade Account'
+        }:(visible&&workspace.gateCopy?workspace.gateCopy(feature,access):null);
         link.hidden=!visible;
         link.style.removeProperty('display');
         link.dataset.planPreview=previews.includes(feature)&&!access.features.includes(feature)?'1':'0';
@@ -147,11 +152,26 @@
           link.removeAttribute('aria-label');
         }
       });
-      el.querySelectorAll('.ask-creature,.mobile-ask-creature').forEach(button=>{button.hidden=!access.features.includes('ask')});
+      el.querySelectorAll('.ask-creature,.mobile-ask-creature').forEach(button=>{
+        const free=access.plan==='aofi_free';
+        const available=access.features.includes('ask');
+        button.hidden=!free&&!available;
+        button.disabled=free;
+        button.classList.toggle('nav-disabled',free);
+        if(free){
+          button.dataset.gateMessage='Upgrade account to access Ask Creature';
+          button.title='Upgrade account to access Ask Creature';
+          button.setAttribute('aria-label','Ask Creature unavailable. Upgrade account to access');
+        }else{
+          delete button.dataset.gateMessage;
+          button.removeAttribute('title');
+          button.removeAttribute('aria-label');
+        }
+      });
       if(access.plan==='aofi_free'){
         el.querySelectorAll('[data-account-plan-tag]').forEach(tag=>{tag.hidden=false;tag.textContent='Free AOFI™'});
       }
-      const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo'&&!window.CCDemo?.enabled;
+      const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo'&&(!window.CCDemo?.enabled||window.CCDemo?.tier==='free');
       el.querySelectorAll('[data-account-upgrade]').forEach(link=>{link.hidden=!canUpgrade});
     }).catch(()=>{});
     el.querySelector('.ask-creature')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{}});
