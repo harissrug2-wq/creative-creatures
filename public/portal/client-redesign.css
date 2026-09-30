@@ -133,3 +133,13 @@
  margin:17px 0 0;background:#3538e9;border-radius:10px;font-size:12px;
  box-shadow:0 5px 12px rgba(53,56,233,.15)
 }
+
+/* Scorecard: calculation details and actionable priorities live in separate panels. */
+.client-scorecard .client-value-box .client-methodology-link{
+  margin-top:auto;padding:12px 0 0;border:0;background:transparent;
+  color:#3348b3;font-size:12px;font-weight:750;text-align:left;cursor:pointer
+}
+.client-scorecard .client-methodology-link:hover{text-decoration:underline}
+.client-scorecard .client-actions-details .paired-insights{margin:0 0 12px}
+.client-scorecard .client-actions-details .rock-actions{padding:0 0 14px}
+.client-scorecard .client-actions-details .define-goals-wrap{padding:0 0 20px}
