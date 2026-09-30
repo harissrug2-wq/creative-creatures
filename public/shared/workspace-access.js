@@ -153,7 +153,7 @@
     const workflow=access?.workflow||{},diagnosticComplete=workflow.allComplete===true||workflow.reportReady===true,reportReady=workflow.reportReady===true,goalsComplete=workflow.goalsComplete===true;
     const labels={diagnostic:'Diagnostic',scorecard:'AOFI™ Score',goals:'Agency Goals',monitor:'Monitor',integrations:'Integrations',portal:'Portal',accelerator:'Accelerator'};
     const preview=Array.isArray(access?.previewFeatures)&&access.previewFeatures.includes(feature)&&!access.features.includes(feature);
-    if(preview)return null;
+    if(preview&&access?.plan!=='aofi_free')return null;
 
     const included=Array.isArray(access?.features)&&access.features.includes(feature);
     if(!included)return{
@@ -257,7 +257,7 @@
       const isWorkspaceMenuLink=Boolean(link.dataset.workspaceFeature);
       if((!visible&&!isWorkspaceMenuLink)||(access.actor.role==='member'&&departments.includes(department)&&!access.actor.departments.includes(department))){link.hidden=true;link.style.display='none'}
     }catch{}});
-    const preview=feature?previewCopy(feature,access):null;
+    const preview=access.plan==='aofi_free'?null:(feature?previewCopy(feature,access):null);
     if(preview){showPreviewBanner(preview);return}
     // Department pages should always open their own shell. They enforce
     // source/integration requirements inside the page instead of showing the
