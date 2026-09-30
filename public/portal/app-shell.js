@@ -92,7 +92,8 @@
     const desktopNav = navigation.map(([href,label,name,key,enabled]) => item(href,label,name,key,enabled)).join('');
     const mobileNav = navigation.map(([href,label,name,key,enabled]) => [label,href,enabled,key]);
     const paid = bool('ccPaymentComplete') || bool('agencyPaymentComplete');
-    if (paid && active === 'diagnostic') status = diagnosticStatus(state);
+    // The client Diagnostic layout already shows the four-step progress below.
+    // Do not render the redundant full-width onboarding status rail.
 
     el.innerHTML = `
       <header class="app-topbar">
