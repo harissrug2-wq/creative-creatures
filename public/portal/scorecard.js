@@ -290,13 +290,13 @@
     return {name:row.name,description:opportunity?.recommendation || model.reports[row.index]?.recommendation || 'Improve this capability during the next planning cycle.',lift:Number(opportunity?.estimatedLift)||null};
   });
   const reportDescriptions = {
-    performance:'Turns revenue into value',
-    strength:'Can double in 24 months',
-    independence:'Runs without the founder'
+    performance:'Turns revenue into durable value',
+    strength:'Can scale without adding complexity',
+    independence:'Runs without relying on the founder'
   };
   const reportLabels = {
-    performance:'Financial Performance',
-    strength:'Agency Scalability',
+    performance:'Agency Performance',
+    strength:'Agency Strength',
     independence:'Owner Independence'
   };
   const colorFor = {performance:'#2737e9',strength:'#159a56',independence:'#fc6020'};
@@ -313,9 +313,12 @@
         </div>
         <div class="client-score-copy"><span class="client-status">${esc(model.band?.label||'Current score')}</span><h2>Agency Owner Freedom Index™</h2><p>${esc(model.band?.meaning || 'Your current agency score is based on the completed Diagnostic.')}</p></div>
         <details class="client-score-details"><summary>Score details</summary>
-          <div class="client-score-details-content"><span>Overall confidence: <strong>${Math.round(Number(model.confidence)||0)}%</strong></span>
-          <span>Validation: <strong>${esc(model.validation||'Pending')}</strong></span>
-          <span>Full methodology and evidence are available under How AOFI™ Scoring Works.</span></div>
+          <div class="client-score-details-content client-score-breakdown">
+            <span><em>Agency Performance</em><strong>${Math.round(Number(model.reports.performance?.score)||0)}</strong></span>
+            <span><em>Agency Strength</em><strong>${Math.round(Number(model.reports.strength?.score)||0)}</strong></span>
+            <span><em>Owner Independence</em><strong>${Math.round(Number(model.reports.independence?.score)||0)}</strong></span>
+            <span><em>Estimated Enterprise Value</em><strong>${readableValuation?money(valuation.enterpriseValue):'Not available'}</strong></span>
+          </div>
         </details>
       </article>
       <article class="client-value-box">
@@ -337,7 +340,7 @@
             <div class="client-small-donut" style="--score:${Math.max(0,Math.min(100,Number(row.score)||0))};--hue:${colorFor[id]}"><b>${Math.round(Number(row.score)||0)}</b></div>
             <div><h3>${esc(reportLabels[id])}</h3><p>${esc(reportDescriptions[id])}</p></div>
           </div>
-          <a href="/agency-scorecard/${id}/">Open report →</a>
+          <a href="/agency-scorecard/${id}/">Open report</a>
         </article>`}).join('')}
     </section>
     <section class="client-priorities">
