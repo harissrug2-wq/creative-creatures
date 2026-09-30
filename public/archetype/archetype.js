@@ -19,6 +19,11 @@
     }
   };
 
+  // Explicit free signup must override an older paid plan stored in this browser.
+  if (new URLSearchParams(location.search).get('destination')?.replace(/-/g, '_') === 'aofi_free') {
+    localStorage.setItem('ccProgramPath', 'aofi_free');
+  }
+
   const PAID_PLANS = ['aofi_free', 'diagnostic', 'accelerator', 'platform', 'fractional_coo'];
   const PLAN_OFFERS = {
     aofi_free: {
