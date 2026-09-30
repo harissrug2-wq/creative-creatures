@@ -211,6 +211,12 @@
       { key: 'independence', name: 'Independence', color: '#e35252', strokeWidth: 2.5, dotRadius: 4.5, class: 'trend-line-ind' }
     ];
 
+    const area = visibleSeries.score && points.length > 1
+      ? `<defs><linearGradient id="ccScoreArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#3039e9" stop-opacity=".14"/><stop offset="100%" stop-color="#3039e9" stop-opacity="0"/></linearGradient></defs><polygon points="${x(0)},${y(0)} ${points.map((point,index)=>`${x(index)},${y(point.score)}`).join(' ')} ${x(points.length-1)},${y(0)}" fill="url(#ccScoreArea)"></polygon>`
+      : '';
+    const scoreLabels = visibleSeries.score && points.length > 1
+      ? points.map((point,index)=>`<text x="${x(index)}" y="${y(point.score)-16}" text-anchor="middle" class="trend-value-label">${Math.round(point.score)}</text>`).join('')
+      : '';
     const polylines = seriesConfig.map(s => {
       if (!visibleSeries[s.key]) return '';
       const pts = points.map((point, index) => `${x(index)},${y(point[s.key] ?? point.score)}`).join(' ');
@@ -232,8 +238,10 @@
 
     return `<svg class="scorecard-trend-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Quarterly Agency Scorecard index trends">
       ${grid}
+      ${area}
       ${polylines}
       ${dots}
+      ${scoreLabels}
       ${labels}
     </svg>`;
   }
