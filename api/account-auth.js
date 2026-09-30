@@ -199,6 +199,11 @@ async function db(c,path,options={}){const r=await fetch(`${c.url}/rest/v1/${pat
 const SELECT='id,name,email,agency_url,agency_name,journey,access_plan,source,archetype_result,report_data,diagnostic_state,password_hash,password_reset_token_hash,password_reset_expires_at,created_at,updated_at';
 const DEMO_ACCOUNT_EMAIL='immad@brandandbrains.co';
 function isDemoAccount(account){return lower(account?.email)===DEMO_ACCOUNT_EMAIL}
+const FREE_DEMO_EMAIL='haris.srug@gmail.com';
+function isFreeDemoAccount(account){
+  return lower(account?.email)===FREE_DEMO_EMAIL &&
+    (account?.access_plan==='aofi_free'||account?.journey==='aofi_free');
+}
 function pub(a){return a?{id:a.id,name:a.name,email:a.email,agency_url:a.agency_url,agency_name:a.agency_name,journey:isDemoAccount(a)?'platform':a.journey,accessPlan:accessPlan(a),source:a.source,archetype_result:a.archetype_result||{},report_data:a.report_data||{},diagnostic_state:a.diagnostic_state||{},created_at:a.created_at,updated_at:a.updated_at}:null}
 async function findById(c,id){const rows=await db(c,`accounts?select=${SELECT}&id=eq.${encodeURIComponent(id)}&limit=1`);return Array.isArray(rows)?rows[0]:null}
 
@@ -317,13 +322,13 @@ function requireFeature(account,feature,actor){if(!featuresForAccount(account,ac
 function publicAccess(account,actor){
   const plan=accessPlan(account),state=account?.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
   const purchasedPlans=[...new Set([...(Array.isArray(state.purchasedPlans)?state.purchasedPlans:[]),plan])].filter(value=>PLAN_FEATURES[value]);
-  const previewFeatures=plan==='aofi_free'?['monitor','goals','integrations']:plan==='diagnostic'?['monitor']:[];
+  const previewFeatures=plan==='aofi_free'?[]:plan==='diagnostic'?['monitor']:[];
   const indexState=state.indexes&&typeof state.indexes==='object'?state.indexes:{};
   const savedIndexesComplete=['strength','independence','performance'].every(key=>{
     const row=indexState[key]||state[key]||{};
     return row.complete===true||Number(row.progress)===100;
   });
-  const demo=isDemoAccount(account);
+  const demo=isDemoAccount(account)||isFreeDemoAccount(account);
   const allComplete=demo||state.allComplete===true||state.all_complete===true||savedIndexesComplete;
   const integrationSelections=monitorIntegrationSelections(account);
   return{
