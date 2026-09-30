@@ -395,3 +395,12 @@ body:has(.scorecard-shell.client-scorecard){background:#fff}
  .client-scorecard .client-donut{width:96px;height:96px}
  .client-scorecard .client-donut-label strong{font-size:32px}
 }
+
+/* Expanded score details should take its own row instead of covering score text. */
+.client-scorecard .client-score-box:has(.client-score-details[open]){
+ flex-wrap:wrap;align-items:center;padding-bottom:14px
+}
+.client-scorecard .client-score-details[open]{
+ position:relative;left:auto;right:auto;bottom:auto;
+ width:100%;flex:1 0 100%;margin:4px 0 0
+}
