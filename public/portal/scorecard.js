@@ -339,7 +339,8 @@
     <details class="client-scoring client-actions-details" id="clientPrioritiesDetails">
       <summary>Issues, opportunities, and actions</summary>
       <div id="clientOriginalPriorities"></div>
-    </details>    <details class="client-scoring" id="clientScoringDetails">
+    </details>
+    <details class="client-scoring" id="clientScoringDetails">
       <summary>How AOFI™ Scoring Works</summary>
       <p style="color:#667085;font-size:12px;margin:0 0 15px">Performance × 40% + Strength × 40% + Independence × 20%. Open the detailed reports to review evidence, validation, and confidence.</p>
       <h3 style="font-size:15px">Score calculation and evidence</h3>
