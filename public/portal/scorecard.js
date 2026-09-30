@@ -308,12 +308,8 @@
       <article class="client-value-box">
         <span>ESTIMATED ENTERPRISE VALUE</span>
         <strong>${readableValuation?money(valuation.enterpriseValue):'Not available'}</strong>
-        <p>${readableValuation?`${Number(valuation.finalMultiple||0).toFixed(2)}× multiple · Adjusted SDE ${money(valuation.adjustedSDE)}`:'Complete financial evidence to calculate valuation.'}</p>
-        <details><summary>See details</summary>
-          <div class="valuation-explain">${readableValuation?
-          `Estimated value uses adjusted SDE and the current evidence-backed multiple. Base: ${Number(valuation.baseMultiple||0).toFixed(2)}×. This is an estimate, not a verified sale price.`:
-          esc((valuation?.missingInputs||['Financial performance inputs are required']).join(', '))}</div>
-        </details>
+        <p>${readableValuation?'Estimated from current agency evidence.':'Complete financial evidence to calculate valuation.'}</p>
+        <button type="button" class="client-methodology-link" id="clientViewMethodology">See calculation details →</button>
       </article>
     </section>
     <section class="client-trend-panel">
@@ -340,6 +336,10 @@
         </div>`).join('')}
       <div class="client-priority-controls"><button type="button" id="clientOpenRocks">Manage 90-day priorities →</button></div>
     </section>
+    <details class="client-scoring client-actions-details" id="clientPrioritiesDetails">
+      <summary>Issues, opportunities, and actions</summary>
+      <div id="clientOriginalPriorities"></div>
+    </details>
     <details class="client-scoring" id="clientScoringDetails">
       <summary>How AOFI™ Scoring Works</summary>
       <p style="color:#667085;font-size:12px;margin:0 0 15px">Performance × 40% + Strength × 40% + Independence × 20%. Open the detailed reports to review evidence, validation, and confidence.</p>
@@ -347,9 +347,8 @@
       <div id="clientOriginalScore"></div>
       <h3 style="font-size:15px;margin-top:20px">Individual index reports</h3>
       <div id="clientOriginalReports"></div>
-      <h3 style="font-size:15px;margin-top:20px">Issues, opportunities, and actions</h3>
-      <div id="clientOriginalPriorities"></div>
     </details>
+
   `);
   const originalScore=root.querySelector('#clientOriginalScore');
   const originalReports=root.querySelector('#clientOriginalReports');
@@ -366,8 +365,17 @@
   if(legacyInsights)originalPriorities.append(legacyInsights);
   if(legacyRocks)originalPriorities.append(legacyRocks);
   if(legacyGoals)originalPriorities.append(legacyGoals);
-  const openPriorities=()=>{const section=root.querySelector('#clientScoringDetails');section.open=true;section.querySelector('#clientOriginalPriorities')?.scrollIntoView({behavior:'smooth',block:'center'});};
+  const openPriorities=()=>{
+    const section=root.querySelector('#clientPrioritiesDetails');
+    section.open=true;
+    section.scrollIntoView({behavior:'smooth',block:'start'});
+  };
   root.querySelectorAll('[data-open-score-priorities],#clientOpenRocks').forEach(button=>button.addEventListener('click',openPriorities));
+  root.querySelector('#clientViewMethodology')?.addEventListener('click',()=>{
+    const section=root.querySelector('#clientScoringDetails');
+    section.open=true;
+    section.scrollIntoView({behavior:'smooth',block:'start'});
+  });
 
   const driver = momentum.primaryDriver;
   const driverCopy = driver
