@@ -127,3 +127,9 @@
  .client-scorecard .client-score-copy h2{font-size:17px}
  .client-scorecard .client-hero{flex-wrap:wrap}
 }
+
+.diagnostic-main .journey-head-copy>.generate-diagnostic.show{
+ width:auto;max-width:100%;display:inline-flex;min-height:42px;padding:0 18px;
+ margin:17px 0 0;background:#3538e9;border-radius:10px;font-size:12px;
+ box-shadow:0 5px 12px rgba(53,56,233,.15)
+}
