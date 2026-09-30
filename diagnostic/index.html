@@ -76,6 +76,9 @@
   const msg=document.getElementById('progressMessage'),generate=document.getElementById('generateDiagnostic');
   if(state.allComplete){msg.hidden=true;generate.classList.add('show');generate.textContent=state.reportReady?'View Agency Scorecard →':'Generate My Agency Scorecard →';generate.href=state.reportReady?'/agency-scorecard/':'/diagnostic/processing/';}
   else msg.textContent='Complete the following';
+  // The reference design removes the old progress card. Keep the essential
+  // Generate/View Score action visible after the fourth assessment.
+  if(state.allComplete)document.querySelector('.journey-head-copy')?.appendChild(generate);
   const steps=[
     {id:'strength',data:state.indexes.strength,unlocked:true,href:'/agency-strength-index/'},
     {id:'independence',data:state.indexes.independence,unlocked:state.strength,href:'/independence-index/'},
