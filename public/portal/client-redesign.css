@@ -404,3 +404,80 @@ body:has(.scorecard-shell.client-scorecard){background:#fff}
  position:relative;left:auto;right:auto;bottom:auto;
  width:100%;flex:1 0 100%;margin:4px 0 0
 }
+
+
+/* Reference parity v4 — presentation only. No data, state, access, or scoring rules. */
+.diagnostic-main .archetype-actions a,
+.diagnostic-main .diag-step-card .step-action,
+.diagnostic-main .integration-strip a,
+.client-scorecard .client-tools button,
+.client-scorecard .client-index-panel>a,
+.client-scorecard .client-priority-row button,
+.client-scorecard .client-priority-controls button,
+.client-scorecard .client-methodology-link{
+ transition:background-color .16s ease,border-color .16s ease,color .16s ease,box-shadow .16s ease,opacity .16s ease;
+}
+.diagnostic-main .archetype-actions .small-blue:hover,
+.diagnostic-main .diag-step.active .step-action:hover{
+ background:#1f2ed1;border-color:#1f2ed1;color:#fff;
+ box-shadow:0 3px 8px rgba(38,52,232,.16);
+}
+.diagnostic-main .archetype-actions .retake-identity:hover{
+ background:#e95615;border-color:#e95615;color:#fff;
+ box-shadow:0 3px 8px rgba(255,100,28,.14);
+}
+.diagnostic-main .diag-step.complete .step-action:hover{
+ background:#f7f8fa;border-color:#d7dbe1;color:#303846;box-shadow:0 1px 2px rgba(20,25,36,.08);
+}
+.diagnostic-main .diag-step.locked .step-action{
+ background:#f7f8fa;border:1px solid #e3e6ea;color:#9aa2ad;box-shadow:none;cursor:not-allowed;
+}
+.diagnostic-main .integration-strip a:hover{color:#1f2ed1;text-decoration:underline}
+.diagnostic-main .diag-meta span:nth-child(2){display:inline;color:#9299a5;margin-left:4px}
+.diagnostic-main .diag-step.active .diag-meta span:first-child{color:#2937dc}
+.diagnostic-main .diag-step.active .up-next{display:none}
+.diagnostic-main .diag-step.locked .up-next{display:none}
+.diagnostic-main .diag-step.locked .diag-meta span:first-child{color:#858d99}
+.diagnostic-main .diag-step-card:hover,
+.diagnostic-main .archetype-card:hover,
+.diagnostic-main .integration-strip:hover{border-color:#d9dde4}
+.diagnostic-main .diag-step.active .diag-step-card:hover{border-color:#cdd2ff}
+
+.client-scorecard .client-tools button{border-radius:8px;padding:7px 9px}
+.client-scorecard .client-tools button:hover{background:#f6f7f9;color:#202839}
+.client-scorecard .client-index-panel>a{display:flex;align-items:center;justify-content:space-between}
+.client-scorecard .client-index-panel>a::after{content:'→';font-size:13px;transition:transform .16s ease}
+.client-scorecard .client-index-panel>a:hover{color:#1f2ed1}
+.client-scorecard .client-index-panel>a:hover::after{transform:translateX(2px)}
+.client-scorecard .client-index-panel:hover{border-color:#d7dbe4;box-shadow:0 2px 7px rgba(20,26,37,.07)}
+.client-scorecard .client-priority-row{transition:background-color .16s ease}
+.client-scorecard .client-priority-row:hover{background:#f7f8ff}
+.client-scorecard .client-priority-row:first-of-type:hover{background:#edf2ff}
+.client-scorecard .client-priority-row button:hover{background:#dff3e7;color:#107744}
+.client-scorecard .client-priority-controls button:hover,
+.client-scorecard .client-methodology-link:hover{color:#1f2ed1;text-decoration:underline}
+
+.client-scorecard .client-score-breakdown{
+ display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;padding:0 0 13px
+}
+.client-scorecard .client-score-breakdown>span{
+ display:flex;flex-direction:column;gap:3px;padding:0 12px;border-left:1px solid #eceef2;min-width:0
+}
+.client-scorecard .client-score-breakdown>span:first-child{border-left:0;padding-left:1px}
+.client-scorecard .client-score-breakdown em{
+ font-style:normal;font-size:9px;line-height:1.3;letter-spacing:.035em;text-transform:uppercase;color:#858d9a;font-weight:760
+}
+.client-scorecard .client-score-breakdown strong{
+ font-size:12px;line-height:1.35;color:#222b39;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+}
+.client-scorecard .client-scoring>summary:hover{color:#2836d9}
+.client-scorecard .client-score-details summary:hover{color:#2836d9}
+
+@media(max-width:760px){
+ .client-scorecard .client-score-breakdown{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:10px}
+ .client-scorecard .client-score-breakdown>span:nth-child(3){border-left:0;padding-left:1px}
+}
+@media(max-width:420px){
+ .client-scorecard .client-score-breakdown{grid-template-columns:1fr}
+ .client-scorecard .client-score-breakdown>span{border-left:0;padding-left:1px}
+}
