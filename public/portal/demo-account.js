@@ -181,22 +181,28 @@
     state.goalsComplete=false;
     state.indexes.strength.score=73;
     state.indexes.strength.details.results.overallScore=73;
+    state.indexes.strength.details.results.categoryScores={leadership:77,operating:67,financial:74,revenue:74,people:73};
     state.indexes.independence.score=69;
     state.indexes.independence.details.scores.overallIndexScore=69;
+    state.indexes.independence.details.scores.categoryDetails={decision:{score:74},revenue:{score:62},delivery:{score:68},leadership:{score:73},strategic:{score:68}};
     state.indexes.performance.score=77;
     state.indexes.performance.details.overallScore=77;
+    state.indexes.performance.details.categoryScores={profitability:80,growth:74,revenueQuality:77,cash:76,capital:78};
     return state;
   }
   function freeScorecard() {
     const result=scorecard();
-    result.score=73;
+    result.score=74;
     result.confidence=86;
     result.band={label:'Building Strength',meaning:'A solid agency foundation with opportunities to improve operating systems and founder independence.'};
     result.validation='Sample demo data';
     result.archetype='Strategic Builder';
     result.reports.performance.score=77;
+    result.reports.performance.categories.forEach((row,i)=>row.score=[80,74,77,76,78][i]);
     result.reports.strength.score=73;
+    result.reports.strength.categories.forEach((row,i)=>row.score=[77,67,74,74,73][i]);
     result.reports.independence.score=69;
+    result.reports.independence.categories.forEach((row,i)=>row.score=[74,62,68,73,68][i]);
     result.reports.performance.confidence=88;
     result.reports.strength.confidence=86;
     result.reports.independence.confidence=84;
@@ -224,7 +230,7 @@
       {quarter:'Q4 2025',generatedAt:'2025-12-20T12:00:00Z',score:57,performance:61,strength:59,independence:46,enterpriseValue:970000},
       {quarter:'Q1 2026',generatedAt:'2026-03-25T12:00:00Z',score:61,performance:66,strength:63,independence:50,enterpriseValue:1110000},
       {quarter:'Q2 2026',generatedAt:'2026-06-25T12:00:00Z',score:67,performance:71,strength:68,independence:60,enterpriseValue:1280000},
-      {quarter:'Q3 2026',generatedAt:'2026-09-28T12:00:00Z',score:73,performance:77,strength:73,independence:69,enterpriseValue:1417500}
+      {quarter:'Q3 2026',generatedAt:'2026-09-28T12:00:00Z',score:74,performance:77,strength:73,independence:69,enterpriseValue:1417500}
     ];
   }
 
