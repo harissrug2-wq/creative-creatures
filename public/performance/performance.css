@@ -282,3 +282,37 @@ html.performance-extraction-locked,body.performance-extraction-locked{overflow:h
 .performance-compact-upload:hover{background:#eef2ff}
 .performance-compact-upload input{display:none}
 @media(max-width:760px){.performance-source-mode-grid{grid-template-columns:1fr}.performance-provider-head{display:block}.performance-provider-head a{display:inline-block;margin-top:8px}.performance-provider-card{grid-template-columns:42px 1fr}.performance-provider-actions{grid-column:1/-1;justify-content:flex-end}.performance-evidence-strip{align-items:stretch;flex-direction:column}.performance-compact-upload,.performance-evidence-strip .retry-analysis{width:100%}}
+
+
+/* SDE ownership + partner invitation */
+.ownership-partner-panel{margin-top:17px;padding:16px;border:1px solid #e4e7eb;border-radius:12px;background:#fbfcfd}
+.ownership-partner-panel .ownership-field{display:grid;margin:0;max-width:300px;gap:7px}
+.ownership-field>small{font-size:10px;line-height:1.45;color:#8a94a3;font-weight:500}
+.ownership-partner-action{display:none;margin-top:14px;padding:13px 14px;border:1px solid #d8dcff;border-radius:10px;background:#f5f6ff;align-items:center;justify-content:space-between;gap:14px}
+.ownership-partner-action.show{display:flex}
+.ownership-partner-action strong{display:block;font-size:12px;color:#232a3a;margin-bottom:3px}
+.ownership-partner-action span{display:block;font-size:10px;color:#737e8d}
+.add-partner-btn{flex:0 0 auto;border:0;border-radius:9px;min-height:37px;padding:0 14px;background:#3438e8;color:#fff;font:inherit;font-size:11px;font-weight:750;cursor:pointer;transition:.15s ease}
+.add-partner-btn:hover{background:#282dd8;transform:translateY(-1px);box-shadow:0 5px 14px rgba(52,56,232,.18)}
+.partner-invite-message{margin-top:11px;padding:10px 12px;border-radius:9px;font-size:11px;line-height:1.45}
+.partner-invite-message.success{background:#edf9f1;border:1px solid #cfead8;color:#177848}
+.partner-invite-message.error{background:#fff2f0;border:1px solid #f2cfcb;color:#a53d36}
+.partner-invite-backdrop{position:fixed;inset:0;z-index:400;background:rgba(18,24,36,.46);backdrop-filter:blur(3px);display:grid;place-items:center;padding:20px}
+.partner-invite-modal{width:min(440px,100%);position:relative;background:#fff;border:1px solid #e1e4e8;border-radius:16px;padding:25px;box-shadow:0 24px 70px rgba(17,24,39,.2)}
+.partner-invite-close{position:absolute;right:13px;top:11px;width:32px;height:32px;border:0;border-radius:8px;background:#f5f6f8;color:#5d6675;font-size:21px;line-height:1;cursor:pointer}
+.partner-invite-kicker{display:block;color:#778190;font-size:9px;font-weight:800;letter-spacing:.08em;margin-bottom:7px}
+.partner-invite-modal h3{font-size:22px;letter-spacing:-.03em;margin:0 0 7px}
+.partner-invite-modal>p{font-size:12px;line-height:1.55;color:#6a7484;margin:0 0 18px}
+.partner-invite-modal form{display:grid;gap:12px}
+.partner-invite-modal label{display:grid;gap:6px}
+.partner-invite-modal label>span{font-size:11px;font-weight:700;color:#364152}
+.partner-invite-modal input{height:42px;border:1px solid #dfe3e8;border-radius:9px;padding:0 12px;font:inherit;font-size:13px;outline:none}
+.partner-invite-modal input:focus{border-color:#7f86ff;box-shadow:0 0 0 3px rgba(52,56,232,.1)}
+.partner-invite-form-error{min-height:16px;color:#ae3c36;font-size:10.5px}
+.partner-invite-submit{min-height:42px;border:0;border-radius:9px;background:#3438e8;color:#fff;font:inherit;font-size:12px;font-weight:800;cursor:pointer}
+.partner-invite-submit:hover{background:#292ed8}.partner-invite-submit:disabled{opacity:.6;cursor:not-allowed}
+@media(max-width:620px){
+  .ownership-partner-action{align-items:flex-start;flex-direction:column}
+  .add-partner-btn{width:100%}
+  .partner-invite-modal{padding:22px 17px}
+}
