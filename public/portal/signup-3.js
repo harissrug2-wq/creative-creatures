@@ -179,18 +179,11 @@
 
     function proceedToPayment(lead) {
       selectLead(lead);
-      const pending=readPendingOwnership();
-      if(!Array.isArray(pending)||!pending.length){
-        document.getElementById('signupOwnershipCard')?.scrollIntoView({behavior:'smooth',block:'center'});
-        throw new Error('Confirm the agency ownership structure before payment.');
-      }
-      const total=pending.reduce((sum,row)=>sum+Number(row.ownershipPercent||0),0);
-      if(Math.abs(total-100)>0.01||pending.some(row=>!String(row.name||'').trim())){
-        document.getElementById('signupOwnershipCard')?.scrollIntoView({behavior:'smooth',block:'center'});
-        throw new Error('Ownership must total 100% and every owner needs a name.');
-      }
       localStorage.setItem('ccProgramPath', destination);
-      location.href = '/payment/?plan=' + encodeURIComponent(destination);
+      const query=new URLSearchParams({plan:destination,source:'signup'});
+      const email=String(lead?.email||'').trim();
+      if(email)query.set('email',email);
+      location.href='/payment/?'+query.toString();
     }
 
     function loginToDiagnostic(lead) {
