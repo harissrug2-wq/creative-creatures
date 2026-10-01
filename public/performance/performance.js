@@ -10,7 +10,7 @@
   ];
 
   const benefits = [
-    ['income','Income'],['insurance','Insurance'],['vehicle','Vehicle Expenses'],['phone','Phone'],['retirement','Retirement (401k)'],['healthcare','Medical Reimbursement or Healthcare'],['office','Office'],['distributions','Profit Distributions (I am x% owner)']
+    ['income','Income'],['insurance','Insurance'],['vehicle','Vehicle Expenses'],['phone','Phone'],['retirement','Retirement (401k)'],['healthcare','Medical Reimbursement or Healthcare'],['office','Office'],['distributions','Profit Distributions']
   ];
 
   const levelOptions = {
@@ -71,15 +71,16 @@
   };
 
   const read=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}};
-  const saved=read('agencyPerformanceDraft',{sectionIndex:-1,sourceMode:'',documents:{},addbacks:{},sdeReviewed:false,ownershipPercent:'',manual:{}});
+  const saved=read('agencyPerformanceDraft',{sectionIndex:-1,sourceMode:'',documents:{},addbacks:{},sdeReviewed:false,ownershipPercent:'100',manual:{}});
   const state={
     ...saved,
     sectionIndex:Number.isFinite(Number(saved.sectionIndex))?Number(saved.sectionIndex):-1,
     sourceMode:['automatic','manual'].includes(saved.sourceMode)?saved.sourceMode:'',
     documents:saved.documents||{},
     addbacks:saved.addbacks||{},
-    ownershipPercent:saved.ownershipPercent||'',
+    ownershipPercent:saved.ownershipPercent===null||saved.ownershipPercent===undefined||saved.ownershipPercent===''?'100':String(saved.ownershipPercent),
     manual:saved.manual||{},
+    partnerInvite:{open:false,sending:false,message:'',error:''},
     sdeReviewed:Boolean(saved.sdeReviewed),
     uploadState:{},
     saveState:{},
@@ -343,11 +344,24 @@
   }
 
   function sdeBody(section){
+    const ownership=Math.max(0,Math.min(100,Number(state.ownershipPercent||100)));
+    const partnerShare=Math.max(0,100-ownership);
+    const showPartner=ownership<100;
+    const invite=state.partnerInvite||{};
     return `<div class="sde-panel">
       <h3>Owner benefits</h3><p>${esc(section.copy)}</p>
       <div class="sde-options">${benefits.map(([id,label])=>`<label class="radio-option-card sde-option ${state.addbacks[id]?'selected':''}"><span class="option-copy">${esc(label)}</span><input type="checkbox" data-addback="${id}" ${state.addbacks[id]?'checked':''}><span class="checkbox-ui">${state.addbacks[id]?checkIcon:''}</span></label>`).join('')}</div>
-      <label class="ownership-field ${state.addbacks.distributions?'show':''}" id="ownershipField"><span>Ownership percentage</span><div><input id="ownershipPercent" type="number" min="0" max="100" value="${esc(state.ownershipPercent)}" placeholder="100"><b>%</b></div></label>
+      <div class="ownership-partner-panel">
+        <label class="ownership-field show" id="ownershipField"><span>Ownership percentage</span><div><input id="ownershipPercent" type="number" min="0" max="100" step="0.01" value="${esc(state.ownershipPercent)}"><b>%</b></div><small>Your ownership defaults to 100%. Update it if the agency has another owner.</small></label>
+        <div class="ownership-partner-action ${showPartner?'show':''}" id="ownershipPartnerAction">
+          <div><strong>${partnerShare.toFixed(2).replace('.00','')}% remains for a partner</strong><span>Add the partner who shares ownership of this agency.</span></div>
+          <button type="button" class="add-partner-btn" id="addPartnerButton">＋ Add Partner</button>
+        </div>
+        ${invite.message?`<div class="partner-invite-message success">${esc(invite.message)}</div>`:''}
+        ${invite.error?`<div class="partner-invite-message error">${esc(invite.error)}</div>`:''}
+      </div>
       <p class="sde-note">Start with Adjusted SDE. Add capital-allocation details when they are known; optional values improve scoring coverage but no longer block completion.</p>
+      ${invite.open?`<div class="partner-invite-backdrop" id="partnerInviteBackdrop"><section class="partner-invite-modal" role="dialog" aria-modal="true" aria-labelledby="partnerInviteTitle"><button type="button" class="partner-invite-close" id="closePartnerInvite" aria-label="Close">×</button><span class="partner-invite-kicker">AGENCY OWNERSHIP</span><h3 id="partnerInviteTitle">Add Partner</h3><p>This partner will receive an email invitation to set up login credentials and access the same agency workspace.</p><form id="partnerInviteForm"><label><span>Name</span><input id="partnerName" name="name" autocomplete="name" required></label><label><span>Email</span><input id="partnerEmail" name="email" type="email" autocomplete="email" required></label><div class="partner-invite-form-error" id="partnerInviteFormError"></div><button type="submit" class="partner-invite-submit" ${invite.sending?'disabled':''}>${invite.sending?'Sending…':'Send Invite'}</button></form></section></div>`:''}
     </div>${manualBody(section)}`;
   }
 
@@ -529,6 +543,32 @@
     document.querySelector('[data-save-manual]')?.addEventListener('click',()=>saveManualSection(section).catch(()=>null));
   }
 
+  function syncPartnerInviteVisibility(){
+    const input=document.querySelector('#ownershipPercent'),action=document.querySelector('#ownershipPartnerAction');
+    if(!input||!action)return;
+    const ownership=Math.max(0,Math.min(100,Number(input.value||0)));
+    action.classList.toggle('show',ownership<100);
+    const strong=action.querySelector('strong');if(strong)strong.textContent=`${Math.max(0,100-ownership).toFixed(2).replace('.00','')}% remains for a partner`;
+  }
+
+  async function sendPartnerInvite(){
+    const name=document.querySelector('#partnerName')?.value.trim()||'',email=document.querySelector('#partnerEmail')?.value.trim()||'';
+    const error=document.querySelector('#partnerInviteFormError');
+    if(!name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){if(error)error.textContent='Enter the partner name and a valid email address.';return}
+    const ownership=Math.max(0,Math.min(100,Number(state.ownershipPercent||100)));
+    state.partnerInvite={...state.partnerInvite,sending:true,error:'',message:''};render();
+    try{
+      const response=await fetch('/api/account-auth?ownership=1',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({action:'invite_partner',name,email,primaryOwnershipPercent:ownership})});
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.error||'The partner invitation could not be sent.');
+      const invite=Array.isArray(payload.invites)?payload.invites.find(item=>String(item.email||'').toLowerCase()===email.toLowerCase()):null;
+      state.partnerInvite={open:false,sending:false,error:'',message:invite?.emailSent===false?'Partner added, but the invitation email could not be sent. Try again later.':`Invitation sent to ${email}.`};
+      persist();render();
+    }catch(err){
+      state.partnerInvite={...state.partnerInvite,open:true,sending:false,error:err.message||'The partner invitation could not be sent.',message:''};render();
+    }
+  }
+
   function bindSection(section){
     document.querySelector('#previous')?.addEventListener('click',()=>{
       if (!state.remoteLoaded || state.uploadState[section.id] || Object.keys(state.uploadState).length > 0 || state.saveState[section.id] === 'saving') return;
@@ -554,10 +594,19 @@
         option?.classList.toggle('selected',input.checked);
         const indicator=option?.querySelector('.checkbox-ui');
         if(indicator)indicator.innerHTML=input.checked?checkIcon:'';
-        if(input.dataset.addback==='distributions')document.querySelector('#ownershipField')?.classList.toggle('show',input.checked);
         persist();
       }));
-      document.querySelector('#ownershipPercent')?.addEventListener('input',event=>{state.ownershipPercent=event.target.value;persist();});
+      document.querySelector('#ownershipPercent')?.addEventListener('input',event=>{
+        let value=Number(event.target.value);
+        if(Number.isFinite(value)){value=Math.max(0,Math.min(100,value));state.ownershipPercent=String(value)}
+        else state.ownershipPercent=event.target.value;
+        persist();syncPartnerInviteVisibility();
+      });
+      document.querySelector('#addPartnerButton')?.addEventListener('click',()=>{state.partnerInvite={open:true,sending:false,message:'',error:''};render();});
+      document.querySelector('#closePartnerInvite')?.addEventListener('click',()=>{state.partnerInvite={...state.partnerInvite,open:false,error:''};render();});
+      document.querySelector('#partnerInviteBackdrop')?.addEventListener('click',event=>{if(event.target.id==='partnerInviteBackdrop'){state.partnerInvite={...state.partnerInvite,open:false,error:''};render();}});
+      document.querySelector('#partnerInviteForm')?.addEventListener('submit',event=>{event.preventDefault();sendPartnerInvite();});
+      syncPartnerInviteVisibility();
     }
     bindManual(section);
   }
@@ -638,7 +687,7 @@
     state.manual[section.id]={...manualFor(section),...data};
     if(section.type==='sde'){
       const selected=new Set(Array.isArray(data.benefits)?data.benefits:[]);benefits.forEach(([id])=>{state.addbacks[id]=selected.has(id);});
-      state.ownershipPercent=data.ownershipPercent??state.ownershipPercent??'';state.sdeReviewed=Boolean(row.id);state.sdeEvidenceId=row.id;
+      state.ownershipPercent=String(data.ownershipPercent??state.ownershipPercent??100);state.sdeReviewed=Boolean(row.id);state.sdeEvidenceId=row.id;
       if(row.storage_path||row.file_name)state.documents[section.id]={name:row.file_name||'SDE supporting evidence.pdf',size:Number(row.file_size_bytes)||0,type:row.mime_type||'application/pdf',receivedAt:row.updated_at||row.created_at||'',evidenceId:row.id,storagePath:row.storage_path,extractionStatus:row.extraction_status||'uploaded',extractionModel:row.extraction_model||null,extractionError:row.extraction_error||'',extractedAt:row.extracted_at||null};
       return;
     }

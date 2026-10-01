@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Set up partner access · Creative Creatures</title>
+  <link rel="icon" href="/brand/creature-icon.png">
+  <link rel="stylesheet" href="/portal/base.css">
+  <style>
+    body{margin:0;background:#f7f8fb;color:#171820}
+    .invite-shell{min-height:100vh;display:grid;place-items:center;padding:24px}
+    .invite-card{width:min(520px,100%);background:#fff;border:1px solid #e1e5ec;border-radius:18px;box-shadow:0 18px 50px rgba(24,32,56,.08);padding:30px}
+    .invite-brand{display:flex;align-items:center;gap:10px;margin-bottom:28px}.invite-brand img{height:30px;width:auto}
+    .invite-card h1{font-size:30px;letter-spacing:-.04em;margin:0 0 10px}.invite-card>p{margin:0 0 24px;color:#697386;line-height:1.55;font-size:14px}
+    .field{display:grid;gap:7px;margin-bottom:14px}.field span{font-size:12px;font-weight:750}.field input{width:100%;box-sizing:border-box;border:1px solid #dce1e8;border-radius:10px;padding:12px 13px;font:inherit;outline:none}.field input:focus{border-color:#6e75ff;box-shadow:0 0 0 3px rgba(41,41,237,.1)}
+    .invite-submit{width:100%;min-height:45px;border:0;border-radius:10px;background:#2929ed;color:#fff;font-weight:800;cursor:pointer;margin-top:5px}.invite-submit:disabled{opacity:.58;cursor:not-allowed}
+    .invite-error{min-height:20px;margin-top:12px;color:#b33b34;font-size:12px}.invite-help{font-size:11px;color:#8a94a3;margin-top:16px;line-height:1.45}
+    @media(max-width:540px){.invite-card{padding:22px 18px;border-radius:14px}.invite-card h1{font-size:26px}}
+  </style>
+</head>
+<body>
+  <main class="invite-shell">
+    <section class="invite-card">
+      <div class="invite-brand"><img src="/brand/creature-logo.png" alt="Creative Creatures"></div>
+      <h1>Set up your partner login</h1>
+      <p>Create a password for your invited partner account. You’ll use the email address from your invitation to access the same agency workspace.</p>
+      <form id="inviteForm">
+        <label class="field"><span>Create password</span><input id="password" type="password" minlength="10" autocomplete="new-password" required></label>
+        <label class="field"><span>Confirm password</span><input id="confirmPassword" type="password" minlength="10" autocomplete="new-password" required></label>
+        <button class="invite-submit" id="submitInvite" type="submit">Set up account</button>
+        <div class="invite-error" id="inviteError" role="alert"></div>
+      </form>
+      <div class="invite-help">For security, invitation links expire after 7 days. If this link has expired, ask the primary agency owner to send a new invitation.</div>
+    </section>
+  </main>
+  <script>
+    (()=> {
+      const form=document.getElementById('inviteForm'),error=document.getElementById('inviteError'),button=document.getElementById('submitInvite');
+      const token=new URLSearchParams(location.search).get('token')||'';
+      if(!token){error.textContent='This invitation link is missing its security token.';button.disabled=true}
+      form.addEventListener('submit',async event=>{
+        event.preventDefault();
+        const password=document.getElementById('password').value,confirm=document.getElementById('confirmPassword').value;
+        error.textContent='';
+        if(password.length<10){error.textContent='Use at least 10 characters for your password.';return}
+        if(password!==confirm){error.textContent='Passwords do not match.';return}
+        button.disabled=true;button.textContent='Setting up…';
+        try{
+          const response=await fetch('/api/account-auth?ownership=1',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({action:'accept_partner_invite',token,password})});
+          const payload=await response.json().catch(()=>({}));
+          if(!response.ok)throw new Error(payload.error||'The invitation could not be completed.');
+          location.replace(payload.redirect||'/diagnostic/');
+        }catch(err){
+          error.textContent=err.message||'The invitation could not be completed.';
+          button.disabled=false;button.textContent='Set up account';
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
