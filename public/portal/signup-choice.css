@@ -126,3 +126,96 @@ body.signup-choice-page {
   .signup-choice-card,
   .signup-choice-start-button { transition: none; }
 }
+
+
+/* Signup layout stabilization — 2026-10-01 */
+.signup-choice-free-wrap{
+  position:relative;
+  width:min(1104px,calc(100% - 48px));
+  margin:28px auto 25px!important;
+}
+.signup-choice-free-wrap .signup-choice-archetype-card{
+  width:100%;
+  min-width:0;
+}
+.signup-choice-page main{display:block;min-width:0}
+.signup-choice-card,.signup-choice-archetype-card,
+.signup-choice-copy,.signup-choice-archetype-copy{min-width:0}
+.signup-choice-card h2,.signup-choice-price,.signup-choice-card p,
+.signup-choice-card li,.signup-choice-archetype-description{
+  overflow-wrap:anywhere;
+}
+@media(max-width:960px){
+  .signup-choice-header,
+  .signup-choice-free-wrap,
+  .signup-choice-archetype-wrap,
+  .signup-choice-grid,
+  .signup-choice-guarantee{
+    width:min(100% - 36px,1104px);
+  }
+  .signup-choice-hero{max-width:720px}
+  .signup-choice-guarantee{gap:22px;padding:26px}
+}
+@media(max-width:720px){
+  .signup-choice-header{padding-top:20px}
+  .signup-choice-hero{margin-top:38px;padding-inline:18px}
+  .signup-choice-hero h1{font-size:clamp(30px,8vw,38px);line-height:1.16}
+  .signup-choice-hero p{font-size:14px}
+  .signup-choice-free-wrap{margin-top:26px!important}
+  .signup-choice-archetype-card{
+    display:grid;
+    grid-template-columns:48px minmax(0,1fr);
+    gap:14px;
+    align-items:start;
+    padding:18px;
+  }
+  .signup-choice-archetype-copy{flex-basis:auto}
+  .signup-choice-start-button{
+    grid-column:1/-1;
+    width:100%;
+    justify-content:center;
+  }
+  .signup-choice-grid{grid-template-columns:1fr;gap:14px}
+  .signup-choice-card{min-height:0;padding:20px}
+  .signup-choice-card h2{font-size:18px}
+  .signup-choice-price{font-size:17px}
+  .signup-choice-guarantee{
+    flex-direction:column;
+    text-align:center;
+    padding:24px 18px;
+    border-radius:18px;
+  }
+}
+@media(max-width:480px){
+  .signup-choice-header,
+  .signup-choice-free-wrap,
+  .signup-choice-archetype-wrap,
+  .signup-choice-grid,
+  .signup-choice-guarantee{
+    width:calc(100% - 22px);
+  }
+  .signup-choice-wordmark img{height:29px}
+  .signup-choice-signin{font-size:13px}
+  .signup-choice-hero{margin-top:30px;padding-inline:12px}
+  .signup-choice-hero h1{font-size:29px}
+  .signup-choice-guarantee-pill{
+    width:100%;
+    justify-content:flex-start;
+    padding:10px 12px;
+    font-size:12px;
+  }
+  .signup-choice-archetype-card{
+    grid-template-columns:42px minmax(0,1fr);
+    padding:16px;
+    border-radius:14px;
+  }
+  .signup-choice-archetype-icon{width:42px;height:42px}
+  .signup-choice-archetype-title strong{font-size:16px}
+  .signup-choice-archetype-description{font-size:12.5px}
+  .signup-choice-card{padding:18px;border-radius:14px}
+  .signup-choice-card-badge{margin-bottom:12px}
+  .signup-choice-card ul{gap:8px;margin-top:16px}
+  .signup-choice-card li{font-size:12.5px}
+  .signup-choice-guarantee h2{font-size:20px}
+  .signup-choice-guarantee p{font-size:12.5px}
+}
