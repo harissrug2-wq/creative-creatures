@@ -1,4 +1,5 @@
-(() => {
+(async () => {
+  try{await window.CCAccount?.ready}catch{}
   const IS_RETAKE = new URLSearchParams(window.location.search).get('retake') === '1';
   const sections = [
     {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Review the Profit & Loss values used to measure profitability and growth.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
