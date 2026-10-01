@@ -404,9 +404,16 @@
       return saveAccount(authoritative,{forceReset:true,replaceDiagnostic:true});
     }
     if(!current||!sameAccount(current,authoritative)){
+      clearScorecardSessionCaches();
       return saveAccount(authoritative,{forceReset:true,replaceDiagnostic:true});
     }
-    return current;
+    const localUpdated=Date.parse(current.updated_at||current.updatedAt||'')||0;
+    const serverUpdated=Date.parse(authoritative.updated_at||authoritative.updatedAt||'')||0;
+    if(serverUpdated>localUpdated){
+      clearScorecardSessionCaches();
+      return saveAccount(authoritative,{replaceDiagnostic:true});
+    }
+    return saveAccount({...current,workspace_actor:actor,workspace_access:result.access||null},{replaceDiagnostic:false});
   }
 
   async function hydrateAdminTenant() {
