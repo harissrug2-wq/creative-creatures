@@ -73,6 +73,7 @@ export default defineConfig({
         integrationInformation: page('integration-information'),
         integrations: page('integrations'),
         partnerPortal: page('portal'),
+        partnerInvite: page('partner-invite'),
         ghlCallback: resolve(__dirname, 'integrations', 'ghl', 'callback', 'index.html'),
         gohighlevelCallback: resolve(__dirname, 'integrations', 'gohighlevel', 'callback', 'index.html'),
         quickbooksCallback: resolve(__dirname, 'integrations', 'quickbooks', 'callback', 'index.html'),
