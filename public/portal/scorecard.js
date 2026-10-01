@@ -105,8 +105,11 @@
     };
     const exists = existingRockKeys.has(`issue:${key}`) || existingRockKeys.has(`opportunity:${key}`);
     const lift=Number(opportunity?.estimatedLift);
-    const liftCopy=Number.isFinite(lift)&&lift>0?`<em class="paired-opportunity-lift">+${Math.round(lift)} pts</em>`:'';
-    return `<label class="insight-row selectable-insight paired-insight${exists ? ' selected' : ''}"><input type="checkbox" data-rock-candidate="${id}" ${exists ? 'disabled' : ''}><span class="paired-insight-copy"><b>${esc(row.capability)} · ${esc(row.score)}/100</b><p>${esc(row.description || '')}</p><span class="paired-opportunity"><strong>Opportunity</strong><span>${esc(recommendation)}</span>${liftCopy}</span>${exists ? '<small>Already a 90-Day Priority</small>' : ''}</span></label>`;
+    const liftCopy=Number.isFinite(lift)&&lift>0?`+${Math.round(lift)} pts`:'View';
+    return `<details class="reference-priority-row" ${index===0?'open':''}>
+      <summary><span class="priority-dot"></span><span class="priority-title"><b>${esc(row.capability)}</b><small>${esc(row.indexTitle||row.index||'Capability')}</small></span><em>${liftCopy}</em><i>⌄</i></summary>
+      <div class="reference-priority-body"><p>${esc(recommendation)}</p><label class="selectable-insight${exists?' selected':''}"><input type="checkbox" data-rock-candidate="${id}" ${exists?'disabled':''}><span>${exists?'Already a 90-Day Priority':'Select to create a 90-Day Priority'}</span></label></div>
+    </details>`;
   }).join('');
   const perf = model.reports.performance;
   const valuation = model.valuation && typeof model.valuation === 'object' ? model.valuation : null;
