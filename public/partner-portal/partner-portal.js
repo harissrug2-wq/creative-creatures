@@ -1,1 +1,100 @@
-(()=>{const root=document.querySelector('#partnerPortal'),esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),safeUrl=v=>{try{const u=new URL(String(v||''));return u.protocol==='https:'?u.href:''}catch{return''}},api=async(action,body)=>{const response=await fetch('/api/account-auth'+(body?'':`?action=${encodeURIComponent(action)}`),body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})}:{credentials:'same-origin'}),payload=await response.json().catch(()=>({}));if(!response.ok)throw new Error(payload.error||'Partner Portal request failed.');return payload};let apps=[],category='All',query='';const initials=name=>String(name||'CC').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();function modal(app){let overlay=document.querySelector('.partner-modal');if(!overlay){overlay=document.createElement('div');overlay.className='partner-modal';document.body.appendChild(overlay)}const learn=safeUrl(app.learnUrl),checkout=safeUrl(app.checkoutUrl);overlay.innerHTML=`<article class="partner-modal-card"><div class="partner-modal-head"><div><span class="partner-category">${esc(app.category)}</span><h2>${esc(app.name)}</h2></div><button class="partner-modal-close" aria-label="Close">×</button></div><p><strong>Available from:</strong> ${esc(app.placement)}</p><p>${esc(app.summary||'Additional product details will be supplied by this strategic partner.')}</p><div class="partner-modal-actions"><button data-interest>Request information</button>${learn?`<a href="${esc(learn)}" target="_blank" rel="noopener">Learn from partner</a>`:''}${checkout?`<a class="primary" href="${esc(checkout)}" data-purchase>Visit partner</a>`:''}</div></article>`;overlay.hidden=false;overlay.querySelector('.partner-modal-close').onclick=()=>overlay.hidden=true;overlay.onclick=e=>{if(e.target===overlay)overlay.hidden=true};overlay.querySelector('[data-interest]').onclick=()=>request(app,'information',overlay.querySelector('[data-interest]'));overlay.querySelector('[data-purchase]')?.addEventListener('click',()=>{api('partner_referral',{partnerAppId:app.id,intent:'purchase'}).catch(()=>{})})}async function request(app,intent,button){button.disabled=true;try{await api('partner_referral',{partnerAppId:app.id,intent});app.requested=true;render();document.querySelector('.partner-modal')?.setAttribute('hidden','')}catch(error){button.disabled=false;button.textContent=error.message}}function render(){const categories=['All',...new Set(apps.map(x=>x.category))],visible=apps.filter(x=>(category==='All'||x.category===category)&&(`${x.name} ${x.category} ${x.placement}`).toLowerCase().includes(query.toLowerCase()));root.innerHTML=`<section class="partner-hero"><div><span class="partner-eyebrow">Strategic Partner Portal</span><h1>Extend your agency platform</h1><p>Explore specialist partner applications when your agency needs capabilities beyond the native Creative Creatures workspace.</p></div><aside class="source-card"><i></i><div><small>Catalog source</small><strong>Creative Creatures partners</strong></div></aside></section><div class="portal-note"><strong>Source boundary</strong> Partner pricing, product claims, and purchase links appear only when supplied and configured by Creative Creatures. Missing details are never invented.</div><section class="portal-controls"><input id="partnerSearch" type="search" placeholder="Search partners or capabilities" value="${esc(query)}"><div class="portal-filter">${categories.map(x=>`<button class="${x===category?'active':''}" data-category="${esc(x)}">${esc(x)}</button>`).join('')}</div></section><section class="partner-grid">${visible.length?visible.map(app=>{const checkout=safeUrl(app.checkoutUrl);return`<article class="partner-card"><div class="partner-mark">${esc(initials(app.name))}</div><span class="partner-category">${esc(app.category)}</span><h2>${esc(app.name)}</h2><p class="partner-placement">${esc(app.placement)}</p>${app.summary?`<p class="partner-summary">${esc(app.summary)}</p>`:''}<div class="partner-actions"><button data-details="${esc(app.id)}">Investigate</button><button class="primary" data-interest="${esc(app.id)}">${app.requested?'Requested':'Request information'}</button>${checkout?`<a href="${esc(checkout)}" target="_blank" rel="noopener">Visit partner</a>`:''}</div>${app.requested?'<div class="partner-status">✓ Request saved for this agency</div>':''}</article>`}).join(''):'<div class="partner-empty">No strategic partners match this filter.</div>'}</section>`;root.querySelector('#partnerSearch').oninput=e=>{query=e.target.value;render()};root.querySelectorAll('[data-category]').forEach(b=>b.onclick=()=>{category=b.dataset.category;render()});root.querySelectorAll('[data-details]').forEach(b=>b.onclick=()=>modal(apps.find(x=>x.id===b.dataset.details)));root.querySelectorAll('[data-interest]').forEach(b=>b.onclick=()=>request(apps.find(x=>x.id===b.dataset.interest),'information',b))}api('partner_portal').then(data=>{apps=data.apps||[];render()}).catch(error=>{root.innerHTML=`<div class="partner-error"><strong>${esc(error.message)}</strong><p>Sign in again or retry after the Partner Portal migration is installed.</p><button onclick="location.reload()">Retry</button></div>`})})();
+(()=> {
+  const root=document.querySelector('#partnerPortal');
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const api=async(action,body)=>{
+    const response=await fetch('/api/account-auth'+(body?'':`?action=${encodeURIComponent(action)}`),body?{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,...body})}:{credentials:'same-origin'});
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.error||'Partner Portal request failed.');
+    return payload;
+  };
+  const initials=name=>String(name||'CC').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();
+  let apps=[],query='',category='All';
+  const categories=['All','Valuation','Operations','Talent','Growth','Sales'];
+
+  async function start(app,button){
+    if(!app)return;
+    button.disabled=true;
+    const old=button.textContent;
+    button.textContent='Connecting…';
+    try{
+      await api('partner_referral',{partnerAppId:app.id,intent:'information'});
+      app.requested=true;
+      render();
+    }catch(error){
+      button.disabled=false;
+      button.textContent=old;
+      window.alert(error.message);
+    }
+  }
+
+  const categoryIcon=name=>({
+    All:'▦',Valuation:'▣',Operations:'⌘',Talent:'♙',Growth:'↗',Sales:'⚑'
+  }[name]||'•');
+
+  function partnerRow(app){
+    return `<div class="pp-row">
+      <div class="pp-row-name"><span class="pp-avatar">${esc(initials(app.name))}</span><div><strong>${esc(app.name)}</strong><small>${esc(app.category||app.placement||'Partner')}</small></div></div>
+      <button data-start="${esc(app.id)}">${app.requested?'Requested':'Start Connecting'}</button>
+    </div>`;
+  }
+
+  function render(){
+    const filtered=apps.filter(app=>{
+      const text=`${app.name} ${app.category} ${app.placement} ${app.summary||''}`.toLowerCase();
+      const categoryMatch=category==='All'||String(app.category||'').toLowerCase()===category.toLowerCase();
+      return categoryMatch&&text.includes(query.toLowerCase());
+    });
+    const featured=filtered.slice(0,4);
+    const first=featured[0],second=featured[1],third=featured[2],fourth=featured[3];
+
+    root.innerHTML=`
+      <section class="pp-hero">
+        <div>
+          <h1>Connect More. <span>Unlock More Intelligence.</span></h1>
+          <p>Connect trusted partner systems to extend your capabilities and get more from your intelligence ecosystem.</p>
+          <button class="pp-primary" id="explorePartners">Explore Partners <span>→</span></button>
+        </div>
+        <div class="pp-float-icons" aria-hidden="true"><i>▦</i><i>⌘</i><i>▥</i><i>◫</i><i>✣</i></div>
+      </section>
+
+      <section class="pp-controls">
+        <label class="pp-search"><span>⌕</span><input id="partnerSearch" type="search" placeholder="Search partners or capabilities" value="${esc(query)}"></label>
+        <div class="pp-filters">${categories.map(name=>`<button data-category="${name}" class="${name===category?'active':''}"><span>${categoryIcon(name)}</span>${name}</button>`).join('')}</div>
+      </section>
+
+      ${featured.length?`<section class="pp-feature-grid">
+        ${first?`<article class="pp-feature-main"><div class="pp-feature-copy"><span class="pp-feature-symbol">✣</span><h2>${esc(first.name)}</h2><p>${esc(first.summary||first.placement||'Strategic partner capability')}</p><button data-start="${esc(first.id)}">${first.requested?'Requested':'Start Connecting'} <span>→</span></button></div><div class="pp-bubbles"><b>${esc(initials(first.name))}</b><i>${esc(initials(first.category||'VA'))}</i></div><div class="pp-dots">● ● ●</div></article>`:''}
+        <div class="pp-feature-side">
+          ${second?`<article class="pp-feature-secondary"><h3>${esc(second.name)}</h3><button data-start="${esc(second.id)}">${second.requested?'Requested':'Start Connecting'}</button><span class="pp-watermark">${esc(initials(second.name).slice(0,1))}</span></article>`:''}
+          <div class="pp-mini-grid">
+            ${third?`<article class="pp-mini orange"><span>${esc(third.name)}</span><b>↗</b></article>`:''}
+            ${fourth?`<article class="pp-mini amber"><span>${esc(fourth.name)}</span><b>⌘</b></article>`:''}
+          </div>
+        </div>
+      </section>`:''}
+
+      <section class="pp-list-card">
+        <header><h2>Featured partners <span>›</span></h2><small>${Math.min(2,filtered.length)} partners</small></header>
+        <div class="pp-two-col">${filtered.slice(0,2).map(partnerRow).join('')||'<p class="pp-empty">No featured partners match this filter.</p>'}</div>
+      </section>
+
+      <section class="pp-list-card">
+        <header><h2>All partners <span>›</span></h2><small>${filtered.length} partners</small></header>
+        <div class="pp-two-col">${filtered.map(partnerRow).join('')||'<p class="pp-empty">No partners match this filter.</p>'}</div>
+      </section>
+
+      <section class="pp-bottom-banner">
+        <div><h2>Built something agencies should <span>know about?</span></h2><p>List your application in our partner marketplace and connect with agencies looking for smarter tools.</p></div>
+        <a href="mailto:partners@creativecreatures.org">Get Listed <span>→</span></a>
+      </section>`;
+
+    root.querySelector('#partnerSearch').addEventListener('input',e=>{query=e.target.value;render()});
+    root.querySelectorAll('[data-category]').forEach(button=>button.addEventListener('click',()=>{category=button.dataset.category;render()}));
+    root.querySelectorAll('[data-start]').forEach(button=>button.addEventListener('click',()=>start(apps.find(app=>String(app.id)===button.dataset.start),button)));
+    root.querySelector('#explorePartners')?.addEventListener('click',()=>root.querySelector('.pp-list-card')?.scrollIntoView({behavior:'smooth'}));
+  }
+
+  api('partner_portal').then(data=>{apps=Array.isArray(data.apps)?data.apps:[];render()}).catch(error=>{
+    root.innerHTML=`<div class="partner-error"><strong>${esc(error.message)}</strong><p>Sign in again or retry after the Partner Portal migration is installed.</p><button onclick="location.reload()">Retry</button></div>`;
+  });
+})();
