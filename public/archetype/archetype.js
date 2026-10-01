@@ -63,6 +63,21 @@
     return PAID_PLANS.includes(plan) ? plan : 'diagnostic';
   }
 
+  function activeBackendAccount() {
+    const account=window.CCAccount?.getAccount?.();
+    const id=String(account?.id||'').trim();
+    if(!account||!id||id.startsWith('local-')||id.startsWith('lead-'))return null;
+    return account;
+  }
+
+  function activeEntitledPlan() {
+    const account=activeBackendAccount();
+    if(!account)return '';
+    const plan=normalizePaidPlan(account.accessPlan||account.access_plan||account.journey);
+    if(!['diagnostic','accelerator','platform','fractional_coo'].includes(plan))return '';
+    return plan;
+  }
+
   const QUESTIONS = [
     { id: 'first_name', type: 'text', text: 'What is your first name?', placeholder: 'First name' },
     { id: 'last_name', type: 'text', text: 'What is your last name?', placeholder: 'Last name' },
@@ -497,7 +512,7 @@
       answers
     };
     const requestedDestination = new URLSearchParams(location.search).get('destination') || localStorage.getItem('ccProgramPath') || 'diagnostic';
-    const destination = normalizePaidPlan(requestedDestination);
+    const destination = activeEntitledPlan() || normalizePaidPlan(requestedDestination);
     ownerEmail = String(ownerEmail || localStorage.getItem('ccOwnerEmail') || '').trim().toLowerCase();
     localStorage.setItem('ccOwnerEmail', ownerEmail);
     const account = {
@@ -645,8 +660,10 @@
     const agencyUrl = data.agencyWebsite || localStorage.getItem('ccAgencyWebsite') || 'your agency';
     const email = data.email || localStorage.getItem('ccOwnerEmail') || 'your email address';
     const emailStatus = localStorage.getItem('ownerArchetypeEmailStatus') || 'unknown';
-    const selectedPlan = normalizePaidPlan(localStorage.getItem('ccProgramPath'));
+    const entitledPlan = activeEntitledPlan();
+    const selectedPlan = entitledPlan || normalizePaidPlan(localStorage.getItem('ccProgramPath'));
     const selectedOffer = PLAN_OFFERS[selectedPlan];
+    const hasActivePaidWorkspace = Boolean(entitledPlan);
     const emailMessage = emailStatus === 'sent'
       ? `<h2>We have emailed your detailed Owner Identity Report to ${escapeHtml(email)}</h2><p>Check your inbox and your spam/junk folders just in case.</p>`
       : `<h2>Your detailed Owner Identity Report is ready.</h2><p>We could not confirm email delivery to ${escapeHtml(email)}. You can view the report now or retry the email.</p><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="nav-btn" id="viewIdentityPdf" type="button">View Report</button><button class="nav-btn primary" id="retryIdentityEmail" type="button">Email Report Again</button></div><p id="identityEmailRetryStatus" style="margin-top:10px"></p>`;
@@ -682,11 +699,21 @@
             <p>So, we need you to think about what you truly want from your agency.</p>
             <ul><li>An exit that pays for your retirement</li><li>A business you can hand down to family</li><li>A great paycheck and challenge for the next decade</li></ul>
             <div class="guarantee-card"><div class="guarantee-mark">★</div><div><h3>100% Money Back Guarantee</h3><p>No matter what you want, work with one of our Fractional Executives and Back Office Platform, and if you do not scale revenue to hit goals, grow profit margins and increase your agency valuation by at least 3X, we’ll refund your money. No questions. Seriously!</p><p><strong>We are so confident in what we can help you achieve, we put our money where our mouth is.</strong></p></div></div>
-            <button class="nav-btn primary identity-continue" id="continueIdentity">${selectedPlan==='aofi_free'?'Get My Free AOFI™ Score →':'Continue →'}</button>
+            <button class="nav-btn primary identity-continue" id="continueIdentity">${hasActivePaidWorkspace?'Continue to Agency Diagnostic →':selectedPlan==='aofi_free'?'Get My Free AOFI™ Score →':'Continue →'}</button>
           </section>
         </section>
         <section class="diagnostic-offer" id="diagnosticOffer" hidden>
-          ${selectedPlan==='aofi_free' ? `
+          ${hasActivePaidWorkspace ? `
+            <article class="diagnostic-offer-card">
+              <span class="offer-kicker">ACCOUNT ACTIVE</span>
+              <h2>Your ${escapeHtml(selectedOffer.title.replace(/^Start My /,''))} access is already active</h2>
+              <p class="offer-sub">Your Owner Identity Report is complete. No additional payment is required. Continue into the Agency Diagnostic using the access already assigned to this account.</p>
+              <div class="offer-columns">
+                <section><h3>Current Access</h3><ul><li>✓ ${escapeHtml(selectedOffer.kicker)}</li><li>✓ Owner Identity Report complete</li><li>✓ Existing account entitlement preserved</li></ul></section>
+                <section><h3>Next Step</h3><ul><li>✓ Complete the Agency Diagnostic</li><li>✓ Generate your AOFI™ Score</li><li>✓ Continue into the rest of your included workspace</li></ul></section>
+              </div>
+              <a href="/diagnostic/" class="offer-cta" id="continueActivatedWorkspace">Continue to Agency Diagnostic →</a>
+            </article>` : selectedPlan==='aofi_free' ? `
             <article class="diagnostic-offer-card">
               <span class="offer-kicker">FREE AOFI™ SCORE</span>
               <h2>Establish Your Agency Owner Freedom Index™ Score</h2>
@@ -737,6 +764,11 @@
     });
 
     document.querySelector('#continueIdentity')?.addEventListener('click', () => {
+      if(hasActivePaidWorkspace){
+        localStorage.setItem('ccProgramPath', selectedPlan);
+        location.href='/diagnostic/';
+        return;
+      }
       const offer = document.querySelector('#diagnosticOffer');
       offer.hidden = false;
       offer.scrollIntoView({behavior:'smooth', block:'start'});
@@ -764,9 +796,11 @@
         button.disabled=false;button.textContent='Get My Free AOFI™ Score →';
       }
     });
-    document.querySelector('.next-payment')?.addEventListener('click', event => {
-      localStorage.setItem('ccProgramPath', normalizePaidPlan(event.currentTarget.dataset.plan));
-    });
+    if(!hasActivePaidWorkspace){
+      document.querySelector('.next-payment')?.addEventListener('click', event => {
+        localStorage.setItem('ccProgramPath', normalizePaidPlan(event.currentTarget.dataset.plan));
+      });
+    }
   }
 
   function reportSummary(key) {
