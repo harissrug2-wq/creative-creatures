@@ -71,7 +71,7 @@
         if(button){button.disabled=false;button.textContent=original;}
       }
     }
-    function proceedToPayment(lead){selectLead(lead);location.href='/payment/';}
+    function proceedToPayment(lead){selectLead(lead);localStorage.setItem('ccProgramPath',destination);const query=new URLSearchParams({plan:destination,source:'signup'});const email=String(lead?.email||'').trim();if(email)query.set('email',email);location.href='/payment/?'+query.toString();}
     function loginToDiagnostic(lead){const email=String(lead?.email||'').trim(),query=new URLSearchParams();if(email)query.set('email',email);query.set('destination',destination);location.href='/login/?'+query.toString();}
     async function startFreeAofi(lead,button){
       selectLead(lead);
