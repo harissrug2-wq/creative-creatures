@@ -398,7 +398,7 @@
     if(!result?.authenticated||!result?.account)return null;
     const actor=result.access?.actor||{};
     const current=getAccount();
-    const authoritative={...result.account,backend_saved:true,lead_only:false,workspace_actor:actor,workspace_access:result.access||null};
+    const authoritative={...result.account,backend_saved:true,lead_only:false,workspace_actor:actor,workspace_access:result.access||null,primary_owner_name:result.account.name,primary_owner_email:result.account.email,...(actor.role==='partner'?{name:actor.name||result.account.name,email:actor.email||result.account.email}:{})};
     if(actor.role==='partner'){
       clearScorecardSessionCaches();
       return saveAccount(authoritative,{forceReset:true,replaceDiagnostic:true});
