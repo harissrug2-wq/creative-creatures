@@ -10,6 +10,7 @@
   const ACCOUNT_API_BASE = String(window.CC_ACCOUNT_API_BASE || '/api/accounts').replace(/\/+$/, '');
   const DIAGNOSTIC_API_BASE = String(window.CC_DIAGNOSTIC_API_BASE || '/api/diagnostic-state').replace(/\/+$/, '');
   const OWNER_LEAD_API_BASE = String(window.CC_OWNER_LEAD_API_BASE || '/api/owner-archetype-leads').replace(/\/+$/, '');
+  const SESSION_API_BASE = '/api/account-auth';
 
   function safeJson(value, fallback = null) {
     try { return JSON.parse(value); } catch { return fallback; }
@@ -379,6 +380,42 @@
     }
   }
 
+  function clearScorecardSessionCaches(){
+    try{
+      Object.keys(sessionStorage).forEach(key=>{if(key.startsWith('cc_scorecard_cache:'))sessionStorage.removeItem(key)});
+    }catch{}
+  }
+
+  async function hydrateSessionWorkspace() {
+    const params=new URLSearchParams(location.search);
+    if(params.get('admin')==='1'||sessionStorage.getItem('cc_admin_mode')==='1')return null;
+    let response;
+    try{
+      response=await fetch(SESSION_API_BASE,{credentials:'same-origin',headers:{Accept:'application/json'}});
+    }catch{return null}
+    if(!response.ok)return null;
+    const result=await response.json().catch(()=>null);
+    if(!result?.authenticated||!result?.account)return null;
+    const actor=result.access?.actor||{};
+    const current=getAccount();
+    const authoritative={...result.account,backend_saved:true,lead_only:false,workspace_actor:actor,workspace_access:result.access||null,primary_owner_name:result.account.name,primary_owner_email:result.account.email,...(actor.role==='partner'?{name:actor.name||result.account.name,email:actor.email||result.account.email}:{})};
+    if(actor.role==='partner'){
+      clearScorecardSessionCaches();
+      return saveAccount(authoritative,{forceReset:true,replaceDiagnostic:true});
+    }
+    if(!current||!sameAccount(current,authoritative)){
+      clearScorecardSessionCaches();
+      return saveAccount(authoritative,{forceReset:true,replaceDiagnostic:true});
+    }
+    const localUpdated=Date.parse(current.updated_at||current.updatedAt||'')||0;
+    const serverUpdated=Date.parse(authoritative.updated_at||authoritative.updatedAt||'')||0;
+    if(serverUpdated>localUpdated){
+      clearScorecardSessionCaches();
+      return saveAccount(authoritative,{replaceDiagnostic:true});
+    }
+    return saveAccount({...current,workspace_actor:actor,workspace_access:result.access||null},{replaceDiagnostic:false});
+  }
+
   async function hydrateAdminTenant() {
     const params = new URLSearchParams(location.search);
     const tenant = params.get('tenant') || params.get('accountId') || sessionStorage.getItem('cc_admin_tenant') || '';
@@ -391,8 +428,12 @@
     return saveAccount({ ...result.account, backend_saved: true, admin_view: true }, { forceReset: true, replaceDiagnostic: true });
   }
 
-  const ready = hydrateAdminTenant().catch(error => {
-    console.error('Admin tenant hydration failed.', error);
+  const ready = (async()=>{
+    const admin=await hydrateAdminTenant();
+    if(admin)return admin;
+    return hydrateSessionWorkspace();
+  })().catch(error => {
+    console.error('Account workspace hydration failed.', error);
     throw error;
   });
 
@@ -426,6 +467,7 @@
     accountApiBase: ACCOUNT_API_BASE,
     diagnosticApiBase: DIAGNOSTIC_API_BASE,
     ownerLeadApiBase: OWNER_LEAD_API_BASE,
+    sessionApiBase: SESSION_API_BASE,
     ready
   };
 })();

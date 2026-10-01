@@ -1,4 +1,5 @@
-(() => {
+(async () => {
+  try{await window.CCAccount?.ready}catch{}
   const IS_RETAKE = new URLSearchParams(window.location.search).get('retake') === '1';
   const sections = [
     {id:'pnl',evidenceType:'profit_loss',title:'Profit & Loss',short:'Profit & Loss',type:'upload',copy:'Review the Profit & Loss values used to measure profitability and growth.',requirements:['PDF report','Trailing Twelve Months','Year To Date by Month']},
@@ -81,6 +82,7 @@
     ownershipPercent:saved.ownershipPercent===null||saved.ownershipPercent===undefined||saved.ownershipPercent===''?'100':String(saved.ownershipPercent),
     manual:saved.manual||{},
     partnerInvite:{open:false,sending:false,message:'',error:''},
+    owners:[],
     sdeReviewed:Boolean(saved.sdeReviewed),
     uploadState:{},
     saveState:{},
@@ -352,6 +354,7 @@
       <h3>Owner benefits</h3><p>${esc(section.copy)}</p>
       <div class="sde-options">${benefits.map(([id,label])=>`<label class="radio-option-card sde-option ${state.addbacks[id]?'selected':''}"><span class="option-copy">${esc(label)}</span><input type="checkbox" data-addback="${id}" ${state.addbacks[id]?'checked':''}><span class="checkbox-ui">${state.addbacks[id]?checkIcon:''}</span></label>`).join('')}</div>
       <div class="ownership-partner-panel">
+        ${state.owners.length?`<div class="ownership-roster"><span class="ownership-roster-label">AGENCY OWNERSHIP</span>${state.owners.filter(owner=>owner.status==='active').map(owner=>`<div class="ownership-roster-row"><div><strong>${esc(owner.name)}</strong><small>${owner.isPrimary?'Primary owner':'Partner owner'}</small></div><b>${Number(owner.ownershipPercent||0).toFixed(2).replace('.00','')}%</b></div>`).join('')}</div>`:''}
         <label class="ownership-field show" id="ownershipField"><span>Ownership percentage</span><div><input id="ownershipPercent" type="number" min="0" max="100" step="0.01" value="${esc(state.ownershipPercent)}"><b>%</b></div><small>Your ownership defaults to 100%. Update it if the agency has another owner.</small></label>
         <div class="ownership-partner-action ${showPartner?'show':''}" id="ownershipPartnerAction">
           <div><strong>${partnerShare.toFixed(2).replace('.00','')}% remains for a partner</strong><span>Add the partner who shares ownership of this agency.</span></div>
@@ -562,6 +565,7 @@
       const payload=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(payload.error||'The partner invitation could not be sent.');
       const invite=Array.isArray(payload.invites)?payload.invites.find(item=>String(item.email||'').toLowerCase()===email.toLowerCase()):null;
+      if(Array.isArray(payload.owners))state.owners=payload.owners;
       state.partnerInvite={open:false,sending:false,error:'',message:invite?.emailSent===false?'Partner added, but the invitation email could not be sent. Try again later.':`Invitation sent to ${email}.`};
       persist();render();
     }catch(err){
@@ -713,9 +717,22 @@
     setTimeout(()=>notice.remove(),5000);
   }
 
+  async function hydrateOwnership(){
+    try{
+      const response=await fetch('/api/account-auth?ownership=1',{credentials:'same-origin',headers:{Accept:'application/json'}});
+      const payload=await response.json().catch(()=>({}));
+      if(response.ok&&Array.isArray(payload.owners)){
+        state.owners=payload.owners;
+        const primary=payload.owners.find(owner=>owner.isPrimary&&owner.status==='active');
+        if(primary&&Number.isFinite(Number(primary.ownershipPercent)))state.ownershipPercent=String(primary.ownershipPercent);
+      }
+    }catch{}
+  }
+
   async function hydrateRemoteEvidence(){
     showBookkeepingSyncNotice();
     checkBookkeepingConnection().then(()=>render());
+    await hydrateOwnership();
     if(!window.CCFinancialEvidence?.list){state.remoteLoaded=true;render();return;}
     try{const result=await window.CCFinancialEvidence.list();(result.evidence||[]).forEach(hydrateEvidenceRow);state.remoteError='';}
     catch(error){state.remoteError=error.message||'Saved financial evidence could not be loaded.';}

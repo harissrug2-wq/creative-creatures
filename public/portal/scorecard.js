@@ -1,5 +1,6 @@
 (async () => {
   const releasePageLoader = window.CCPageLoader?.hold?.('Loading Agency Scorecard…') || (()=>{});
+  try{await window.CCAccount?.ready}catch{}
   const root = document.getElementById('scorecardRoot');
   root.innerHTML='<section class="scorecard-empty" style="margin-top:54px"><h1>Loading Agency Scorecard…</h1><p>Bringing in your saved scorecard and priorities.</p></section>';
   const loaderReleaseTimer=setTimeout(releasePageLoader,450);
