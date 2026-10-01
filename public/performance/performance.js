@@ -83,6 +83,9 @@
     manual:saved.manual||{},
     partnerInvite:{open:false,sending:false,message:'',error:''},
     owners:[],
+    ownershipSaving:false,
+    ownershipMessage:'',
+    ownershipError:'',
     sdeReviewed:Boolean(saved.sdeReviewed),
     uploadState:{},
     saveState:{},
@@ -345,21 +348,36 @@
     </section>`;
   }
 
+  function activeOwners(){
+    return (Array.isArray(state.owners)?state.owners:[]).filter(owner=>owner.status==='active');
+  }
+
+  function ownershipTotal(){
+    return activeOwners().reduce((sum,owner)=>sum+(Number(owner.ownershipPercent)||0),0);
+  }
+
   function sdeBody(section){
-    const ownership=Math.max(0,Math.min(100,Number(state.ownershipPercent||100)));
-    const partnerShare=Math.max(0,100-ownership);
-    const showPartner=ownership<100;
+    const owners=activeOwners();
+    const total=ownershipTotal();
+    const remaining=Math.max(0,100-total);
+    const canAdd=owners.length>0&&total<99.99;
+    const validTotal=Math.abs(total-100)<=0.01;
     const invite=state.partnerInvite||{};
     return `<div class="sde-panel">
       <h3>Owner benefits</h3><p>${esc(section.copy)}</p>
       <div class="sde-options">${benefits.map(([id,label])=>`<label class="radio-option-card sde-option ${state.addbacks[id]?'selected':''}"><span class="option-copy">${esc(label)}</span><input type="checkbox" data-addback="${id}" ${state.addbacks[id]?'checked':''}><span class="checkbox-ui">${state.addbacks[id]?checkIcon:''}</span></label>`).join('')}</div>
       <div class="ownership-partner-panel">
-        ${state.owners.length?`<div class="ownership-roster"><span class="ownership-roster-label">AGENCY OWNERSHIP</span>${state.owners.filter(owner=>owner.status==='active').map(owner=>`<div class="ownership-roster-row"><div><strong>${esc(owner.name)}</strong><small>${owner.isPrimary?'Primary owner':'Partner owner'}</small></div><b>${Number(owner.ownershipPercent||0).toFixed(2).replace('.00','')}%</b></div>`).join('')}</div>`:''}
-        <label class="ownership-field show" id="ownershipField"><span>Ownership percentage</span><div><input id="ownershipPercent" type="number" min="0" max="100" step="0.01" value="${esc(state.ownershipPercent)}"><b>%</b></div><small>Your ownership defaults to 100%. Update it if the agency has another owner.</small></label>
-        <div class="ownership-partner-action ${showPartner?'show':''}" id="ownershipPartnerAction">
-          <div><strong>${partnerShare.toFixed(2).replace('.00','')}% remains for a partner</strong><span>Add the partner who shares ownership of this agency.</span></div>
-          <button type="button" class="add-partner-btn" id="addPartnerButton">＋ Add Partner</button>
+        <div class="ownership-roster editable">
+          <div class="ownership-roster-head"><span class="ownership-roster-label">AGENCY OWNERSHIP</span><span class="ownership-total ${validTotal?'valid':'invalid'}">Total: ${total.toFixed(2).replace('.00','')}%</span></div>
+          ${owners.length?owners.map(owner=>`<label class="ownership-roster-row editable" data-owner-row="${esc(owner.id||owner.email)}"><div><strong>${esc(owner.name)}</strong><small>${owner.isPrimary?'Primary owner':'Partner owner'}</small></div><div class="owner-percent-input"><input type="number" min="0" max="100" step="0.01" value="${esc(owner.ownershipPercent)}" data-owner-percent="${esc(owner.id||owner.email)}" aria-label="${esc(owner.name)} ownership percentage"><b>%</b></div></label>`).join(''):`<div class="ownership-empty">Loading agency ownership…</div>`}
+          <div class="ownership-save-row">
+            <span class="ownership-total-help">${validTotal?'Ownership totals 100%.':`Adjust owner percentages so the total equals 100%. Current total: ${total.toFixed(2)}%.`}</span>
+            <button type="button" class="save-ownership-btn" id="saveOwnershipButton" ${(!validTotal||state.ownershipSaving||!owners.length)?'disabled':''}>${state.ownershipSaving?'Saving…':'Save Ownership'}</button>
+          </div>
         </div>
+        ${canAdd?`<div class="ownership-partner-action show" id="ownershipPartnerAction"><div><strong>${remaining.toFixed(2).replace('.00','')}% remains unassigned</strong><span>Add another agency owner to allocate the remaining ownership.</span></div><button type="button" class="add-partner-btn" id="addPartnerButton">＋ Add Partner</button></div>`:''}
+        ${state.ownershipMessage?`<div class="partner-invite-message success">${esc(state.ownershipMessage)}</div>`:''}
+        ${state.ownershipError?`<div class="partner-invite-message error">${esc(state.ownershipError)}</div>`:''}
         ${invite.message?`<div class="partner-invite-message success">${esc(invite.message)}</div>`:''}
         ${invite.error?`<div class="partner-invite-message error">${esc(invite.error)}</div>`:''}
       </div>
@@ -424,8 +442,8 @@
       manualFor(section)[input.dataset.manualKey]=input.dataset.fieldType==='money'?rawNumber(input.value):input.value;
     });
     if(section.type==='sde'){
-      const owner=document.querySelector('#ownershipPercent');
-      if(owner)state.ownershipPercent=owner.value;
+      const primary=activeOwners().find(owner=>owner.isPrimary);
+      if(primary)state.ownershipPercent=String(primary.ownershipPercent);
     }
     persist();
   }
@@ -546,26 +564,79 @@
     document.querySelector('[data-save-manual]')?.addEventListener('click',()=>saveManualSection(section).catch(()=>null));
   }
 
-  function syncPartnerInviteVisibility(){
-    const input=document.querySelector('#ownershipPercent'),action=document.querySelector('#ownershipPartnerAction');
-    if(!input||!action)return;
-    const ownership=Math.max(0,Math.min(100,Number(input.value||0)));
-    action.classList.toggle('show',ownership<100);
-    const strong=action.querySelector('strong');if(strong)strong.textContent=`${Math.max(0,100-ownership).toFixed(2).replace('.00','')}% remains for a partner`;
+  function updateOwnershipDraftFromInputs(){
+    document.querySelectorAll('[data-owner-percent]').forEach(input=>{
+      const key=input.dataset.ownerPercent;
+      const owner=state.owners.find(row=>String(row.id||row.email)===String(key));
+      if(!owner)return;
+      const value=Number(input.value);
+      owner.ownershipPercent=Number.isFinite(value)?Math.max(0,Math.min(100,value)):0;
+    });
+    const primary=activeOwners().find(owner=>owner.isPrimary);
+    if(primary)state.ownershipPercent=String(primary.ownershipPercent);
+  }
+
+  async function saveOwnership(){
+    updateOwnershipDraftFromInputs();
+    const owners=activeOwners();
+    const total=ownershipTotal();
+    state.ownershipMessage='';state.ownershipError='';
+    if(!owners.length||Math.abs(total-100)>0.01){
+      state.ownershipError=`Ownership must total 100%. Current total is ${total.toFixed(2)}%.`;
+      render();return;
+    }
+    state.ownershipSaving=true;render();
+    try{
+      const response=await fetch('/api/account-auth?ownership=1',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({
+        action:'save_ownership',
+        owners:owners.map(owner=>({
+          id:owner.id||null,name:owner.name,email:owner.email,title:owner.title||'Partner',
+          ownershipPercent:Number(owner.ownershipPercent),isPrimary:owner.isPrimary===true,
+          ownerIdentityStatus:owner.ownerIdentityStatus||'not_started',invite:false
+        }))
+      })});
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.error||'Ownership could not be saved.');
+      if(Array.isArray(payload.owners))state.owners=payload.owners;
+      const primary=activeOwners().find(owner=>owner.isPrimary);
+      if(primary)state.ownershipPercent=String(primary.ownershipPercent);
+      state.ownershipSaving=false;
+      state.ownershipMessage='Ownership updated for the shared agency workspace.';
+      state.ownershipError='';
+      persist();render();
+    }catch(error){
+      state.ownershipSaving=false;
+      state.ownershipError=error.message||'Ownership could not be saved.';
+      render();
+    }
   }
 
   async function sendPartnerInvite(){
     const name=document.querySelector('#partnerName')?.value.trim()||'',email=document.querySelector('#partnerEmail')?.value.trim()||'';
     const error=document.querySelector('#partnerInviteFormError');
     if(!name||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){if(error)error.textContent='Enter the partner name and a valid email address.';return}
-    const ownership=Math.max(0,Math.min(100,Number(state.ownershipPercent||100)));
+    updateOwnershipDraftFromInputs();
+    const currentOwners=activeOwners();
+    const total=ownershipTotal();
+    const remaining=Number((100-total).toFixed(2));
+    if(remaining<=0){if(error)error.textContent='Ownership already totals 100%. Reduce an owner percentage before adding another partner.';return}
     state.partnerInvite={...state.partnerInvite,sending:true,error:'',message:''};render();
     try{
-      const response=await fetch('/api/account-auth?ownership=1',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({action:'invite_partner',name,email,primaryOwnershipPercent:ownership})});
+      const owners=[
+        ...currentOwners.map(owner=>({
+          id:owner.id||null,name:owner.name,email:owner.email,title:owner.title||'Partner',
+          ownershipPercent:Number(owner.ownershipPercent),isPrimary:owner.isPrimary===true,
+          ownerIdentityStatus:owner.ownerIdentityStatus||'not_started',invite:false
+        })),
+        {name,email,title:'Partner',ownershipPercent:remaining,isPrimary:false,status:'active',ownerIdentityStatus:'not_started',invite:true}
+      ];
+      const response=await fetch('/api/account-auth?ownership=1',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({action:'save_ownership',owners})});
       const payload=await response.json().catch(()=>({}));
       if(!response.ok)throw new Error(payload.error||'The partner invitation could not be sent.');
       const invite=Array.isArray(payload.invites)?payload.invites.find(item=>String(item.email||'').toLowerCase()===email.toLowerCase()):null;
       if(Array.isArray(payload.owners))state.owners=payload.owners;
+      const primary=activeOwners().find(owner=>owner.isPrimary);
+      if(primary)state.ownershipPercent=String(primary.ownershipPercent);
       state.partnerInvite={open:false,sending:false,error:'',message:invite?.emailSent===false?'Partner added, but the invitation email could not be sent. Try again later.':`Invitation sent to ${email}.`};
       persist();render();
     }catch(err){
@@ -600,17 +671,16 @@
         if(indicator)indicator.innerHTML=input.checked?checkIcon:'';
         persist();
       }));
-      document.querySelector('#ownershipPercent')?.addEventListener('input',event=>{
-        let value=Number(event.target.value);
-        if(Number.isFinite(value)){value=Math.max(0,Math.min(100,value));state.ownershipPercent=String(value)}
-        else state.ownershipPercent=event.target.value;
-        persist();syncPartnerInviteVisibility();
-      });
+      document.querySelectorAll('[data-owner-percent]').forEach(input=>input.addEventListener('change',()=>{
+        updateOwnershipDraftFromInputs();
+        state.ownershipMessage='';state.ownershipError='';
+        render();
+      }));
+      document.querySelector('#saveOwnershipButton')?.addEventListener('click',()=>saveOwnership());
       document.querySelector('#addPartnerButton')?.addEventListener('click',()=>{state.partnerInvite={open:true,sending:false,message:'',error:''};render();});
       document.querySelector('#closePartnerInvite')?.addEventListener('click',()=>{state.partnerInvite={...state.partnerInvite,open:false,error:''};render();});
       document.querySelector('#partnerInviteBackdrop')?.addEventListener('click',event=>{if(event.target.id==='partnerInviteBackdrop'){state.partnerInvite={...state.partnerInvite,open:false,error:''};render();}});
       document.querySelector('#partnerInviteForm')?.addEventListener('submit',event=>{event.preventDefault();sendPartnerInvite();});
-      syncPartnerInviteVisibility();
     }
     bindManual(section);
   }
