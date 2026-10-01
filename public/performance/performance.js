@@ -671,7 +671,7 @@
         if(indicator)indicator.innerHTML=input.checked?checkIcon:'';
         persist();
       }));
-      document.querySelectorAll('[data-owner-percent]').forEach(input=>input.addEventListener('input',()=>{
+      document.querySelectorAll('[data-owner-percent]').forEach(input=>input.addEventListener('change',()=>{
         updateOwnershipDraftFromInputs();
         state.ownershipMessage='';state.ownershipError='';
         render();
