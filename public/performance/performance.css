@@ -326,3 +326,28 @@ html.performance-extraction-locked,body.performance-extraction-locked{overflow:h
 .ownership-roster-row strong{display:block;font-size:12px;color:#273142}
 .ownership-roster-row small{display:block;font-size:9.5px;color:#8a94a3;margin-top:2px}
 .ownership-roster-row b{font-size:13px;color:#3036df}
+
+
+/* Editable shared agency ownership */
+.ownership-roster.editable{margin-bottom:0}
+.ownership-roster-head{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:8px}
+.ownership-total{font-size:10px;font-weight:800;border-radius:999px;padding:5px 8px}
+.ownership-total.valid{background:#eaf8ef;color:#16784a}
+.ownership-total.invalid{background:#fff2f0;color:#ad4039}
+.ownership-roster-row.editable{cursor:default}
+.owner-percent-input{position:relative;display:flex;align-items:center;flex:0 0 auto}
+.owner-percent-input input{width:112px;height:38px;border:1px solid #d9dee7;border-radius:9px;padding:0 30px 0 10px;font:inherit;font-size:12px;font-weight:750;color:#263046;background:#fff;outline:none;text-align:right}
+.owner-percent-input input:focus{border-color:#7279ff;box-shadow:0 0 0 3px rgba(52,56,232,.1)}
+.owner-percent-input b{position:absolute;right:10px;color:#8b95a5;font-size:11px;pointer-events:none}
+.ownership-save-row{display:flex;align-items:center;justify-content:space-between;gap:14px;border-top:1px solid #edf0f4;margin-top:8px;padding-top:12px}
+.ownership-total-help{font-size:10px;line-height:1.45;color:#7e8898}
+.save-ownership-btn{flex:0 0 auto;min-height:37px;border:0;border-radius:9px;padding:0 14px;background:#3438e8;color:#fff;font:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.save-ownership-btn:hover{background:#292ed8}
+.save-ownership-btn:disabled{opacity:.5;cursor:not-allowed}
+.ownership-empty{padding:12px 0;color:#8a94a3;font-size:11px}
+@media(max-width:620px){
+  .ownership-roster-head,.ownership-save-row{align-items:flex-start;flex-direction:column}
+  .ownership-roster-row.editable{align-items:flex-start}
+  .owner-percent-input input{width:96px}
+  .save-ownership-btn{width:100%}
+}
