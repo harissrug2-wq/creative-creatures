@@ -316,3 +316,13 @@ html.performance-extraction-locked,body.performance-extraction-locked{overflow:h
   .add-partner-btn{width:100%}
   .partner-invite-modal{padding:22px 17px}
 }
+
+
+/* Shared agency ownership roster */
+.ownership-roster{margin-bottom:16px;border-bottom:1px solid #e7eaf0;padding-bottom:13px}
+.ownership-roster-label{display:block;font-size:9px;font-weight:800;letter-spacing:.08em;color:#7e8795;margin-bottom:8px}
+.ownership-roster-row{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:9px 0;border-top:1px solid #f0f2f5}
+.ownership-roster-row:first-of-type{border-top:0}
+.ownership-roster-row strong{display:block;font-size:12px;color:#273142}
+.ownership-roster-row small{display:block;font-size:9.5px;color:#8a94a3;margin-top:2px}
+.ownership-roster-row b{font-size:13px;color:#3036df}
