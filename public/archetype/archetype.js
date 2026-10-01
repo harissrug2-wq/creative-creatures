@@ -1,4 +1,5 @@
-(() => {
+(async () => {
+  try{await window.CCAccount?.ready}catch(error){console.warn('Account hydration before Owner Archetype failed.',error)}
   const app = document.querySelector('#archetypeApp');
   if (!app) return;
 
