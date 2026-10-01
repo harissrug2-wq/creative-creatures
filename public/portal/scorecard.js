@@ -105,8 +105,11 @@
     };
     const exists = existingRockKeys.has(`issue:${key}`) || existingRockKeys.has(`opportunity:${key}`);
     const lift=Number(opportunity?.estimatedLift);
-    const liftCopy=Number.isFinite(lift)&&lift>0?`<em class="paired-opportunity-lift">+${Math.round(lift)} pts</em>`:'';
-    return `<label class="insight-row selectable-insight paired-insight${exists ? ' selected' : ''}"><input type="checkbox" data-rock-candidate="${id}" ${exists ? 'disabled' : ''}><span class="paired-insight-copy"><b>${esc(row.capability)} · ${esc(row.score)}/100</b><p>${esc(row.description || '')}</p><span class="paired-opportunity"><strong>Opportunity</strong><span>${esc(recommendation)}</span>${liftCopy}</span>${exists ? '<small>Already a 90-Day Priority</small>' : ''}</span></label>`;
+    const liftCopy=Number.isFinite(lift)&&lift>0?`+${Math.round(lift)} pts`:'View';
+    return `<details class="reference-priority-row" ${index===0?'open':''}>
+      <summary><span class="priority-dot"></span><span class="priority-title"><b>${esc(row.capability)}</b><small>${esc(row.indexTitle||row.index||'Capability')}</small></span><em>${liftCopy}</em><i>⌄</i></summary>
+      <div class="reference-priority-body"><p>${esc(recommendation)}</p><label class="selectable-insight${exists?' selected':''}"><input type="checkbox" data-rock-candidate="${id}" ${exists?'disabled':''}><span>${exists?'Already a 90-Day Priority':'Select to create a 90-Day Priority'}</span></label></div>
+    </details>`;
   }).join('');
   const perf = model.reports.performance;
   const valuation = model.valuation && typeof model.valuation === 'object' ? model.valuation : null;
@@ -345,48 +348,54 @@
     </section>
     <section class="client-priorities">
       <div class="client-priorities-heading"><h2>What to do to improve your score</h2><span>One 90-day priority</span></div>
-      ${priorityItems.map((row,i)=>`
-        <div class="client-priority-row">
-          <div><strong>${esc(row.name)}</strong><p>${esc(row.description)}</p></div>
-          <button type="button" data-open-score-priorities="${i}" title="See issue and create a priority"><span class="client-lift-pill">${row.lift?`+${Math.round(row.lift)} pts`:'View'}</span><span class="client-row-chevron" aria-hidden="true">⌄</span></button>
-        </div>`).join('')}
-      <div class="client-priority-controls"><button type="button" id="clientOpenRocks">Manage 90-day priorities →</button></div>
+      <div id="clientPriorityActions"></div>
     </section>
-    <details class="client-scoring client-actions-details" id="clientPrioritiesDetails">
-      <summary>Issues, opportunities, and actions</summary>
-      <div id="clientOriginalPriorities"></div>
-    </details>
-    <details class="client-scoring" id="clientScoringDetails">
+    <details class="client-scoring" id="clientScoringDetails" open>
       <summary>How AOFI™ Scoring Works</summary>
-      <p style="color:#667085;font-size:12px;margin:0 0 15px">Performance × 40% + Strength × 40% + Independence × 20%. Open the detailed reports to review evidence, validation, and confidence.</p>
-      <h3 style="font-size:15px">Score calculation and evidence</h3>
-      <div id="clientOriginalScore"></div>
-      <h3 style="font-size:15px;margin-top:20px">Individual index reports</h3>
-      <div id="clientOriginalReports"></div>
+      <div class="client-methodology-grid">
+        <section>
+          <small class="method-kicker">THE SCORE</small>
+          <p>AOFI™ combines your three index reports with a fixed weighting. Each report grades the capabilities that drive transferable value.</p>
+          <div class="method-formula">
+            <span>Performance <b>40%</b> <em>${Math.round(Number(model.reports.performance?.score)||0)}</em></span><i>+</i>
+            <span>Strength <b>40%</b> <em>${Math.round(Number(model.reports.strength?.score)||0)}</em></span><i>+</i>
+            <span>Independence <b>20%</b> <em>${Math.round(Number(model.reports.independence?.score)||0)}</em></span><i>→</i>
+            <strong>AOFI™ ${Math.round(Number(model.score)||0)}</strong>
+          </div>
+          <div class="method-steps">
+            <article><b>1 · Assessments</b><p>Your questionnaire answers score each capability inside a report from 0–100.</p></article>
+            <article><b>2 · Evidence</b><p>Financial and operational documents validate those scores. More verified evidence, higher confidence.</p></article>
+            <article><b>3 · The score</b><p>Capability scores roll up to each index, then the 40/40/20 weighting produces your AOFI™ score.</p></article>
+          </div>
+        </section>
+        <section>
+          <small class="method-kicker">THE VALUATION</small>
+          <p>Estimated Enterprise Value starts from your adjusted SDE — the profit an owner can take out — then applies a multiple shaped by your scores.</p>
+          <div class="method-value">
+            <div><small>ADJUSTED SDE</small><strong>${readableValuation?money(valuation.adjustedSDE):"—"}</strong></div><i>×</i>
+            <div><small>MULTIPLE</small><strong>${readableValuation?Number(valuation.finalMultiple||0).toFixed(2)+"×":"—"}</strong></div><i>→</i>
+            <div><small>ENTERPRISE VALUE</small><strong>${readableValuation?money(valuation.enterpriseValue):"Not available"}</strong></div>
+          </div>
+          ${readableValuation?`<div class="method-adjustments"><span>Base ${Number(valuation.baseMultiple||0).toFixed(2)}×</span><span>Strength ${Number(valuation.adjustments?.strength||0)>=0?"+":""}${Number(valuation.adjustments?.strength||0).toFixed(2)}×</span><span>Owner Independence ${Number(valuation.adjustments?.ownerIndependence||0)>=0?"+":""}${Number(valuation.adjustments?.ownerIndependence||0).toFixed(2)}×</span><span>ROIC-Lite ${Number(valuation.adjustments?.roicLite||0)>=0?"+":""}${Number(valuation.adjustments?.roicLite||0).toFixed(2)}×</span><span>Revenue Quality ${Number(valuation.adjustments?.revenueQuality||0)>=0?"+":""}${Number(valuation.adjustments?.revenueQuality||0).toFixed(2)}×</span></div>`:""}
+          <p class="method-foot">Your multiple moves as your scores move — stronger performance, strength, and independence each lift it.</p>
+        </section>
+      </div>
+      <div class="method-stats">
+        <div><small>OVERALL CONFIDENCE</small><strong>${Math.round(Number(model.confidence)||0)}%</strong></div>
+        <div><small>VALIDATION</small><strong>${esc(model.validation||"Pending")}</strong></div>
+        <div><small>MOMENTUM</small><strong>${hasComparison&&Number.isFinite(Number(momentum.delta))?(momentum.delta>0?"▲ ":"▼ ")+Math.abs(Math.round(momentum.delta))+" pts":"Baseline"}</strong></div>
+      </div>
+      <p class="method-note">Confidence reflects how much of your score is backed by validated evidence. It rises as you verify more documents and complete more assessments.</p>
     </details>
 
   `);
-  const originalScore=root.querySelector('#clientOriginalScore');
-  const originalReports=root.querySelector('#clientOriginalReports');
-  const originalPriorities=root.querySelector('#clientOriginalPriorities');
-  const legacyMain=root.querySelector('.aofi-card');
-  const legacyValue=root.querySelector('.valuation-note');
-  const legacyReports=root.querySelector('.index-grid');
+  const priorityTarget=root.querySelector('#clientPriorityActions');
   const legacyInsights=root.querySelector('.paired-insights');
   const legacyRocks=root.querySelector('.rock-actions');
   const legacyGoals=root.querySelector('.define-goals-wrap');
-  if(legacyMain)originalScore.append(legacyMain);
-  if(legacyValue)originalScore.append(legacyValue);
-  if(legacyReports)originalReports.append(legacyReports);
-  if(legacyInsights)originalPriorities.append(legacyInsights);
-  if(legacyRocks)originalPriorities.append(legacyRocks);
-  if(legacyGoals)originalPriorities.append(legacyGoals);
-  const openPriorities=()=>{
-    const section=root.querySelector('#clientPrioritiesDetails');
-    section.open=true;
-    section.scrollIntoView({behavior:'smooth',block:'start'});
-  };
-  root.querySelectorAll('[data-open-score-priorities],#clientOpenRocks').forEach(button=>button.addEventListener('click',openPriorities));
+  if(legacyInsights)priorityTarget.append(legacyInsights);
+  if(legacyRocks)priorityTarget.append(legacyRocks);
+  if(legacyGoals)priorityTarget.append(legacyGoals);
   root.querySelector('#clientViewMethodology')?.addEventListener('click',()=>{
     const section=root.querySelector('#clientScoringDetails');
     section.open=true;
