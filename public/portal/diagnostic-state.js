@@ -30,8 +30,14 @@
   const isOwnerComplete = () => {
     if (localStorage.getItem('ownerIdentityComplete') === 'true') return true;
     try {
-      const account = JSON.parse(localStorage.getItem('cc_account') || 'null');
-      return Boolean(account?.report_data && Object.keys(account.report_data).length);
+      const account = JSON.parse(localStorage.getItem('cc_account') || 'null')
+        || JSON.parse(localStorage.getItem('ccUserAccount') || 'null');
+      const report = account?.report_data || account?.reportData;
+      const archetype = account?.archetype_result || account?.archetypeResult;
+      return Boolean(
+        (report && typeof report === 'object' && Object.keys(report).length) ||
+        (archetype && typeof archetype === 'object' && Object.keys(archetype).length)
+      );
     } catch {
       return false;
     }
