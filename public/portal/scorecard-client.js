@@ -75,6 +75,7 @@
   }
 
   async function load(options = {}) {
+    try{await window.CCAccount?.ready}catch{}
     if (window.CCDemo?.enabled && window.CCDemo?.scorecard) {
       cached = normalizeScorecard(window.CCDemo.scorecard);
       cachedHistory = Array.isArray(window.CCDemo.scorecardHistory) ? window.CCDemo.scorecardHistory.slice() : [];
@@ -105,6 +106,7 @@
   }
 
   async function generate() {
+    try{await window.CCAccount?.ready}catch{}
     if (window.CCDemo?.enabled && window.CCDemo?.scorecard) {
       cached = normalizeScorecard(window.CCDemo.scorecard);
       cachedHistory = Array.isArray(window.CCDemo.scorecardHistory) ? window.CCDemo.scorecardHistory.slice() : [];
