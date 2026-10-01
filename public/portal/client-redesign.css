@@ -1073,3 +1073,151 @@ body:has(.scorecard-shell.client-scorecard){
   .method-steps{grid-template-columns:1fr!important}
   .method-stats{gap:14px!important}
 }
+
+
+/* Diagnostic four-report responsive consolidation — 2026-10-01 */
+.diagnostic-main .owner-identity-step,
+.diagnostic-main .diag-step{
+  min-width:0;
+}
+.diagnostic-main .archetype-card,
+.diagnostic-main .diag-step-card{
+  width:100%;
+  min-width:0;
+}
+.diagnostic-main .archetype-card>div:first-child,
+.diagnostic-main .diag-step-copy{
+  min-width:0;
+}
+.diagnostic-main .archetype-card h2,
+.diagnostic-main .archetype-card p,
+.diagnostic-main .diag-step-card h3,
+.diagnostic-main .diag-step-card p{
+  overflow-wrap:anywhere;
+}
+.diagnostic-main .archetype-actions,
+.diagnostic-main .diag-step-card .step-action{
+  flex-shrink:0;
+}
+@media(max-width:900px){
+  .diagnostic-main{width:calc(100% - 28px)!important}
+  .diagnostic-main .journey-head{
+    flex-direction:column!important;
+    align-items:stretch!important;
+    gap:16px!important;
+  }
+  .diagnostic-main .progress-card{
+    width:100%!important;
+    max-width:none!important;
+  }
+  .diagnostic-main .archetype-card,
+  .diagnostic-main .diag-step-card{
+    padding:18px!important;
+  }
+}
+@media(max-width:700px){
+  .diagnostic-main{width:calc(100% - 22px)!important;padding-top:24px!important}
+  .diagnostic-main .journey-head h1{font-size:28px!important}
+  .diagnostic-main .diag-step{
+    grid-template-columns:30px minmax(0,1fr)!important;
+    gap:9px!important;
+  }
+  .diagnostic-main .diagnostic-timeline::before{
+    left:15px!important;
+  }
+  .diagnostic-main .step-dot{
+    width:30px!important;
+    height:30px!important;
+    font-size:10px!important;
+  }
+  .diagnostic-main .archetype-card,
+  .diagnostic-main .diag-step-card{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:12px!important;
+    align-items:center!important;
+  }
+  .diagnostic-main .archetype-actions{
+    display:flex!important;
+    flex-direction:column!important;
+    width:auto!important;
+    min-width:106px!important;
+  }
+  .diagnostic-main .archetype-actions a{
+    width:100%!important;
+    justify-content:center!important;
+    white-space:nowrap;
+  }
+  .diagnostic-main .diag-step-card .step-action{
+    width:auto!important;
+    min-width:92px!important;
+    justify-content:center!important;
+    white-space:nowrap;
+  }
+  .diagnostic-main .integration-strip{
+    margin-left:39px!important;
+  }
+}
+@media(max-width:520px){
+  .diagnostic-main{width:calc(100% - 18px)!important}
+  .diagnostic-main .journey-head h1{font-size:25px!important}
+  .diagnostic-main .diagnostic-fraction{font-size:12px!important}
+  .diagnostic-main .diag-step{
+    grid-template-columns:26px minmax(0,1fr)!important;
+    gap:8px!important;
+  }
+  .diagnostic-main .diagnostic-timeline::before{
+    left:13px!important;
+  }
+  .diagnostic-main .step-dot{
+    width:26px!important;
+    height:26px!important;
+    font-size:9px!important;
+  }
+  .diagnostic-main .archetype-card,
+  .diagnostic-main .diag-step-card{
+    grid-template-columns:1fr!important;
+    padding:15px!important;
+    gap:13px!important;
+  }
+  .diagnostic-main .archetype-actions{
+    width:100%!important;
+    min-width:0!important;
+    flex-direction:row!important;
+    flex-wrap:wrap!important;
+  }
+  .diagnostic-main .archetype-actions a{
+    flex:1 1 120px!important;
+  }
+  .diagnostic-main .diag-step-card .step-action{
+    width:100%!important;
+    min-width:0!important;
+  }
+  .diagnostic-main .diag-meta{
+    flex-wrap:wrap!important;
+    row-gap:4px!important;
+  }
+  .diagnostic-main .owner-progress,
+  .diagnostic-main .index-progress{
+    width:100%!important;
+    max-width:none!important;
+  }
+  .diagnostic-main .integration-strip{
+    margin-left:34px!important;
+    padding:14px!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+  }
+  .diagnostic-main .integration-strip a{
+    width:100%!important;
+    justify-content:center!important;
+  }
+}
+@media(max-width:380px){
+  .diagnostic-main .archetype-actions{
+    flex-direction:column!important;
+  }
+  .diagnostic-main .archetype-actions a{
+    flex:1 1 auto!important;
+  }
+}
