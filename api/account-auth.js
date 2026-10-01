@@ -315,7 +315,7 @@ async function sessionActor(c,session){
   return member?.status==='active'?{role:member.role||'member',accountId:session.accountId,memberId:member.id,name:member.name,email:member.email,departments:member.role==='partner'?DEPARTMENTS:(Array.isArray(member.departments)?member.departments:[])}:null;
 }
 function sanitizeDepartments(value){return [...new Set((Array.isArray(value)?value:[]).map(v=>clean(v).toLowerCase().replace(/[^a-z0-9]+/g,'-')).filter(v=>DEPARTMENTS.includes(v)))]}
-function requireOwner(actor){if(actor?.role!=='owner'&&actor?.role!=='admin')throw Object.assign(new Error('Only the agency owner or administrator can manage users or integrations.'),{status:403})}
+function requireOwner(actor){if(!['owner','partner','admin'].includes(actor?.role))throw Object.assign(new Error('Only an agency owner or administrator can manage users or integrations.'),{status:403})}
 function requireDepartment(actor,department){if(actor?.role==='member'){const norm=clean(department).toLowerCase().replace(/[^a-z0-9]+/g,'-');const memberDepts=(actor?.departments||[]).map(d=>clean(d).toLowerCase().replace(/[^a-z0-9]+/g,'-'));if(!memberDepts.includes(norm))throw Object.assign(new Error('Your account does not have access to this department.'),{status:403})}}
 function integrationFeature(action){return /^(quickbooks|freshbooks)_(connect|status|callback|sync|disconnect|dashboard|select_business)$/.test(action)?'bookkeeping':'integrations'}
 function requireFeature(account,feature,actor){if(!featuresForAccount(account,actor).includes(feature))throw Object.assign(new Error(`${feature.replace(/-/g,' ')} is not included in this agency plan.`),{status:403})}
