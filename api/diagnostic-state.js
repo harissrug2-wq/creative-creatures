@@ -358,7 +358,18 @@ export default async function handler(req, res) {
     const reportData = body.reportData || body.report_data || {};
 
     const session = requireAccountSession(req);
-    if(session.memberId) return json(res,403,{error:'Only the agency owner can save diagnostic results.'});
+    if(session.memberId){
+      const memberParams=new URLSearchParams({
+        select:'id,role,status',
+        id:`eq.${session.memberId}`,
+        account_id:`eq.${session.accountId}`,
+        limit:'1'
+      });
+      const memberRows=await supabaseRequest(config,`account_members?${memberParams.toString()}`);
+      const member=Array.isArray(memberRows)?memberRows[0]:null;
+      if(!member||member.status!=='active')return json(res,401,{error:'Your account access is no longer active.'});
+      if(member.role!=='partner')return json(res,403,{error:'Only agency owners and partners can save diagnostic results.'});
+    }
     const account = await authorizedAccount(req, body, session, config, supabaseRequest, 'id,name,email,agency_url,agency_name,diagnostic_state,report_data');
 
     if (!account) return json(res, 404, { error: 'Account not found.', code: 'ACCOUNT_NOT_FOUND' });
