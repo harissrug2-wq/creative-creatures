@@ -358,3 +358,14 @@ button:not(:disabled):active,.button:active,.btn:not(:disabled):active,[role="bu
 .mobile-ask-creature.nav-disabled:after{
   content:attr(data-gate-message);font-size:11px;margin-left:8px;color:#8d95a3;
 }
+
+
+/* AOFI-focused navigation branding during Diagnostic + Score */
+.aofi-shell-brand{display:inline-flex!important;align-items:center;gap:8px;color:#171820}
+.shell-aofi-mark{display:grid;place-items:center;min-width:50px;height:29px;padding:0 8px;border-radius:8px;background:linear-gradient(135deg,#272cf3,#625af6);color:#fff;font-size:12px;font-weight:900;letter-spacing:-.02em}
+.shell-aofi-copy{font-size:7.5px;line-height:1.1;text-transform:uppercase;letter-spacing:.07em;font-weight:800;color:#656e7c}
+@media(max-width:520px){.shell-aofi-copy{display:none}.shell-aofi-mark{min-width:54px}}
+
+.aofi-journey-brand{display:inline-flex!important;align-items:center;gap:8px;text-decoration:none!important;color:#171820}
+.aofi-journey-brand .aofi-brand-mark{display:grid;place-items:center;min-width:54px;height:30px;padding:0 8px;border-radius:8px;background:linear-gradient(135deg,#272cf3,#625af6);color:#fff;font-size:12px;font-weight:900;letter-spacing:-.02em}
+.aofi-journey-brand .aofi-brand-copy{font-size:8px;line-height:1.12;text-transform:uppercase;letter-spacing:.07em;font-weight:800;color:#656e7c}

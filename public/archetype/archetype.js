@@ -163,6 +163,7 @@
         ['G', 'It is increasingly operating like an asset, not just an owner-led company']
       ]
     },
+    { id: 'business_start_year', type: 'text', text: 'What year did you start your agency?', placeholder: 'e.g. 2018' },
     {
       id: 'annual_revenue', type: 'options', text: 'Which best describes the annual revenue your agency is generating right now?', options: [
         ['under_1m', 'Under $1M'],
@@ -218,7 +219,7 @@
 
   const makeId = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-  const logo = () => `<a class="archetype-brand" href="/"><img src="/brand/creature-logo.png" alt="Creative Creatures"></a>`;
+  const logo = () => `<a class="archetype-brand aofi-journey-brand" href="/" aria-label="Agency Owner Freedom Index"><span class="aofi-brand-mark">AOFI™</span><span class="aofi-brand-copy">Agency Owner<br>Freedom Index™</span></a>`;
 
   function navigate(path, replace = false) {
     const target = `/owner-archetype${path}`;
@@ -241,12 +242,12 @@
       <header class="archetype-header">${logo()}<a class="back-link" href="/login/">Back to sign in</a></header>
       <section class="hero identity-hero">
         <div class="hero-inner">
-          <h1>Learn How Owner Identity<br>Impacts Your AOFI™ Score and Agency Value</h1>
-          <p>The marketing agency you are building is heavily influenced by the patterns of your identity. Think of the decision making, actions you need your team to take or the culture you’ve built; all influenced by your identity.</p>
-          <p class="identity-ceiling">The Agency Owner Freedom Index™ is a 0–100 score that shows how scalable, financially healthy, owner-independent and more valuable your marketing agency is becoming.</p>
+          <h1>Get Your AOFI™ Score<br>and Understand Your Agency Value</h1>
+          <p>We start with Owner Identity because the way you lead shapes how your agency scales, performs, and operates without you.</p>
+          <p class="identity-ceiling">The Agency Owner Freedom Index™ is a 0–100 score that shows how scalable, financially healthy, owner-independent and valuable your agency is becoming.</p>
           <div class="identity-lookup-wrap">
             <div data-owner-identity-lookup></div>
-            <button class="cta identity-start-assessment" id="startArchetype">Start My Identity (Archetype) Assessment</button>
+            <button class="cta identity-start-assessment" id="startArchetype">Start My AOFI™ Journey →</button>
           </div>
         </div>
       </section>`;
@@ -336,6 +337,15 @@
 
       document.querySelector('#nextQuestion')?.addEventListener('click', () => {
         const current = String(answers[q.id] ?? '').trim();
+        if (q.id === 'business_start_year') {
+          const year = Number(current), now = new Date().getFullYear();
+          if (!/^\d{4}$/.test(current) || year < 1900 || year > now) {
+            const error = document.querySelector('#questionError');
+            error.textContent = `Enter a valid four-digit year between 1900 and ${now}.`;
+            error.hidden = false;
+            return;
+          }
+        }
         if (!current) {
           const error = document.querySelector('#questionError');
           error.textContent = 'Please answer this question before continuing.';
@@ -363,14 +373,14 @@
         <div class="assessment-progress" aria-label="Assessment progress"><span style="width:100%"></span></div>
         <section class="assessment-main account-capture-main">
           <div class="question-count">Your account</div>
-          <h1>Where should we Send your Owner Identity Report?</h1>
-          <p class="account-capture-copy">Use the email you will use when you return. Your agency URL and this email can both find the same account later.</p>
+          <h1>Where should we email your Owner Identity Report?</h1>
+          <p class="account-capture-copy">We’ll email the detailed report and then continue you toward your AOFI™ Score. Use the email you’ll use when you return.</p>
           <label class="account-email-label" for="ownerEmail">Email address</label>
           <input class="text-answer account-email-input" id="ownerEmail" type="email" value="${escapeHtml(existingEmail)}" placeholder="you@youragency.com" autocomplete="email">
           <div class="inline-error" id="questionError" hidden></div>
           <div class="assessment-actions">
             <button class="nav-btn" id="backToLastQuestion" type="button">← Back</button>
-            <button class="nav-btn primary" id="saveOwnerReport" type="button" ${existingEmail ? '' : 'disabled'}>Send My Owner Identity Report →</button>
+            <button class="nav-btn primary" id="saveOwnerReport" type="button" ${existingEmail ? '' : 'disabled'}>Email My Report &amp; Continue →</button>
           </div>
           <div class="enter-hint">Press Enter ↵ to Continue</div>
           <div class="account-privacy">Your report and questionnaire answers are saved to your Creative Creatures account.</div>
@@ -503,6 +513,7 @@
       agencyName,
       email: ownerEmail,
       annualRevenue: answers.annual_revenue || '',
+      businessStartYear: answers.business_start_year || '',
       archetypeKey: key,
       archetypeTitle: archetype.title,
       primaryConstraint: archetype.constraint,
@@ -658,150 +669,84 @@
     }
 
     const firstName = data.firstName || localStorage.getItem('ccOwnerFirstName') || 'there';
-    const agencyUrl = data.agencyWebsite || localStorage.getItem('ccAgencyWebsite') || 'your agency';
     const email = data.email || localStorage.getItem('ccOwnerEmail') || 'your email address';
     const emailStatus = localStorage.getItem('ownerArchetypeEmailStatus') || 'unknown';
     const entitledPlan = activeEntitledPlan();
     const selectedPlan = entitledPlan || normalizePaidPlan(localStorage.getItem('ccProgramPath'));
-    const selectedOffer = PLAN_OFFERS[selectedPlan];
     const hasActivePaidWorkspace = Boolean(entitledPlan);
-    const emailMessage = emailStatus === 'sent'
-      ? `<h2>We have emailed your detailed Owner Identity Report to ${escapeHtml(email)}</h2><p>Check your inbox and your spam/junk folders just in case.</p>`
-      : `<h2>Your detailed Owner Identity Report is ready.</h2><p>We could not confirm email delivery to ${escapeHtml(email)}. You can view the report now or retry the email.</p><div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px"><button class="nav-btn" id="viewIdentityPdf" type="button">View Report</button><button class="nav-btn primary" id="retryIdentityEmail" type="button">Email Report Again</button></div><p id="identityEmailRetryStatus" style="margin-top:10px"></p>`;
+    const freeAofi = selectedPlan === 'aofi_free';
+    const emailCopy = emailStatus === 'sent'
+      ? `Your detailed Owner Identity Report has been emailed to <strong>${escapeHtml(email)}</strong>.`
+      : `Your Owner Identity Report is ready. We could not confirm email delivery to <strong>${escapeHtml(email)}</strong>; you can retry below.`;
+
     app.innerHTML = `
-      <main class="report-page identity-report-page">
+      <main class="report-page identity-report-page compact-identity-complete">
         ${logo()}
-        <section class="report-progress" aria-label="Owner identity report steps">
-          <div class="report-step complete"><span>✓</span><b>Basics</b></div><i></i>
-          <div class="report-step complete"><span>✓</span><b>Quiz</b></div><i></i>
-          <div class="report-step current"><span>3</span><b>Report</b></div>
-        </section>
-        <section class="identity-confirmation">
-          <h1>Congratulations, ${escapeHtml(firstName)}!</h1>
-          <p class="identity-lead">You have taken an important step toward improving how you lead ${escapeHtml(agencyUrl)}</p>
-          <div class="identity-email-card">
-            <span>Your Owner Identity Report</span>
-            ${emailMessage}
+        <section class="identity-complete-card">
+          <span class="identity-section-label">OWNER IDENTITY COMPLETE</span>
+          <div class="identity-complete-check">✓</div>
+          <h1>Nice work, ${escapeHtml(firstName)}.</h1>
+          <p>Your Owner Identity is the first layer of your AOFI™ Score. ${emailCopy}</p>
+          ${emailStatus !== 'sent' ? '<button class="nav-btn" id="retryIdentityEmail" type="button">Email Report Again</button><p id="identityEmailRetryStatus" class="identity-email-status"></p>' : ''}
+          <div class="identity-next-compact">
+            <strong>Next: establish your Agency Owner Freedom Index™ Score</strong>
+            <span>Continue into the three agency assessments that measure Strength, Owner Independence, and Financial Performance.</span>
           </div>
-          <section class="identity-next-step">
-            <span class="identity-section-label">Your Next Step</span>
-            <h2>Now that you have received your Owner Identity Report, you may have questions you want answered.</h2>
-            <div class="identity-questions">
-              <p><strong>Strategy:</strong> What should our Top Priorities over the next 90 days be and why?</p>
-              <p><strong>Sales:</strong> How do we get more new sales or replace me as the owner in sales?</p>
-              <p><strong>Operations:</strong> Who should we hire next and why?</p>
-              <p><strong>Leadership &amp; Goals:</strong> What should our goals be over the next year and why?</p>
-              <p><strong>Agency Value:</strong> What is the agency valued at right now?</p>
-            </div>
-          </section>
-          <section class="end-game">
-            <span class="identity-section-label">The End Game</span>
-            <h2>If you are like us, when we were in your shoes, you have a lot on your plate.</h2>
-            <p>So, we need you to think about what you truly want from your agency.</p>
-            <ul><li>An exit that pays for your retirement</li><li>A business you can hand down to family</li><li>A great paycheck and challenge for the next decade</li></ul>
-            <div class="guarantee-card"><div class="guarantee-mark">★</div><div><h3>100% Money Back Guarantee</h3><p>No matter what you want, work with one of our Fractional Executives and Back Office Platform, and if you do not scale revenue to hit goals, grow profit margins and increase your agency valuation by at least 3X, we’ll refund your money. No questions. Seriously!</p><p><strong>We are so confident in what we can help you achieve, we put our money where our mouth is.</strong></p></div></div>
-            <button class="nav-btn primary identity-continue" id="continueIdentity">${hasActivePaidWorkspace?'Continue to Agency Diagnostic →':selectedPlan==='aofi_free'?'Get My Free AOFI™ Score →':'Continue →'}</button>
-          </section>
-        </section>
-        <section class="diagnostic-offer" id="diagnosticOffer" hidden>
-          ${hasActivePaidWorkspace ? `
-            <article class="diagnostic-offer-card">
-              <span class="offer-kicker">ACCOUNT ACTIVE</span>
-              <h2>Your ${escapeHtml(selectedOffer.title.replace(/^Start My /,''))} access is already active</h2>
-              <p class="offer-sub">Your Owner Identity Report is complete. No additional payment is required. Continue into the Agency Diagnostic using the access already assigned to this account.</p>
-              <div class="offer-columns">
-                <section><h3>Current Access</h3><ul><li>✓ ${escapeHtml(selectedOffer.kicker)}</li><li>✓ Owner Identity Report complete</li><li>✓ Existing account entitlement preserved</li></ul></section>
-                <section><h3>Next Step</h3><ul><li>✓ Complete the Agency Diagnostic</li><li>✓ Generate your AOFI™ Score</li><li>✓ Continue into the rest of your included workspace</li></ul></section>
-              </div>
-              <a href="/diagnostic/" class="offer-cta" id="continueActivatedWorkspace">Continue to Agency Diagnostic →</a>
-            </article>` : selectedPlan==='aofi_free' ? `
-            <article class="diagnostic-offer-card">
-              <span class="offer-kicker">FREE AOFI™ SCORE</span>
-              <h2>Establish Your Agency Owner Freedom Index™ Score</h2>
-              <p class="offer-sub">Your Owner Identity Report is complete. Now answer the structured questions across Performance, Strength, and Owner Independence to calculate your free AOFI™ score.</p>
-              <div class="offer-columns">
-                <section><h3>Included Free</h3><ul><li>✓ Agency Diagnostic for AOFI™ Score</li><li>✓ Integrations</li><li>✓ Agency Owner Freedom Index™ Scorecard</li><li>✓ Individual index reports</li></ul></section>
-                <section><h3>Your Next Step</h3><ul><li>✓ Complete the three AOFI™ dimensions</li><li>✓ Review your Agency Valuation</li><li>✓ See your Issues &amp; Opportunities</li><li>✓ Track your score over time</li></ul></section>
-              </div>
-              <button type="button" class="offer-cta" id="startFreeAofiFromIdentity">Get My Free AOFI™ Score →</button>
-              <p id="freeAofiStartError" style="margin-top:12px;color:#b42318"></p>
-            </article>` : `
-            <div class="top-one-copy">
-              <h2>Are you ready to take the step<br>only the top 1% of agency owners take?</h2>
-              <p>Choose how you want to start! That’s what the 1% do, they get started, right now, working on themselves and their agencies. That’s it!</p>
-              <p>Ok, there is more to it than that, so let us take a deeper look under the hood with you and we guarantee you will be 100% satisfied. There are no quick fixes.</p>
-            </div>
-            <article class="diagnostic-offer-card">
-              <span class="offer-kicker">${escapeHtml(selectedOffer.kicker)}</span><h2>${escapeHtml(selectedOffer.title)}</h2><p class="offer-sub">${escapeHtml(selectedOffer.subtitle)}</p>
-              <div class="offer-columns">
-                <section><h3>What We Do</h3><ul><li>✓ Owner Identity Assessment</li><li>✓ Leadership &amp; Team Accountability Review</li><li>✓ Back Office Performance Analysis<div class="offer-sublist">Marketing · Sales · Onboarding · Client Success · Services Delivery · Billing &amp; Finance</div></li><li>✓ Agency Strength Assessment</li><li>✓ Owner Dependency Assessment</li><li>✓ Agency Valuation Snapshot</li></ul></section>
-                <section><h3>What You Get</h3><ul><li>✓ Owner Freedom Report</li><li>✓ Custom 90 Day Priority Roadmap</li><li>✓ Custom 1 Year Goals &amp; Strategic Plan</li><li>✓ (Optional) Accountability Partner &amp; Platform</li></ul></section>
-              </div>
-              <a href="/payment/?plan=${encodeURIComponent(selectedPlan)}" class="next-payment offer-cta" data-plan="${escapeHtml(selectedPlan)}">${escapeHtml(selectedOffer.cta)}</a>
-            </article>`}
+          <button class="nav-btn primary identity-continue" id="continueIdentity">
+            ${hasActivePaidWorkspace ? 'Continue to Agency Diagnostic →' : freeAofi ? 'Get My Free AOFI™ Score →' : 'Continue to Payment →'}
+          </button>
         </section>
       </main>`;
-    document.getElementById('viewIdentityPdf')?.addEventListener('click', () => {
-      window.CCArchetypePDF?.openPdf?.({ fallbackUrl: location.href });
-    });
+
     document.getElementById('retryIdentityEmail')?.addEventListener('click', async event => {
-      const button = event.currentTarget;
-      const status = document.getElementById('identityEmailRetryStatus');
-      button.disabled = true;
-      button.textContent = 'Sending…';
-      if (status) status.textContent = '';
+      const button = event.currentTarget, status = document.getElementById('identityEmailRetryStatus');
+      button.disabled = true; button.textContent = 'Sending…'; if(status)status.textContent='';
       try {
-        await window.CCArchetypePDF.emailReport(email);
-        localStorage.setItem('ownerArchetypeEmailStatus', 'sent');
-        if (status) status.textContent = `Report sent to ${email}.`;
-        button.textContent = 'Sent ✓';
-      } catch (error) {
-        localStorage.setItem('ownerArchetypeEmailStatus', 'failed');
-        localStorage.setItem('ownerArchetypeEmailError', String(error?.message || 'Email delivery failed.'));
-        if (status) status.textContent = error?.message || 'The email could not be sent.';
-        button.disabled = false;
-        button.textContent = 'Email Report Again';
+        await window.CCArchetypePDF?.emailReport?.(email);
+        localStorage.setItem('ownerArchetypeEmailStatus','sent');
+        if(status)status.textContent=`Report sent to ${email}.`;
+        button.textContent='Sent ✓';
+      } catch(error) {
+        if(status)status.textContent=error?.message||'The email could not be sent.';
+        button.disabled=false; button.textContent='Email Report Again';
       }
     });
 
-    document.querySelector('#continueIdentity')?.addEventListener('click', () => {
+    document.querySelector('#continueIdentity')?.addEventListener('click', async event => {
       if(hasActivePaidWorkspace){
-        localStorage.setItem('ccProgramPath', selectedPlan);
+        localStorage.setItem('ccProgramPath',selectedPlan);
         location.href='/diagnostic/';
         return;
       }
-      const offer = document.querySelector('#diagnosticOffer');
-      offer.hidden = false;
-      offer.scrollIntoView({behavior:'smooth', block:'start'});
-    });
-    document.querySelector('#startFreeAofiFromIdentity')?.addEventListener('click', async event => {
-      const button=event.currentTarget,errorNode=document.querySelector('#freeAofiStartError');
-      button.disabled=true;button.textContent='Creating your free account…';if(errorNode)errorNode.textContent='';
+      if(!freeAofi){
+        localStorage.setItem('ccProgramPath',selectedPlan);
+        location.href='/payment/?plan='+encodeURIComponent(selectedPlan)+'&source=owner-identity&email='+encodeURIComponent(data.email||'');
+        return;
+      }
+      const button=event.currentTarget;
+      button.disabled=true;button.textContent='Creating your free account…';
       try{
         const response=await fetch('/api/accounts',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
           name:[data.firstName,data.lastName].filter(Boolean).join(' ')||'Agency Owner',
-          email:data.email,
-          agencyUrl:data.agencyWebsite,
-          agencyName:data.agencyName||agencyNameFromWebsite(data.agencyWebsite),
+          email:data.email,agencyUrl:data.agencyWebsite,agencyName:data.agencyName||agencyNameFromWebsite(data.agencyWebsite),
           accessPlan:'aofi_free',journey:'aofi_free',source:'aofi-free',
+          archetypeAnswers:data.answers||{},
           archetypeResult:{key:data.archetypeKey||'',title:data.archetypeTitle||'',primaryConstraint:data.primaryConstraint||'',desiredPath:data.desiredPath||''},
           reportData:data,diagnosticState:{indexes:{},count:0,allComplete:false,reportReady:false}
         })});
         const result=await response.json().catch(()=>({}));
-        if(!response.ok||!result.account)throw new Error(result.error||'Your free AOFI™ account could not be created.');
+        if(!response.ok||!result.account){
+          if(result.code==='ACCOUNT_EXISTS'&&result.loginUrl){location.href=result.loginUrl;return}
+          throw new Error(result.error||'Your free AOFI™ account could not be created.');
+        }
         window.CCAccount?.saveAccount?.({...result.account,backend_saved:true},{forceReset:true,replaceDiagnostic:true});
         localStorage.setItem('ccProgramPath','aofi_free');localStorage.setItem('ccSignedIn','true');
         location.href='/diagnostic/';
       }catch(error){
-        if(errorNode)errorNode.textContent=error.message||'Your free AOFI™ account could not be created.';
         button.disabled=false;button.textContent='Get My Free AOFI™ Score →';
+        alert(error.message||'Your free AOFI™ account could not be created.');
       }
     });
-    if(!hasActivePaidWorkspace){
-      document.querySelector('.next-payment')?.addEventListener('click', event => {
-        localStorage.setItem('ccProgramPath', normalizePaidPlan(event.currentTarget.dataset.plan));
-      });
-    }
   }
 
   function reportSummary(key) {

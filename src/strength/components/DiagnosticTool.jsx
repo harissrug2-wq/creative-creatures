@@ -125,6 +125,15 @@ export default function DiagnosticTool() {
     ? '#d97706'
     : CATEGORY_COLORS[activeCat] || '#10b981';
 
+  let maturityContext = '';
+  try {
+    const report = JSON.parse(localStorage.getItem('ownerArchetypeReportData') || 'null');
+    const year = report?.businessStartYear || report?.answers?.business_start_year || '';
+    const revenue = report?.annualRevenue || report?.answers?.annual_revenue || '';
+    const labels = {under_1m:'under $1M',between_1m_2m:'$1M–$2M',between_2m_3m:'$2M–$3M',over_3m:'over $3M'};
+    if (year || revenue) maturityContext = `We’ll interpret these answers in context${year ? `: agency started ${year}` : ''}${revenue ? `${year ? ', ' : ': '}current revenue ${labels[revenue] || revenue}` : ''}. Choose the answer closest to today’s reality.`;
+  } catch {}
+
   return (
     <div className="app-wrapper">
       {/* ── Top Header Navigation Bar ─────────────────────── */}
@@ -245,6 +254,8 @@ export default function DiagnosticTool() {
                 Question {currentQ} of {TOTAL_STEPS}
               </span>
             </div>
+
+            {maturityContext && <div style={{margin:'0 0 12px',padding:'11px 13px',borderRadius:10,background:'#f0fbf6',border:'1px solid #d2efdf',color:'#5c6c66',fontSize:12,lineHeight:1.45}}><strong style={{color:'#226344'}}>Agency context:</strong> {maturityContext}</div>}
 
             {/* Question Card Component */}
             <QuestionCard

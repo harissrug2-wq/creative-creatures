@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Find your account · Creative Creatures</title><link rel="icon" href="/brand/creature-icon.png">
-  <link rel="stylesheet" href="/portal/base.css"><link rel="stylesheet" href="/portal/onboarding.css">
+  <link rel="stylesheet" href="/portal/base.css?v=20261007feedback1"><link rel="stylesheet" href="/portal/onboarding.css">
 </head>
 <body class="onboard-page">
   <main class="lookup-wrap lookup-doc-update">
-    <a class="lookup-logo" href="/login/"><img class="cc-logo" src="/brand/creature-logo.png" alt="Creative Creatures"></a>
+    <a class="lookup-logo aofi-journey-brand" href="/login/" aria-label="Agency Owner Freedom Index"><span class="aofi-brand-mark">AOFI™</span><span class="aofi-brand-copy">Agency Owner<br>Freedom Index™</span></a>
     <h1>Have you received your Agency Owner Identity Report yet?</h1>
-    <p class="lookup-intro">Our first step is to examine the identity (archetype) of the agency owner. This helps us understand you and how your identity is shaping how you scale your agency. This is free, but extremely valuable and important.</p>
+    <p class="lookup-intro">To get your Agency Owner Freedom Index™ score and agency value, we start with Owner Identity. If you already completed it, we’ll find your report and continue from there.</p>
     <div class="lookup-options">
       <button class="lookup-option" id="yesOption"><strong>Yes, I have one</strong><span>Please look it up for me</span></button>
       <button class="lookup-option" id="noOption"><strong>No, not yet</strong><span>Please let me get started</span></button>
@@ -45,7 +45,7 @@
     if(destination==='aofi_free')cta.textContent='Start My Owner Identity Assessment →';
     cta.addEventListener('click',()=>localStorage.setItem('ccProgramPath',destination));
     function select(mode){const yes=mode==='yes';yesOption.classList.toggle('selected',yes);noOption.classList.toggle('selected',!yes);yesPanel.hidden=!yes;noPanel.hidden=yes;cta.hidden=yes;}
-    yesOption.onclick=()=>select('yes');noOption.onclick=()=>select('no');
+    yesOption.onclick=()=>select('yes');noOption.onclick=()=>{select('no');localStorage.setItem('ccProgramPath',destination);location.href='/owner-archetype/assessment/?destination='+encodeURIComponent(destination)+'&source=signup';};
     if(prefillEmail){document.getElementById('lookupEmail').value=prefillEmail;select('yes');}
     const resultsNode=document.getElementById('lookupResults');
     const esc=v=>String(v||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -75,26 +75,24 @@
     function loginToDiagnostic(lead){const email=String(lead?.email||'').trim(),query=new URLSearchParams();if(email)query.set('email',email);query.set('destination',destination);location.href='/login/?'+query.toString();}
     async function startFreeAofi(lead,button){
       selectLead(lead);
-      const original=button?.textContent||'Get My Free AOFI™ Score';
+      const original=button?.textContent||'Continue with this report →';
       if(button){button.disabled=true;button.textContent='Creating free account…';}
       try{
-        const account=await window.CCAccount.createAccount({
-          name:lead.name,
-          email:lead.email,
-          agencyUrl:lead.agency_url,
-          agencyName:lead.agency_name,
-          accessPlan:'aofi_free',
-          journey:'aofi_free',
-          source:'aofi-free',
+        const response=await fetch('/api/accounts',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          name:lead.name,email:lead.email,agencyUrl:lead.agency_url,agencyName:lead.agency_name,
+          accessPlan:'aofi_free',journey:'aofi_free',source:'aofi-free-existing-report',
           leadId:String(lead.id||'').replace(/^account:/,''),
-          archetypeResult:lead.archetype_result||{},
-          reportData:lead.report_data||{},
+          archetypeAnswers:lead.report_data?.answers||{},archetypeResult:lead.archetype_result||{},reportData:lead.report_data||{},
           diagnosticState:{indexes:{},count:0,allComplete:false,reportReady:false}
-        });
-        localStorage.setItem('ccProgramPath','aofi_free');
-        localStorage.setItem('ccSignedIn','true');
+        })});
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||!result.account){
+          if(result.code==='ACCOUNT_EXISTS'&&result.loginUrl){location.href=result.loginUrl;return}
+          throw new Error(result.error||'Your free AOFI™ account could not be created.');
+        }
+        window.CCAccount?.saveAccount?.({...result.account,backend_saved:true},{forceReset:true,replaceDiagnostic:true});
+        localStorage.setItem('ccProgramPath','aofi_free');localStorage.setItem('ccSignedIn','true');
         location.href='/diagnostic/';
-        return account;
       }catch(error){
         const err=document.getElementById('lookupError');
         err.textContent=error?.message||'Your free AOFI™ account could not be created.';
@@ -106,14 +104,13 @@
       const isFree=destination==='aofi_free';
       resultsNode.innerHTML=leads.map((lead,index)=>{
         const active=lead.account_exists===true;
-        const primary=active
-          ? `<button type="button" class="cc-btn cc-btn-primary" data-login-lead="${index}">${isFree?'Continue to My AOFI™ Score':'Login'}</button>`
+        const action=active
+          ? `<button type="button" class="cc-btn cc-btn-primary" data-login-lead="${index}">Continue with this report →</button>`
           : isFree
-            ? `<button type="button" class="cc-btn cc-btn-primary" data-free-lead="${index}">Get My Free AOFI™ Score</button>`
-            : `<button type="button" class="cc-btn cc-btn-primary" data-pay-lead="${index}">Proceed to Payment</button>`;
-        return `<article class="lookup-result-card" data-lead-index="${index}"><div class="lookup-result-info"><strong>${esc(lead.name)}</strong><span>${esc(lead.email)}</span><small>${esc(lead.agency_url)}</small></div><div class="lookup-result-actions"><button type="button" class="cc-btn cc-btn-secondary" data-view-lead="${index}">View Report</button>${primary}</div></article>`;
+            ? `<button type="button" class="cc-btn cc-btn-primary" data-free-lead="${index}">Continue with this report →</button>`
+            : `<button type="button" class="cc-btn cc-btn-primary" data-pay-lead="${index}">Continue with this report →</button>`;
+        return `<article class="lookup-result-card" data-lead-index="${index}"><div class="lookup-result-info"><strong>${esc(lead.name)}</strong><span>${esc(lead.email)}</span><small>${esc(lead.agency_url)}</small></div><div class="lookup-result-actions">${action}</div></article>`;
       }).join('');
-      resultsNode.querySelectorAll('[data-view-lead]').forEach(node=>node.addEventListener('click',()=>viewLeadReport(leads[Number(node.dataset.viewLead)],node)));
       resultsNode.querySelectorAll('[data-pay-lead]').forEach(node=>node.addEventListener('click',()=>proceedToPayment(leads[Number(node.dataset.payLead)])));
       resultsNode.querySelectorAll('[data-free-lead]').forEach(node=>node.addEventListener('click',()=>startFreeAofi(leads[Number(node.dataset.freeLead)],node)));
       resultsNode.querySelectorAll('[data-login-lead]').forEach(node=>node.addEventListener('click',()=>loginToDiagnostic(leads[Number(node.dataset.loginLead)])));
@@ -126,7 +123,7 @@
       try{
         const leads=await window.CCAccount.lookupOwnerArchetypeLead({name,email,agencyUrl});
         if(!leads.length)throw new Error('No Owner Archetype report was found using those details.');
-        if(leads.length===1){const active=leads[0].account_exists===true;ok.textContent=active?(destination==='aofi_free'?'Owner Identity report found. Continue to your AOFI™ score account.':'Owner Archetype report found. Your Agency Diagnostic account is already active.'):(destination==='aofi_free'?'Owner Identity report found. You are ready to get your free AOFI™ score.':'Owner Archetype report found. View your report or continue to payment when you are ready.');ok.classList.add('show');renderLeadResults(leads);return;}
+        if(leads.length===1){const active=leads[0].account_exists===true;ok.textContent=active?(destination==='aofi_free'?'Owner Identity report found. Continue to your AOFI™ score account.':'Owner Archetype report found. Your Agency Diagnostic account is already active.'):(destination==='aofi_free'?'Owner Identity Report found. Continue to your free AOFI™ Score.':'Owner Identity Report found. Continue with this report.');ok.classList.add('show');renderLeadResults(leads);return;}
         ok.textContent='We found more than one matching report. Choose the correct report below.';ok.classList.add('show');
         renderLeadResults(leads);
       }catch(error){err.textContent=error?.message||'We could not find an Owner Archetype report using those details.';err.classList.add('show');}

@@ -146,7 +146,11 @@
     }
 
     if (yesOption) yesOption.onclick = () => select('yes');
-    if (noOption) noOption.onclick = () => select('no');
+    if (noOption) noOption.onclick = () => {
+      select('no');
+      localStorage.setItem('ccProgramPath', destination);
+      window.location.href = '/owner-archetype/assessment/?destination=' + encodeURIComponent(destination) + '&source=signup';
+    };
 
     const esc = v => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -193,27 +197,52 @@
       location.href = '/login/?' + query.toString();
     }
 
+    async function activateFreeAofi(lead, button) {
+      selectLead(lead);
+      if(button){button.disabled=true;button.textContent='Creating free AOFI™ account…'}
+      try{
+        const report=lead.report_data||{}, archetype=lead.archetype_result||{};
+        const response=await fetch('/api/accounts',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          name:lead.name||[report.firstName,report.lastName].filter(Boolean).join(' ')||'Agency Owner',
+          email:lead.email,agencyUrl:lead.agency_url,agencyName:lead.agency_name||report.agencyName||'',
+          accessPlan:'aofi_free',journey:'aofi_free',source:'aofi-free-existing-report',leadId:lead.id,
+          archetypeAnswers:report.answers||{},archetypeResult:archetype,reportData:report,
+          diagnosticState:{indexes:{},count:0,allComplete:false,reportReady:false}
+        })});
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||!result.account){
+          if(result.code==='ACCOUNT_EXISTS'&&result.loginUrl){location.href=result.loginUrl;return}
+          throw new Error(result.error||'Your free AOFI™ account could not be created.');
+        }
+        window.CCAccount?.saveAccount?.({...result.account,backend_saved:true},{forceReset:true,replaceDiagnostic:true});
+        localStorage.setItem('ccProgramPath','aofi_free');localStorage.setItem('ccSignedIn','true');
+        location.href='/diagnostic/';
+      }catch(error){
+        if(errorNode){errorNode.textContent=error.message||'Your free AOFI™ account could not be created.';errorNode.classList.add('show')}
+        if(button){button.disabled=false;button.textContent='Continue with this report →'}
+      }
+    }
+
+    function continueWithLead(lead, button) {
+      const paid = lead.is_paid === true && lead.account_exists === true;
+      if(destination==='aofi_free'){ void activateFreeAofi(lead,button); return; }
+      if(paid){ loginToDiagnostic(lead); return; }
+      proceedToPayment(lead);
+    }
+
     function renderLeadResults(leads) {
       if (!resultsNode) return;
-      resultsNode.innerHTML = leads.map((lead, index) => {
-        const paid = lead.is_paid === true && lead.account_exists === true;
-        return `<article class="lookup-result-card" data-lead-index="${index}">
+      resultsNode.innerHTML = leads.map((lead, index) => `<article class="lookup-result-card" data-lead-index="${index}">
           <div class="lookup-result-info">
             <strong>${esc(lead.name)}</strong>
             <span>${esc(lead.email)}</span>
             <small>${esc(lead.agency_url)}</small>
           </div>
           <div class="lookup-result-actions">
-            <button type="button" class="cc-btn cc-btn-secondary" data-view-lead="${index}">View Report</button>
-            ${paid ? `<button type="button" class="cc-btn cc-btn-primary" data-login-lead="${index}">Login</button>`
-                   : `<button type="button" class="cc-btn cc-btn-primary" data-pay-lead="${index}">Proceed to Payment</button>`}
+            <button type="button" class="cc-btn cc-btn-primary" data-use-lead="${index}">Continue with this report →</button>
           </div>
-        </article>`;
-      }).join('');
-
-      resultsNode.querySelectorAll('[data-view-lead]').forEach(node => node.addEventListener('click', () => viewLeadReport(leads[Number(node.dataset.viewLead)], node)));
-      resultsNode.querySelectorAll('[data-pay-lead]').forEach(node => node.addEventListener('click', () => proceedToPayment(leads[Number(node.dataset.payLead)])));
-      resultsNode.querySelectorAll('[data-login-lead]').forEach(node => node.addEventListener('click', () => loginToDiagnostic(leads[Number(node.dataset.loginLead)])));
+        </article>`).join('');
+      resultsNode.querySelectorAll('[data-use-lead]').forEach(node => node.addEventListener('click', () => continueWithLead(leads[Number(node.dataset.useLead)],node)));
     }
 
     if (form) {
@@ -249,8 +278,10 @@
             const paid = leads[0].is_paid === true && leads[0].account_exists === true;
             if (successNode) {
               successNode.textContent = paid
-                ? 'Owner Archetype report found. Your account is already active.'
-                : 'Owner Archetype report found. View your report or continue to payment when you are ready.';
+                ? 'Owner Identity Report found. Continue with this account.'
+                : destination === 'aofi_free'
+                  ? 'Owner Identity Report found. Continue to your free AOFI™ Score.'
+                  : 'Owner Identity Report found. Continue with this report.';
               successNode.classList.add('show');
             }
             renderLeadResults(leads);

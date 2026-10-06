@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 
 /*
  * QuestionCard — Multiple Choice Question (MCQ) Radio Cards component
@@ -27,6 +27,18 @@ export default function QuestionCard({
     if (isSaving) return;
     onAnswer(isScaleTest ? 'scale' : question.id, val);
   };
+
+  useEffect(() => {
+    const handleEnter = event => {
+      if (event.key !== 'Enter' || event.shiftKey || !canProceed || isSaving) return;
+      const tag = String(document.activeElement?.tagName || '').toLowerCase();
+      if (['input','textarea','select'].includes(tag)) return;
+      event.preventDefault();
+      onNext?.();
+    };
+    window.addEventListener('keydown', handleEnter);
+    return () => window.removeEventListener('keydown', handleEnter);
+  }, [canProceed, isSaving, onNext]);
 
   return (
     <div className="q-card fade-in">
@@ -180,6 +192,8 @@ export default function QuestionCard({
           {saveError}
         </div>
       )}
+
+      {canProceed && !isSaving && <div style={{padding:'0 28px 12px',fontSize:11,color:'#94a3b8',textAlign:'right'}}>Press Enter ↵ to continue</div>}
 
       {/* ── Divider ──────────────────────────────────── */}
       <div style={{ height: 1, background: '#f1f5f9', margin: 0 }} />
