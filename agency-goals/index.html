@@ -35,6 +35,7 @@
 .card-customizer-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
 @media(max-width:760px){.card-customizer-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:500px){.card-customizer-grid{grid-template-columns:1fr}}
+.setup-path{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0 0 26px}.setup-step{border:1px solid var(--line);background:#fff;border-radius:13px;padding:14px 15px;text-align:left;cursor:pointer;display:grid;grid-template-columns:28px minmax(0,1fr);gap:10px;align-items:start}.setup-step:hover{border-color:#b9bcff}.setup-step.complete{background:#f8fdf9;border-color:#cde8d5}.setup-step.current{background:#f7f7ff;border-color:#cfd2ff;box-shadow:0 0 0 2px rgba(39,44,243,.06)}.setup-step-num{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:#eff0f3;color:#667085;font-size:11px;font-weight:800}.setup-step.complete .setup-step-num{background:#e5f6eb;color:#13834a}.setup-step.current .setup-step-num{background:#3033ed;color:#fff}.setup-step strong{display:block;font-size:12.5px;color:#242a36}.setup-step span{display:block;font-size:10.5px;line-height:1.4;color:#7b8595;margin-top:3px}@media(max-width:720px){.setup-path{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -397,6 +398,18 @@
           <span class="status-pill ${model.goalsComplete ? 'complete' : ''}">${model.goalsComplete ? `Completed ${model.goalsCompletedAt ? new Date(model.goalsCompletedAt).toLocaleDateString() : ''}` : 'Saved to your account · survives refresh and sign-in'}</span>
         </header>
 
+        <section class="setup-path" aria-label="Agency Goals setup steps">
+          <button type="button" class="setup-step ${Number(readiness.targetCount||0)>=Number(readiness.targetTotal||goals.length)?'complete':'current'}" data-setup-target="agencyTargetsSection">
+            <span class="setup-step-num">${Number(readiness.targetCount||0)>=Number(readiness.targetTotal||goals.length)?'✓':'1'}</span><span><strong>Agency Targets</strong><span>Set the few agency-level outcomes that matter most.</span></span>
+          </button>
+          <button type="button" class="setup-step ${Number(readiness.definedDepartmentCount||0)>=Number(readiness.departmentTotal||departments.length)?'complete':Number(readiness.targetCount||0)>=Number(readiness.targetTotal||goals.length)?'current':''}" data-setup-target="departmentGoalsSection">
+            <span class="setup-step-num">${Number(readiness.definedDepartmentCount||0)>=Number(readiness.departmentTotal||departments.length)?'✓':'2'}</span><span><strong>Department Goals</strong><span>Assign an owner, outcome, status and target date.</span></span>
+          </button>
+          <button type="button" class="setup-step ${Number(readiness.rockCount||rocks.length)>0?'complete':Number(readiness.definedDepartmentCount||0)>=Number(readiness.departmentTotal||departments.length)?'current':''}" data-setup-target="prioritiesSection">
+            <span class="setup-step-num">${Number(readiness.rockCount||rocks.length)>0?'✓':'3'}</span><span><strong>90-Day Priorities</strong><span>Turn the plan into a short list of accountable actions.</span></span>
+          </button>
+        </section>
+
         <div class="readiness-bar">
           <div class="readiness-item"><span>Agency targets</span><strong>${Number(readiness.targetCount || 0)} / ${Number(readiness.targetTotal || goals.length)}</strong></div>
           <div class="readiness-item"><span>Department goals defined</span><strong>${Number(readiness.definedDepartmentCount || 0)} / ${Number(readiness.departmentTotal || departments.length)}</strong></div>
@@ -404,7 +417,7 @@
           <div class="readiness-item"><span>Current evidence gaps</span><strong>${Array.isArray(readiness.evidenceGaps) ? readiness.evidenceGaps.length : goals.filter(goal => !goal.available).length}</strong></div>
         </div>
 
-        <div class="section-head">
+        <div class="section-head" id="agencyTargetsSection">
           <div><h2>Agency Goals</h2><p>Current actuals are tracked over time. Choose which agency and department cards are most useful for this workspace.</p></div>
           <button class="button" id="customizeGoalCards" type="button">Customize cards</button>
         </div>
@@ -429,7 +442,7 @@
           <button class="button primary" id="saveAllTargets" type="button" disabled>Save All Targets</button>
         </div>
 
-        <div class="section-head">
+        <div class="section-head" id="departmentGoalsSection">
           <div><h2>Departmental Goals</h2><p>High-confidence diagnostic suggestions appear when supported by evidence. Otherwise the goal stays blank until you define it.</p><p class="status-help"><strong>On Track</strong> = expected to hit target · <strong>Watch</strong> = at risk · <strong>Off Track</strong> = unlikely without intervention</p></div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
             <span>Department Targets</span>
@@ -444,7 +457,7 @@
           </table>
         </section>
 
-        <div class="section-head">
+        <div class="section-head" id="prioritiesSection">
           <div><h2>90-Day Priorities</h2><p>Specific focus areas for the upcoming 90 days to eliminate constraints.</p></div>
           <span>${rocks.length} Priorities Defined</span>
         </div>
@@ -467,6 +480,8 @@
           ${readiness.canComplete ? '' : `<div class="completion-warning">Before finishing, set all ${Number(readiness.targetTotal || goals.length)} agency targets${Array.isArray(readiness.partialDepartments) && readiness.partialDepartments.length ? ` and finish the defined departmental goals: ${esc(Array.from(new Set(readiness.partialDepartments)).join(', '))}` : ''}${Array.isArray(readiness.incompleteRocks) && readiness.incompleteRocks.length ? ` and complete owner/due date for ${esc(Array.from(new Set(readiness.incompleteRocks)).join(', '))}` : ''}.</div>`}
         </div>
       </div>`;
+
+    document.querySelectorAll('[data-setup-target]').forEach(button=>button.addEventListener('click',()=>document.getElementById(button.dataset.setupTarget)?.scrollIntoView({behavior:'smooth',block:'start'})));
 
     const openTargetEditor = goalId => {
       activeGoal = goals.find(x => x.id === goalId);
