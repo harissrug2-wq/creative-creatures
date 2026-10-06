@@ -75,26 +75,24 @@
     function loginToDiagnostic(lead){const email=String(lead?.email||'').trim(),query=new URLSearchParams();if(email)query.set('email',email);query.set('destination',destination);location.href='/login/?'+query.toString();}
     async function startFreeAofi(lead,button){
       selectLead(lead);
-      const original=button?.textContent||'Get My Free AOFI™ Score';
+      const original=button?.textContent||'Continue with this report →';
       if(button){button.disabled=true;button.textContent='Creating free account…';}
       try{
-        const account=await window.CCAccount.createAccount({
-          name:lead.name,
-          email:lead.email,
-          agencyUrl:lead.agency_url,
-          agencyName:lead.agency_name,
-          accessPlan:'aofi_free',
-          journey:'aofi_free',
-          source:'aofi-free',
+        const response=await fetch('/api/accounts',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+          name:lead.name,email:lead.email,agencyUrl:lead.agency_url,agencyName:lead.agency_name,
+          accessPlan:'aofi_free',journey:'aofi_free',source:'aofi-free-existing-report',
           leadId:String(lead.id||'').replace(/^account:/,''),
-          archetypeResult:lead.archetype_result||{},
-          reportData:lead.report_data||{},
+          archetypeAnswers:lead.report_data?.answers||{},archetypeResult:lead.archetype_result||{},reportData:lead.report_data||{},
           diagnosticState:{indexes:{},count:0,allComplete:false,reportReady:false}
-        });
-        localStorage.setItem('ccProgramPath','aofi_free');
-        localStorage.setItem('ccSignedIn','true');
+        })});
+        const result=await response.json().catch(()=>({}));
+        if(!response.ok||!result.account){
+          if(result.code==='ACCOUNT_EXISTS'&&result.loginUrl){location.href=result.loginUrl;return}
+          throw new Error(result.error||'Your free AOFI™ account could not be created.');
+        }
+        window.CCAccount?.saveAccount?.({...result.account,backend_saved:true},{forceReset:true,replaceDiagnostic:true});
+        localStorage.setItem('ccProgramPath','aofi_free');localStorage.setItem('ccSignedIn','true');
         location.href='/diagnostic/';
-        return account;
       }catch(error){
         const err=document.getElementById('lookupError');
         err.textContent=error?.message||'Your free AOFI™ account could not be created.';
