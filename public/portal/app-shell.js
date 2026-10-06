@@ -95,9 +95,13 @@
     // The client Diagnostic layout already shows the four-step progress below.
     // Do not render the redundant full-width onboarding status rail.
 
+    const aofiJourneyBrand = ['diagnostic','scorecard'].includes(active);
+    const brandMarkup = aofiJourneyBrand
+      ? '<span class="shell-aofi-mark">AOFI™</span><span class="shell-aofi-copy">Agency Owner<br>Freedom Index™</span>'
+      : '<img class="cc-platform-logo" src="/brand/creature-logo.png" alt="Creative Creatures">';
     el.innerHTML = `
       <header class="app-topbar">
-        <div class="top-brand-wrap"><a class="top-logo" href="/login/"><img class="cc-platform-logo" src="/brand/creature-logo.png" alt="Creative Creatures"></a><span class="account-plan-tag" data-account-plan-tag hidden></span></div>
+        <div class="top-brand-wrap"><a class="top-logo ${aofiJourneyBrand?'aofi-shell-brand':''}" href="/login/">${brandMarkup}</a><span class="account-plan-tag" data-account-plan-tag hidden></span></div>
         <nav class="app-nav">${desktopNav}</nav>
         <a class="shell-upgrade" href="/account/upgrade/" data-account-upgrade hidden>Upgrade</a><button class="ask-creature" hidden><img src="/brand/creature-icon.png" class="cc-ask-logo-icon" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;">Ask Creature</button>${profile}
         <button class="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false">☰</button>
@@ -172,7 +176,8 @@
       if(access.plan==='aofi_free'){
         el.querySelectorAll('[data-account-plan-tag]').forEach(tag=>{tag.hidden=false;tag.textContent='Free AOFI™'});
       }
-      const canUpgrade=access.actor?.role==='owner'&&access.plan!=='fractional_coo'&&(!window.CCDemo?.enabled||window.CCDemo?.tier==='free');
+      const aofiFocus=['diagnostic','scorecard'].includes(active);
+      const canUpgrade=!aofiFocus&&access.actor?.role==='owner'&&access.plan!=='fractional_coo'&&(!window.CCDemo?.enabled||window.CCDemo?.tier==='free');
       el.querySelectorAll('[data-account-upgrade]').forEach(link=>{link.hidden=!canUpgrade});
     }).catch(()=>{});
     el.querySelector('.ask-creature')?.addEventListener('click',async()=>{try{(await loadWorkspace()).openAsk()}catch{}});
