@@ -186,11 +186,20 @@ export default async function handler(req,res){
   try{
     const action=clean(req.query?.action);
     if(req.method!=='POST')return json(res,405,{error:'Method not allowed.'});
-    if(!['checkout','status','webhook'].includes(action))return json(res,410,{error:'Simulated payment activation has been disabled. Use Stripe Checkout.'});
+    if(!['checkout','status','webhook','billing_portal'].includes(action))return json(res,410,{error:'Simulated payment activation has been disabled. Use Stripe Checkout.'});
     const cfg=settings();if(!accountSessionSecret())throw fail(503,'Account sessions are not configured.');
     if(action==='webhook')return await webhook(req,res,await rawBody(req));
     if(req.headers.origin!==cfg.url)throw fail(403,'Request origin is not allowed.');
     const b=await jsonBody(req);
+    if(action==='billing_portal'){
+      const session=owner(req);
+      if(!session)throw fail(401,'Sign in as the agency owner to manage billing.');
+      const rows=await db(`cc_stripe_orders?account_id=eq.${encodeURIComponent(session.accountId)}&state=eq.paid&customer_id=not.is.null&select=customer_id,subscription_id,updated_at&order=updated_at.desc&limit=1`).catch(()=>[]);
+      const billing=Array.isArray(rows)?rows[0]:null;
+      if(!billing?.customer_id)throw fail(404,'No managed Stripe subscription was found for this agency.');
+      const portal=await stripe('billing_portal/sessions',{customer:billing.customer_id,return_url:`${cfg.url}/account/upgrade/`});
+      return json(res,200,{url:portal.url});
+    }
     if(action==='checkout'){
       const plan=clean(b.plan);if(!Object.hasOwn(PLANS,plan))throw fail(422,'Choose a valid package.');
       const session=owner(req);

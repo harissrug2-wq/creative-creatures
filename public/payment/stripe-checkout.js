@@ -13,9 +13,23 @@
   const account=window.CCAccount?.getAccount?.(),email=document.getElementById('checkoutEmail');
   email.value=account?.email||localStorage.getItem('ccOwnerEmail')||'';
   const form=document.getElementById('paymentForm'),button=form.querySelector('button[type=submit]'),error=document.getElementById('paymentError');
-  const showError=message=>{error.textContent=message;error.classList.add('show');};
+  const manageSubscription=document.getElementById('manageExistingSubscription');
+  const showError=message=>{
+    error.textContent=message;error.classList.add('show');
+    if(manageSubscription)manageSubscription.hidden=!/existing subscription|manage(?:d)? before starting an upgrade|subscription/i.test(String(message||''));
+  };
   async function request(action,body){const r=await fetch(`/api/payment-confirmation?action=${action}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const data=await r.json();if(!r.ok)throw Object.assign(new Error(data.error||'Unable to complete checkout.'),{code:data.code});return data;}
-  const signOutButton=document.getElementById('checkoutSignOut');
+  manageSubscription?.addEventListener('click',async()=>{
+    const original=manageSubscription.textContent;manageSubscription.disabled=true;manageSubscription.textContent='Opening billing…';
+    try{
+      const response=await fetch('/api/payment-confirmation?action=billing_portal',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'});
+      const payload=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(payload.error||'Billing portal could not be opened.');
+      const target=new URL(payload.url);if(target.protocol!=='https:')throw new Error('Unexpected billing portal address.');
+      location.assign(target.href);
+    }catch(e){showError(e.message);manageSubscription.disabled=false;manageSubscription.textContent=original}
+  });
+    const signOutButton=document.getElementById('checkoutSignOut');
   signOutButton.addEventListener('click',async()=>{
     if(signOutButton.disabled)return;
     signOutButton.disabled=true;button.disabled=true;

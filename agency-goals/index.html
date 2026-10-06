@@ -24,6 +24,17 @@
 .goal-card.pending{border-color:#9296ff;box-shadow:0 0 0 2px rgba(39,44,243,.08)}
 .target-batch-bar{position:sticky;bottom:14px;z-index:20;margin:18px 0 0;padding:14px 16px;border:1px solid #d8dafd;border-radius:14px;background:rgba(255,255,255,.96);box-shadow:0 10px 30px rgba(31,35,160,.12);display:flex;align-items:center;justify-content:space-between;gap:16px}.target-batch-bar span{font-size:13px;color:var(--muted)}.target-batch-bar strong{color:#2529df}.target-batch-bar button:disabled{opacity:.5;cursor:not-allowed}
 @media(max-width:580px){.target-batch-bar{align-items:stretch;flex-direction:column;bottom:8px}.target-batch-bar .button{width:100%}}
+.goal-card.department-card{border-color:#dce3f5;background:#fbfcff}
+.goal-card.department-card .actual{font-size:18px;line-height:1.3;margin-top:12px}
+.goal-card.department-card .department-owner{font-size:11px;color:#7b8595;margin-top:5px}
+.card-customizer{margin:0 0 14px;border:1px solid var(--line);background:#fff;border-radius:14px;padding:16px;display:none}
+.card-customizer.show{display:block}
+.card-customizer-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.card-customizer label{display:flex;gap:8px;align-items:flex-start;border:1px solid #e8e9e6;border-radius:9px;padding:9px 10px;font-size:11px;line-height:1.35}
+.card-customizer h3{font-size:13px;margin:0 0 9px}.card-customizer p{font-size:11px;color:var(--muted);margin:0 0 12px}
+.card-customizer-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:12px}
+@media(max-width:760px){.card-customizer-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:500px){.card-customizer-grid{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
@@ -127,7 +138,7 @@
       <div class="form-grid">
         <div class="field full"><label>Priority title</label><input id="rockTitle" maxlength="160" placeholder="e.g. Delegate pricing authority"></div>
         <div class="field full"><label>Description / Done looks like</label><textarea id="rockDescription" placeholder="Describe the measurable outcome"></textarea></div>
-        <div class="field"><label>Owner</label><input id="rockOwner" value="Agency Owner" placeholder="Owner name"></div>
+        <div class="field"><label>Owner</label><select id="rockOwner"></select></div>
         <div class="field"><label>Due date</label><input id="rockDueDate" type="date"></div>
       </div>
       <div class="modal-actions">
@@ -174,7 +185,7 @@
 
   <script src="/portal/diagnostic-state.js"></script>
   <script src="/portal/account-client.js?v=20261001shared1"></script><script src="/portal/demo-account.js?v=20260930free1"></script>
-  <script src="/portal/goals-client.js?v=20260929demo2"></script>
+  <script src="/portal/goals-client.js?v=20261007goals2"></script>
   <script src="/portal/app-shell.js?v=20261007feedback1"></script>
   <script>
   (async () => {
@@ -225,11 +236,15 @@
     const departments = Array.isArray(model.departments) ? model.departments : [];
     const rocks = Array.isArray(model.rocks) ? model.rocks : [];
     const readiness = model.readiness || {};
+    const cardLayout = model.cardLayout || { metricIds: goals.map(goal=>goal.id), departmentNames: [] };
     let activeGoal = null;
     let activeProgressGoal = null;
     const pendingTargets = new Map();
 
     const agencyOwnerName = (model?.account?.name || [localStorage.getItem('ccOwnerFirstName'), localStorage.getItem('ccOwnerLastName')].filter(Boolean).join(' ') || localStorage.getItem('ccOwnerFirstName') || window.CCAccount?.getAccount?.()?.name || 'Agency Owner').trim();
+    const teamOwners = [{name:agencyOwnerName,email:model?.account?.email||'',role:'owner'}, ...(Array.isArray(model.members)?model.members:[])]
+      .filter((item,index,array)=>item?.name&&array.findIndex(other=>String(other.name).toLowerCase()===String(item.name).toLowerCase())===index);
+    const ownerOptionsHtml = selected => teamOwners.map(item => `<option value="${esc(item.name)}" ${String(item.name)===String(selected)?'selected':''}>${esc(item.name)}${item.role==='partner'?' (Partner Owner)':item.role==='owner'?' (Agency Owner)':''}</option>`).join('');
 
     if (model.goalsComplete) {
       localStorage.setItem('agencyGoalsComplete', 'true');
@@ -295,6 +310,15 @@
         </article>`;
     };
 
+    const departmentCard = department => `
+      <article class="goal-card department-card" data-department-card="${esc(department.name)}" title="Department goal">
+        <div class="goal-label"><span>${esc(department.name)}</span></div>
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#9aa2ae;margin-top:8px">Department Goal</div>
+        <div class="actual">${esc(department.goal || 'Goal not defined')}</div>
+        <div class="department-owner">${esc(department.owner || 'Owner not assigned')} · ${esc(department.status || 'Needs Definition')}</div>
+        <div class="target ${department.completionDate?'':'empty'}"><span>Target date</span><strong>${department.completionDate?esc(new Date(department.completionDate+'T00:00:00').toLocaleDateString()):'Set in department table →'}</strong></div>
+      </article>`;
+
     const departmentRow = department => {
       const suggestion = department.suggestion;
       const suggestionHtml = suggestion && !department.goal ? `
@@ -355,7 +379,7 @@
           <span>${esc(rock.description || '90-Day priority')}</span>
           <small class="rock-source">${esc(rock.sourceType === 'manual' ? 'Manual' : 'Scorecard')}</small>
         </div>
-        <input data-rock-field="owner" value="${esc(resolvedOwner)}" aria-label="Priority owner" placeholder="Owner">
+        <select data-rock-field="owner" aria-label="Priority owner">${ownerOptionsHtml(resolvedOwner)}${teamOwners.some(item=>item.name===resolvedOwner)?'':`<option selected>${esc(resolvedOwner)}</option>`}</select>
         <input data-rock-field="dueDate" type="date" value="${esc(rock.dueDate || '')}" aria-label="Priority due date">
         <select data-rock-field="status">
           ${['Not started','On track','Watch','Complete'].map(option => `<option ${rock.status === option ? 'selected' : ''}>${option}</option>`).join('')}
@@ -381,12 +405,23 @@
         </div>
 
         <div class="section-head">
-          <div><h2>Agency Goals</h2><p>Current actuals are tracked over time. Diagnostic evidence is captured automatically, and manual progress updates never change the saved target.</p></div>
-          <span>Category Goals</span>
+          <div><h2>Agency Goals</h2><p>Current actuals are tracked over time. Choose which agency and department cards are most useful for this workspace.</p></div>
+          <button class="button" id="customizeGoalCards" type="button">Customize cards</button>
         </div>
 
+        <section class="card-customizer" id="cardCustomizer">
+          <h3>Choose cards for this agency</h3>
+          <p>Swap the default agency cards and add as many departmental goal cards as you need. This layout is shared with the agency workspace.</p>
+          <strong style="font-size:11px">Agency metrics</strong>
+          <div class="card-customizer-grid" style="margin-top:8px">${goals.map(goal=>`<label><input type="checkbox" data-layout-metric="${esc(goal.id)}" ${cardLayout.metricIds?.includes(goal.id)?'checked':''}><span>${esc(goal.label)}</span></label>`).join('')}</div>
+          <strong style="display:block;font-size:11px;margin-top:14px">Department goals</strong>
+          <div class="card-customizer-grid" style="margin-top:8px">${departments.map(department=>`<label><input type="checkbox" data-layout-department="${esc(department.name)}" ${cardLayout.departmentNames?.includes(department.name)?'checked':''}><span>${esc(department.name)}</span></label>`).join('')}</div>
+          <div class="card-customizer-actions"><button class="button" id="cancelCardLayout" type="button">Cancel</button><button class="button primary" id="saveCardLayout" type="button">Save card layout</button></div>
+        </section>
+
         <div class="goals-grid">
-          ${goals.map(goalCard).join('')}
+          ${goals.filter(goal=>cardLayout.metricIds?.includes(goal.id)).map(goalCard).join('')}
+          ${departments.filter(department=>cardLayout.departmentNames?.includes(department.name)).map(departmentCard).join('')}
         </div>
 
         <div class="target-batch-bar" id="targetBatchBar">
@@ -398,7 +433,7 @@
           <div><h2>Departmental Goals</h2><p>High-confidence diagnostic suggestions appear when supported by evidence. Otherwise the goal stays blank until you define it.</p><p class="status-help"><strong>On Track</strong> = expected to hit target · <strong>Watch</strong> = at risk · <strong>Off Track</strong> = unlikely without intervention</p></div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
             <span>Department Targets</span>
-            ${(model.hasMonitorAccess && model.canManageTeam && (!model.memberCount || model.memberCount === 0)) ? `<button type="button" class="button primary add-team-member-btn" id="addTeamMemberBtn" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:8px 14px;">＋ Add Team Member</button>` : ''}
+            ${(model.hasMonitorAccess && model.canManageTeam) ? `<button type="button" class="button primary add-team-member-btn" id="addTeamMemberBtn" style="margin-top:6px;display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:8px 14px;">＋ Add Team Member</button>` : ''}
           </div>
         </div>
 
@@ -458,6 +493,21 @@
       if (event.target.closest('button')) return;
       openTargetEditor(card.dataset.goal);
     }));
+
+    document.querySelectorAll('[data-department-card]').forEach(card=>card.addEventListener('click',()=>{
+      document.querySelector(`[data-department="${CSS.escape(card.dataset.departmentCard)}"]`)?.scrollIntoView({behavior:'smooth',block:'center'});
+    }));
+    document.querySelector('#customizeGoalCards')?.addEventListener('click',()=>document.querySelector('#cardCustomizer')?.classList.toggle('show'));
+    document.querySelector('#cancelCardLayout')?.addEventListener('click',()=>document.querySelector('#cardCustomizer')?.classList.remove('show'));
+    document.querySelector('#saveCardLayout')?.addEventListener('click',async()=>{
+      const button=document.querySelector('#saveCardLayout');
+      const metricIds=[...document.querySelectorAll('[data-layout-metric]:checked')].map(input=>input.dataset.layoutMetric);
+      const departmentNames=[...document.querySelectorAll('[data-layout-department]:checked')].map(input=>input.dataset.layoutDepartment);
+      if(!metricIds.length&&!departmentNames.length){showToast('Choose at least one card.');return}
+      button.disabled=true;button.textContent='Saving…';
+      try{await window.CCGoals.saveCardLayout(metricIds,departmentNames);showToast('Agency Goal cards updated.');setTimeout(()=>location.reload(),220)}
+      catch(error){button.disabled=false;button.textContent='Save card layout';showToast(error.message||'Card layout could not be saved.')}
+    });
 
     const renderProgressHistory = goal => {
       const list = document.querySelector('#progressHistoryList');
@@ -661,7 +711,7 @@
     document.querySelector('#addPriority').addEventListener('click', () => {
       document.querySelector('#rockTitle').value = '';
       document.querySelector('#rockDescription').value = '';
-      document.querySelector('#rockOwner').value = agencyOwnerName;
+      document.querySelector('#rockOwner').innerHTML = ownerOptionsHtml(agencyOwnerName);
       document.querySelector('#rockDueDate').value = defaultRockDue();
       show('#rockModal');
     });
@@ -741,7 +791,6 @@
           showToast(`Team member ${name} added.`);
         }
         model.memberCount = (model.memberCount || 0) + 1;
-        document.querySelector('#addTeamMemberBtn')?.remove();
         const row = document.querySelector(`[data-department="${dept}"] [data-field="owner"]`);
         if (row && !row.value) {
           row.value = name;

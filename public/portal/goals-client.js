@@ -131,8 +131,9 @@
   const saveDepartment = department => action('save_department', department);
   const createRocks = rocks => action('create_rocks', { rocks });
   const updateRock = rock => action('update_rock', rock);
+  const saveCardLayout = (metricIds, departmentNames) => action('save_card_layout', { metricIds, departmentNames });
   const complete = () => action('complete');
   const clear = () => { cached = null; loadPromise = null; clearSession(); };
 
-  window.CCGoals = { load, saveTarget, saveTargets, saveProgress, saveDepartment, createRocks, updateRock, complete, clear };
+  window.CCGoals = { load, saveTarget, saveTargets, saveProgress, saveDepartment, createRocks, updateRock, saveCardLayout, complete, clear };
 })();
