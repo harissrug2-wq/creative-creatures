@@ -45,6 +45,7 @@
     .row-copy{color:#7a8797;font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.row-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
     .status{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:#f7f8f8;color:#718091;border-radius:999px;padding:6px 10px;font-size:11px;white-space:nowrap}.status:before{content:'';width:7px;height:7px;border-radius:50%;background:#aeb6c0}.status.connected{background:var(--green-soft);border-color:#d2ecda;color:#27804b}.status.connected:before{background:#22ad5a}.status.error{background:var(--red-soft);border-color:#f3d1ce;color:#a73a35}.status.error:before{background:#d45149}.status.provisioning{background:var(--amber-soft);border-color:#f3e1b0;color:#9b6e00}.status.provisioning:before{background:#e3a500}
     .working{background:var(--amber-soft);border:1px solid #ecd59b;color:#946600;border-radius:999px;padding:7px 11px;font-size:11px}
+    .integration-scope-guide{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 20px}.scope-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px}.scope-card strong{display:block;font-size:13px;margin-bottom:5px}.scope-card p{margin:0;color:#778395;font-size:11.5px;line-height:1.5}.scope-badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 7px;font-size:9px;font-weight:800;letter-spacing:.03em;background:#f0f2ff;color:#3438d7;border:1px solid #d9dcff}.scope-badge.personal{background:#edf9f1;color:#187b49;border-color:#d0ecd9}.provider-note{margin:0 0 20px;padding:12px 14px;border:1px solid #e2e4ec;border-radius:11px;background:#fbfbfd;color:#667085;font-size:11.5px;line-height:1.5}
     .footnote{font-size:10px;color:#98a4b1;margin-top:18px}
     .modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.46);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);z-index:300;display:none;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto;box-sizing:border-box}.modal-backdrop.show{display:flex}
     .modal{width:min(920px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow-y:auto;background:#fff;border:1px solid var(--line);border-radius:18px;padding:26px;box-shadow:0 24px 70px rgba(0,0,0,.2);margin:auto;box-sizing:border-box}
@@ -54,7 +55,7 @@
     .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:12px}.field{display:grid;gap:5px;min-width:0;flex:1}.field label{font-size:11px;font-weight:750}.field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;font-size:12px;box-sizing:border-box}.field textarea{min-height:85px;resize:vertical}
     .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field.full{grid-column:1/-1}
     .category-modal{width:min(840px,calc(100vw - 32px))}.catalog-section{padding:16px 0}.catalog-section+.catalog-section{border-top:1px solid var(--line)}.catalog-section h3{font-size:15px;margin:0 0 4px}.catalog-section>p{font-size:12px;color:var(--muted);margin:0 0 12px}.catalog-list{display:grid;gap:9px}.catalog-tool{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:11px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:11px}.catalog-tool .btn{min-height:34px}.catalog-copy{min-width:0}.catalog-copy strong{display:block;font-size:13px}.catalog-copy span{display:block;color:var(--muted);font-size:11px;margin-top:3px;overflow-wrap:anywhere}.request-grid{display:grid;grid-template-columns:1fr 1.4fr auto;gap:9px;align-items:end}.request-grid .field{min-width:0}.request-success{color:var(--green);font-size:12px;font-weight:700;margin-top:10px;overflow-wrap:anywhere}
-    @media(max-width:900px){.page{width:calc(100% - 26px);padding-top:24px}.hero{flex-direction:column}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-row{grid-template-columns:38px minmax(0,1fr)}.row-actions{grid-column:1/-1;justify-content:flex-start;padding-left:50px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.request-grid{grid-template-columns:1fr;gap:12px}.request-grid .field input{font-size:16px}.request-grid .btn{width:100%;min-height:44px;margin-top:4px;font-size:15px}}
+    @media(max-width:900px){.integration-scope-guide{grid-template-columns:1fr}.page{width:calc(100% - 26px);padding-top:24px}.hero{flex-direction:column}.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-row{grid-template-columns:38px minmax(0,1fr)}.row-actions{grid-column:1/-1;justify-content:flex-start;padding-left:50px}.metric-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.request-grid{grid-template-columns:1fr;gap:12px}.request-grid .field input{font-size:16px}.request-grid .btn{width:100%;min-height:44px;margin-top:4px;font-size:15px}}
     @media(max-width:600px){.stats{grid-template-columns:1fr 1fr}.stat{padding:15px}.stat strong{font-size:25px}.group-head{align-items:flex-start}.integration-row{padding:14px}.row-actions{padding-left:0}.row-actions>*{flex:1}.row-actions .status{flex:0 0 100%;justify-content:center}.modal{width:calc(100vw - 16px);max-height:calc(100dvh - 16px);padding:18px 14px;border-radius:14px}.metric-grid,.form-grid{grid-template-columns:1fr}.field.full{grid-column:auto}.modal-actions .btn{width:100%}.row-copy{white-space:normal}}
 
     /* CC_INTEGRATIONS_RESPONSIVE_HOTFIX_V1 */
@@ -98,9 +99,15 @@
     <header class="hero">
       <div>
         <h1>Integrations</h1>
-        <p>Connect and manage the tools your agency uses. Add available systems, track upcoming options, or request a new integration directly inside each category.</p>
+        <p>Connect and manage the tools your agency uses. Company systems stay attached to the agency workspace, while calendar and meeting connections can represent an individual user.</p>
       </div>
     </header>
+
+    <section class="integration-scope-guide" aria-label="Integration scope">
+      <article class="scope-card"><strong>Company-wide integrations</strong><p>CRM, bookkeeping, billing, project management, communications, drive, HR and security systems feed the shared agency workspace.</p></article>
+      <article class="scope-card"><strong>Personal calendar &amp; meetings</strong><p>Calendar and meeting providers can represent an individual owner or team member so scheduled meetings can be attributed to the right person.</p></article>
+    </section>
+    <p class="provider-note"><strong>Use the account that owns the data.</strong> Your QuickBooks, Stripe, Google or other provider login can use a different email from your Creative Creatures login. If the provider gives you access to multiple companies, choose the company that belongs to this agency during authorization.</p>
 
     <section class="stats">
       <article class="stat"><label>Connected</label><strong id="connectedStat">0 / 0</strong><small id="categoryStat">across 0 categories</small></article>
@@ -171,7 +178,7 @@
       'Sage':{group:'Bookkeeping',code:'Sg',color:'#00a376',copy:'Accounting · reporting'},
       'FreshBooks':{group:'Bookkeeping',code:'Fb',color:'#0075dd',copy:'OAuth2 · clients · invoices · payments · expenses · reports',status:'freshbooks_status',connect:'freshbooks_connect',sync:'freshbooks_sync',disconnect:'freshbooks_disconnect',manage:'freshbooks'},
       'NetSuite':{group:'Bookkeeping',code:'Ns',color:'#425563',copy:'ERP · finance · reporting'},
-      'Stripe':{group:'Billing',code:'St',color:'#635bff',copy:'Customers · draft invoices · payment status',status:'stripe_status',connect:'stripe_connect',disconnect:'stripe_disconnect',manage:'stripe'},
+      'Stripe':{group:'Billing',code:'St',color:'#635bff',copy:'Connect an existing Stripe business · customers · invoices · payment status',status:'stripe_status',connect:'stripe_connect',disconnect:'stripe_disconnect',manage:'stripe'},
       'Square':{group:'Billing',code:'Sq',color:'#111',copy:'Payments · customers · orders'},
       'PayPal':{group:'Billing',code:'PP',color:'#0070ba',copy:'Payments · transactions'},
       'Chargebee':{group:'Billing',code:'Cb',color:'#6c48ff',copy:'Subscriptions · invoices'},
@@ -196,7 +203,7 @@
       'Google Calendar':{group:'Calendar & Meetings',code:'31',color:'#4285f4',copy:'OAuth2 · calendars · events',status:'google_calendar_status',connect:'google_calendar_connect',disconnect:'google_calendar_disconnect',manage:'calendar'},
       'Outlook Calendar':{group:'Calendar & Meetings',code:'Oc',color:'#0078d4',copy:'Microsoft 365 · calendars · events'},
       'Zoom':{group:'Calendar & Meetings',code:'Zm',color:'#2d8cff',copy:'OAuth2 · connected host · upcoming meetings',status:'zoom_status',connect:'zoom_connect',sync:'zoom_sync',disconnect:'zoom_disconnect',manage:'zoom'},
-      'Calendly':{group:'Calendar & Meetings',code:'Ca',color:'#006bff',copy:'Scheduling · event types · invitees'},
+      'Calendly':{group:'Calendar & Meetings',code:'Ca',color:'#006bff',copy:'Coming soon · personal scheduling · event types · invitees'},
       'Google Drive':{group:'Central Drive',code:'Dr',color:'#1a73e8',copy:'OAuth2 · files · folders · revisions',status:'google_drive_status',connect:'google_drive_connect',sync:'google_drive_refresh',disconnect:'google_drive_disconnect',manage:'drive'},
       'Dropbox':{group:'Central Drive',code:'Db',color:'#0061ff',copy:'Files · folders · sharing'},
       'OneDrive':{group:'Central Drive',code:'Od',color:'#0078d4',copy:'Files · folders · Microsoft 365'},
@@ -206,7 +213,7 @@
       'Rippling':{group:'HR & People',code:'Rp',color:'#f4cf00',copy:'People · payroll · devices'},
       'ADP':{group:'HR & People',code:'AD',color:'#d0271d',copy:'Payroll · workforce · HR'},
       'Justworks':{group:'HR & People',code:'Jw',color:'#f97316',copy:'Payroll · benefits · HR'},
-      'Keeper':{group:'IT & Security',code:'Ke',color:'#ffc400',copy:'Vault · security posture'},
+      'Keeper':{group:'IT & Security',code:'Ke',color:'#ffc400',copy:'Coming soon · vault · security posture'},
       'Bitwarden':{group:'IT & Security',code:'Bw',color:'#175ddc',copy:'Vault · organizations · security'},
       '1Password':{group:'IT & Security',code:'1P',color:'#0a61ff',copy:'Vault · users · security'},
       'Cloudflare':{group:'IT & Security',code:'Cf',color:'#f48120',copy:'DNS · security · traffic'},
@@ -302,6 +309,8 @@
       });
       wireButtons();updateStats();
     }
+    const scopeFor=tool=>meta[tool]?.group==='Calendar & Meetings'?'personal':'company';
+    const scopeLabel=tool=>scopeFor(tool)==='personal'?'Personal / user':'Company-wide';
     function rowHtml(tool){
       const m=meta[tool]||{group:'Other',code:tool.slice(0,2),color:'#667085',copy:'Selected agency integration'};
       const [cls,label]=statusLabel(tool),s=stateMap.get(tool)||{};
@@ -310,7 +319,7 @@
       if(!supported)actions=`<span class="status provisioning">${label}</span><span class="working">● Working on it</span>`;
       else if(!connected)actions=`<span class="status ${cls}">${label}</span><button class="btn primary" data-connect="${esc(tool)}" ${s.configured===false?'disabled':''}>${s.reconnectRequired?'Reconnect':'Connect'}</button>`;
       else actions=`<span class="status ${cls}">${label}</span>${m.manage?`<button class="btn" data-manage="${esc(tool)}">Manage</button>`:''}${m.sync?`<button class="btn" data-sync="${esc(tool)}">Sync now</button>`:''}${m.disconnect?`<button class="btn danger" data-disconnect="${esc(tool)}">Disconnect</button>`:''}`;
-      return `<article class="integration-row"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="row-main"><div class="row-title"><strong>${esc(tool)}</strong>${connected?'<span class="active-source">active source</span>':''}</div><div class="row-copy">${esc(m.copy)}</div></div><div class="row-actions">${actions}</div></article>`;
+      return `<article class="integration-row"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="row-main"><div class="row-title"><strong>${esc(tool)}</strong><span class="scope-badge ${scopeFor(tool)==='personal'?'personal':''}">${scopeLabel(tool)}</span>${connected?'<span class="active-source">active source</span>':''}</div><div class="row-copy">${esc(m.copy)}</div></div><div class="row-actions">${actions}</div></article>`;
     }
     function updateStats(){
       const supported=selected.filter(t=>meta[t]?.status);
@@ -338,7 +347,7 @@
 
     function catalogToolHtml(tool,available){
       const m=meta[tool],isSelected=selectionFor(activeCategory).includes(tool);
-      return `<article class="catalog-tool"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="catalog-copy"><strong>${esc(tool)}</strong><span>${esc(m.copy)}</span></div><button class="btn ${isSelected?'danger':available?'primary':''}" data-catalog-tool="${esc(tool)}">${isSelected?'Remove':available?'Add':'Add to list'}</button></article>`;
+      return `<article class="catalog-tool"><div class="logo" style="background:${m.color}">${esc(m.code)}</div><div class="catalog-copy"><strong>${esc(tool)} <span class="scope-badge ${scopeFor(tool)==='personal'?'personal':''}">${scopeLabel(tool)}</span></strong><span>${esc(m.copy)}</span></div><button class="btn ${isSelected?'danger':available?'primary':''}" data-catalog-tool="${esc(tool)}">${isSelected?'Remove':available?'Add':'Add to list'}</button></article>`;
     }
     function openCategoryModal(category){
       activeCategory=category;
