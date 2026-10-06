@@ -61,7 +61,13 @@
 
   document.querySelectorAll('[data-app-header]').forEach(async el => {
     if(adminTenantView){try{await window.CCAccount?.ready}catch{}}
-    else{Promise.resolve(window.CCAccount?.ready).catch(()=>{});}
+    else{
+      try{
+        await window.CCAccount?.ready;
+        const auth=await fetch('/api/account-auth?action=workspace_access',{credentials:'same-origin',headers:{Accept:'application/json'}});
+        if(auth.status===401){location.replace('/login/?destination='+encodeURIComponent(el.dataset.appHeader||'diagnostic'));return}
+      }catch{}
+    }
     const active = el.dataset.appHeader || '';
     const state = window.CCDiagnostic?.getState?.() || {reportReady:false, ownerComplete:false, strength:false, independence:false, performance:false};
     const account = readAccount();
