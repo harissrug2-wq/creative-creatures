@@ -317,7 +317,7 @@ export const QUESTIONS = [
     id: 26,
     category: 'validation',
     categoryName: 'Validation',
-    text: 'If you were unable to work for the next 90 days due to illness, travel, or another life event, which statement best describes what would happen?',
+    text: 'Consistency check: thinking about your answers as a whole, if you were unable to work for the next 90 days, which statement best describes what would happen?',
     type: 'choice',
     options: [
       { label: 'The business would likely stop operating effectively.', score: 0 },
