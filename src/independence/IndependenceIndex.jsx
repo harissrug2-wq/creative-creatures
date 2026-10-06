@@ -231,6 +231,28 @@ export default function App() {
   const back = () => currentIdx > 0 && setCurrentIdx(i => i - 1);
   const categoryColor = isValidation ? '#d97706' : '#2563eb';
 
+  useEffect(() => {
+    const handleEnter = event => {
+      if (event.key !== 'Enter' || event.shiftKey || !currentAnswered || isSaving) return;
+      const tag = String(document.activeElement?.tagName || '').toLowerCase();
+      if (['input','textarea','select'].includes(tag)) return;
+      if (!['choice'].includes(currentQuestion.type)) return;
+      event.preventDefault();
+      next();
+    };
+    window.addEventListener('keydown', handleEnter);
+    return () => window.removeEventListener('keydown', handleEnter);
+  }, [currentAnswered, isSaving, currentIdx, currentQuestion.type]);
+
+  let ownerContext = null;
+  try {
+    const report = JSON.parse(localStorage.getItem('ownerArchetypeReportData') || 'null');
+    const founderRole = report?.answers?.stage_q6;
+    if (['A','B','C','D'].includes(founderRole)) {
+      ownerContext = 'Your Owner Identity answers indicate meaningful founder involvement. Answer for today’s reality—not the structure you want to have later.';
+    }
+  } catch {}
+
   return (
     <div className="app-wrapper independence-strength-ui">
       <header className="top-header">
@@ -277,6 +299,7 @@ export default function App() {
               <span className="question-counter">Question {currentIdx + 1} of {totalQuestions}</span>
             </div>
 
+            {ownerContext && <div style={{margin:'0 0 12px',padding:'11px 13px',borderRadius:10,background:'#f4f6ff',border:'1px solid #e0e3ff',color:'#59627a',fontSize:12,lineHeight:1.45}}><strong style={{color:'#32386f'}}>Owner context:</strong> {ownerContext}</div>}
             <section className="q-card fade-in">
               {isValidation && <div className="question-badge-wrap"><span className="question-badge validation">⌁ Validation Question</span></div>}
               <div className="question-title-wrap">
@@ -392,6 +415,7 @@ export default function App() {
                 </div>
               )}
 
+              {currentQuestion.type === 'choice' && currentAnswered && !isSaving && <div style={{padding:'0 0 10px',fontSize:11,color:'#94a3b8',textAlign:'right'}}>Press Enter ↵ to continue</div>}
               <div className="question-card-divider" />
               {saveError && <p style={{ color: '#b91c1c', margin: '0 0 12px', fontSize: '14px' }}>{saveError}</p>}
               <div className="question-card-actions">
