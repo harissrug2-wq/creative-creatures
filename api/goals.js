@@ -502,7 +502,8 @@ async function saveProgressUpdate(config, accountId, runId, body) {
   return row ? normalizeProgressRow(row) : null;
 }
 
-async function loadModel(config, account, session = null) {
+async function loadModel(config, account, session = null, options = {}) {
+  const readOnly = options.readOnly === true;
   const run = await getCurrentRun(config, account.id);
   if (!run) {
     const error = new Error('Complete the diagnostic before defining Agency Goals.');
@@ -521,21 +522,43 @@ async function loadModel(config, account, session = null) {
 
   const [indexRows, evidenceRows, targetRows, departmentRows, rockRows, initialProgressRows] = await Promise.all([
     getIndexRows(config, run.id),
-    getEvidenceRows(config, run.id),
-    getTargets(config, account.id),
-    getDepartments(config, account.id),
-    getRocks(config, account.id),
-    getProgressRows(config, account.id)
+    getEvidenceRows(config, run.id).catch(error => {
+      console.warn('Goals: financial evidence unavailable for read model.', error?.message || error);
+      return [];
+    }),
+    getTargets(config, account.id).catch(error => {
+      console.warn('Goals: agency targets unavailable for read model.', error?.message || error);
+      return [];
+    }),
+    getDepartments(config, account.id).catch(error => {
+      console.warn('Goals: department goals unavailable for read model.', error?.message || error);
+      return [];
+    }),
+    getRocks(config, account.id).catch(error => {
+      console.warn('Goals: 90-day priorities unavailable for read model.', error?.message || error);
+      return [];
+    }),
+    getProgressRows(config, account.id).catch(error => {
+      console.warn('Goals: progress history unavailable for read model.', error?.message || error);
+      return [];
+    })
   ]);
 
   // Always derive the Goals valuation from the current persisted diagnostic
   // results. This makes the scorecard snapshot the single valuation source of
   // truth and prevents an old placeholder from surviving a retake.
   const valuationSnapshot = buildValuationSnapshot(indexRows, { diagnosticRunId: run.id });
-  const scorecardWithValuation = await persistValuationSnapshot(config, scorecard, valuationSnapshot);
+  // Page-load GETs must be read-only. Persist valuation/progress only during
+  // explicit mutating workflows; otherwise a dashboard read can fail because a
+  // background write failed or timed out.
+  const scorecardWithValuation = readOnly
+    ? { ...scorecard, report_data: withValuationReportData(scorecard?.report_data || {}, valuationSnapshot) }
+    : await persistValuationSnapshot(config, scorecard, valuationSnapshot);
 
   const sourceMetrics = buildMetrics(scorecardWithValuation, indexRows, evidenceRows);
-  const progressRows = await syncDiagnosticProgress(config, account.id, run.id, sourceMetrics, initialProgressRows);
+  const progressRows = readOnly
+    ? initialProgressRows
+    : await syncDiagnosticProgress(config, account.id, run.id, sourceMetrics, initialProgressRows);
   const latestProgress = latestProgressByMetric(progressRows);
   const progressHistory = {};
   for (const definition of METRICS) {
@@ -1009,7 +1032,7 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       if (account.access_plan === 'aofi_free') return json(res, 200, { ok: true, goals: previewGoalsModel(account), preview: true });
-      const model = await loadModel(config, account, session);
+      const model = await loadModel(config, account, session, { readOnly: true });
       return json(res, 200, { ok: true, goals: model });
     }
 

@@ -140,7 +140,7 @@
   let chatModule;
   async function openAsk(){
     if(!chatModule)chatModule=new Promise((resolve,reject)=>{
-      const script=document.createElement('script');script.src='/shared/ask-creature-ui.js';
+      const script=document.createElement('script');script.src='/shared/ask-creature-ui.js?v=20261009icon1';
       script.onload=resolve;script.onerror=()=>{chatModule=null;script.remove();reject(new Error('Chat could not load. Please refresh and try again.'));};
       document.head.appendChild(script);
     });
