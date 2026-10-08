@@ -73,17 +73,39 @@
       return cached;
     }
     if (cached && options.fresh !== true) return cached;
+
+    try { await window.CCAccount?.ready; } catch {}
     const current = requireIdentity();
+
     if(options.fresh!==true){
       const saved=readSession(current);
       if(saved){cached=saved;return cached}
       if(loadPromise)return loadPromise;
     }
+
+    const pageParams = new URLSearchParams(location.search);
+    const adminView =
+      pageParams.get('admin') === '1' ||
+      sessionStorage.getItem('cc_admin_mode') === '1';
+
     const params = new URLSearchParams();
-    if (current.accountId) params.set('accountId', current.accountId);
-    if (current.email) params.set('email', current.email);
-    if (current.agencyUrl) params.set('agencyUrl', current.agencyUrl);
-    loadPromise = request(`${API_BASE}?${params.toString()}`).then(payload => {
+    if (adminView) {
+      const tenant = pageParams.get('tenant') || pageParams.get('accountId') || sessionStorage.getItem('cc_admin_tenant') || '';
+      if (tenant) {
+        params.set('admin','1');
+        params.set('tenant',tenant);
+        params.set('accountId',tenant);
+      }
+    }
+
+    // Normal workspace access is authorized entirely by the signed account
+    // session cookie. Do not send localStorage account/email/url selectors:
+    // member logins can differ from the agency owner identity and stale browser
+    // values otherwise cause ACCOUNT_ACCESS_DENIED.
+    const query = params.toString();
+    const url = query ? `${API_BASE}?${query}` : API_BASE;
+
+    loadPromise = request(url).then(payload => {
       cached = payload.goals || null;
       writeSession(current,cached);
       return cached;
