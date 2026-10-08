@@ -101,10 +101,22 @@
     // The client Diagnostic layout already shows the four-step progress below.
     // Do not render the redundant full-width onboarding status rail.
 
-    const aofiJourneyBrand = ['diagnostic','scorecard'].includes(active);
+    const accountPlan = String(
+      account?.accessPlan ||
+      account?.access_plan ||
+      account?.journey ||
+      localStorage.getItem('ccProgramPath') ||
+      ''
+    ).trim().toLowerCase().replace(/-/g,'_');
+
+    // Brand by customer flow, not by page:
+    // Free AOFI accounts keep AOFI branding through their authenticated journey.
+    // Platform / Diagnostic / Accelerator / Fractional COO accounts use Creature branding,
+    // even when they are viewing Diagnostic or AOFI Score pages.
+    const aofiJourneyBrand = accountPlan === 'aofi_free';
     const brandMarkup = aofiJourneyBrand
       ? '<img class="cc-aofi-logo" src="/brand/aofi-logo.png" alt="Agency Owner Freedom Index™">'
-      : '<img class="cc-platform-logo" src="/brand/creature-logo.png" alt="Creative Creatures">';
+      : '<img class="cc-platform-logo" src="/brand/creature-logo.png" alt="Creature Agency Intelligence">';
     el.innerHTML = `
       <header class="app-topbar">
         <div class="top-brand-wrap"><a class="top-logo ${aofiJourneyBrand?'aofi-shell-brand':''}" href="/login/">${brandMarkup}</a><span class="account-plan-tag" data-account-plan-tag hidden></span><span class="beta-version-badge" title="Creative Creatures beta version" aria-label="Beta Version">Beta Version</span></div>
