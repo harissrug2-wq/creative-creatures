@@ -23,7 +23,7 @@
   const bool = key => localStorage.getItem(key) === 'true';
   if(!window.CCWorkspace&&!document.querySelector('link[data-cc-workspace-preload]')){
     const preload=document.createElement('link');
-    preload.rel='preload';preload.as='script';preload.href='/shared/workspace-access.js?v=20260930free1';preload.dataset.ccWorkspacePreload='1';
+    preload.rel='preload';preload.as='script';preload.href='/shared/workspace-access.js?v=20261009ask1';preload.dataset.ccWorkspacePreload='1';
     document.head.appendChild(preload);
   }
   const shellParams=new URLSearchParams(location.search);
@@ -143,7 +143,7 @@
         else location.href=link.href;
       })).catch(()=>{});
     });
-    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js?v=20260930free1';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
+    const loadWorkspace=()=>new Promise((resolve,reject)=>{if(window.CCWorkspace)return resolve(window.CCWorkspace);let script=document.querySelector('script[data-cc-workspace]');if(!script){script=document.createElement('script');script.src='/shared/workspace-access.js?v=20261009ask1';script.dataset.ccWorkspace='1';document.head.appendChild(script)}script.addEventListener('load',()=>resolve(window.CCWorkspace),{once:true});script.addEventListener('error',reject,{once:true})});
     loadWorkspace().then(async workspace=>{
       const access=await workspace.getAccess();
       const previews=Array.isArray(access.previewFeatures)?access.previewFeatures:[];
