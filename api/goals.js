@@ -95,7 +95,10 @@ async function getScorecard(config, runId) {
 
 async function getIndexRows(config, runId) {
   const params = new URLSearchParams({
-    select: 'index_type,score,confidence,validation_status,category_scores,details,updated_at',
+    // Keep this aligned with the scorecard API. Some production index_results
+    // rows expose completed_at but not updated_at; selecting a missing column
+    // makes the entire Goals/Monitor request fail.
+    select: 'index_type,score,confidence,validation_status,category_scores,details,completed_at',
     diagnostic_run_id: `eq.${runId}`
   });
   const rows = await supabaseRequest(config, `index_results?${params.toString()}`);
@@ -278,19 +281,19 @@ function buildMetrics(scorecard, indexRows, evidenceRows) {
   const leadershipDisplay = leadershipLevel === null ? null : `${leadershipLevel} / 5`;
 
   const financialUpdatedAt = maxTimestamp([
-    performance.updated_at,
+    performance.completed_at,
     ...evidenceRows.map(row => row?.updated_at)
   ]);
-  const valuationUpdatedAt = maxTimestamp(indexRows.map(row => row?.updated_at));
+  const valuationUpdatedAt = maxTimestamp(indexRows.map(row => row?.completed_at));
 
   return [
-    metric('ownerDelivery', ownerDelivery, 'Owner Independence evidence', null, 'Data not available', independence.updated_at),
-    metric('ownerSales', ownerSales, 'Owner Independence evidence', null, 'Data not available', independence.updated_at),
+    metric('ownerDelivery', ownerDelivery, 'Owner Independence evidence', null, 'Data not available', independence.completed_at),
+    metric('ownerSales', ownerSales, 'Owner Independence evidence', null, 'Data not available', independence.completed_at),
     metric('revenue', revenue, 'Financial evidence', null, 'Data not available', financialUpdatedAt),
     metric('cogs', cogs, 'Financial evidence', null, 'Data not available', financialUpdatedAt),
     metric('margin', netMargin, 'Financial evidence', null, 'Data not available', financialUpdatedAt),
     metric('sde', adjustedSDE, 'Agency Performance · Adjusted SDE', null, 'Data not available', financialUpdatedAt),
-    metric('leadership', leadershipLevel, 'Agency Strength · Leadership System', leadershipDisplay, 'Data not available', strength.updated_at),
+    metric('leadership', leadershipLevel, 'Agency Strength · Leadership System', leadershipDisplay, 'Data not available', strength.completed_at),
     metric('aofi', aofi, 'Generated Agency Scorecard', null, 'Data not available', scorecard?.generated_at),
     metric('valuation', enterpriseValuation, 'Agency Valuation™ · Step 7B snapshot', null, valuationUnavailable, valuationUpdatedAt)
   ];
@@ -1388,19 +1391,19 @@ function buildMetrics(scorecard, indexRows, evidenceRows) {
   const leadershipDisplay = leadershipLevel === null ? null : `${leadershipLevel} / 5`;
 
   const financialUpdatedAt = maxTimestamp([
-    performance.updated_at,
+    performance.completed_at,
     ...evidenceRows.map(row => row?.updated_at)
   ]);
   const valuationUpdatedAt = maxTimestamp(indexRows.map(row => row?.updated_at));
 
   return [
-    metric('ownerDelivery', ownerDelivery, 'Owner Independence evidence', null, 'Data not available', independence.updated_at),
-    metric('ownerSales', ownerSales, 'Owner Independence evidence', null, 'Data not available', independence.updated_at),
+    metric('ownerDelivery', ownerDelivery, 'Owner Independence evidence', null, 'Data not available', independence.completed_at),
+    metric('ownerSales', ownerSales, 'Owner Independence evidence', null, 'Data not available', independence.completed_at),
     metric('revenue', revenue, 'Financial evidence', null, 'Data not available', financialUpdatedAt),
     metric('cogs', cogs, 'Financial evidence', null, 'Data not available', financialUpdatedAt),
     metric('margin', netMargin, 'Financial evidence', null, 'Data not available', financialUpdatedAt),
     metric('sde', adjustedSDE, 'Agency Performance · Adjusted SDE', null, 'Data not available', financialUpdatedAt),
-    metric('leadership', leadershipLevel, 'Agency Strength · Leadership System', leadershipDisplay, 'Data not available', strength.updated_at),
+    metric('leadership', leadershipLevel, 'Agency Strength · Leadership System', leadershipDisplay, 'Data not available', strength.completed_at),
     metric('aofi', aofi, 'Generated Agency Scorecard', null, 'Data not available', scorecard?.generated_at),
     metric('valuation', enterpriseValuation, 'Agency Valuation™ · Step 7B snapshot', null, valuationUnavailable, valuationUpdatedAt)
   ];
