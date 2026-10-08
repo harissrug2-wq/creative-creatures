@@ -24,8 +24,8 @@
   }
 
   function sessionKey(current=identity()){
-    const key=current.accountId||current.email||current.agencyUrl||'';
-    return key?`cc_goals_cache:${key}`:'';
+    const key=current.accountId||current.email||current.agencyUrl||'session';
+    return `cc_goals_cache:${key}`;
   }
   function readSession(current){
     try{
@@ -75,7 +75,7 @@
     if (cached && options.fresh !== true) return cached;
 
     try { await window.CCAccount?.ready; } catch {}
-    const current = requireIdentity();
+    const current = identity();
 
     if(options.fresh!==true){
       const saved=readSession(current);
@@ -134,10 +134,21 @@
       cached=model;
       return {success:true,goals:model,demo:true};
     }
-    const current = requireIdentity();
+    try { await window.CCAccount?.ready; } catch {}
+    const pageParams = new URLSearchParams(location.search);
+    const adminView =
+      pageParams.get('admin') === '1' ||
+      sessionStorage.getItem('cc_admin_mode') === '1';
+
+    const selector = {};
+    if (adminView) {
+      const tenant = pageParams.get('tenant') || pageParams.get('accountId') || sessionStorage.getItem('cc_admin_tenant') || '';
+      if (tenant) Object.assign(selector, { admin:'1', tenant, accountId:tenant });
+    }
+
     const payload = await request(API_BASE, {
       method: 'POST',
-      body: JSON.stringify({ ...current, action: actionName, ...fields })
+      body: JSON.stringify({ ...selector, action: actionName, ...fields })
     });
     cached = null;
     loadPromise = null;
