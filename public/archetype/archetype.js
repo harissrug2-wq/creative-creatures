@@ -219,7 +219,7 @@
 
   const makeId = prefix => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-  const logo = () => `<a class="archetype-brand aofi-journey-brand" href="/" aria-label="Agency Owner Freedom Index"><img src="/brand/aofi-logo.svg" alt="Agency Owner Freedom Index™"></a>`;
+  const logo = () => `<a class="archetype-brand aofi-journey-brand" href="/" aria-label="Agency Owner Freedom Index"><img src="/brand/aofi-logo.png" alt="Agency Owner Freedom Index™"></a>`;
 
   function navigate(path, replace = false) {
     const target = `/owner-archetype${path}`;

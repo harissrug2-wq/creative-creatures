@@ -103,11 +103,11 @@
 
     const aofiJourneyBrand = ['diagnostic','scorecard'].includes(active);
     const brandMarkup = aofiJourneyBrand
-      ? '<img class="cc-aofi-logo" src="/brand/aofi-logo.svg" alt="Agency Owner Freedom Index™">'
+      ? '<img class="cc-aofi-logo" src="/brand/aofi-logo.png" alt="Agency Owner Freedom Index™">'
       : '<img class="cc-platform-logo" src="/brand/creature-logo.png" alt="Creative Creatures">';
     el.innerHTML = `
       <header class="app-topbar">
-        <div class="top-brand-wrap"><a class="top-logo ${aofiJourneyBrand?'aofi-shell-brand':''}" href="/login/">${brandMarkup}</a><span class="account-plan-tag" data-account-plan-tag hidden></span><span class="workspace-secure-badge" title="Your session is protected by HTTPS and account access controls" aria-label="Secure workspace">🔒 Secure workspace</span></div>
+        <div class="top-brand-wrap"><a class="top-logo ${aofiJourneyBrand?'aofi-shell-brand':''}" href="/login/">${brandMarkup}</a><span class="account-plan-tag" data-account-plan-tag hidden></span><span class="beta-version-badge" title="Creative Creatures beta version" aria-label="Beta Version">Beta Version</span></div>
         <nav class="app-nav">${desktopNav}</nav>
         <a class="shell-upgrade" href="/account/upgrade/" data-account-upgrade hidden>Upgrade</a><button class="ask-creature" hidden><img src="/brand/ask-creature-icon.png" class="cc-ask-logo-icon" alt="" style="width:16px;height:16px;object-fit:contain;margin-right:6px;vertical-align:middle;">Ask Creature</button>${profile}
         <button class="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false">☰</button>
