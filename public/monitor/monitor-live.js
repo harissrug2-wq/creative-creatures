@@ -39,7 +39,8 @@
     return new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(number);
   };
 
-  const currentAccount = () => safeJson(localStorage.getItem('cc_account'), null)
+  const currentAccount = () => window.CCAccount?.getAccount?.()
+    || safeJson(localStorage.getItem('cc_account'), null)
     || safeJson(localStorage.getItem('ccUserAccount'), null)
     || {};
 
@@ -482,17 +483,29 @@
   async function load() {
     renderLoading();
     try {
-      let query = queryString();
-      if (!query && (qs.get('admin') === '1' || document.cookie.includes('cc_admin_session'))) {
-        query = 'admin=1';
-      }
-      if (!query) throw new Error('Sign in to load Monitor.');
+      // Account hydration is asynchronous. Waiting here prevents a stale
+      // localStorage account ID from being sent before the signed-in workspace
+      // session has restored the current agency/member context.
+      try { await window.CCAccount?.ready; } catch {}
+
+      const adminView =
+        qs.get('admin') === '1' ||
+        sessionStorage.getItem('cc_admin_mode') === '1' ||
+        document.cookie.includes('cc_admin_session');
+
+      // Normal workspace requests are authorized by the signed account-session
+      // cookie. Do not send a browser-stored accountId/email/agencyUrl because a
+      // team member can legitimately have a different user identity from the
+      // agency owner and stale IDs cause ACCOUNT_ACCESS_DENIED.
+      const query = adminView ? queryString() : '';
+      const suffix = query ? `?${query}` : '';
+
       const demo=window.CCDemo?.enabled;
       const [goalsPayload, evidencePayload] = demo
         ? [{goals:window.CCDemo.goals},{...window.CCDemo.evidence}]
         : await Promise.all([
-            jsonRequest(`/api/goals?${query}`),
-            jsonRequest(`/api/financial-evidence?${query}`).catch(error => ({ evidence: [], _error: error }))
+            jsonRequest(`/api/goals${suffix}`),
+            jsonRequest(`/api/financial-evidence${suffix}`).catch(error => ({ evidence: [], _error: error }))
           ]);
       state.goals = goalsPayload.goals || null;
       state.evidence = evidenceMap(evidencePayload);
