@@ -523,40 +523,33 @@ async function loadModel(config, account, session = null, options = {}) {
     throw error;
   }
 
+  const optional = (label, work) => work().catch(error => {
+    console.warn(`Goals: ${label} unavailable for read model.`, error?.message || error);
+    return [];
+  });
+
   const [indexRows, evidenceRows, targetRows, departmentRows, rockRows, initialProgressRows] = await Promise.all([
-    getIndexRows(config, run.id),
-    getEvidenceRows(config, run.id).catch(error => {
-      console.warn('Goals: financial evidence unavailable for read model.', error?.message || error);
-      return [];
-    }),
-    getTargets(config, account.id).catch(error => {
-      console.warn('Goals: agency targets unavailable for read model.', error?.message || error);
-      return [];
-    }),
-    getDepartments(config, account.id).catch(error => {
-      console.warn('Goals: department goals unavailable for read model.', error?.message || error);
-      return [];
-    }),
-    getRocks(config, account.id).catch(error => {
-      console.warn('Goals: 90-day priorities unavailable for read model.', error?.message || error);
-      return [];
-    }),
-    getProgressRows(config, account.id).catch(error => {
-      console.warn('Goals: progress history unavailable for read model.', error?.message || error);
-      return [];
-    })
+    readOnly ? optional('index results', () => getIndexRows(config, run.id)) : getIndexRows(config, run.id),
+    optional('financial evidence', () => getEvidenceRows(config, run.id)),
+    optional('agency targets', () => getTargets(config, account.id)),
+    optional('department goals', () => getDepartments(config, account.id)),
+    optional('90-day priorities', () => getRocks(config, account.id)),
+    optional('progress history', () => getProgressRows(config, account.id))
   ]);
 
   // Always derive the Goals valuation from the current persisted diagnostic
   // results. This makes the scorecard snapshot the single valuation source of
   // truth and prevents an old placeholder from surviving a retake.
-  const valuationSnapshot = buildValuationSnapshot(indexRows, { diagnosticRunId: run.id });
-  // Page-load GETs must be read-only. Persist valuation/progress only during
-  // explicit mutating workflows; otherwise a dashboard read can fail because a
-  // background write failed or timed out.
-  const scorecardWithValuation = readOnly
-    ? { ...scorecard, report_data: withValuationReportData(scorecard?.report_data || {}, valuationSnapshot) }
-    : await persistValuationSnapshot(config, scorecard, valuationSnapshot);
+  // The generated Scorecard is the persisted source of truth for read-only
+  // workspace pages. Do not require index/evidence tables to be readable just
+  // to open Agency Goals or Monitor. If those optional sources are available,
+  // buildMetrics enriches the cards; otherwise AOFI/valuation still come from
+  // the saved Scorecard report_data.
+  let scorecardWithValuation = scorecard;
+  if (!readOnly) {
+    const valuationSnapshot = buildValuationSnapshot(indexRows, { diagnosticRunId: run.id });
+    scorecardWithValuation = await persistValuationSnapshot(config, scorecard, valuationSnapshot);
+  }
 
   const sourceMetrics = buildMetrics(scorecardWithValuation, indexRows, evidenceRows);
   const progressRows = readOnly
