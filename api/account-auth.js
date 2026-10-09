@@ -1441,7 +1441,27 @@ export default async function handler(req,res){
       if(action==='workspace_access'||action==='workspace_users'||action==='ask_creature_history'||action==='ask_creature_faqs'){
         return await workspaceResult(res,action,async timing=>{
           const {account,actor}=await workspaceIdentity(c,session,timing);
-          if(action==='workspace_access')return{authenticated:true,account:{id:account.id,name:account.name,email:account.email,agency_name:account.agency_name,journey:account.journey,accessPlan:accessPlan(account)},access:publicAccess(account,actor)};
+          if(action==='workspace_access'){
+            const access=publicAccess(account,actor);
+            // A generated Scorecard is authoritative for workflow unlocking.
+            // Do not leave Goals/Monitor locked because accounts.diagnostic_state
+            // is stale after regeneration or multi-owner changes.
+            try{
+              const runs=await db(c,`diagnostic_runs?select=id,status,generated_at&account_id=eq.${encodeURIComponent(account.id)}&is_current=eq.true&limit=1`);
+              const run=Array.isArray(runs)?runs[0]:null;
+              if(run?.id){
+                const cards=await db(c,`scorecards?select=id,generated_at&diagnostic_run_id=eq.${encodeURIComponent(run.id)}&limit=1`);
+                if(Array.isArray(cards)&&cards[0]){
+                  access.workflow.reportReady=true;
+                  access.workflow.allComplete=true;
+                  access.workflow.count=Math.max(3,Number(access.workflow.count||0));
+                }
+              }
+            }catch(error){
+              console.warn('workspace scorecard unlock check skipped',error?.message||error);
+            }
+            return{authenticated:true,account:{id:account.id,name:account.name,email:account.email,agency_name:account.agency_name,journey:account.journey,accessPlan:accessPlan(account)},access};
+          }
           if(action==='workspace_users'){
             requireOwner(actor);requireFeature(account,'users');
             const users=await timing.run('users',()=>listWorkspaceUsers(c,account.id));
