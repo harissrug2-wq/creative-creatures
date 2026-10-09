@@ -145,6 +145,55 @@
     </article>`).join('');
   }
 
+  function customKpiRows() {
+    const rows=array(state.payload?.customKpis);
+    if(!rows.length)return '<div class="custom-kpi-empty">No custom KPIs yet. Add the metrics your agency actually manages for this department.</div>';
+    return rows.map((item,index)=>`
+      <div class="custom-kpi-row" data-custom-kpi="${index}">
+        <input data-kpi-field="label" value="${esc(item.label||'')}" placeholder="KPI name">
+        <select data-kpi-field="type">
+          ${['number','money','percent','hours'].map(type=>`<option value="${type}" ${item.type===type?'selected':''}>${type==='money'?'Currency':type[0].toUpperCase()+type.slice(1)}</option>`).join('')}
+        </select>
+        <input data-kpi-field="current" type="number" step="any" value="${item.current??''}" placeholder="Current">
+        <input data-kpi-field="target" type="number" step="any" value="${item.target??''}" placeholder="Target">
+        <select data-kpi-field="direction"><option value="increase" ${item.direction!=='decrease'?'selected':''}>Increase</option><option value="decrease" ${item.direction==='decrease'?'selected':''}>Decrease</option></select>
+        <button type="button" class="custom-kpi-remove" data-remove-kpi="${index}" aria-label="Remove KPI">×</button>
+      </div>`).join('');
+  }
+
+  function customKpiSection() {
+    return `<section class="department-section custom-kpi-section">
+      <div class="department-section-head">
+        <div><span>Agency-defined metrics</span><h2>Custom KPIs</h2></div>
+        <small>Add the department KPIs that matter to this agency.</small>
+      </div>
+      <div class="custom-kpi-list" id="customKpiList">${customKpiRows()}</div>
+      <div class="custom-kpi-actions">
+        <button type="button" class="secondary-btn" id="addCustomKpi">＋ Add KPI</button>
+        <button type="button" class="primary-btn" id="saveCustomKpis">Save KPIs</button>
+      </div>
+      <p class="custom-kpi-note">These KPIs are shared with this agency workspace. Connected integrations can still supply the default live metrics above.</p>
+    </section>`;
+  }
+
+  async function saveCustomKpis() {
+    const rows=[...document.querySelectorAll('[data-custom-kpi]')].map((row,index)=>({
+      id:state.payload?.customKpis?.[index]?.id||`custom-${Date.now()}-${index}`,
+      label:clean(row.querySelector('[data-kpi-field="label"]')?.value),
+      type:clean(row.querySelector('[data-kpi-field="type"]')?.value)||'number',
+      current:row.querySelector('[data-kpi-field="current"]')?.value,
+      target:row.querySelector('[data-kpi-field="target"]')?.value,
+      direction:clean(row.querySelector('[data-kpi-field="direction"]')?.value)||'increase'
+    })).filter(item=>item.label);
+    const response=await fetch('/api/account-auth',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'monitor_save_custom_kpis',department:page,kpis:rows})});
+    const payload=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(payload.error||'Custom KPIs could not be saved.');
+    state.payload.customKpis=array(payload.customKpis);
+    try{sessionStorage.removeItem(monitorCacheKey())}catch{}
+    writeMonitorCache(state.payload);
+    render();
+  }
+
   function stageMaps() {
     const map=new Map();
     array(sourceData().pipelines).forEach(pipeline=>array(pipeline.stages).forEach(stage=>map.set(stage.id,{...stage,pipelineLabel:pipeline.label||pipeline.id})));
@@ -371,6 +420,7 @@
           : ''}
       <div class="department-goal-grid">${preview?previewGoalSection()+previewRocksSection():goalSection()+rocksSection()}</div>
       <section class="department-section"><div class="department-section-head"><div><span>Department Performance</span><h2>KPIs</h2></div><small>${preview?'Preview only · connect an integration to populate values.':'Missing data is never replaced with demo values.'}</small></div><div class="department-metric-grid">${metricCards(model.metrics)}</div></section>
+      ${customKpiSection()}
       ${preview
         ? `<section class="department-section"><div class="department-section-head"><div><span>Live Detail</span><h2>${esc(model.title)}</h2></div><span>${esc(`${state.year} · ${state.timeframe} · ${state.period}`)}</span></div><div class="department-list"><div class="department-preview-row"><div><strong>—</strong><span>Connected records will appear here.</span></div><b>—</b></div><div class="department-preview-row"><div><strong>—</strong><span>Additional records will populate after sync.</span></div><b>—</b></div></div></section>`
         : listSection(model)}
@@ -384,6 +434,23 @@
     document.querySelector('#departmentTimeframe')?.addEventListener('change',event=>{state.timeframe=event.target.value;normalizePeriod();render()});
     document.querySelector('#departmentPeriod')?.addEventListener('change',event=>{state.period=event.target.value;render()});
     document.querySelectorAll('[data-compare]').forEach(button=>button.addEventListener('click',()=>{state.compare=button.dataset.compare;render()}));
+    document.querySelector('#addCustomKpi')?.addEventListener('click',()=>{
+      state.payload.customKpis=[...array(state.payload?.customKpis),{id:`custom-${Date.now()}`,label:'',type:'number',current:null,target:null,direction:'increase'}];
+      render();
+      document.querySelector('[data-custom-kpi]:last-child [data-kpi-field="label"]')?.focus();
+    });
+    document.querySelectorAll('[data-remove-kpi]').forEach(button=>button.addEventListener('click',()=>{
+      const index=Number(button.dataset.removeKpi);
+      state.payload.customKpis=array(state.payload?.customKpis).filter((_,rowIndex)=>rowIndex!==index);
+      render();
+    }));
+    document.querySelector('#saveCustomKpis')?.addEventListener('click',async event=>{
+      const button=event.currentTarget;
+      const original=button.textContent;
+      button.disabled=true;button.textContent='Saving…';
+      try{await saveCustomKpis();if(window.CCToast)window.CCToast.show?.('Custom KPIs saved.');}
+      catch(error){alert(error.message||'Custom KPIs could not be saved.');button.disabled=false;button.textContent=original;}
+    });
   }
 
   function loading() {
