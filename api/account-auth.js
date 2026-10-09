@@ -998,6 +998,47 @@ function monitorIntegrationRequirement(account,department){
   return{categories,selectedTools,satisfied:categories.length===0||selectedTools.length>0};
 }
 
+
+function normalizeMonitorCustomKpis(value){
+  return (Array.isArray(value)?value:[]).slice(0,12).map((item,index)=>{
+    const label=clean(item?.label).slice(0,120);
+    if(!label)return null;
+    const type=['number','money','percent','hours'].includes(clean(item?.type))?clean(item.type):'number';
+    const direction=clean(item?.direction)==='decrease'?'decrease':'increase';
+    const current=Number(item?.current);
+    const target=Number(item?.target);
+    return{
+      id:clean(item?.id).slice(0,120)||`custom-${index+1}`,
+      label,
+      type,
+      direction,
+      current:Number.isFinite(current)?current:null,
+      target:Number.isFinite(target)?target:null,
+      updatedAt:clean(item?.updatedAt)||null
+    };
+  }).filter(Boolean);
+}
+
+function monitorCustomKpis(account,department){
+  const state=account?.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
+  const groups=state.monitorCustomKpis&&typeof state.monitorCustomKpis==='object'?state.monitorCustomKpis:{};
+  return normalizeMonitorCustomKpis(groups[department]);
+}
+
+async function saveMonitorCustomKpis(c,account,input){
+  const department=clean(input.department);
+  if(!MONITOR_DEPARTMENTS.has(department))throw Object.assign(new Error('Unknown Monitor department.'),{status:422});
+  const state=account?.diagnostic_state&&typeof account.diagnostic_state==='object'?account.diagnostic_state:{};
+  const groups=state.monitorCustomKpis&&typeof state.monitorCustomKpis==='object'?state.monitorCustomKpis:{};
+  const now=new Date().toISOString();
+  const kpis=normalizeMonitorCustomKpis(input.kpis).map(item=>({...item,updatedAt:now}));
+  const next={...state,monitorCustomKpis:{...groups,[department]:kpis},updatedAt:now};
+  await db(c,`accounts?id=eq.${encodeURIComponent(account.id)}`,{
+    method:'PATCH',headers:{Prefer:'return=minimal'},body:JSON.stringify({diagnostic_state:next,updated_at:now})
+  });
+  return kpis;
+}
+
 async function loadMonitorDepartment(c,accountId,department,providedAccount=null){
   if(!MONITOR_DEPARTMENTS.has(department))throw Object.assign(new Error('Unknown Monitor department.'),{status:422,code:'INVALID_MONITOR_DEPARTMENT'});
   const warnings=[];
@@ -1010,7 +1051,7 @@ async function loadMonitorDepartment(c,accountId,department,providedAccount=null
       integrationRequired:true,
       requiredIntegrationCategories:integrationRequirement.categories,
       selectedIntegrationTools:[],
-      goal:null,rocks:[],evidence:[],
+      goal:null,rocks:[],evidence:[],customKpis:monitorCustomKpis(account,department),
       source:{kind:'none',name:'No selected source',connected:false,connection:null,data:{}},
       warnings:[]
     };
@@ -1086,7 +1127,7 @@ async function loadMonitorDepartment(c,accountId,department,providedAccount=null
     integrationRequired:false,
     requiredIntegrationCategories:integrationRequirement.categories,
     selectedIntegrationTools:integrationRequirement.selectedTools,
-    goal:publicMonitorGoal(goalRows[0]||null),rocks:rockRows.map(publicMonitorRock),
+    goal:publicMonitorGoal(goalRows[0]||null),rocks:rockRows.map(publicMonitorRock),customKpis:monitorCustomKpis(account,department),
     evidence:visibleEvidenceRows.map(publicMonitorEvidence),source,warnings:[...new Set(warnings.concat(source.warnings||[]))].slice(0,20)
   };
 }
@@ -1685,8 +1726,8 @@ export default async function handler(req,res){
       if(bodyAction==='workspace_remove_user'){await db(c,`account_members?account_id=eq.${encodeURIComponent(account.id)}&id=eq.${encodeURIComponent(id)}`,{method:'DELETE'});return json(res,200,{success:true})}
       const patch={name:clean(b.name).slice(0,120),departments:sanitizeDepartments(b.departments),status:b.status==='disabled'?'disabled':'active',updated_at:new Date().toISOString()};if(!patch.name||!patch.departments.length)return json(res,422,{error:'Name and at least one department are required.'});if(clean(b.password)){if(clean(b.password).length<10)return json(res,422,{error:'New password must be at least 10 characters.'});patch.password_hash=hashPassword(clean(b.password))}const rows=await db(c,`account_members?account_id=eq.${encodeURIComponent(account.id)}&id=eq.${encodeURIComponent(id)}&select=id,name,email,departments,status,invited_at,last_login_at`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});return json(res,200,{success:true,user:publicMember(rows?.[0])});
     }
-    if(session?.memberId&&bodyAction&&!['monitor_department','google_calendar_events','forgot_password','reset_password'].includes(bodyAction)){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});if(actor.role==='member')return json(res,403,{error:'Your department account cannot manage agency-wide programs or integrations.'})}
-    if(session&&bodyAction&&!['forgot_password','reset_password','monitor_department'].includes(bodyAction)){
+    if(session?.memberId&&bodyAction&&!['monitor_department','monitor_save_custom_kpis','google_calendar_events','forgot_password','reset_password'].includes(bodyAction)){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});if(actor.role==='member')return json(res,403,{error:'Your department account cannot manage agency-wide programs or integrations.'})}
+    if(session&&bodyAction&&!['forgot_password','reset_password','monitor_department','monitor_save_custom_kpis'].includes(bodyAction)){
       const account=await findById(c,session.accountId);if(!account)return json(res,401,{error:'Your account access is no longer active.'});
       const feature=bodyAction.startsWith('accelerator_')?'accelerator':bodyAction==='partner_referral'?'portal':bodyAction==='google_calendar_events'?'leadership':integrationFeature(bodyAction);requireFeature(account,feature);
       if(session.memberId&&bodyAction==='google_calendar_events'){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});requireDepartment(actor,'leadership')}
@@ -1697,6 +1738,16 @@ export default async function handler(req,res){
     if(bodyAction==='accelerator_save_plan'){if(!session)return json(res,401,{error:'Sign in before saving the Accelerator plan.'});return json(res,200,{success:true,plan:await saveAcceleratorPlan(c,session.accountId,b)})}
     if(bodyAction==='accelerator_set_plan_status'){if(!session)return json(res,401,{error:'Sign in before updating the Accelerator plan.'});return json(res,200,{success:true,plan:await setAcceleratorPlanStatus(c,session.accountId,b)})}
     if(bodyAction==='partner_referral'){if(!session)return json(res,401,{error:'Sign in before contacting a strategic partner.'});return json(res,200,{success:true,referral:await savePartnerReferral(c,session.accountId,b.partnerAppId,clean(b.intent))})}
+
+    if(bodyAction==='monitor_save_custom_kpis'){
+      if(!session)return json(res,401,{error:'Sign in before editing department KPIs.'});
+      const [account,actor]=await Promise.all([findById(c,session.accountId),sessionActor(c,session)]);
+      if(!account||!actor)return json(res,401,{error:'Your account access is no longer active.'});
+      requireFeature(account,'monitor');
+      if(!['owner','partner','admin'].includes(actor.role))return json(res,403,{error:'Only an agency owner or partner owner can customize department KPIs.'});
+      const kpis=await saveMonitorCustomKpis(c,account,b);
+      return json(res,200,{success:true,department:clean(b.department),customKpis:kpis});
+    }
 
     if(bodyAction==='monitor_department'){
       if(!session)return json(res,401,{error:'Sign in before viewing Monitor department data.'});
