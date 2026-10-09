@@ -1012,6 +1012,149 @@ async function markGoalsComplete(config, account) {
   return completedAt;
 }
 
+
+async function fallbackGoalsModel(config, account, session, scorecard) {
+  const report = scorecard?.report_data && typeof scorecard.report_data === 'object' ? scorecard.report_data : {};
+  const valuation = report.valuation && typeof report.valuation === 'object' ? report.valuation : {};
+  const reports = report.reports && typeof report.reports === 'object' ? report.reports : {};
+  const performance = reports.performance || {};
+  const strength = reports.strength || {};
+  const independence = reports.independence || {};
+
+  const metricRows = [
+    metric('ownerDelivery', null, 'Owner Independence evidence'),
+    metric('ownerSales', null, 'Owner Independence evidence'),
+    metric('revenue', firstNumber([report, performance], ['revenueTTM','ttmRevenue','financials.revenueTTM','details.financials.revenueTTM']), 'Saved Scorecard'),
+    metric('cogs', firstNumber([report, performance], ['cogsPercent','financials.cogsPercent','details.financials.cogsPercent']), 'Saved Scorecard'),
+    metric('margin', firstNumber([report, performance], ['netMargin','netProfitMargin','financials.netMargin','details.financials.netMargin']), 'Saved Scorecard'),
+    metric('sde', firstNumber([report, performance], ['adjustedSDE','adjustedSde','financials.adjustedSDE','details.financials.adjustedSDE','valuation.adjustedSDE']), 'Saved Scorecard'),
+    metric('leadership', null, 'Saved Scorecard'),
+    metric('aofi', finite(scorecard?.aofi_score ?? report.score), 'Generated Agency Scorecard', null, 'Data not available', scorecard?.generated_at || null),
+    metric('valuation', finite(valuation.enterpriseValue ?? report.enterpriseValuation ?? report.enterprise_valuation), 'Generated Agency Scorecard', null, 'Valuation has not been calculated yet', valuation.calculatedAt || scorecard?.generated_at || null)
+  ];
+
+  const targetRows = await getTargets(config, account.id).catch(() => []);
+  const departmentRows = await getDepartments(config, account.id).catch(() => []);
+  const rockRows = await getRocks(config, account.id).catch(() => []);
+  const progressRows = await getProgressRows(config, account.id).catch(() => []);
+  const members = await supabaseRequest(config, `account_members?account_id=eq.${encodeURIComponent(account.id)}&select=id,name,email,role,status,departments`).catch(() => []);
+
+  const targets = Object.fromEntries(targetRows.map(row => [row.metric_id, {
+    id: row.id,
+    type: row.target_type,
+    value: row.target_value === null ? '' : Number(row.target_value),
+    baselineValue: row.baseline_actual_value === null ? null : Number(row.baseline_actual_value),
+    resolvedValue: row.resolved_target_value === null ? null : Number(row.resolved_target_value),
+    direction: Number(row.target_value) < 0 ? 'decrease' : 'increase',
+    notes: row.target_notes || '',
+    updatedAt: row.updated_at
+  }]));
+
+  const latestProgress = latestProgressByMetric(progressRows);
+  const progressHistory = {};
+  for (const definition of METRICS) {
+    progressHistory[definition.id] = progressRows
+      .filter(row => row.metric_id === definition.id)
+      .slice(0, 20)
+      .map(normalizeProgressRow);
+  }
+
+  const metrics = metricRows.map(sourceMetric => {
+    const latest = latestProgress[sourceMetric.id] || null;
+    if (!latest) return {
+      ...sourceMetric,
+      sourceActualValue: sourceMetric.actualValue,
+      sourceActualDisplay: sourceMetric.actualDisplay,
+      evidenceAvailable: sourceMetric.available,
+      currentSourceType: sourceMetric.available ? 'scorecard' : null,
+      actualUpdatedAt: sourceMetric.sourceUpdatedAt || null
+    };
+    const actualValue = Number(latest.actual_value);
+    return {
+      ...sourceMetric,
+      available: true,
+      actualValue,
+      actualDisplay: formatMetricDisplay(sourceMetric, actualValue),
+      currentSourceType: latest.source_type,
+      actualUpdatedAt: latest.captured_at || latest.created_at || null
+    };
+  });
+
+  const goalProgress = Object.fromEntries(METRICS.map(definition => {
+    const current = metrics.find(item => item.id === definition.id);
+    return [definition.id, calculateProgress(definition, current?.actualValue, targets[definition.id])];
+  }));
+
+  const savedDepartments = Object.fromEntries(departmentRows.map(row => [row.department, {
+    id: row.id,
+    goal: row.goal || '',
+    owner: row.owner_name || '',
+    status: row.status || 'Needs Definition',
+    done: row.done_looks_like || '',
+    completion: row.target_completion || '',
+    completionDate: row.target_completion_date || '',
+    updatedAt: row.updated_at
+  }]));
+
+  const departments = DEPARTMENTS.map(name => ({
+    name,
+    ...(savedDepartments[name] || { goal:'', owner:'', status:'Needs Definition', done:'', completion:'', completionDate:'' }),
+    suggestion: null
+  }));
+
+  const rocks = rockRows.map(row => ({
+    id: row.id,
+    scorecardId: row.scorecard_id,
+    sourceType: row.source_type,
+    sourceKey: row.source_key,
+    title: row.title,
+    description: row.description || '',
+    owner: row.owner_name || 'Agency Owner',
+    due: row.due || 'This quarter',
+    dueDate: row.due_date || '',
+    status: row.status || 'Not started'
+  }));
+
+  const targetCount = METRICS.filter(item => targets[item.id] && finite(targets[item.id].resolvedValue) !== null).length;
+  const partialDepartments = departments
+    .filter(item => clean(item.goal) && (!clean(item.owner) || !clean(item.done) || !clean(item.completionDate)))
+    .map(item => item.name);
+  const incompleteRocks = rocks
+    .filter(item => !clean(item.owner) || (!clean(item.due) && !clean(item.dueDate)))
+    .map(item => item.title);
+
+  return {
+    fallback: true,
+    account: { id:account.id, name:account.name, email:account.email, agencyName:account.agency_name, accessPlan:account.access_plan, journey:account.journey },
+    hasMonitorAccess: ['platform','fractional_coo'].includes(account.access_plan) || (Array.isArray(account.diagnostic_state?.purchasedPlans) && account.diagnostic_state.purchasedPlans.some(plan => ['platform','fractional_coo'].includes(plan))),
+    canManageTeam: !session?.memberId,
+    memberCount: Array.isArray(members) ? members.length : 0,
+    members: (Array.isArray(members) ? members : []).filter(m => m.status !== 'disabled').map(m => ({id:m.id,name:m.name,email:m.email,role:m.role||'member',departments:m.departments})),
+    cardLayout: normalizeGoalCardLayout(account.diagnostic_state?.agencyGoalCardLayout),
+    diagnosticRun: { id:scorecard?.diagnostic_run_id || null, status:'generated' },
+    scorecard: { id:scorecard?.id || null, aofiScore:finite(scorecard?.aofi_score ?? report.score), generatedAt:scorecard?.generated_at || report.generatedAt || null },
+    metrics,
+    targets,
+    progress: goalProgress,
+    progressHistory,
+    departments,
+    rocks,
+    readiness: {
+      targetCount,
+      targetTotal: METRICS.length,
+      definedDepartmentCount: departments.filter(item => clean(item.goal)).length,
+      departmentTotal: DEPARTMENTS.length,
+      rockCount: rocks.length,
+      evidenceGaps: metrics.filter(item => item.available === false).map(item => ({metricId:item.id,label:item.label,reason:item.source || 'Data not available'})),
+      partialDepartments,
+      incompleteRocks,
+      canComplete: targetCount === METRICS.length && partialDepartments.length === 0 && incompleteRocks.length === 0
+    },
+    goalsComplete: account.diagnostic_state?.goalsComplete === true,
+    goalsCompletedAt: account.diagnostic_state?.goalsCompletedAt || null
+  };
+}
+
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return json(res, 204, {});
   if (!['GET', 'POST'].includes(req.method)) return json(res, 405, { error: 'Method not allowed.' });
@@ -1028,8 +1171,19 @@ export default async function handler(req, res) {
 
     if (req.method === 'GET') {
       if (account.access_plan === 'aofi_free') return json(res, 200, { ok: true, goals: previewGoalsModel(account), preview: true });
-      const model = await loadModel(config, account, session, { readOnly: true });
-      return json(res, 200, { ok: true, goals: model });
+      try {
+        const model = await loadModel(config, account, session, { readOnly: true });
+        return json(res, 200, { ok: true, goals: model });
+      } catch (error) {
+        console.error('goals read model failed; using generated scorecard fallback', error);
+        const run = await getCurrentRun(config, account.id).catch(() => null);
+        const scorecard = run ? await getScorecard(config, run.id).catch(() => null) : null;
+        if (scorecard) {
+          const fallback = await fallbackGoalsModel(config, account, session, scorecard);
+          return json(res, 200, { ok: true, goals: fallback, fallback: true });
+        }
+        throw error;
+      }
     }
 
     if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed.' });
