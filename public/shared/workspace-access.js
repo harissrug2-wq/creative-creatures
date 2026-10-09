@@ -185,13 +185,7 @@
       cta:'/agency-scorecard/',
       ctaLabel:'Open AOFI™ Score'
     };
-    if(feature==='monitor'&&!goalsComplete)return{
-      kind:'flow',
-      title:'Complete Agency Goals to access Monitor',
-      message:'Finish Agency Goals and 90 Day Priorities before Monitor becomes available.',
-      cta:'/agency-goals/',
-      ctaLabel:'Complete Agency Goals'
-    };
+
     return null;
   }
   function previewCopy(feature,access){
