@@ -395,8 +395,10 @@
   const legacyRocks=root.querySelector('.rock-actions');
   const legacyGoals=root.querySelector('.define-goals-wrap');
   if(legacyInsights)priorityTarget.append(legacyInsights);
-  if(legacyRocks)priorityTarget.append(legacyRocks);
+  // Client meeting direction: define Agency Goals before converting issues into
+  // 90-day priorities. Keep both actions, but present Goals first.
   if(legacyGoals)priorityTarget.append(legacyGoals);
+  if(legacyRocks)priorityTarget.append(legacyRocks);
   root.querySelector('#clientViewMethodology')?.addEventListener('click',()=>{
     const section=root.querySelector('#clientScoringDetails');
     section.open=true;
