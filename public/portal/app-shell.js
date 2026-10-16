@@ -114,6 +114,47 @@
     // Platform / Diagnostic / Accelerator / Fractional COO accounts use Creature branding,
     // even when they are viewing Diagnostic or AOFI Score pages.
     const aofiJourneyBrand = accountPlan === 'aofi_free';
+
+    // Keep browser chrome and any loading/splash branding consistent with the
+    // active customer flow. The legacy creature-icon asset is intentionally
+    // not used here because it belongs to the old visual identity.
+    const faviconHref = aofiJourneyBrand ? '/brand/aofi-logo.png' : '/brand/ask-creature-icon.png';
+    let favicon = document.querySelector('link[rel="icon"]');
+    if (!favicon) {
+      favicon = document.createElement('link');
+      favicon.rel = 'icon';
+      favicon.type = 'image/png';
+      document.head.appendChild(favicon);
+    }
+    favicon.href = faviconHref;
+    let touchIcon = document.querySelector('link[rel="apple-touch-icon"]');
+    if (!touchIcon) {
+      touchIcon = document.createElement('link');
+      touchIcon.rel = 'apple-touch-icon';
+      document.head.appendChild(touchIcon);
+    }
+    touchIcon.href = faviconHref;
+
+    const loaderLogoHref = aofiJourneyBrand ? '/brand/aofi-logo.png' : '/brand/creature-logo.png';
+    const refreshLoaderBrand = root => {
+      const scope = root?.querySelectorAll ? root : document;
+      scope.querySelectorAll?.(
+        '#pageLoader img,.page-loader img,.app-loader img,.loading-screen img,.loading-overlay img,[data-page-loader] img,[data-loader] img'
+      ).forEach(img => {
+        img.src = loaderLogoHref;
+        img.alt = aofiJourneyBrand ? 'Agency Owner Freedom Index™' : 'Creature Agency Intelligence';
+      });
+    };
+    refreshLoaderBrand(document);
+    if (!window.__ccLoaderBrandObserver) {
+      window.__ccLoaderBrandObserver = new MutationObserver(records => {
+        records.forEach(record => record.addedNodes.forEach(node => {
+          if (node?.nodeType === 1) refreshLoaderBrand(node);
+        }));
+      });
+      window.__ccLoaderBrandObserver.observe(document.documentElement,{childList:true,subtree:true});
+    }
+
     const brandMarkup = aofiJourneyBrand
       ? '<img class="cc-aofi-logo" src="/brand/aofi-logo.png" alt="Agency Owner Freedom Index™">'
       : '<img class="cc-platform-logo" src="/brand/creature-logo.png" alt="Creature Agency Intelligence">';
