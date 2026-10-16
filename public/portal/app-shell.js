@@ -118,7 +118,7 @@
     // Keep browser chrome and any loading/splash branding consistent with the
     // active customer flow. The legacy creature-icon asset is intentionally
     // not used here because it belongs to the old visual identity.
-    const faviconHref = aofiJourneyBrand ? '/brand/aofi-logo.png' : '/brand/ask-creature-icon.png';
+    const faviconHref = '/brand/ask-creature-icon.png';
     let favicon = document.querySelector('link[rel="icon"]');
     if (!favicon) {
       favicon = document.createElement('link');
@@ -135,14 +135,14 @@
     }
     touchIcon.href = faviconHref;
 
-    const loaderLogoHref = aofiJourneyBrand ? '/brand/aofi-logo.png' : '/brand/creature-logo.png';
+    const loaderLogoHref = '/brand/creature-logo.png';
     const refreshLoaderBrand = root => {
       const scope = root?.querySelectorAll ? root : document;
       scope.querySelectorAll?.(
         '#pageLoader img,.page-loader img,.app-loader img,.loading-screen img,.loading-overlay img,[data-page-loader] img,[data-loader] img'
       ).forEach(img => {
         img.src = loaderLogoHref;
-        img.alt = aofiJourneyBrand ? 'Agency Owner Freedom Index™' : 'Creature Agency Intelligence';
+        img.alt = 'Creature Agency Intelligence';
       });
     };
     refreshLoaderBrand(document);
