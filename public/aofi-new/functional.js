@@ -86,8 +86,30 @@
     try{await window.CCAccount?.ready}catch{}
     const a=account(); const name=(a.name||'').trim().split(/\s+/)[0]||'there';
     qsa('h1').forEach(h=>{if(h.textContent.includes('Nice work'))h.textContent='Nice work, '+name+'.';});
+    if(screen==='s03'){
+      const card=qs('.card');
+      if(card&&!qsa('.btn',card).length){
+        const next=document.createElement('a');next.className='btn navy';next.style.marginTop='22px';next.href='/aofi-new/?screen=s04';next.textContent='Create my password to continue →';card.appendChild(next);
+      }
+      return;
+    }
+    const emailInput=qsa('.field input')[0],passwordInput=qsa('.field input')[1],terms=qs('input[type="checkbox"]');
+    if(emailInput&&a.email)emailInput.value=a.email;
     const cta=qsa('.btn.navy').find(x=>x.textContent.includes('Save and start'));
-    if(cta)cta.onclick=e=>{e.preventDefault();location.href=a.id?'/aofi-new/?screen=s05':'/signup/lookup/?destination=aofi_free';};
+    if(cta)cta.onclick=async e=>{
+      e.preventDefault();
+      if(!a.id){location.href='/signup/lookup/?destination=aofi_free';return;}
+      const password=passwordInput?.value||'';
+      if(password.length<8){toast('Use at least 8 characters for your password.');return;}
+      if(terms&&!terms.checked){toast('Agree to the Terms and Privacy policy to continue.');return;}
+      cta.textContent='Saving password…';cta.setAttribute('aria-disabled','true');
+      try{
+        const response=await fetch('/api/account-auth',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set_initial_password',password})});
+        const payload=await response.json().catch(()=>({}));
+        if(!response.ok)throw new Error(payload.error||'Your password could not be saved.');
+        toast('Password saved.');location.href='/aofi-new/?screen=s05';
+      }catch(err){cta.textContent='Save and start my assessments →';cta.removeAttribute('aria-disabled');toast(err.message||'Your password could not be saved.',5000);}
+    };
   }
   async function hydrateDiagnostic(){
     if(!['s05','s06','s15','s16','s17','s18'].includes(screen))return;
