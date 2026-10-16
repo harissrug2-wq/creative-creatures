@@ -12,8 +12,22 @@
   <link rel="stylesheet" href="/portal/base.css">
   <link rel="stylesheet" href="/portal/onboarding.css">
   <link rel="stylesheet" href="/portal/signup.css">
+  <style>
+    body.embed-signup-mode{background:transparent!important}
+    body.embed-signup-mode .page-top-glow,
+    body.embed-signup-mode .top-header,
+    body.embed-signup-mode .detail-hero,
+    body.embed-signup-mode .detail-section,
+    body.embed-signup-mode .guarantee-banner-card,
+    body.embed-signup-mode .back-bottom-link{display:none!important}
+    body.embed-signup-mode .page-wrapper{width:100%!important;max-width:none!important;margin:0!important;padding:0!important}
+    body.embed-signup-mode #start{margin:0!important;width:100%!important;max-width:none!important;box-shadow:none!important;border-radius:18px!important}
+    body.embed-signup-mode .lookup-embedded-card{min-height:100%!important}
+    @media(max-width:640px){body.embed-signup-mode #start{border-radius:14px!important}}
+  </style>
 </head>
 <body class="offer-detail-page">
+  <script>if(new URLSearchParams(location.search).get('embed')==='1')document.body.classList.add('embed-signup-mode');</script>
   <div class="page-top-glow"></div>
 
   <div class="page-wrapper">
@@ -233,6 +247,6 @@
   <script src="/portal/diagnostic-state.js"></script>
   <script src="/portal/account-client.js"></script>
   <script src="/portal/archetype-pdf.js"></script>
-  <script type="module" src="/portal/signup-3.js?v=20261007feedback1"></script>
+  <script type="module" src="/portal/signup-3.js?v=20261016iframe1"></script>
 </body>
 </html>
