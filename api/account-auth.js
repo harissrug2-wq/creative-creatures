@@ -1726,8 +1726,8 @@ export default async function handler(req,res){
       if(bodyAction==='workspace_remove_user'){await db(c,`account_members?account_id=eq.${encodeURIComponent(account.id)}&id=eq.${encodeURIComponent(id)}`,{method:'DELETE'});return json(res,200,{success:true})}
       const patch={name:clean(b.name).slice(0,120),departments:sanitizeDepartments(b.departments),status:b.status==='disabled'?'disabled':'active',updated_at:new Date().toISOString()};if(!patch.name||!patch.departments.length)return json(res,422,{error:'Name and at least one department are required.'});if(clean(b.password)){if(clean(b.password).length<10)return json(res,422,{error:'New password must be at least 10 characters.'});patch.password_hash=hashPassword(clean(b.password))}const rows=await db(c,`account_members?account_id=eq.${encodeURIComponent(account.id)}&id=eq.${encodeURIComponent(id)}&select=id,name,email,departments,status,invited_at,last_login_at`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify(patch)});return json(res,200,{success:true,user:publicMember(rows?.[0])});
     }
-    if(session?.memberId&&bodyAction&&!['monitor_department','monitor_save_custom_kpis','google_calendar_events','forgot_password','reset_password'].includes(bodyAction)){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});if(actor.role==='member')return json(res,403,{error:'Your department account cannot manage agency-wide programs or integrations.'})}
-    if(session&&bodyAction&&!['forgot_password','reset_password','monitor_department','monitor_save_custom_kpis'].includes(bodyAction)){
+    if(session?.memberId&&bodyAction&&!['monitor_department','monitor_save_custom_kpis','google_calendar_events','forgot_password','reset_password','set_initial_password'].includes(bodyAction)){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});if(actor.role==='member')return json(res,403,{error:'Your department account cannot manage agency-wide programs or integrations.'})}
+    if(session&&bodyAction&&!['forgot_password','reset_password','set_initial_password','monitor_department','monitor_save_custom_kpis'].includes(bodyAction)){
       const account=await findById(c,session.accountId);if(!account)return json(res,401,{error:'Your account access is no longer active.'});
       const feature=bodyAction.startsWith('accelerator_')?'accelerator':bodyAction==='partner_referral'?'portal':bodyAction==='google_calendar_events'?'leadership':integrationFeature(bodyAction);requireFeature(account,feature);
       if(session.memberId&&bodyAction==='google_calendar_events'){const actor=await sessionActor(c,session);if(!actor)return json(res,401,{error:'Your account access is no longer active.'});requireDepartment(actor,'leadership')}
@@ -1756,6 +1756,27 @@ export default async function handler(req,res){
       requireFeature(account,'monitor');requireDepartment(actor,clean(b.department));
       const result=await loadMonitorDepartment(c,session.accountId,clean(b.department),account);
       return json(res,200,result);
+    }
+
+    if(bodyAction==='set_initial_password'){
+      if(!session)return json(res,401,{error:'Sign in before setting your password.'});
+      if(session.memberId)return json(res,403,{error:'Only the agency owner can set the account password.'});
+      const password=clean(b.password);
+      if(password.length<10)return json(res,422,{error:'Password must be at least 10 characters.'});
+      const account=await findById(c,session.accountId);
+      if(!account)return json(res,401,{error:'Your account access is no longer active.'});
+      const params=new URLSearchParams({id:`eq.${account.id}`});
+      await db(c,`accounts?${params.toString()}`,{
+        method:'PATCH',
+        headers:{Prefer:'return=minimal'},
+        body:JSON.stringify({
+          password_hash:hashPassword(password),
+          password_reset_token_hash:null,
+          password_reset_expires_at:null,
+          updated_at:new Date().toISOString()
+        })
+      });
+      return json(res,200,{success:true,authenticated:true,account:pub(account)});
     }
 
     if(bodyAction==='forgot_password'){
