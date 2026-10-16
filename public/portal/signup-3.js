@@ -1,4 +1,10 @@
 (() => {
+  const embeddedSignup = new URLSearchParams(location.search).get('embed') === '1' && window.top !== window;
+  const navigate = url => {
+    const target = new URL(url, location.origin).href;
+    if (embeddedSignup) window.top.location.href = target;
+    else window.location.href = target;
+  };
   const initSignup3 = () => {
     // Package pages use one complete guarantee panel. Move it directly below
     // the offer/price hero and remove the cramped duplicate inside the price card.
@@ -35,7 +41,7 @@
       takeArchetypeBtn.addEventListener('click', () => {
         const currentOffer = window.location.pathname.split('/').filter(Boolean).pop() || 'archetype';
         localStorage.setItem('ccProgramPath', currentOffer);
-        window.location.href = '/owner-archetype/?destination=' + encodeURIComponent(currentOffer);
+        navigate('/owner-archetype/?destination=' + encodeURIComponent(currentOffer));
       });
     }
 
@@ -149,7 +155,7 @@
     if (noOption) noOption.onclick = () => {
       select('no');
       localStorage.setItem('ccProgramPath', destination);
-      window.location.href = '/owner-archetype/assessment/?destination=' + encodeURIComponent(destination) + '&source=signup';
+      navigate('/owner-archetype/assessment/?destination=' + encodeURIComponent(destination) + '&source=signup');
     };
 
     const esc = v => String(v || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -187,14 +193,14 @@
       const query=new URLSearchParams({plan:destination,source:'signup'});
       const email=String(lead?.email||'').trim();
       if(email)query.set('email',email);
-      location.href='/payment/?'+query.toString();
+      navigate('/payment/?'+query.toString());
     }
 
     function loginToDiagnostic(lead) {
       const email = String(lead?.email || '').trim(), query = new URLSearchParams();
       if (email) query.set('email', email);
       query.set('destination', destination);
-      location.href = '/login/?' + query.toString();
+      navigate('/login/?' + query.toString());
     }
 
     async function activateFreeAofi(lead, button) {
@@ -211,12 +217,12 @@
         })});
         const result=await response.json().catch(()=>({}));
         if(!response.ok||!result.account){
-          if(result.code==='ACCOUNT_EXISTS'&&result.loginUrl){location.href=result.loginUrl;return}
+          if(result.code==='ACCOUNT_EXISTS'&&result.loginUrl){navigate(result.loginUrl);return}
           throw new Error(result.error||'Your free AOFI™ account could not be created.');
         }
         window.CCAccount?.saveAccount?.({...result.account,backend_saved:true},{forceReset:true,replaceDiagnostic:true});
         localStorage.setItem('ccProgramPath','aofi_free');localStorage.setItem('ccSignedIn','true');
-        location.href='/diagnostic/';
+        navigate('/diagnostic/');
       }catch(error){
         if(errorNode){errorNode.textContent=error.message||'Your free AOFI™ account could not be created.';errorNode.classList.add('show')}
         if(button){button.disabled=false;button.textContent='Continue with this report →'}
@@ -369,16 +375,16 @@
         if (window.CCAccount?.findAccount) {
           const found = await window.CCAccount.findAccount({ email: val, agencyUrl: val });
           if (found) {
-            window.location.href = `/signup/lookup/?destination=${encodeURIComponent(currentOffer)}&email=${encodeURIComponent(val)}`;
+            navigate(`/signup/lookup/?destination=${encodeURIComponent(currentOffer)}&email=${encodeURIComponent(val)}`);
             return;
           }
         }
         // Direct route to signup lookup with query
-        window.location.href = `/signup/lookup/?destination=${encodeURIComponent(currentOffer)}&email=${encodeURIComponent(val)}`;
+        navigate(`/signup/lookup/?destination=${encodeURIComponent(currentOffer)}&email=${encodeURIComponent(val)}`);
       } catch (err) {
         status.textContent = err.message || 'Could not locate account. Proceeding to checkout…';
         setTimeout(() => {
-          window.location.href = `/signup/lookup/?destination=${encodeURIComponent(currentOffer)}&email=${encodeURIComponent(val)}`;
+          navigate(`/signup/lookup/?destination=${encodeURIComponent(currentOffer)}&email=${encodeURIComponent(val)}`);
         }, 1200);
       }
     });
