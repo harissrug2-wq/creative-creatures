@@ -144,7 +144,58 @@ async function getLegacyScorecardHistory(config, accountId) {
     .filter(row => Number.isFinite(row.score));
 }
 
+async function getGenerationHistory(config, accountId) {
+  const params = new URLSearchParams({
+    select: 'id,account_id,scorecard_id,diagnostic_run_id,performance_score,strength_score,independence_score,aofi_score,confidence,validation_status,report_data,source_generated_at,archive_reason',
+    account_id: `eq.${accountId}`,
+    archive_reason: 'eq.score_generation',
+    order: 'source_generated_at.asc'
+  });
+  try {
+    const rows = await supabaseRequest(config, `agency_scorecard_history?${params.toString()}`);
+    return Array.isArray(rows)
+      ? rows.map(row => historyRow({
+          ...row,
+          generated_at: row.source_generated_at
+        })).filter(row => Number.isFinite(row.score))
+      : [];
+  } catch (error) {
+    const code = clean(error?.payload?.code || error?.code);
+    const message = lower(error?.message || error?.payload?.message);
+    if (error?.status === 404 || code === '42P01' || code === 'PGRST205' || message.includes('agency_scorecard_history')) return [];
+    throw error;
+  }
+}
+
+async function captureScorecardGeneration(config, accountId, runId, scorecardId, model) {
+  if (!scorecardId || !model) return;
+  try {
+    await supabaseRequest(config, 'agency_scorecard_history', {
+      method: 'POST',
+      body: JSON.stringify({
+        account_id: accountId,
+        scorecard_id: scorecardId,
+        diagnostic_run_id: runId || null,
+        ownership_snapshot_id: model.ownership?.snapshotId || null,
+        performance_score: model.reports?.performance?.score ?? null,
+        strength_score: model.reports?.strength?.score ?? null,
+        independence_score: model.reports?.independence?.score ?? null,
+        aofi_score: model.score ?? null,
+        confidence: model.confidence ?? null,
+        validation_status: normalizeValidation(model.validation),
+        report_data: model,
+        source_generated_at: model.generatedAt || new Date().toISOString(),
+        archive_reason: 'score_generation'
+      })
+    });
+  } catch (error) {
+    console.error('Scorecard generation history capture skipped', error?.message || error);
+  }
+}
+
 async function getScorecardHistory(config, accountId) {
+  const generationHistory = await getGenerationHistory(config, accountId);
+  if (generationHistory.length) return generationHistory;
   const params = new URLSearchParams({
     select: 'id,account_id,scorecard_id,calendar_year,calendar_quarter,period_start,period_end,aofi_score,performance_score,strength_score,independence_score,confidence,validation_status,report_data,source_generated_at,captured_at,updated_at',
     account_id: `eq.${accountId}`,
@@ -242,47 +293,36 @@ function calculateQuarterlyDrivers(current, previous) {
 function enrichQuarterlyHistory(history, currentModel) {
   const points = Array.isArray(history) ? [...history] : [];
   const latestScore = finiteOrNull(currentModel?.score);
-  const latestPerf = finiteOrNull(currentModel?.reports?.performance?.score);
-  const latestStr = finiteOrNull(currentModel?.reports?.strength?.score);
-  const latestInd = finiteOrNull(currentModel?.reports?.independence?.score);
-  const latestConf = finiteOrNull(currentModel?.confidence);
-  const latestVal = currentModel?.valuation?.available ? currentModel.valuation.enterpriseValue : null;
   const latestDate = currentModel?.generatedAt || new Date().toISOString();
-
-  const latestQuarter = getCalendarQuarterLabel(latestDate);
-  if (Number.isFinite(latestScore) && !points.some(point => (point.quarter || getCalendarQuarterLabel(point.generatedAt)) === latestQuarter)) {
+  if (Number.isFinite(latestScore) && !points.some(point => point.generatedAt === latestDate && Number(point.score) === latestScore)) {
     points.push({
       generatedAt: latestDate,
       score: latestScore,
-      confidence: latestConf,
-      performance: latestPerf,
-      strength: latestStr,
-      independence: latestInd,
-      enterpriseValue: latestVal,
+      confidence: finiteOrNull(currentModel?.confidence),
+      performance: finiteOrNull(currentModel?.reports?.performance?.score),
+      strength: finiteOrNull(currentModel?.reports?.strength?.score),
+      independence: finiteOrNull(currentModel?.reports?.independence?.score),
+      enterpriseValue: currentModel?.valuation?.available ? currentModel.valuation.enterpriseValue : null,
       _reportData: currentModel
     });
   }
 
-  const quarterMap = new Map();
-  points.forEach(point => {
-    const quarter = point.quarter || getCalendarQuarterLabel(point.generatedAt);
-    const existing = quarterMap.get(quarter);
-    if (!existing || new Date(point.generatedAt || 0) >= new Date(existing.generatedAt || 0)) {
-      quarterMap.set(quarter, { ...point, quarter });
-    }
-  });
-  const ordered = [...quarterMap.values()].sort((a, b) => new Date(a.generatedAt || 0) - new Date(b.generatedAt || 0));
+  const ordered = points
+    .filter(point => point && point.generatedAt && Number.isFinite(Number(point.score)))
+    .sort((a,b) => new Date(a.generatedAt) - new Date(b.generatedAt));
 
   return ordered.map((point, index) => {
-    const quarter = getCalendarQuarterLabel(point.generatedAt);
+    const date = new Date(point.generatedAt);
+    const label = Number.isNaN(date.getTime())
+      ? 'Score'
+      : date.toISOString().replace('T',' ').slice(0,16);
     const previous = index > 0 ? ordered[index - 1] : null;
-    const previousQuarter = previous ? getCalendarQuarterLabel(previous.generatedAt) : null;
     const drivers = calculateQuarterlyDrivers(point, previous);
     const { _reportData, ...publicPoint } = point;
     return {
       ...publicPoint,
-      quarter,
-      previousQuarter,
+      quarter: label,
+      previousQuarter: previous ? String(previous.generatedAt || '') : null,
       positiveElements: drivers.positiveElements,
       negativeElements: drivers.negativeElements
     };
@@ -742,6 +782,7 @@ export default async function handler(req, res) {
     const generatedAt = new Date().toISOString();
     const model = buildModel(account, rows, generatedAt, run.id);
     const saved = await saveScorecard(config, run, model);
+    await captureScorecardGeneration(config, account.id, run.id, saved?.id || null, model);
     await markAccountGenerated(config, account, model);
 
     const rawHistory = await getScorecardHistory(config, account.id);
