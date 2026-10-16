@@ -715,7 +715,7 @@
     document.querySelector('#continueIdentity')?.addEventListener('click', async event => {
       if(hasActivePaidWorkspace){
         localStorage.setItem('ccProgramPath',selectedPlan);
-        location.href='/diagnostic/';
+        location.href=new URLSearchParams(location.search).get('source')==='aofi-new'?'/aofi-new/?screen=s05':'/diagnostic/';
         return;
       }
       if(!freeAofi){
@@ -741,7 +741,7 @@
         }
         window.CCAccount?.saveAccount?.({...result.account,backend_saved:true},{forceReset:true,replaceDiagnostic:true});
         localStorage.setItem('ccProgramPath','aofi_free');localStorage.setItem('ccSignedIn','true');
-        location.href='/diagnostic/';
+        location.href=new URLSearchParams(location.search).get('source')==='aofi-new'?'/aofi-new/?screen=s04':'/diagnostic/';
       }catch(error){
         button.disabled=false;button.textContent='Get My Free AOFI™ Score →';
         alert(error.message||'Your free AOFI™ account could not be created.');
