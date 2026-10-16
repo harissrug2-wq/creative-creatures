@@ -144,7 +144,58 @@ async function getLegacyScorecardHistory(config, accountId) {
     .filter(row => Number.isFinite(row.score));
 }
 
+async function getGenerationHistory(config, accountId) {
+  const params = new URLSearchParams({
+    select: 'id,account_id,scorecard_id,diagnostic_run_id,performance_score,strength_score,independence_score,aofi_score,confidence,validation_status,report_data,source_generated_at,archive_reason',
+    account_id: `eq.${accountId}`,
+    archive_reason: 'eq.score_generation',
+    order: 'source_generated_at.asc'
+  });
+  try {
+    const rows = await supabaseRequest(config, `agency_scorecard_history?${params.toString()}`);
+    return Array.isArray(rows)
+      ? rows.map(row => historyRow({
+          ...row,
+          generated_at: row.source_generated_at
+        })).filter(row => Number.isFinite(row.score))
+      : [];
+  } catch (error) {
+    const code = clean(error?.payload?.code || error?.code);
+    const message = lower(error?.message || error?.payload?.message);
+    if (error?.status === 404 || code === '42P01' || code === 'PGRST205' || message.includes('agency_scorecard_history')) return [];
+    throw error;
+  }
+}
+
+async function captureScorecardGeneration(config, accountId, runId, scorecardId, model) {
+  if (!scorecardId || !model) return;
+  try {
+    await supabaseRequest(config, 'agency_scorecard_history', {
+      method: 'POST',
+      body: JSON.stringify({
+        account_id: accountId,
+        scorecard_id: scorecardId,
+        diagnostic_run_id: runId || null,
+        ownership_snapshot_id: model.ownership?.snapshotId || null,
+        performance_score: model.reports?.performance?.score ?? null,
+        strength_score: model.reports?.strength?.score ?? null,
+        independence_score: model.reports?.independence?.score ?? null,
+        aofi_score: model.score ?? null,
+        confidence: model.confidence ?? null,
+        validation_status: normalizeValidation(model.validation),
+        report_data: model,
+        source_generated_at: model.generatedAt || new Date().toISOString(),
+        archive_reason: 'score_generation'
+      })
+    });
+  } catch (error) {
+    console.error('Scorecard generation history capture skipped', error?.message || error);
+  }
+}
+
 async function getScorecardHistory(config, accountId) {
+  const generationHistory = await getGenerationHistory(config, accountId);
+  if (generationHistory.length) return generationHistory;
   const params = new URLSearchParams({
     select: 'id,account_id,scorecard_id,calendar_year,calendar_quarter,period_start,period_end,aofi_score,performance_score,strength_score,independence_score,confidence,validation_status,report_data,source_generated_at,captured_at,updated_at',
     account_id: `eq.${accountId}`,
@@ -242,47 +293,36 @@ function calculateQuarterlyDrivers(current, previous) {
 function enrichQuarterlyHistory(history, currentModel) {
   const points = Array.isArray(history) ? [...history] : [];
   const latestScore = finiteOrNull(currentModel?.score);
-  const latestPerf = finiteOrNull(currentModel?.reports?.performance?.score);
-  const latestStr = finiteOrNull(currentModel?.reports?.strength?.score);
-  const latestInd = finiteOrNull(currentModel?.reports?.independence?.score);
-  const latestConf = finiteOrNull(currentModel?.confidence);
-  const latestVal = currentModel?.valuation?.available ? currentModel.valuation.enterpriseValue : null;
   const latestDate = currentModel?.generatedAt || new Date().toISOString();
-
-  const latestQuarter = getCalendarQuarterLabel(latestDate);
-  if (Number.isFinite(latestScore) && !points.some(point => (point.quarter || getCalendarQuarterLabel(point.generatedAt)) === latestQuarter)) {
+  if (Number.isFinite(latestScore) && !points.some(point => point.generatedAt === latestDate && Number(point.score) === latestScore)) {
     points.push({
       generatedAt: latestDate,
       score: latestScore,
-      confidence: latestConf,
-      performance: latestPerf,
-      strength: latestStr,
-      independence: latestInd,
-      enterpriseValue: latestVal,
+      confidence: finiteOrNull(currentModel?.confidence),
+      performance: finiteOrNull(currentModel?.reports?.performance?.score),
+      strength: finiteOrNull(currentModel?.reports?.strength?.score),
+      independence: finiteOrNull(currentModel?.reports?.independence?.score),
+      enterpriseValue: currentModel?.valuation?.available ? currentModel.valuation.enterpriseValue : null,
       _reportData: currentModel
     });
   }
 
-  const quarterMap = new Map();
-  points.forEach(point => {
-    const quarter = point.quarter || getCalendarQuarterLabel(point.generatedAt);
-    const existing = quarterMap.get(quarter);
-    if (!existing || new Date(point.generatedAt || 0) >= new Date(existing.generatedAt || 0)) {
-      quarterMap.set(quarter, { ...point, quarter });
-    }
-  });
-  const ordered = [...quarterMap.values()].sort((a, b) => new Date(a.generatedAt || 0) - new Date(b.generatedAt || 0));
+  const ordered = points
+    .filter(point => point && point.generatedAt && Number.isFinite(Number(point.score)))
+    .sort((a,b) => new Date(a.generatedAt) - new Date(b.generatedAt));
 
   return ordered.map((point, index) => {
-    const quarter = getCalendarQuarterLabel(point.generatedAt);
+    const date = new Date(point.generatedAt);
+    const label = Number.isNaN(date.getTime())
+      ? 'Score'
+      : date.toISOString().replace('T',' ').slice(0,16);
     const previous = index > 0 ? ordered[index - 1] : null;
-    const previousQuarter = previous ? getCalendarQuarterLabel(previous.generatedAt) : null;
     const drivers = calculateQuarterlyDrivers(point, previous);
     const { _reportData, ...publicPoint } = point;
     return {
       ...publicPoint,
-      quarter,
-      previousQuarter,
+      quarter: label,
+      previousQuarter: previous ? String(previous.generatedAt || '') : null,
       positiveElements: drivers.positiveElements,
       negativeElements: drivers.negativeElements
     };
@@ -404,7 +444,7 @@ const independenceRecommendations = {
   revenue: 'Move pipeline, referrals, and marketing ownership away from the founder and into a measurable revenue system.',
   delivery: 'Detach the owner from project delivery, client communication, approvals, and fulfillment quality.',
   leadership: 'Make leaders responsible for meetings, planning, departmental accountability, and problem solving.',
-  strategic: 'Shift owner time from operations and firefighting toward vision, strategy, coaching, and capital allocation.'
+  strategic: 'Move recurring operating decisions and firefighting to named leaders with clear decision rights, then reserve owner time for strategy, leadership coaching, major relationships, and capital allocation. Track owner hours by activity monthly so the shift is measurable.'
 };
 const performanceCategoryNames = {
   profitability: 'Profitability',
@@ -416,7 +456,7 @@ const performanceCategoryNames = {
 };
 const performanceRecommendations = {
   profitability: 'Improve gross margin, net margin, SDE margin, margin stability, gross profit growth, and profit conversion.',
-  growth: 'Build consistent, predictable revenue and net-income growth rather than relying on volatile spikes.',
+  growth: 'Diagnose revenue and margin volatility by client, service, contract type, and month. Identify recurring versus project revenue, outlier COGS months, client concentration, and margin leakage; then assign Sales + Client Success owners to improve recurring revenue, pricing consistency, retention, forecasting, pipeline hygiene, and churn.',
   revenueQuality: 'Increase recurring revenue, reduce client concentration, diversify revenue, and extend client tenure and contracts.',
   revenue_quality: 'Increase recurring revenue, reduce client concentration, diversify revenue, and extend client tenure and contracts.',
   cash: 'Build cash reserves, improve operating cash flow, strengthen the current ratio, accelerate collections, and reduce leverage.',
@@ -488,12 +528,12 @@ function reportFromRow(row) {
     id: 'performance', title: 'Agency Performance Index', score,
     executiveQuestion: 'How effectively does agency management convert revenue into long-term financial value?',
     confidence, validation,
-    narrative: `The performance score combines Profitability (25%), Growth (20%), Revenue Quality (20%), Cash Performance (20%), and Capital Allocation (15%). ${weakest.name} is the lowest-scoring capability at ${weakest.score}. Confidence rises only as financial evidence is supplied.`,
+    narrative: `The performance score combines Profitability (25%), Growth (20%), Revenue Quality (20%), Cash Performance (20%), and Capital Allocation (15%). ${weakest.name} is the lowest-scoring capability at ${weakest.score}/100. In practical terms, this is the area most likely to limit predictable cash flow and enterprise value right now. The recommended next step is to isolate the underlying drivers by month, client, service and contract type, then assign an owner and measurable 90-day target. Confidence rises as the underlying financial evidence is connected and validated.`,
     categories,
-    primaryConstraint: `${weakest.name} is the largest financial-value constraint.`,
+    primaryConstraint: `${weakest.name} is currently the largest measured financial-value constraint. A low score means the business has less predictability or transferability in this capability than in the other measured financial areas.`,
     recommendation: performanceRecommendations[weakest.key] || performanceRecommendations.profitability,
     evidence: evidence.length ? evidence : ['Submitted financial evidence'],
-    missingEvidence: Array.isArray(details.missingEvidence) ? details.missingEvidence : ['P&L', 'Balance Sheet', 'A/R Aging', 'Client revenue detail', 'Service revenue mix', 'Owner add-backs'],
+    missingEvidence: Array.isArray(details.missingEvidence) ? details.missingEvidence : ['Monthly Profit & Loss', 'Profit & Loss by customer / job / project', 'Project or client profitability', 'COGS detail', 'Payroll detail', 'Recurring revenue schedule', 'Large one-time invoices', 'Balance Sheet', 'A/R Aging', 'Owner add-backs'],
     adjustedSDE,
     roicLite,
     evidenceLevel: details.evidenceLevel || details.confidenceLabel || 'Evidence submitted; analysis pending',
@@ -518,7 +558,7 @@ function scorecardPriorities(reports){
     index: row.index,
     indexTitle: row.indexTitle,
     score: row.score,
-    description: `${row.name} scored ${row.score}/100 in ${row.indexTitle}, placing it among this assessment’s lowest-scoring capabilities. Validate the evidence and agree a 90-day improvement target.`
+    description: `${row.name} scored ${row.score}/100 in ${row.indexTitle}. This means it is one of the clearest constraints on agency value or owner freedom in the current score. Review the evidence behind the score, identify the operational or financial driver, assign a responsible owner, and set a measurable improvement target before turning it into a 90-day priority.`
   }));
   const opportunities = weakest.map(row => ({
     capability: row.name,
@@ -742,6 +782,7 @@ export default async function handler(req, res) {
     const generatedAt = new Date().toISOString();
     const model = buildModel(account, rows, generatedAt, run.id);
     const saved = await saveScorecard(config, run, model);
+    await captureScorecardGeneration(config, account.id, run.id, saved?.id || null, model);
     await markAccountGenerated(config, account, model);
 
     const rawHistory = await getScorecardHistory(config, account.id);
