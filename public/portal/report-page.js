@@ -61,10 +61,10 @@
 
     <section class="rp-summary-card">
       <div class="rp-summary-copy">
-        <h2>Executive narrative</h2>
+        <h2>What this means</h2>
         <p>${esc(report.narrative)}</p>
         <div class="rp-constraint">
-          <small>PRIMARY CONSTRAINT</small>
+          <small>WHAT TO DO NEXT</small>
           <h3>${esc(report.primaryConstraint)}</h3>
           <p>${esc(report.recommendation)}</p>
         </div>
@@ -97,7 +97,7 @@
         <div class="rp-panel-title"><h2>Evidence used</h2><span class="rp-count verified-count">${report.evidence?.length||1} verified</span></div>
         <div class="rp-evidence-grid">${verifiedEvidence}</div>
         <div class="rp-divider"></div>
-        <div class="rp-panel-title"><h2>Missing or unverified evidence</h2><span class="rp-count missing-count">${report.missingEvidence?.length||0} to verify</span></div>
+        <div class="rp-panel-title"><h2>Evidence to strengthen this score</h2><span class="rp-count missing-count">${report.missingEvidence?.length||0} to verify</span></div>
         <div class="rp-evidence-grid">${missingEvidence}</div>
       </article>
     </section>`;
