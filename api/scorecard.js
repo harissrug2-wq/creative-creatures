@@ -444,7 +444,7 @@ const independenceRecommendations = {
   revenue: 'Move pipeline, referrals, and marketing ownership away from the founder and into a measurable revenue system.',
   delivery: 'Detach the owner from project delivery, client communication, approvals, and fulfillment quality.',
   leadership: 'Make leaders responsible for meetings, planning, departmental accountability, and problem solving.',
-  strategic: 'Shift owner time from operations and firefighting toward vision, strategy, coaching, and capital allocation.'
+  strategic: 'Move recurring operating decisions and firefighting to named leaders with clear decision rights, then reserve owner time for strategy, leadership coaching, major relationships, and capital allocation. Track owner hours by activity monthly so the shift is measurable.'
 };
 const performanceCategoryNames = {
   profitability: 'Profitability',
@@ -456,7 +456,7 @@ const performanceCategoryNames = {
 };
 const performanceRecommendations = {
   profitability: 'Improve gross margin, net margin, SDE margin, margin stability, gross profit growth, and profit conversion.',
-  growth: 'Build consistent, predictable revenue and net-income growth rather than relying on volatile spikes.',
+  growth: 'Diagnose revenue and margin volatility by client, service, contract type, and month. Identify recurring versus project revenue, outlier COGS months, client concentration, and margin leakage; then assign Sales + Client Success owners to improve recurring revenue, pricing consistency, retention, forecasting, pipeline hygiene, and churn.',
   revenueQuality: 'Increase recurring revenue, reduce client concentration, diversify revenue, and extend client tenure and contracts.',
   revenue_quality: 'Increase recurring revenue, reduce client concentration, diversify revenue, and extend client tenure and contracts.',
   cash: 'Build cash reserves, improve operating cash flow, strengthen the current ratio, accelerate collections, and reduce leverage.',
@@ -528,12 +528,12 @@ function reportFromRow(row) {
     id: 'performance', title: 'Agency Performance Index', score,
     executiveQuestion: 'How effectively does agency management convert revenue into long-term financial value?',
     confidence, validation,
-    narrative: `The performance score combines Profitability (25%), Growth (20%), Revenue Quality (20%), Cash Performance (20%), and Capital Allocation (15%). ${weakest.name} is the lowest-scoring capability at ${weakest.score}. Confidence rises only as financial evidence is supplied.`,
+    narrative: `The performance score combines Profitability (25%), Growth (20%), Revenue Quality (20%), Cash Performance (20%), and Capital Allocation (15%). ${weakest.name} is the lowest-scoring capability at ${weakest.score}/100. In practical terms, this is the area most likely to limit predictable cash flow and enterprise value right now. The recommended next step is to isolate the underlying drivers by month, client, service and contract type, then assign an owner and measurable 90-day target. Confidence rises as the underlying financial evidence is connected and validated.`,
     categories,
-    primaryConstraint: `${weakest.name} is the largest financial-value constraint.`,
+    primaryConstraint: `${weakest.name} is currently the largest measured financial-value constraint. A low score means the business has less predictability or transferability in this capability than in the other measured financial areas.`,
     recommendation: performanceRecommendations[weakest.key] || performanceRecommendations.profitability,
     evidence: evidence.length ? evidence : ['Submitted financial evidence'],
-    missingEvidence: Array.isArray(details.missingEvidence) ? details.missingEvidence : ['P&L', 'Balance Sheet', 'A/R Aging', 'Client revenue detail', 'Service revenue mix', 'Owner add-backs'],
+    missingEvidence: Array.isArray(details.missingEvidence) ? details.missingEvidence : ['Monthly Profit & Loss', 'Profit & Loss by customer / job / project', 'Project or client profitability', 'COGS detail', 'Payroll detail', 'Recurring revenue schedule', 'Large one-time invoices', 'Balance Sheet', 'A/R Aging', 'Owner add-backs'],
     adjustedSDE,
     roicLite,
     evidenceLevel: details.evidenceLevel || details.confidenceLabel || 'Evidence submitted; analysis pending',
@@ -558,7 +558,7 @@ function scorecardPriorities(reports){
     index: row.index,
     indexTitle: row.indexTitle,
     score: row.score,
-    description: `${row.name} scored ${row.score}/100 in ${row.indexTitle}, placing it among this assessment’s lowest-scoring capabilities. Validate the evidence and agree a 90-day improvement target.`
+    description: `${row.name} scored ${row.score}/100 in ${row.indexTitle}. This means it is one of the clearest constraints on agency value or owner freedom in the current score. Review the evidence behind the score, identify the operational or financial driver, assign a responsible owner, and set a measurable improvement target before turning it into a 90-day priority.`
   }));
   const opportunities = weakest.map(row => ({
     capability: row.name,
