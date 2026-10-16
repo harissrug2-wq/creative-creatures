@@ -1762,7 +1762,7 @@ export default async function handler(req,res){
       if(!session)return json(res,401,{error:'Sign in before setting your password.'});
       if(session.memberId)return json(res,403,{error:'Only the agency owner can set the account password.'});
       const password=clean(b.password);
-      if(password.length<10)return json(res,422,{error:'Password must be at least 10 characters.'});
+      if(password.length<8)return json(res,422,{error:'Password must be at least 8 characters.'});
       const account=await findById(c,session.accountId);
       if(!account)return json(res,401,{error:'Your account access is no longer active.'});
       const params=new URLSearchParams({id:`eq.${account.id}`});
