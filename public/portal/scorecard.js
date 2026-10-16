@@ -123,7 +123,7 @@
 
   const history = window.CCScorecard?.getHistory?.() || [];
 
-  const baselineMessage = 'Trends will appear after your next quarterly assessment.';
+  const baselineMessage = 'This is your baseline. Each time you regenerate AOFI™, a dated score point and the measured drivers of change will be added here.';
   const persistedHistory = Array.isArray(history) && history.length
     ? history
     : [{
@@ -271,7 +271,7 @@
     <header class="scorecard-header"><div><span class="eyebrow">✣ Owner briefing</span><h1>${isAofiFree?'Agency Owner Freedom Index™ Scorecard':'Agency Scorecard'}</h1><p>Executive view of the Agency Owner Freedom Index™, three index reports, confidence, validation, and quarterly score progression over time.</p></div><div class="scorecard-meta">Archetype · <strong>${esc(model.archetype)}</strong><br>Generated · <strong>${model.generatedAt ? new Date(model.generatedAt).toLocaleDateString() : 'Today'}</strong>${model.ownership?.asOf?`<br>Ownership structure · <strong>${new Date(model.ownership.asOf).toLocaleDateString()}</strong>`:''}</div></header>
     <div class="section-title"><div><div class="section-kicker">Section 01</div><h2>Executive Summary</h2></div><p>Headline score with VantageScore-style credit tracking and quarterly score movement analysis.</p></div>
     <section class="aofi-card">
-      <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance (40%), Strength (40%), and Owner Independence (20%). Confidence is weighted using the same formula.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)} <button type="button" data-validation-help="overall" aria-label="Explain overall validation" title="Why was this validation assigned?" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer;padding:0 0 0 4px">?</button></strong></div><div class="aofi-stat"><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong></div></div><div class="aofi-action-row"><p class="aofi-footer-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Scores tracked quarterly with Creative Creatures Clarify™</p><button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnSummary" ${hasComparison ? '' : 'hidden'}><span>What changed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
+      <div class="aofi-main"><div class="aofi-label">Agency Owner Freedom Index™</div><div class="aofi-score-row"><strong class="aofi-score">${model.score}</strong><span class="band-pill">${esc(model.band.label)}</span></div><p class="aofi-copy">${esc(model.band.meaning)} The score combines Performance (40%), Strength (40%), and Owner Independence (20%). Confidence is weighted using the same formula.</p><div class="aofi-stats"><div class="aofi-stat"><span>Overall confidence</span><strong>${model.confidence}%</strong></div><div class="aofi-stat"><span>Validation</span><strong>${esc(model.validation)} <button type="button" data-validation-help="overall" aria-label="Explain overall validation" title="Why was this validation assigned?" style="border:0;background:transparent;color:inherit;font-weight:900;cursor:pointer;padding:0 0 0 4px">?</button></strong></div><div class="aofi-stat"><span>Momentum</span><strong class="${trendDirectionClass}">${esc(momentum.label || 'Baseline')}</strong></div></div><div class="aofi-action-row"><p class="aofi-footer-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>Every score recalculation is saved with its date</p><button type="button" class="vantage-what-changed-btn" id="openWhatChangedBtnSummary" ${hasComparison ? '' : 'hidden'}><span>What changed?</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m9 18 6-6-6-6"/></svg></button></div></div>
       <aside class="aofi-side"><div><div class="formula">AOFI formula<strong>Performance × 40% + Strength × 40% + Independence × 20%</strong></div><div class="priority-box"><span>Highest-return next move</span><h3>${esc(weakestRows[0]?.name || 'Validate the evidence')}</h3><p>${esc(model.reports[weakestRows[0]?.index || 'strength'].recommendation)}</p><button class="create-single-rock" id="createSingleRock" type="button">${isAofiFree?'90-Day Priority · Upgrade':'Create 90-Day Priority'}</button></div></div><div class="report-actions"><button class="report-action primary" data-download="scorecard">${actionIcon('download')} Download scorecard</button><button class="report-action" data-email="scorecard">${actionIcon('email')} Email scorecard</button></div></aside>
     </section>
 
@@ -329,12 +329,12 @@
         <span>ESTIMATED ENTERPRISE VALUE</span>
         <strong>${readableValuation?money(valuation.enterpriseValue):'Not available'}</strong>
         <p>${readableValuation?`${Number(valuation.finalMultiple||0).toFixed(1)}× current multiple`:'Complete financial evidence to calculate valuation.'}</p>
-        <button type="button" class="client-methodology-link" id="clientViewMethodology">See value-building plan →</button>
+        <button type="button" class="client-methodology-link" id="clientViewMethodology">How this is calculated ↓</button>
       </article>
     </section>
     <section class="client-trend-panel">
       <div class="client-trend-heading"><h2>AOFI™ Score Trend</h2>${hasComparison&&Number.isFinite(Number(momentum.delta))?`<span class="client-trend-lift">${momentum.delta>0?'+':''}${Math.round(momentum.delta)} pts</span>`:''}</div>
-      <p class="client-trend-meta">${hasComparison?`${snapshotCount} quarterly snapshots`:'Your first score is the baseline; future quarters will appear here.'}</p>
+      <p class="client-trend-meta">${hasComparison?`${snapshotCount} saved score point${snapshotCount===1?'':'s'}`:'Your first score is the baseline. Regenerate AOFI™ after material changes to build a dated trend.'}</p>
       <div class="client-score-graph">${hasComparison?renderScorecardTrendChart(persistedHistory,{score:true,performance:false,strength:false,independence:false}):`<div class="client-history-note">Current baseline: ${Number(model.score).toFixed(0)} / 100. Historical data will be added when available.</div>`}</div>
     </section>
     <section class="client-index-grid" aria-label="Individual index results">
@@ -423,9 +423,9 @@
   trendsView.innerHTML = `
     <header class="trends-header">
       <div>
-        <span class="eyebrow">Quarterly score history</span>
+        <span class="eyebrow">AOFI™ recalculation history</span>
         <h1>${isAofiFree?'AOFI™ Scorecard Trends':'Agency Scorecard Trends'}</h1>
-        <p>Each calendar quarter, scores (AOFI, Performance, Strength, Owner Independence) are automatically recorded as a frozen snapshot so score progression can be tracked over time.</p>
+        <p>Every time AOFI™ is generated or regenerated, the AOFI, Performance, Strength and Owner Independence scores are saved as a dated snapshot. The trend also shows which measured capabilities contributed most to the change.</p>
       </div>
       <div class="snapshot-count"><strong>${persistedHistory.length}</strong><span>quarterly snapshot${persistedHistory.length === 1 ? '' : 's'}</span></div>
     </header>
