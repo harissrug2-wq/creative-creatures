@@ -30,6 +30,10 @@
     #diagnosticSignupLoader span{width:34px;height:34px;border:3px solid #dce2ea;border-top-color:#7c3aed;border-radius:50%;animation:diagSpin .7s linear infinite}
     @keyframes diagSpin{to{transform:rotate(360deg)}}
     @media(prefers-reduced-motion:reduce){#diagnosticSignupLoader span{animation:none}}
+    .diagnostic-powered-by{display:flex;align-items:center;justify-content:center;gap:10px;margin:18px 0 8px;color:#727d90;font-size:13px}
+    .diagnostic-powered-by img{height:28px;width:auto;max-width:150px;object-fit:contain}
+    body.embed-signup-mode .diagnostic-powered-by{margin:14px 0 0}
+    @media(max-width:640px){.diagnostic-powered-by{font-size:12px}.diagnostic-powered-by img{height:24px;max-width:130px}}
   </style>
 </head>
 <body class="offer-detail-page"><div id="diagnosticSignupLoader" aria-label="Loading Creative Creatures"><img src="/brand/creature-logo.png" alt="Creature Agency Intelligence"><span></span></div>
@@ -222,6 +226,8 @@
         <a class="cc-btn cc-btn-primary lookup-cta" id="archetypeCta" href="/owner-archetype/assessment/?destination=diagnostic&source=signup" hidden>Start My Identity (Archetype) Assessment</a>
       </div>
     </div>
+
+    <div class="diagnostic-powered-by"><span>Platform powered by</span><img src="/brand/creature-logo.png" alt="Creature Agency Intelligence"></div>
 
     <!-- WHAT HAPPENS NEXT -->
     <section class="detail-section">
